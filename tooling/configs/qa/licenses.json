@@ -1,0 +1,167 @@
+{
+  "$comment": "Strict license policy. Reviewed decisions are exact legal dispositions, not waivers or debt baselines. Reports belong under .tmp/licenses.",
+  "schemaVersion": 1,
+  "firstPartyLicense": "MIT",
+  "reportDirectory": ".tmp/licenses",
+  "projectLicense": {
+    "path": "LICENSE",
+    "sourceUrl": "https://opensource.org/license/mit",
+    "sourcePath": "tooling/release/dependency-legal/sources/osi-mit-template.txt",
+    "sourceSha256": "21785883212d06d2c262b7e9f73f92ae7a03a7f2fe86809d7c7ad9bd6961d265",
+    "expectedSha256": "4ddb287842776da4711f4db1f975613074fec92bbe5fd8037bb6497893fa7712",
+    "title": "MIT License",
+    "sourceCopyright": "Copyright <YEAR> <COPYRIGHT HOLDER>",
+    "copyright": "Copyright (c) 2026 Lev Rozhkov"
+  },
+  "automaticallyAcceptedLicenses": [
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT"
+  ],
+  "deniedLicenses": [
+    "AGPL-1.0",
+    "AGPL-1.0-only",
+    "AGPL-1.0-or-later",
+    "AGPL-3.0",
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "BUSL-1.1",
+    "CC-BY-NC-4.0",
+    "CC-BY-SA-4.0",
+    "GPL-1.0",
+    "GPL-1.0-only",
+    "GPL-1.0-or-later",
+    "GPL-2.0",
+    "GPL-2.0-only",
+    "GPL-2.0-or-later",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "LGPL-2.0",
+    "LGPL-2.0-only",
+    "LGPL-2.0-or-later",
+    "LGPL-2.1",
+    "LGPL-2.1-only",
+    "LGPL-2.1-or-later",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
+    "SSPL-1.0"
+  ],
+  "reviewedDecisions": [
+    {
+      "packageName": "argparse",
+      "version": "2.0.1",
+      "licenseExpression": "Python-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development tool dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-android-arm64",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-darwin-arm64",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-darwin-x64",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-freebsd-x64",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-linux-arm-gnueabihf",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-linux-arm64-gnu",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-linux-arm64-musl",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-linux-x64-gnu",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-linux-x64-musl",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-win32-arm64-msvc",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "lightningcss-win32-x64-msvc",
+      "version": "1.32.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "development-only",
+      "disposition": "Development build dependency; excluded from the production redistribution closure."
+    },
+    {
+      "packageName": "mediabunny",
+      "version": "1.46.0",
+      "licenseExpression": "MPL-2.0",
+      "requiredScope": "production",
+      "disposition": "Redistribute the exact MPL-2.0 text and preserve the exact package tarball as the corresponding-source URL.",
+      "correspondingSourceUrl": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.46.0.tgz"
+    }
+  ],
+  "pinnedSources": [
+    {
+      "packageName": "@react-three/fiber",
+      "version": "9.6.1",
+      "licenseExpression": "MIT",
+      "sourcePath": "tooling/release/dependency-legal/sources/react-three-fiber-9.6.1.LICENSE",
+      "originUrl": "https://raw.githubusercontent.com/pmndrs/react-three-fiber/2a528745e9aa7c9e6cca41e404b59d45cf0d0cc7/LICENSE",
+      "sha256": "9c35b5de7b7493a707fffe4eb23bd2f7f449153c1911f7c6eefb4e591fd5349a",
+      "packageResolved": "https://registry.npmjs.org/@react-three/fiber/-/fiber-9.6.1.tgz",
+      "packageIntegrity": "sha512-zF0rsKcVYpcJwbFEnv2HkHX9cvOEgsfQo/X8lwmR2dn13S4qEQJXir9fxf5js2LQFoXqxOY7MDkOkYx2uZ4gSg=="
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "outDir": "../../../dist/sdk",
+    "rootDir": "../../../src/sdk",
+    "strict": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "skipLibCheck": true
+  },
+  "include": [
+    "../../../src/sdk/index.ts",
+    "../../../src/sdk/protocol.ts",
+    "../../../src/sdk/runtime-capabilities.ts",
+    "../../../src/sdk/types.ts",
+    "../../../src/sdk/effect-v1/**/*.ts",
+    "../../../src/sdk/sniptale-pack/**/*.ts"
+  ]
+}

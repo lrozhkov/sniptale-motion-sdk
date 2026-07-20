@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 2,
+  "publication": "github-source",
+  "gitHubPublication": "lrozhkov/sniptale-motion-sdk",
+  "gitHubActions": "disabled",
+  "registryPublication": "not-authorized",
+  "securityReporting": "github-private-vulnerability-reporting"
+}

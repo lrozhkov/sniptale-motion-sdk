@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sniptale Motion SDK Viewer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="viewer">
+        <header class="topbar">
+          <div class="topbar-title">
+            <span class="brand-mark" aria-hidden="true">FX</span>
+            <span class="topbar-title-copy">
+              <h1>Sniptale Motion SDK</h1>
+              <span
+                data-i18n="viewer.appKicker"
+                data-i18n-fallback="Motion workspace"
+                >Motion workspace</span
+              >
+            </span>
+          </div>
+          <div class="topbar-template-control">
+            <span
+              id="templateSelectLabel"
+              class="topbar-template-label visually-hidden"
+              data-i18n="viewer.templates.pickerLabel"
+              data-i18n-fallback="Choose an item to edit"
+              >Choose an item to edit</span
+            >
+            <div id="templateCombobox" class="template-combobox">
+              <button
+                id="templateComboboxButton"
+                class="template-combobox-button"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-labelledby="templateSelectLabel templateComboboxValue"
+                aria-controls="templateComboboxListbox"
+              >
+                <span id="templateComboboxValue"></span>
+                <span
+                  class="template-combobox-chevron"
+                  aria-hidden="true"
+                ></span>
+              </button>
+              <div
+                id="templateComboboxPopup"
+                class="template-combobox-popup"
+                hidden
+              >
+                <input
+                  id="templateComboboxSearch"
+                  class="template-combobox-search"
+                  type="search"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Поиск по названию или ID"
+                  data-i18n-placeholder="viewer.templates.searchPlaceholder"
+                  aria-label="Фильтр композиций"
+                  data-i18n-aria-label="viewer.templates.searchLabel"
+                />
+                <div
+                  id="templateComboboxListbox"
+                  class="template-combobox-listbox"
+                  role="listbox"
+                  aria-labelledby="templateSelectLabel"
+                  hidden
+                ></div>
+                <span
+                  id="templateComboboxEmpty"
+                  class="template-combobox-empty"
+                  role="status"
+                  hidden
+                  data-i18n="viewer.templates.noResults"
+                  data-i18n-fallback="Nothing found"
+                  >Nothing found</span
+                >
+              </div>
+              <select
+                id="templateSelect"
+                class="template-select-source"
+                tabindex="-1"
+                aria-hidden="true"
+              ></select>
+            </div>
+            <span
+              id="templateContext"
+              class="template-context"
+              aria-live="polite"
+            ></span>
+          </div>
+          <div class="topbar-actions">
+            <label class="topbar-inline-control topbar-fps-control">
+              <span data-i18n="viewer.shell.fps" data-i18n-fallback="FPS"
+                >FPS</span
+              >
+              <input id="fpsInput" type="number" min="1" max="60" value="30" />
+            </label>
+            <label class="topbar-inline-control topbar-size-control">
+              <span
+                data-i18n="viewer.shell.previewResolution"
+                data-i18n-fallback="Preview"
+                >Preview</span
+              >
+              <select
+                id="sizeSelect"
+                title="Preview raster resolution. Composition geometry remains unchanged."
+                data-i18n-title="viewer.a11y.previewRasterResolution"
+              >
+                <option value="3840x2160">3840 × 2160 · 4K</option>
+                <option value="2560x1440">2560 × 1440 · 2K</option>
+                <option value="1920x1080">1920 × 1080 · Full HD</option>
+                <option value="1280x720" selected>1280 × 720 · HD</option>
+                <option value="960x540">960 × 540</option>
+                <option value="640x360">640 × 360</option>
+              </select>
+            </label>
+            <button
+              id="themeToggleButton"
+              class="icon-button"
+              type="button"
+              aria-pressed="false"
+              aria-label="Toggle theme"
+            ></button>
+            <div class="app-actions">
+              <button
+                id="appActionsButton"
+                class="icon-button"
+                type="button"
+                aria-expanded="false"
+                aria-haspopup="menu"
+                aria-controls="appActionsMenu"
+                aria-label="Open file actions"
+              ></button>
+              <div
+                id="appActionsMenu"
+                class="app-actions-menu"
+                role="menu"
+                aria-labelledby="appActionsButton"
+                hidden
+              >
+                <section class="app-menu-section">
+                  <span
+                    class="app-menu-heading"
+                    data-i18n="viewer.menu.editing"
+                    data-i18n-fallback="Editing"
+                    >Editing</span
+                  >
+                  <button
+                    id="saveDraftMenuButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="save"
+                    data-i18n="viewer.editor.saveDraft"
+                    data-i18n-fallback="Save local draft"
+                  >
+                    Save local draft
+                  </button>
+                  <button
+                    id="resetDraftButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="reset"
+                    data-i18n="viewer.editor.resetChanges"
+                    data-i18n-fallback="Reset to source"
+                    disabled
+                  >
+                    Reset to source
+                  </button>
+                  <span
+                    id="menuDraftStatus"
+                    class="timeline-draft-status app-menu-draft-status"
+                    aria-live="polite"
+                  ></span>
+                </section>
+                <section class="app-menu-section">
+                  <span
+                    class="app-menu-heading"
+                    data-i18n="viewer.menu.projectSource"
+                    data-i18n-fallback="Project source"
+                    >Project source</span
+                  >
+                  <button
+                    id="bindJsonButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="folderOpen"
+                    data-i18n="viewer.menu.bindJson"
+                    data-i18n-fallback="Open JSON source"
+                  >
+                    Open JSON source
+                  </button>
+                  <button
+                    id="saveJsonButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="save"
+                    data-i18n="viewer.menu.saveJson"
+                    data-i18n-fallback="Save JSON source"
+                    disabled
+                  >
+                    Save JSON source
+                  </button>
+                  <button
+                    id="exportJsonButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="fileJson"
+                    data-i18n="viewer.menu.exportJson"
+                    data-i18n-fallback="Export JSON copy"
+                  >
+                    Export JSON copy
+                  </button>
+                </section>
+                <section class="app-menu-section">
+                  <span
+                    class="app-menu-heading"
+                    data-i18n="viewer.menu.effectFile"
+                    data-i18n-fallback="Effect file"
+                    >Effect file</span
+                  >
+                  <button
+                    id="importEffectFileButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="fileInput"
+                    data-i18n="viewer.menu.importEffect"
+                    data-i18n-fallback="Import .effect"
+                  >
+                    Import .effect
+                  </button>
+                  <button
+                    id="exportEffectFileButton"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="fileOutput"
+                    data-i18n="viewer.menu.exportEffect"
+                    data-i18n-fallback="Export .effect"
+                  >
+                    Export .effect
+                  </button>
+                </section>
+                <section class="app-menu-section">
+                  <span
+                    class="app-menu-heading"
+                    data-i18n="viewer.menu.publish"
+                    data-i18n-fallback="Publish"
+                    >Publish</span
+                  >
+                  <button
+                    id="exportMp4Button"
+                    type="button"
+                    role="menuitem"
+                    data-shell-icon="download"
+                    data-i18n="viewer.menu.exportMp4"
+                    data-i18n-fallback="Export MP4"
+                  ></button>
+                </section>
+                <section class="app-menu-section app-menu-locale-section">
+                  <span
+                    class="app-menu-heading"
+                    data-i18n="viewer.shell.language"
+                    data-i18n-fallback="Language"
+                    >Language</span
+                  >
+                  <button
+                    id="localeRuButton"
+                    class="app-menu-locale-option"
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked="true"
+                    data-locale-option="ru"
+                  >
+                    Русский
+                  </button>
+                  <button
+                    id="localeEnButton"
+                    class="app-menu-locale-option"
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked="false"
+                    data-locale-option="en"
+                  >
+                    English
+                  </button>
+                </section>
+                <span
+                  id="timelineSaveStatus"
+                  class="timeline-save-status app-menu-status"
+                  >Исходный файл не открыт</span
+                >
+                <input
+                  id="effectFileInput"
+                  type="file"
+                  multiple
+                  accept=".json,.sniptale-effect.json,application/json,image/png,image/jpeg,image/webp,image/svg+xml,audio/ogg,audio/mpeg,audio/wav,video/mp4,video/webm"
+                  hidden
+                />
+                <select
+                  id="localeSelect"
+                  tabindex="-1"
+                  aria-hidden="true"
+                  hidden
+                >
+                  <option value="ru">Русский</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+            </div>
+            <button
+              id="sidebarCollapseButton"
+              class="icon-button sidebar-collapse-button"
+              type="button"
+              aria-controls="sidebarPanel"
+              aria-expanded="true"
+              title="Collapse side panel (Ctrl+B)"
+            ></button>
+          </div>
+        </header>
+
+        <dialog
+          id="resetDraftDialog"
+          class="editor-reset-dialog"
+          aria-labelledby="resetDraftTitle"
+          aria-describedby="resetDraftDescription"
+        >
+          <form method="dialog" class="editor-reset-form">
+            <div>
+              <h2
+                id="resetDraftTitle"
+                data-i18n="viewer.editor.resetTitle"
+                data-i18n-fallback="Reset temporary changes?"
+              >
+                Reset temporary changes?
+              </h2>
+              <p
+                id="resetDraftDescription"
+                data-i18n="viewer.editor.resetDescription"
+                data-i18n-fallback="The composition will return to its loaded source. Reset is stored as one undoable action."
+              >
+                The composition will return to its loaded source. Reset is
+                stored as one undoable action.
+              </p>
+            </div>
+            <div class="editor-reset-actions">
+              <button
+                id="resetDraftCancelButton"
+                type="button"
+                data-i18n="viewer.editor.cancel"
+                data-i18n-fallback="Cancel"
+              >
+                Cancel
+              </button>
+              <button
+                id="resetDraftConfirmButton"
+                class="danger"
+                type="button"
+                data-i18n="viewer.editor.resetConfirm"
+                data-i18n-fallback="Reset changes"
+              >
+                Reset changes
+              </button>
+            </div>
+          </form>
+        </dialog>
+
+        <dialog id="mp4ExportDialog" class="mp4-export-dialog">
+          <form id="mp4ExportForm" method="dialog" class="mp4-export-form">
+            <div class="mp4-export-header">
+              <h2 id="mp4ExportTitle"></h2>
+              <button
+                id="mp4ExportCloseButton"
+                class="icon-button"
+                type="button"
+                aria-label="Close MP4 export"
+              ></button>
+            </div>
+            <div class="mp4-export-grid">
+              <label class="mp4-export-field">
+                <span id="mp4ExportSizeLabel"></span>
+                <select id="mp4ExportSizeSelect">
+                  <option value="1280x720">1280 x 720</option>
+                  <option value="1920x1080">1920 x 1080</option>
+                  <option value="2560x1440">2560 x 1440</option>
+                  <option value="3840x2160">3840 x 2160</option>
+                  <option value="custom"></option>
+                </select>
+              </label>
+              <label class="mp4-export-field">
+                <span id="mp4ExportFpsLabel"></span>
+                <input
+                  id="mp4ExportFpsInput"
+                  type="number"
+                  min="1"
+                  max="60"
+                  step="1"
+                  value="30"
+                />
+              </label>
+              <label class="mp4-export-field">
+                <span id="mp4ExportWidthLabel"></span>
+                <input
+                  id="mp4ExportWidthInput"
+                  type="number"
+                  min="16"
+                  max="3840"
+                  step="2"
+                  value="1280"
+                  disabled
+                />
+              </label>
+              <label class="mp4-export-field">
+                <span id="mp4ExportHeightLabel"></span>
+                <input
+                  id="mp4ExportHeightInput"
+                  type="number"
+                  min="16"
+                  max="2160"
+                  step="2"
+                  value="720"
+                  disabled
+                />
+              </label>
+              <label class="mp4-export-field">
+                <span id="mp4ExportVideoCodecLabel"></span>
+                <select id="mp4ExportVideoCodecSelect"></select>
+              </label>
+              <label class="mp4-export-field">
+                <span id="mp4ExportAudioCodecLabel"></span>
+                <select id="mp4ExportAudioCodecSelect"></select>
+              </label>
+            </div>
+            <p id="mp4ExportStatus" class="mp4-export-status" role="status"></p>
+            <div class="mp4-export-actions">
+              <button id="mp4ExportCancelButton" type="button"></button>
+              <button
+                id="mp4ExportStartButton"
+                class="primary"
+                type="submit"
+              ></button>
+            </div>
+          </form>
+        </dialog>
+
+        <div class="stage-wrap">
+          <div class="stage-frame">
+            <canvas id="previewCanvas" width="1280" height="720"></canvas>
+            <canvas
+              id="themePreviewSnapshotCanvas"
+              class="fast-preview-canvas"
+              aria-hidden="true"
+              hidden
+            ></canvas>
+            <canvas
+              id="fastPreviewCanvas"
+              class="fast-preview-canvas"
+              aria-hidden="true"
+              hidden
+            ></canvas>
+            <canvas
+              id="directPreviewCanvas"
+              class="fast-preview-canvas"
+              aria-hidden="true"
+              hidden
+            ></canvas>
+            <video
+              id="cachedPreviewVideo"
+              class="fast-preview-canvas"
+              aria-hidden="true"
+              muted
+              playsinline
+              hidden
+            ></video>
+            <div
+              id="previewGuides"
+              class="preview-guides"
+              aria-label="Preview positioning guides"
+              data-i18n-aria-label="viewer.a11y.previewGuidesOverlay"
+              hidden
+            >
+              <div class="preview-safe-frame"></div>
+            </div>
+            <svg
+              id="motionPathOverlay"
+              class="motion-path-overlay"
+              aria-label="Motion path overlay"
+              data-i18n-aria-label="viewer.a11y.motionPathOverlay"
+              hidden
+            ></svg>
+            <div
+              id="canvasSelectionBox"
+              class="canvas-selection-box"
+              hidden
+            ></div>
+            <div
+              id="canvasInfoHud"
+              class="canvas-info-hud"
+              aria-live="polite"
+              hidden
+            ></div>
+            <span
+              id="previewQualityBadge"
+              class="preview-quality-badge"
+              aria-hidden="true"
+              hidden
+            ></span>
+            <span
+              id="previewQualityAnnouncement"
+              class="visually-hidden"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            ></span>
+            <div class="preview-toolbar">
+              <div
+                class="preview-control-group preview-zoom-controls"
+                role="group"
+                aria-label="Preview zoom"
+                data-i18n-aria-label="viewer.a11y.previewZoom"
+              >
+                <button
+                  type="button"
+                  data-preview-zoom="fit"
+                  data-i18n="viewer.preview.fit"
+                  data-i18n-fallback="Fit"
+                >
+                  Fit
+                </button>
+                <button type="button" data-preview-zoom="75">75%</button>
+                <button type="button" data-preview-zoom="100">100%</button>
+              </div>
+              <div
+                class="preview-control-group preview-canvas-aid-controls"
+                role="group"
+                aria-label="Canvas aids"
+                data-i18n-aria-label="viewer.a11y.canvasAids"
+              >
+                <button
+                  id="previewGuidesButton"
+                  type="button"
+                  aria-pressed="false"
+                  title="Toggle safe area and alignment guides"
+                  data-i18n-title="viewer.a11y.previewGuidesToggle"
+                >
+                  <span
+                    data-i18n="viewer.preview.guides"
+                    data-i18n-fallback="Guides"
+                    >Guides</span
+                  >
+                </button>
+                <button
+                  id="previewSnapButton"
+                  type="button"
+                  aria-pressed="false"
+                  title="Snap canvas drag to guides"
+                  data-i18n-title="viewer.a11y.previewSnapToggle"
+                >
+                  <span
+                    data-i18n="viewer.preview.snap"
+                    data-i18n-fallback="Snap"
+                    >Snap</span
+                  >
+                </button>
+              </div>
+              <details id="previewMediaMenu" class="preview-media-menu" hidden>
+                <summary
+                  id="previewMediaButton"
+                  data-i18n="viewer.preview.media.menu"
+                  data-i18n-fallback="Test media"
+                >
+                  Test media
+                </summary>
+                <div
+                  class="preview-media-popover"
+                  aria-label="Temporary test media"
+                  data-i18n-aria-label="viewer.preview.media.panelLabel"
+                >
+                  <p
+                    class="preview-media-note"
+                    data-i18n="viewer.preview.media.sessionNote"
+                    data-i18n-fallback="Used only in this browser session. Never saved, exported, or added to history."
+                  >
+                    Used only in this browser session. Never saved, exported, or
+                    added to history.
+                  </p>
+                  <div
+                    class="preview-media-row"
+                    data-preview-media-slot="source"
+                  >
+                    <span data-i18n="viewer.preview.media.source">Source</span>
+                    <span
+                      class="preview-media-status"
+                      data-preview-media-status="source"
+                    ></span>
+                    <label class="preview-media-choose">
+                      <span data-i18n="viewer.preview.media.choose"
+                        >Choose</span
+                      >
+                      <input
+                        id="previewMediaSourceInput"
+                        type="file"
+                        accept="image/*,video/*"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      data-preview-media-clear="source"
+                      data-i18n="viewer.preview.media.clear"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div class="preview-media-row" data-preview-media-slot="from">
+                    <span data-i18n="viewer.preview.media.from">From</span>
+                    <span
+                      class="preview-media-status"
+                      data-preview-media-status="from"
+                    ></span>
+                    <label class="preview-media-choose">
+                      <span data-i18n="viewer.preview.media.choose"
+                        >Choose</span
+                      >
+                      <input
+                        id="previewMediaFromInput"
+                        type="file"
+                        accept="image/*,video/*"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      data-preview-media-clear="from"
+                      data-i18n="viewer.preview.media.clear"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div class="preview-media-row" data-preview-media-slot="to">
+                    <span data-i18n="viewer.preview.media.to">To</span>
+                    <span
+                      class="preview-media-status"
+                      data-preview-media-status="to"
+                    ></span>
+                    <label class="preview-media-choose">
+                      <span data-i18n="viewer.preview.media.choose"
+                        >Choose</span
+                      >
+                      <input
+                        id="previewMediaToInput"
+                        type="file"
+                        accept="image/*,video/*"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      data-preview-media-clear="to"
+                      data-i18n="viewer.preview.media.clear"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <button
+                    id="previewMediaClearAllButton"
+                    class="preview-media-clear-all"
+                    type="button"
+                    data-i18n="viewer.preview.media.clearAll"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              </details>
+              <nav
+                id="canvasIsolationBreadcrumb"
+                class="canvas-isolation-breadcrumb"
+                aria-label="Canvas isolation path"
+                data-i18n-aria-label="viewer.a11y.canvasIsolationPath"
+                hidden
+              ></nav>
+            </div>
+            <button
+              id="fullscreenPreviewButton"
+              class="icon-button fullscreen-preview-button"
+              type="button"
+              aria-label="Open fullscreen preview"
+            ></button>
+            <div
+              class="preview-fullscreen-controls"
+              aria-label="Fullscreen playback controls"
+              data-i18n-aria-label="viewer.a11y.fullscreenControls"
+            >
+              <button
+                id="fullscreenPlayButton"
+                class="icon-button"
+                type="button"
+                aria-label="Play preview"
+              ></button>
+              <input
+                id="fullscreenTimeSlider"
+                type="range"
+                min="0"
+                max="4"
+                step="0.001"
+                value="0"
+              />
+              <output id="fullscreenTimeOutput">0.000с</output>
+            </div>
+          </div>
+          <iframe
+            id="sandboxFrame"
+            class="sandbox-frame"
+            sandbox="allow-scripts allow-same-origin"
+            data-sandbox-port="4178"
+            title="Effect sandbox"
+            data-i18n-title="viewer.a11y.effectSandbox"
+          ></iframe>
+        </div>
+
+        <input
+          id="timeSlider"
+          type="range"
+          min="0"
+          max="4"
+          step="0.001"
+          value="0"
+          hidden
+        />
+        <button
+          id="loopButton"
+          class="loop-button active"
+          type="button"
+          aria-pressed="true"
+          hidden
+        >
+          Loop
+        </button>
+
+        <div
+          id="layoutResizer"
+          class="layout-resizer"
+          role="separator"
+          aria-label="Resize preview and timeline"
+          data-i18n-aria-label="viewer.a11y.resizePreviewTimeline"
+          aria-orientation="horizontal"
+          aria-controls="timelineEditor"
+          aria-valuemin="220"
+          aria-valuemax="560"
+          aria-valuenow="330"
+          tabindex="0"
+        ></div>
+
+        <section
+          id="timelineEditor"
+          class="timeline-editor"
+          aria-label="Timeline editor"
+          data-i18n-aria-label="viewer.a11y.timelineEditor"
+        >
+          <div class="timeline-toolbar">
+            <div class="timeline-toolbar-heading">
+              <h2
+                data-i18n="viewer.timeline.title"
+                data-i18n-fallback="Timeline"
+              >
+                Timeline
+              </h2>
+              <span
+                id="timelineDraftStatus"
+                class="timeline-draft-status"
+                aria-live="polite"
+              ></span>
+            </div>
+            <div class="timeline-actions">
+              <span
+                class="timeline-action-group timeline-history-group"
+                aria-label="Edit history controls"
+                data-i18n-aria-label="viewer.a11y.timelineHistoryControls"
+              >
+                <button
+                  id="saveDraftButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Save local draft"
+                ></button>
+                <button
+                  id="undoEditorButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Undo"
+                  disabled
+                ></button>
+                <button
+                  id="redoEditorButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Redo"
+                  disabled
+                ></button>
+              </span>
+              <span
+                class="timeline-action-group timeline-playback-group"
+                aria-label="Timeline playback controls"
+                data-i18n-aria-label="viewer.a11y.timelinePlaybackControls"
+              >
+                <button
+                  id="playButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Play preview"
+                ></button>
+                <span
+                  class="timeline-preview-mode"
+                  role="group"
+                  aria-label="Preview mode"
+                  data-i18n-aria-label="viewer.a11y.previewMode"
+                >
+                  <button
+                    id="previewLiveModeButton"
+                    type="button"
+                    aria-pressed="true"
+                    data-i18n="viewer.preview.liveMode"
+                    data-i18n-fallback="Live"
+                  >
+                    Live
+                  </button>
+                  <button
+                    id="previewCacheButton"
+                    class="timeline-cache-button"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="timeline-cache-label-full"
+                      data-i18n="viewer.preview.cachedMode"
+                      data-i18n-fallback="Cache + preview"
+                      >Cache + preview</span
+                    >
+                    <span
+                      class="timeline-cache-label-compact"
+                      data-i18n="viewer.preview.cachedModeShort"
+                      data-i18n-fallback="Cache"
+                      >Cache</span
+                    >
+                  </button>
+                </span>
+                <output id="timeOutput">0.000с</output>
+                <label
+                  class="timeline-inline-control timeline-duration-control"
+                >
+                  <span
+                    class="timeline-duration-label-full"
+                    data-i18n="viewer.timeline.duration"
+                    data-i18n-fallback="Duration"
+                    >Duration</span
+                  >
+                  <span
+                    class="timeline-duration-label-short"
+                    data-i18n="viewer.timeline.durationShort"
+                    data-i18n-fallback="Dur."
+                    >Dur.</span
+                  >
+                  <input
+                    id="durationInput"
+                    type="number"
+                    min="0.5"
+                    max="120"
+                    step="0.1"
+                    value="9.2"
+                  />
+                </label>
+              </span>
+              <span
+                class="timeline-action-group"
+                aria-label="Timeline view controls"
+                data-i18n-aria-label="viewer.a11y.timelineViewControls"
+              >
+                <label class="timeline-inline-control">
+                  <span
+                    data-i18n="viewer.timeline.snap"
+                    data-i18n-fallback="Snap"
+                    >Snap</span
+                  >
+                  <select id="snapModeSelect">
+                    <option
+                      value="frame"
+                      data-i18n="viewer.timeline.snapFrame"
+                      data-i18n-fallback="Frame"
+                    >
+                      Frame
+                    </option>
+                    <option
+                      value="tenths"
+                      data-i18n="viewer.timeline.snapTenth"
+                      data-i18n-fallback="0.1s"
+                    >
+                      0.1s
+                    </option>
+                    <option
+                      value="free"
+                      data-i18n="viewer.timeline.snapFree"
+                      data-i18n-fallback="Free"
+                    >
+                      Free
+                    </option>
+                  </select>
+                </label>
+                <label class="timeline-inline-control timeline-zoom-control">
+                  <span
+                    data-i18n="viewer.timeline.zoom"
+                    data-i18n-fallback="Zoom"
+                    >Zoom</span
+                  >
+                  <input
+                    id="timelineZoomInput"
+                    type="range"
+                    min="1"
+                    max="8"
+                    step="0.25"
+                    value="1"
+                  />
+                </label>
+                <button
+                  id="timelineZoomOutButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Zoom timeline out"
+                ></button>
+                <button
+                  id="timelineZoomInButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Zoom timeline in"
+                ></button>
+                <button
+                  id="frameSelectionButton"
+                  class="icon-button"
+                  type="button"
+                  title="Frame selected item in timeline (F)"
+                ></button>
+                <button
+                  id="timelineLayerSearchButton"
+                  class="icon-button"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="timelineLayerSearchPopup"
+                  aria-label="Search layers"
+                ></button>
+                <button
+                  id="graphEditorButton"
+                  class="icon-button"
+                  type="button"
+                  aria-pressed="false"
+                  aria-label="Toggle graph editor"
+                ></button>
+                <button
+                  id="expandTimelineRowsButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Expand timeline rows"
+                ></button>
+                <button
+                  id="collapseTimelineRowsButton"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Collapse timeline rows"
+                ></button>
+                <span id="timelineViewportLabel" class="timeline-save-status"
+                  >0.0-9.2с</span
+                >
+              </span>
+            </div>
+            <div
+              id="timelineLayerSearchPopup"
+              class="timeline-layer-search-popup"
+              hidden
+            >
+              <label class="timeline-layer-search-field">
+                <span
+                  class="visually-hidden"
+                  data-i18n="viewer.timeline.searchLayers"
+                  >Search layers</span
+                >
+                <input
+                  id="timelineLayerSearchInput"
+                  type="search"
+                  role="combobox"
+                  autocomplete="off"
+                  aria-autocomplete="list"
+                  aria-controls="timelineLayerSearchResults"
+                  aria-expanded="false"
+                  placeholder="Search by name, ID, type, or group"
+                  data-i18n-placeholder="viewer.timeline.searchLayersPlaceholder"
+                />
+              </label>
+              <div
+                id="timelineLayerSearchResults"
+                class="timeline-layer-search-results"
+                role="listbox"
+                hidden
+              ></div>
+              <p
+                id="timelineLayerSearchEmpty"
+                class="timeline-layer-search-empty"
+                role="status"
+              ></p>
+            </div>
+          </div>
+          <div
+            id="selectionCrumb"
+            class="selection-crumb"
+            aria-live="polite"
+            hidden
+          ></div>
+          <div id="timelineRuler" class="timeline-ruler"></div>
+          <div id="timelineTracks" class="timeline-tracks"></div>
+          <div id="curveEditor" class="curve-editor"></div>
+        </section>
+      </section>
+
+      <div
+        id="sidebarWidthResizer"
+        class="sidebar-width-resizer"
+        role="separator"
+        aria-label="Resize side panel"
+        data-i18n-aria-label="viewer.a11y.resizeSidebar"
+        aria-orientation="vertical"
+        aria-controls="sidebarPanel"
+        aria-valuemin="280"
+        aria-valuemax="560"
+        aria-valuenow="340"
+        tabindex="0"
+      ></div>
+
+      <aside id="sidebarPanel" class="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-heading">
+            <span
+              data-i18n="viewer.sidebar.workspace"
+              data-i18n-fallback="Workspace"
+              >Workspace</span
+            >
+            <strong id="sidebarTitle">Inspector</strong>
+          </span>
+        </div>
+        <nav
+          class="sidebar-tabs"
+          aria-label="Sidebar groups"
+          aria-orientation="horizontal"
+          data-i18n-aria-label="viewer.a11y.sidebarGroups"
+          role="tablist"
+        >
+          <button
+            id="sidebar-inspect-tab"
+            class="sidebar-tab active"
+            type="button"
+            aria-controls="sidebar-inspect-panel"
+            aria-selected="true"
+            data-sidebar-tab="inspect"
+            data-shell-icon="scanSearch"
+            data-i18n="viewer.sidebar.inspector"
+            data-i18n-fallback="Inspector"
+            role="tab"
+            tabindex="0"
+          >
+            Inspector
+          </button>
+          <button
+            id="sidebar-tune-tab"
+            class="sidebar-tab"
+            type="button"
+            aria-controls="sidebar-tune-panel"
+            aria-selected="false"
+            data-sidebar-tab="tune"
+            data-shell-icon="sliders"
+            data-i18n="viewer.sidebar.effect"
+            data-i18n-fallback="Effect"
+            role="tab"
+            tabindex="-1"
+          >
+            Effect
+          </button>
+          <button
+            id="sidebar-health-tab"
+            class="sidebar-tab"
+            type="button"
+            aria-controls="sidebar-health-panel"
+            aria-selected="false"
+            data-sidebar-tab="health"
+            data-shell-icon="shieldCheck"
+            data-i18n="viewer.sidebar.review"
+            data-i18n-fallback="Review"
+            role="tab"
+            tabindex="-1"
+          >
+            Review
+          </button>
+        </nav>
+
+        <section
+          id="sidebar-inspect-panel"
+          aria-labelledby="sidebar-inspect-tab"
+          data-sidebar-panel="inspect"
+          role="tabpanel"
+        >
+          <div id="inspectorContext" class="inspector-context">
+            <span id="inspectorSelectionKind"></span>
+            <strong id="inspectorSelectionTitle"></strong>
+          </div>
+          <nav
+            class="subtabs"
+            aria-label="Inspector sections"
+            aria-orientation="horizontal"
+            data-i18n-aria-label="viewer.a11y.inspectorSections"
+            role="tablist"
+          >
+            <button
+              id="inspector-summary-tab"
+              class="subtab active"
+              type="button"
+              aria-controls="inspector-summary-panel"
+              aria-selected="true"
+              data-inspector-tab="summary"
+              data-i18n="viewer.inspector.overview"
+              data-i18n-fallback="Overview"
+              role="tab"
+              tabindex="0"
+            >
+              Overview
+            </button>
+            <button
+              id="inspector-timing-tab"
+              class="subtab"
+              type="button"
+              aria-controls="inspector-timing-panel"
+              aria-selected="false"
+              data-inspector-tab="timing"
+              data-i18n="viewer.inspector.timing"
+              data-i18n-fallback="Timing"
+              role="tab"
+              tabindex="-1"
+            >
+              Timing
+            </button>
+            <button
+              id="inspector-transform-tab"
+              class="subtab"
+              type="button"
+              aria-controls="inspector-transform-panel"
+              aria-selected="false"
+              data-inspector-tab="transform"
+              data-i18n="viewer.inspector.properties"
+              data-i18n-fallback="Properties"
+              role="tab"
+              tabindex="-1"
+            >
+              Properties
+            </button>
+            <button
+              id="inspector-ownership-tab"
+              class="subtab"
+              type="button"
+              aria-controls="inspector-ownership-panel"
+              aria-selected="false"
+              data-inspector-tab="ownership"
+              data-i18n="viewer.inspector.links"
+              data-i18n-fallback="Links"
+              role="tab"
+              tabindex="-1"
+            >
+              Links
+            </button>
+          </nav>
+          <div id="inspectorPanel" class="inspector-panel"></div>
+        </section>
+
+        <section
+          id="sidebar-tune-panel"
+          aria-labelledby="sidebar-tune-tab"
+          data-sidebar-panel="tune"
+          role="tabpanel"
+          hidden
+        >
+          <div class="sidebar-panel-section">
+            <div class="sidebar-section-heading">
+              <h2
+                data-i18n="viewer.controls.title"
+                data-i18n-fallback="Controls"
+              >
+                Controls
+              </h2>
+              <span
+                data-i18n="viewer.controls.caption"
+                data-i18n-fallback="Composition parameters"
+                >Composition parameters</span
+              >
+            </div>
+            <div id="controlsPanel" class="controls-panel"></div>
+          </div>
+          <div class="sidebar-panel-section">
+            <div class="sidebar-section-heading">
+              <h2 data-i18n="viewer.presets.title" data-i18n-fallback="Presets">
+                Presets
+              </h2>
+              <span
+                data-i18n="viewer.presets.caption"
+                data-i18n-fallback="Reusable editor states"
+                >Reusable editor states</span
+              >
+            </div>
+            <div
+              class="preset-actions"
+              aria-label="Preset actions"
+              data-i18n-aria-label="viewer.a11y.presetActions"
+            >
+              <button
+                id="savePresetButton"
+                type="button"
+                data-i18n="viewer.presets.saveCurrent"
+                data-i18n-fallback="Save current"
+              >
+                Save current
+              </button>
+              <button
+                id="duplicatePresetButton"
+                type="button"
+                data-i18n="viewer.presets.duplicate"
+                data-i18n-fallback="Duplicate"
+              >
+                Duplicate
+              </button>
+            </div>
+            <div id="presetsPanel" class="presets-panel"></div>
+          </div>
+        </section>
+
+        <section
+          id="sidebar-health-panel"
+          aria-labelledby="sidebar-health-tab"
+          data-sidebar-panel="health"
+          role="tabpanel"
+          hidden
+        >
+          <nav
+            class="subtabs"
+            aria-label="Health sections"
+            aria-orientation="horizontal"
+            data-i18n-aria-label="viewer.a11y.reviewSections"
+            role="tablist"
+          >
+            <button
+              id="health-validation-tab"
+              class="subtab active"
+              type="button"
+              aria-controls="health-validation-panel"
+              aria-selected="true"
+              data-health-tab="validation"
+              data-i18n="viewer.health.validation"
+              data-i18n-fallback="Validation"
+              role="tab"
+              tabindex="0"
+            >
+              Validation
+            </button>
+            <button
+              id="health-renderer-tab"
+              class="subtab"
+              type="button"
+              aria-controls="health-renderer-panel"
+              aria-selected="false"
+              data-health-tab="renderer"
+              data-i18n="viewer.health.renderer"
+              data-i18n-fallback="Renderer"
+              role="tab"
+              tabindex="-1"
+            >
+              Renderer
+            </button>
+            <button
+              id="health-diagnostics-tab"
+              class="subtab"
+              type="button"
+              aria-controls="health-diagnostics-panel"
+              aria-selected="false"
+              data-health-tab="diagnostics"
+              data-i18n="viewer.health.diagnostics"
+              data-i18n-fallback="Log"
+              role="tab"
+              tabindex="-1"
+            >
+              Log
+            </button>
+          </nav>
+          <div
+            id="health-validation-panel"
+            class="health-tab-panel"
+            aria-labelledby="health-validation-tab"
+            data-health-panel="validation"
+            role="tabpanel"
+          >
+            <div id="validationPanel" class="validation-panel"></div>
+          </div>
+          <div
+            id="health-renderer-panel"
+            class="health-tab-panel"
+            aria-labelledby="health-renderer-tab"
+            data-health-panel="renderer"
+            role="tabpanel"
+            hidden
+          >
+            <div
+              id="rendererBindingsPanel"
+              class="renderer-bindings-panel"
+            ></div>
+          </div>
+          <div
+            id="health-diagnostics-panel"
+            class="health-tab-panel"
+            aria-labelledby="health-diagnostics-tab"
+            data-health-panel="diagnostics"
+            role="tabpanel"
+            hidden
+          >
+            <div class="diagnostics-toolbar">
+              <div class="health-status">
+                <span id="packStatus" class="status-chip">Loading pack</span>
+                <span id="renderStats" class="status-chip muted">No frame</span>
+              </div>
+              <button
+                id="copyDiagnosticsButton"
+                class="diagnostics-copy-button"
+                type="button"
+                data-i18n="viewer.health.copyDiagnostics"
+                data-i18n-fallback="Copy log"
+                data-shell-icon="copy"
+                aria-live="polite"
+                disabled
+              >
+                Copy log
+              </button>
+            </div>
+            <div id="diagnostics" class="diagnostics"></div>
+          </div>
+        </section>
+      </aside>
+      <div hidden>
+        <div id="layersPanel" class="layers-panel"></div>
+        <div id="assetsPanel" class="assets-panel"></div>
+        <input
+          id="replaceAssetInput"
+          type="file"
+          accept="image/svg+xml,image/png,image/jpeg,image/webp,.svg,.png,.jpg,.jpeg,.webp"
+          hidden
+        />
+      </div>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

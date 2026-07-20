@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Sniptale Effect"
+  short_description: "Create local declarative Motion effects"
+  default_prompt: "Use $create-effect to create and prove a local Sniptale Effect v1 animation."
