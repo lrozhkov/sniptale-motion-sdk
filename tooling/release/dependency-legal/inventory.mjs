@@ -102,7 +102,7 @@ function resolutionCandidates(ownerPath, dependencyName) {
   if (ownerPath === "") return [`node_modules/${dependencyName}`];
   const candidates = [`${ownerPath}/node_modules/${dependencyName}`];
   const marker = "node_modules/";
-  for (let index = ownerPath.lastIndexOf(marker); index >= 0; ) {
+  for (let index = ownerPath.lastIndexOf(marker); index >= 0;) {
     const prefix = ownerPath.slice(0, index).replace(/\/$/u, "");
     candidates.push(
       `${prefix}${prefix === "" ? "" : "/"}node_modules/${dependencyName}`,

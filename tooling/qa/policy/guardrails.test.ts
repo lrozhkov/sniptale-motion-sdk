@@ -125,6 +125,8 @@ describe("architecture guardrails", () => {
       "effect:schema:check":
         "tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json --check",
       "effect:validate": "tsx tooling/effect-v1/validate.ts",
+      format: "node tooling/qa/formatting/run.mjs",
+      "format:write": "node tooling/qa/formatting/run.mjs --write",
       qa: "npm run qa:checkpoint && npm run qa:build",
       "qa:build": "node tooling/qa/wrappers/build.mjs",
       "qa:checkpoint": "node tooling/qa/wrappers/checkpoint.mjs",

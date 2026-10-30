@@ -2,6 +2,8 @@
 
 `tooling/qa/` owns repository QA policy and wrappers. `tooling/build/`, `tooling/effect-v1/`, `tooling/http/`, `tooling/release/`, `tooling/test/`, and `tooling/vite/` own command entrypoints and their support code. Every QA wrapper writes a unique private log under `.tmp/qa-logs/<date>/`, records commands, timing, exit status, and final status, and redacts values from secret-like environment keys in the persisted copy.
 
+Oxfmt is the canonical formatter. `.oxfmtrc.json` owns formatting options; `.oxfmtignore` excludes temporary/build storage, Markdown and legal text. `npm run format` checks the repository; `npm run format:write` applies formatting. The schema generator uses the same configuration. Editor integration uses the installed Oxfmt language server; the optional Oxc extension is recommended in `.vscode/extensions.json`. Formatting does not reorder imports or package metadata, rewrite embedded source, or format prose and dependency licenses.
+
 ## Deterministic rules
 
 - Source formatting, types, unit behavior, and repository guardrails pass — checkpoint wrapper and policy; `npm run qa:checkpoint`.

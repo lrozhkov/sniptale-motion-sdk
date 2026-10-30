@@ -23,8 +23,9 @@ const ROOT_ENTRY_CONTRACT = new Map([
   [".git", "git-metadata"],
   [".gitignore", "file"],
   [".npmrc", "file"],
-  [".prettierignore", "file"],
-  [".prettierrc.json", "file"],
+  [".oxfmtignore", "file"],
+  [".vscode", "directory"],
+  [".oxfmtrc.json", "file"],
   [".tmp", "directory"],
   ["AGENTS.md", "file"],
   ["CONTRIBUTING.md", "file"],
@@ -48,7 +49,7 @@ const ROOT_ENTRY_CONTRACT = new Map([
 ]);
 const TEMPORARY_FILE_PATTERN =
   /(?:\.tmp|\.temp|\.bak|\.orig|\.rej|\.swp|\.patch|\.diff|\.Zone\.Identifier|~)$/iu;
-const REQUIRED_PRETTIER_IGNORES = [
+const REQUIRED_FORMATTER_IGNORES = [
   "*.md",
   "LICENSE",
   "LICENSES/**",
@@ -697,25 +698,34 @@ function inspectIgnoreRules(root, violations) {
     }
   }
 
-  const prettierIgnore = readFileSync(resolve(root, ".prettierignore"), "utf8")
+  const formatterIgnore = readFileSync(resolve(root, ".oxfmtignore"), "utf8")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#"));
-  for (const rule of REQUIRED_PRETTIER_IGNORES) {
-    if (!prettierIgnore.includes(rule)) {
+  for (const rule of REQUIRED_FORMATTER_IGNORES) {
+    if (!formatterIgnore.includes(rule)) {
       violations.push(
-        `.prettierignore: missing authored/legal text exclusion ${rule}`,
+        `.oxfmtignore: missing authored/legal text exclusion ${rule}`,
       );
     }
   }
+  const allowedFormatterIgnores = new Set([
+    ...REQUIRED_IGNORE_RULES,
+    ...REQUIRED_FORMATTER_IGNORES,
+  ]);
+  for (const rule of formatterIgnore) {
+    if (!allowedFormatterIgnores.has(rule)) {
+      violations.push(`.oxfmtignore: unowned formatting exclusion ${rule}`);
+    }
+  }
 
-  const prettierConfig = resolve(root, ".prettierrc.json");
-  if (!existsSync(prettierConfig)) {
-    violations.push(".prettierrc.json: required to pin proseWrap=never");
+  const formatterConfig = resolve(root, ".oxfmtrc.json");
+  if (!existsSync(formatterConfig)) {
+    violations.push(".oxfmtrc.json: required to pin proseWrap=never");
   } else {
-    const config = JSON.parse(readFileSync(prettierConfig, "utf8"));
+    const config = JSON.parse(readFileSync(formatterConfig, "utf8"));
     if (config.proseWrap !== "never") {
-      violations.push('.prettierrc.json: "proseWrap" must be "never"');
+      violations.push('.oxfmtrc.json: "proseWrap" must be "never"');
     }
   }
 }

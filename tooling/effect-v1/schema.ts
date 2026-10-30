@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { format } from "prettier";
+import { formatSource } from "../qa/formatting/options.mjs";
 
 import { EFFECT_V1_JSON_SCHEMA } from "../../src/sdk/effect-v1/index.js";
 
@@ -10,9 +10,10 @@ const output =
   outputFlag >= 0 && process.argv[outputFlag + 1]
     ? resolve(process.argv[outputFlag + 1])
     : null;
-const source = await format(JSON.stringify(EFFECT_V1_JSON_SCHEMA), {
-  parser: "json",
-});
+const source = await formatSource(
+  "sniptale-effect-v1.schema.json",
+  JSON.stringify(EFFECT_V1_JSON_SCHEMA),
+);
 
 if (process.argv.includes("--check")) {
   if (!output) {

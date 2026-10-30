@@ -38,7 +38,9 @@
     "test:coverage": "vitest run --coverage --config tooling/configs/qa/vitest.ts",
     "test:smoke": "node tooling/test/smoke/run.mjs",
     "qa": "npm run qa:checkpoint && npm run qa:build",
-    "qa:dependencies": "node tooling/qa/security/dependency-age.mjs"
+    "qa:dependencies": "node tooling/qa/security/dependency-age.mjs",
+    "format": "node tooling/qa/formatting/run.mjs",
+    "format:write": "node tooling/qa/formatting/run.mjs --write"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
@@ -48,9 +50,9 @@
     "@vitest/coverage-v8": "5.0.5",
     "esbuild": "0.28.2",
     "fflate": "0.8.3",
+    "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
     "oxlint-tsgolint": "7.0.2005",
-    "prettier": "3.8.3",
     "tsx": "4.23.15",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "vite": "8.3.5",

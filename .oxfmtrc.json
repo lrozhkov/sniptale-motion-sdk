@@ -1,0 +1,13 @@
+{
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "endOfLine": "lf",
+  "proseWrap": "never",
+  "sortImports": false,
+  "sortPackageJson": false,
+  "embeddedLanguageFormatting": "off"
+}
