@@ -3,6 +3,7 @@ import type {
   EffectV1Document,
   EffectV1GraphProgram,
 } from "../../../../sdk/effect-v1/types.js";
+import { applyEffectV1ObjectLayout } from "./object-layout.js";
 import {
   drawImage,
   drawPath,
@@ -40,20 +41,26 @@ export function createEffectV1GraphRenderer(
     meta: { label: document.label },
     async renderFrame(context: any) {
       const canvas = context.createCanvas(context.width, context.height);
+      const canvasContext = canvas.getContext("2d");
+      canvasContext.clearRect(0, 0, context.width, context.height);
+      const logicalContext = applyEffectV1ObjectLayout(
+        document.objectLayout,
+        context,
+        canvasContext,
+      );
       const state: RenderState = {
         canvas,
-        context: canvas.getContext("2d"),
+        context: canvasContext,
         passes: new Map(),
         runtime,
         scope: {
-          context,
+          context: logicalContext,
           definitions: program.definitions ?? {},
           definitionCache: new Map(),
           vars: {},
         },
       };
       attachPrimitiveBindingReads(state.context, context.__bindingReads);
-      state.context.clearRect(0, 0, context.width, context.height);
       await executeCommands(program.commands, state);
       return canvas;
     },

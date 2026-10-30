@@ -19,6 +19,7 @@ const UNTRACKED_CONTENT_ROOTS = [
 const REQUIRED_IGNORE_RULES = ["/.tmp/", "/dist/", "/node_modules/"];
 const ROOT_ENTRY_CONTRACT = new Map([
   [".agents", "directory"],
+  [".codex", "directory"],
   [".git", "git-metadata"],
   [".gitignore", "file"],
   [".prettierignore", "file"],

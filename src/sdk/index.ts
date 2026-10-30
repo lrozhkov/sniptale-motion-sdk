@@ -5,6 +5,7 @@ export { ArtifactType } from "./protocol";
 
 export type {
   ControlDefinition,
+  EffectControlPreset,
   EffectArtifactType,
   EffectClip,
   EffectDefinition,
@@ -24,3 +25,5 @@ export type {
   TimelineTrack,
 } from "./types";
 export * from "./effect-v1/index.js";
+
+export * from "./dom-motion/index.js";

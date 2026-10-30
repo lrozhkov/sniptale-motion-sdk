@@ -1,9 +1,16 @@
 import type { ViewerAppContext } from "../app/context.js";
+import {
+  renderControlPresetSelector,
+  syncControlPresetSelection,
+} from "./control-presets.js";
 import { createCssColorField } from "../controls/css-color-field.js";
 
 function renderControls(ctx: ViewerAppContext, template) {
   ctx.refs.controlsPanel.innerHTML = "";
-  const controls = template.controls ?? [];
+  renderControlPresetSelector(ctx, template);
+  const controls = [...(template.controls ?? [])].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0),
+  );
   if (controls.length === 0) {
     const empty = document.createElement("div");
     empty.className = "panel-empty-state";
@@ -41,6 +48,7 @@ function renderControls(ctx: ViewerAppContext, template) {
         });
       }
       ctx.state.controls[control.id] = value;
+      syncControlPresetSelection(ctx, template);
       ctx.markEditorChanged?.(`control:${control.id}`);
       void ctx.renderCurrentFrame();
     };
@@ -101,22 +109,25 @@ function createControlInput(
       valueLabel: ctx.deps.t("viewer.controls.colorValue", "CSS color value"),
     });
   }
+  if (Array.isArray(control.options) && control.options.length > 0) {
+    const select = document.createElement("select");
+    for (const option of control.options) {
+      const item = document.createElement("option");
+      item.value = String(option.value);
+      item.textContent = ctx.deps.translateText(
+        option.label,
+        String(option.value),
+      );
+      select.append(item);
+    }
+    select.value = String(currentValue ?? control.defaultValue);
+    return select;
+  }
   if (control.kind === "text") {
     const input = document.createElement("input");
     input.type = "text";
     input.value = String(currentValue ?? control.defaultValue);
     return input;
-  }
-  if (control.kind === "select") {
-    const select = document.createElement("select");
-    for (const option of control.options ?? []) {
-      const item = document.createElement("option");
-      item.value = option.value;
-      item.textContent = ctx.deps.translateText(option.label, option.value);
-      select.append(item);
-    }
-    select.value = String(currentValue ?? control.defaultValue);
-    return select;
   }
   const wrap = document.createElement("div");
   wrap.className = "control-inline";

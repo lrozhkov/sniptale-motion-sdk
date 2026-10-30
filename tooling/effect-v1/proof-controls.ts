@@ -15,6 +15,15 @@ export function didEffectV1ControlChange(baselineFrames, variantFrames) {
 }
 
 function resolveAlternateControlValue(control) {
+  if (Array.isArray(control.options)) {
+    const alternate = control.options.find(
+      (option) => !Object.is(option.value, control.defaultValue),
+    );
+    if (alternate) return alternate.value;
+    throw new Error(
+      `Control "${String(control.id)}" has no alternate option for runtime proof.`,
+    );
+  }
   if (control.kind === "text") {
     return `${control.defaultValue || "Sniptale"} · proof`;
   }

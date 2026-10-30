@@ -1,4 +1,4 @@
-import { resolveTimelineEase } from "./easing.js";
+import { resolveTimelineEase } from "../../sdk/timeline/easing.js";
 
 export const MOTION_PATH_POINT_KINDS = ["corner", "linear", "smooth"] as const;
 

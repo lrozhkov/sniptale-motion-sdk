@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import { createDevServerWatchOptions } from "../../vite/dev-watch";
+import { createLocalDomMotionPlugin } from "../../vite/local-dom-motion.js";
 import { createLocalEffectsPlugin } from "../../vite/local-effects";
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "../../..");
@@ -24,7 +25,10 @@ export default defineConfig(({ command }) => {
       ? resolve(REPOSITORY_ROOT, ".tmp/local/public")
       : false,
     root: VIEWER_ROOT,
-    plugins: command === "serve" ? [createLocalEffectsPlugin()] : [],
+    plugins:
+      command === "serve"
+        ? [createLocalEffectsPlugin(), createLocalDomMotionPlugin()]
+        : [],
     server: {
       host: "127.0.0.1",
       port: 4177,

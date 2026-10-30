@@ -12,6 +12,7 @@ export function buildTemplateJson(template: any): string {
 
 export function buildEffectFileSource(options: {
   assets: Map<string, any> | { get(assetId: string): any };
+  controlValues?: Record<string, unknown>;
   module?: any;
   template: any;
 }): string {
@@ -24,6 +25,7 @@ export function isEffectV1ExportableTemplate(template: any): boolean {
 
 export function buildEffectFilePayload(options: {
   assets: Map<string, any> | { get(assetId: string): any };
+  controlValues?: Record<string, unknown>;
   module?: any;
   template: any;
 }): any {
@@ -37,14 +39,39 @@ export function buildEffectFilePayload(options: {
   }
   return {
     assets: buildEffectFileAssets(template, options.assets),
+    ...((template.controlPresets ?? base.controlPresets)
+      ? {
+          controlPresets: deepClone(
+            template.controlPresets ?? base.controlPresets,
+          ),
+          defaultControlPresetId:
+            template.defaultControlPresetId ?? base.defaultControlPresetId,
+        }
+      : {}),
     clips: deepClone(template.clips ?? []),
-    controls: deepClone(template.controls ?? []),
-    description: deepClone(template.description ?? base.description ?? {}),
+    controls: (template.controls ?? []).map((control) => ({
+      ...deepClone(control),
+      defaultValue: deepClone(
+        options.controlValues &&
+          Object.hasOwn(options.controlValues, control.id)
+          ? options.controlValues[control.id]
+          : control.defaultValue,
+      ),
+    })),
+    ...((template.description ?? base.description) !== undefined
+      ? { description: deepClone(template.description ?? base.description) }
+      : {}),
     duration: Number(template.duration) || base.duration,
     id: template.id,
     kind: base.kind,
     label: deepClone(template.label ?? base.label),
     layers: deepClone(template.layers ?? []),
+    ...(base.editorRegion
+      ? { editorRegion: deepClone(base.editorRegion) }
+      : {}),
+    ...(base.objectLayout
+      ? { objectLayout: deepClone(base.objectLayout) }
+      : {}),
     presets: normalizePresets(template.presets ?? base.presets ?? []),
     program: deepClone(base.program),
     scenes: normalizeScenes(

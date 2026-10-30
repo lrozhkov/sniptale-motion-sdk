@@ -1,0 +1,4 @@
+interface:
+  display_name: "Сборка HTML-страницы"
+  short_description: "Послойная сборка живого интерфейса через SDK"
+  default_prompt: "Используй $create-page-assembly, чтобы собрать исходную HTML-страницу в кинематографичной анимации через SDK с точным финальным дизайном."

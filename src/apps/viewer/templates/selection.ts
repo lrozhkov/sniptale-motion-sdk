@@ -33,6 +33,7 @@ async function bootstrap(ctx: ViewerAppContext) {
     progress: 0,
     width: ctx.refs.canvas.width,
   });
+  if (await ctx.bootstrapDomMotion?.()) return;
   if (await ctx.bootstrapLocalEffects()) {
     return;
   }
@@ -176,6 +177,8 @@ async function selectTemplate(ctx: ViewerAppContext, templateId) {
   ctx.restoreCompositionWorkspaceView?.(template);
   ctx.refs.timelineZoomInput.value = String(ctx.state.timelineZoom);
   renderTemplateWorkspace(ctx, template);
+  if (await ctx.prepareDomMotionTemplate?.(template)) return;
+  ctx.refs.previewCacheButton.disabled = false;
   if (!(await ctx.ensureModuleLoaded(template.moduleId))) {
     return;
   }

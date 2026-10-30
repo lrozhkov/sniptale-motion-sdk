@@ -1,3 +1,4 @@
+import { DOM_MOTION_SCHEMA } from "../../../sdk/dom-motion/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isEffectV1ExportableTemplate } from "./builder.js";
 import { remapImportedAssetIdentity } from "./import-asset-identity.js";
@@ -11,6 +12,7 @@ function exportCurrentEffectFile(ctx: ViewerAppContext) {
   if (!ctx.state.currentTemplate) {
     return null;
   }
+  if (ctx.state.currentTemplate.domMotion) return ctx.exportDomMotionSource();
   if (!isEffectV1ExportableTemplate(ctx.state.currentTemplate)) {
     const message = ctx.deps.t(
       "viewer.status.effectDocumentNotExportable",
@@ -54,6 +56,13 @@ async function importSelectedEffectFile(ctx: ViewerAppContext) {
     return;
   }
   try {
+    if (
+      files.length === 1 &&
+      files[0].name.endsWith(".sniptale-dom-motion.json")
+    ) {
+      await ctx.importDomMotionSource(JSON.parse(await files[0].text()));
+      return;
+    }
     const prepared = await materializeEffectImportFiles(files);
     await ctx.importEffectFileSource(prepared.source, prepared.sourceName);
   } catch (error) {
@@ -72,6 +81,20 @@ async function importEffectFileSource(
   sourceName = "imported.sniptale-effect.json",
   options: any = {},
 ) {
+  try {
+    const value: unknown =
+      typeof source === "string" ? JSON.parse(source) : source;
+    if (
+      value &&
+      typeof value === "object" &&
+      "schemaVersion" in value &&
+      value.schemaVersion === DOM_MOTION_SCHEMA
+    )
+      return await ctx.importDomMotionSource(value, options.select !== false);
+  } catch (error) {
+    if (typeof source === "string" && source.includes(DOM_MOTION_SCHEMA))
+      return { ok: false, errors: [String(error)], templateId: null };
+  }
   let verifiedSource: string;
   try {
     verifiedSource = await verifyMaterializedEffectImportSource(source);
@@ -127,10 +150,7 @@ async function importEffectFileSource(
   );
   Object.assign(importedTemplate, remapped.template);
   if (options.appendImportedLabel !== false) {
-    importedTemplate.label = ctx.appendImportedLabel(
-      importedTemplate.label,
-      sourceName,
-    );
+    importedTemplate.label = ctx.appendImportedLabel(importedTemplate.label);
   }
   const importedDocument = remapped.document;
   const importedAssets = ctx.prepareImportedAssets(
@@ -222,6 +242,7 @@ function buildCurrentEffectFile(ctx: ViewerAppContext) {
   const module = ctx.state.modules.get(template?.moduleId);
   return ctx.deps.buildEffectFileSource({
     assets: ctx.state.assets,
+    controlValues: ctx.state.controls,
     module,
     template,
   });

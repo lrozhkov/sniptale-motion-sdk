@@ -12,7 +12,10 @@ export async function beginPlaybackRun(
   requestedToken?: PlaybackRunToken,
 ): Promise<void> {
   const token = requestedToken ?? beginPlaybackRunState(ctx);
-  if (ctx.state.previewCacheEnabled === false) {
+  if (
+    ctx.state.previewCacheEnabled === false ||
+    ctx.state.currentTemplate?.domMotion
+  ) {
     if (!setPlaybackRunPhase(ctx, token, "live")) {
       return;
     }

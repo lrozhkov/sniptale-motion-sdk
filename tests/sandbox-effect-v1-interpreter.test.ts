@@ -6,6 +6,69 @@ import { evaluateEffectV1Expression } from "../src/apps/sandbox/runtime/effect-v
 import { createBindingReads } from "../src/apps/sandbox/runtime/binding-reads";
 
 describe("sandbox Effect v1 interpreter", () => {
+  it.each(["source-atop", "destination-in"])(
+    "preserves the agreed %s compositing operation",
+    async (blend) => {
+      const context = createPassContext();
+      const canvas = { width: 32, height: 32, getContext: () => context };
+      const renderer = createEffectV1GraphRenderer(
+        createDocument([
+          {
+            op: "fillRect",
+            x: 0,
+            y: 0,
+            width: 32,
+            height: 32,
+            fill: "#fff",
+            blend,
+          },
+        ]),
+        {},
+      );
+      await renderer.renderFrame({
+        canvas,
+        createCanvas: () => canvas,
+        width: 32,
+        height: 32,
+        time: 1,
+        progress: 0.5,
+        controls: {},
+        inputFrames: {},
+      });
+      expect(context.globalCompositeOperation).toBe(blend);
+    },
+  );
+
+  it("rejects an unsupported blend instead of silently substituting source-over", async () => {
+    const context = createPassContext();
+    const canvas = { width: 32, height: 32, getContext: () => context };
+    const renderer = createEffectV1GraphRenderer(
+      createDocument([
+        {
+          op: "fillRect",
+          x: 0,
+          y: 0,
+          width: 32,
+          height: 32,
+          fill: "#fff",
+          blend: "unavailable",
+        },
+      ]),
+      {},
+    );
+    await expect(
+      renderer.renderFrame({
+        createCanvas: () => canvas,
+        width: 32,
+        height: 32,
+        time: 0,
+        progress: 0,
+        controls: {},
+        inputFrames: {},
+      }),
+    ).rejects.toThrow("Unsupported Effect v1 blend");
+  });
+
   it("reports primitive bounds after graph group and layer transforms", async () => {
     const bindingReads = createBindingReads();
     const context = createGeometryTrackingContext();

@@ -3,7 +3,7 @@ import {
   getKeyframeEasingLabel,
   KEYFRAME_EASING_PRESETS,
 } from "./keyframe-labels.js";
-import { resolveTimelineEase } from "../../../shared/timeline/easing.js";
+import { resolveTimelineEase } from "../../../sdk/timeline/easing.js";
 
 function createCurveSvg(ctx: ViewerAppContext, trackId, keyframeId, keyframe) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");

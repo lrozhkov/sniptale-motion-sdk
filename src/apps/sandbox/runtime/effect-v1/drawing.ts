@@ -303,7 +303,15 @@ export function resolveFilter(value: unknown, state: RenderState): string {
 }
 
 function sanitizeBlend(value: string): any {
-  return ["source-over", "screen", "lighter"].includes(value)
-    ? value
-    : "source-over";
+  if (
+    ![
+      "source-over",
+      "screen",
+      "lighter",
+      "source-atop",
+      "destination-in",
+    ].includes(value)
+  )
+    throw new Error(`Unsupported Effect v1 blend: ${value}`);
+  return value;
 }

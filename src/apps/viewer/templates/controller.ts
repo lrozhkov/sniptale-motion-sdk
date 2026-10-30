@@ -31,7 +31,11 @@ function drawBaseForTemplate(
 ) {
   const width = context.canvas.width;
   const height = context.canvas.height;
-  if (template.kind === "transitionEffect" || template.kind === "composition") {
+  if (
+    template.effectV1 ||
+    template.kind === "transitionEffect" ||
+    template.kind === "composition"
+  ) {
     context.clearRect(0, 0, width, height);
     return;
   }

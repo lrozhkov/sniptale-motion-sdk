@@ -1,5 +1,5 @@
 import type { ViewerAppContext } from "../app/context.js";
-import { resolveTimelineEase } from "../../../shared/timeline/easing.js";
+import { resolveTimelineEase } from "../../../sdk/timeline/easing.js";
 import { resolveViewerMotionPathTrackValue } from "./motion-path-resolver.js";
 
 export function resolveNumericTrack(

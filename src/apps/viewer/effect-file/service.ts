@@ -9,13 +9,9 @@ function sanitizeIdentifier(ctx: ViewerAppContext, value) {
       .replace(/^-+|-+$/g, "") || "imported-effect"
   );
 }
-function appendImportedLabel(ctx: ViewerAppContext, label, sourceName) {
-  const next = label && typeof label === "object" ? { ...label } : {};
-  const base = next.en || next.ru || "Imported effect";
-  next.en = `${base} (Imported)`;
-  next.ru = next.ru ? `${next.ru} (Imported)` : next.en;
-  next.source = sourceName;
-  return next;
+function appendImportedLabel(ctx: ViewerAppContext, label) {
+  // Import provenance belongs to UI state, not portable display metadata.
+  return label && typeof label === "object" ? { ...label } : {};
 }
 function assertExportable(ctx: ViewerAppContext, prefix) {
   if (
@@ -53,6 +49,18 @@ function updateExportAvailability(
     ctx.refs.saveJsonButton.disabled = true;
     return;
   }
+  if (ctx.state.currentTemplate.domMotion) {
+    ctx.refs.exportJsonButton.disabled = true;
+    ctx.refs.exportEffectFileButton.disabled = false;
+    ctx.refs.exportMp4Button.disabled = true;
+    ctx.refs.exportMp4Button.title = ctx.deps.t(
+      "viewer.domMotion.exportUnavailable",
+      "Live HTML scenes do not support Canvas video export",
+    );
+    ctx.refs.saveJsonButton.disabled = true;
+    return;
+  }
+  ctx.refs.exportMp4Button.title = "";
   const previousValidation = ctx.refs.timelineSaveStatus.dataset.validation;
   const contractCheckPending =
     ctx.isRendererContractCoveragePending?.(ctx.state.currentTemplate) === true;

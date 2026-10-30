@@ -1,9 +1,5 @@
-import {
-  DEFAULT_LOCALE,
-  FALLBACK_LOCALE,
-  type Locale,
-  normalizeLocale,
-} from "./config.js";
+import { resolveEffectV1LocaleText } from "../../sdk/effect-v1/locale-text.js";
+import { DEFAULT_LOCALE, type Locale, normalizeLocale } from "./config.js";
 import { messages } from "./messages.js";
 
 export type LocaleText = {
@@ -32,12 +28,7 @@ export function translateText(
 ): string {
   if (typeof text === "string") return text;
   if (!text) return fallback;
-  return (
-    text[activeLocale] ??
-    text[DEFAULT_LOCALE] ??
-    text[FALLBACK_LOCALE] ??
-    fallback
-  );
+  return resolveEffectV1LocaleText(text, activeLocale, fallback);
 }
 
 export function t(key: string, fallback = key): string {

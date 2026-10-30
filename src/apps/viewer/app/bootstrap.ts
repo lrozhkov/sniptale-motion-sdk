@@ -1,3 +1,4 @@
+import { installDomMotionOwner } from "../dom-motion/controller.js";
 import { createViewerRefs } from "./refs.js";
 import { createViewerState } from "./state.js";
 import { viewerAppDependencies } from "./dependencies.js";
@@ -308,6 +309,7 @@ export function startViewerApp(): void {
   installTemplatesFallbacksOwner(ctx);
   installEffectFileOwners(ctx);
   wireAppTablists(ctx);
+  installDomMotionOwner(ctx);
   wireViewerStartup(ctx);
   if (includesLocalDemoPack) {
     installViewerTestApi(ctx);

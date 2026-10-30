@@ -138,55 +138,71 @@ describe("viewer export frame coordinates", () => {
     );
   });
 
-  it("flattens transparent composition frames onto a fresh opaque matte", () => {
-    const calls: string[] = [];
-    const context = {
-      canvas: { height: 720, width: 1280 },
-      clearRect: vi.fn(() => calls.push("clear")),
-      drawImage: vi.fn(() => calls.push("bitmap")),
-      fillRect: vi.fn(() => calls.push("matte")),
-      filter: "blur(8px)",
-      globalAlpha: 0.4,
-      globalCompositeOperation: "lighter",
-      imageSmoothingEnabled: false,
-      imageSmoothingQuality: "low",
-      reset: vi.fn(() => calls.push("reset")),
-      restore: vi.fn(() => calls.push("restore")),
-      save: vi.fn(() => calls.push("save")),
-      setTransform: vi.fn(() => calls.push("transform")),
-      shadowBlur: 12,
-      shadowColor: "#fff",
-      shadowOffsetX: 4,
-      shadowOffsetY: 4,
-    } as any;
-    const ctx = {
-      drawBaseForTemplate: vi.fn(() => calls.push("base")),
-    } as any;
-    installRenderingExportFrameOwner(ctx);
+  it.each([
+    { kind: "composition" },
+    { kind: "layerEffect", effectV1: { kind: "targetEffect" } },
+  ])(
+    "flattens complete RGBA frames onto a fresh opaque MP4 matte",
+    (template) => {
+      const calls: string[] = [];
+      const context = {
+        canvas: { height: 720, width: 1280 },
+        clearRect: vi.fn(() => calls.push("clear")),
+        drawImage: vi.fn(() => calls.push("bitmap")),
+        fillRect: vi.fn(() => calls.push("matte")),
+        filter: "blur(8px)",
+        globalAlpha: 0.4,
+        globalCompositeOperation: "lighter",
+        imageSmoothingEnabled: false,
+        imageSmoothingQuality: "low",
+        reset: vi.fn(() => calls.push("reset")),
+        restore: vi.fn(() => calls.push("restore")),
+        save: vi.fn(() => calls.push("save")),
+        setTransform: vi.fn(() => calls.push("transform")),
+        shadowBlur: 12,
+        shadowColor: "#fff",
+        shadowOffsetX: 4,
+        shadowOffsetY: 4,
+      } as any;
+      const ctx = {
+        drawBaseForTemplate: vi.fn(() => calls.push("base")),
+      } as any;
+      installRenderingExportFrameOwner(ctx);
 
-    ctx.drawExportFrame(
-      context,
-      { kind: "composition" },
-      { height: 720, width: 1280 },
-      0.5,
-    );
+      ctx.drawExportFrame(context, template, { height: 720, width: 1280 }, 0.5);
 
-    expect(calls).toEqual([
-      "reset",
-      "save",
-      "base",
-      "restore",
-      "transform",
-      "clear",
-      "matte",
-      "bitmap",
-    ]);
-    expect(context.fillStyle).toBe("#000000");
-    expect(context.globalAlpha).toBe(1);
-    expect(context.globalCompositeOperation).toBe("source-over");
-    expect(context.filter).toBe("none");
-    expect(context.shadowBlur).toBe(0);
-    expect(context.imageSmoothingEnabled).toBe(true);
-    expect(context.imageSmoothingQuality).toBe("high");
-  });
+      expect(calls).toEqual([
+        "reset",
+        "save",
+        "base",
+        "restore",
+        "transform",
+        "clear",
+        "matte",
+        "bitmap",
+      ]);
+      expect(context.fillStyle).toBe("#000000");
+      expect(context.globalAlpha).toBe(1);
+      expect(context.globalCompositeOperation).toBe("source-over");
+      expect(context.filter).toBe("none");
+      expect(context.shadowBlur).toBe(0);
+      expect(context.imageSmoothingEnabled).toBe(true);
+      expect(context.imageSmoothingQuality).toBe("high");
+    },
+  );
+});
+
+import { installTemplatesControllerOwner } from "../src/apps/viewer/templates/controller";
+it("does not paint a sample scene behind an imported targetEffect", () => {
+  const sample = vi.fn();
+  const ctx = { deps: { drawSampleScene: sample } } as any;
+  installTemplatesControllerOwner(ctx);
+  const context = { canvas: { width: 128, height: 72 }, clearRect: vi.fn() };
+  ctx.drawBaseForTemplate(
+    context,
+    { kind: "layerEffect", effectV1: { kind: "targetEffect" } },
+    0.5,
+  );
+  expect(sample).not.toHaveBeenCalled();
+  expect(context.clearRect).toHaveBeenCalledWith(0, 0, 128, 72);
 });

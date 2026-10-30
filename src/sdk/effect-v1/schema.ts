@@ -1,3 +1,17 @@
+import { localeTextSchema as localeText } from "./schema-locale-text.js";
+import {
+  editorRegionSchema,
+  editorRegionKindSchema,
+} from "./schema-editor-region.js";
+import {
+  controlPresetsSchema,
+  controlPresetsDependencySchema,
+} from "./schema-control-presets.js";
+import { controlSchema } from "./schema-control.js";
+import {
+  objectLayoutSchema,
+  objectLayoutKindSchema,
+} from "./schema-object-layout.js";
 import {
   EFFECT_V1_EXPRESSION_OPS,
   EFFECT_V1_KINDS,
@@ -11,12 +25,6 @@ import {
 const identifier = {
   pattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$",
   type: "string",
-};
-const localeText = {
-  additionalProperties: false,
-  minProperties: 1,
-  properties: { en: { type: "string" }, ru: { type: "string" } },
-  type: "object",
 };
 const expression = { $ref: "#/$defs/expression" };
 const expressionObject = {
@@ -47,7 +55,9 @@ function expressionWithArgs(op: string, minimum: number, maximum = minimum) {
 const commandBase = { layerId: identifier, op: { type: "string" } };
 const style = {
   alpha: numericExpression,
-  blend: { enum: ["lighter", "screen", "source-over"] },
+  blend: {
+    enum: ["lighter", "screen", "source-over", "source-atop", "destination-in"],
+  },
   filter: { $ref: "#/$defs/filter" },
   shadow: { $ref: "#/$defs/shadow" },
 };
@@ -385,20 +395,7 @@ export const EFFECT_V1_JSON_SCHEMA = Object.freeze({
         ]),
       ],
     },
-    control: {
-      additionalProperties: false,
-      properties: {
-        defaultValue: {},
-        id: identifier,
-        kind: { enum: ["color", "number", "text"] },
-        label: localeText,
-        max: { type: "number" },
-        min: { type: "number" },
-        step: { exclusiveMinimum: 0, type: "number" },
-      },
-      required: ["defaultValue", "id", "kind"],
-      type: "object",
-    },
+    control: controlSchema,
     expression: {
       anyOf: [
         { type: ["boolean", "number", "string", "null"] },
@@ -860,12 +857,16 @@ export const EFFECT_V1_JSON_SCHEMA = Object.freeze({
     assets: { items: { $ref: "#/$defs/asset" }, maxItems: 256, type: "array" },
     clips: { items: { $ref: "#/$defs/clip" }, type: "array" },
     controls: { items: { $ref: "#/$defs/control" }, type: "array" },
+    controlPresets: controlPresetsSchema,
+    defaultControlPresetId: identifier,
     description: localeText,
     duration: { exclusiveMinimum: 0, type: "number" },
     id: identifier,
     kind: { enum: EFFECT_V1_KINDS },
     label: localeText,
     layers: { items: { $ref: "#/$defs/layer" }, type: "array" },
+    objectLayout: objectLayoutSchema,
+    editorRegion: editorRegionSchema,
     presets: { type: "array" },
     program: { $ref: "#/$defs/program" },
     scenes: { items: { $ref: "#/$defs/scene" }, minItems: 1, type: "array" },
@@ -887,6 +888,11 @@ export const EFFECT_V1_JSON_SCHEMA = Object.freeze({
     "timeline",
   ],
   title: "Sniptale Effect v1",
+  allOf: [
+    objectLayoutKindSchema,
+    controlPresetsDependencySchema,
+    editorRegionKindSchema,
+  ],
   type: "object",
   xExpressionOperations: EFFECT_V1_EXPRESSION_OPS,
 } as const);

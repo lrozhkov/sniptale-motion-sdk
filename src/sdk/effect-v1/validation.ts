@@ -1,3 +1,5 @@
+import { validateEffectV1EditorRegion } from "./editor-region-validation.js";
+import { validateEffectV1ControlPresets } from "./control-presets-validation.js";
 import {
   createEffectV1Diagnostics,
   finishEffectV1Validation,
@@ -15,6 +17,7 @@ import {
   validateEffectV1Scenes,
 } from "./scene-validation.js";
 import { validateEffectV1Timeline } from "./timeline-validation.js";
+import { validateEffectV1ObjectLayout } from "./object-layout-validation.js";
 import {
   EFFECT_V1_KINDS,
   EFFECT_V1_SCHEMA,
@@ -34,12 +37,16 @@ const ROOT_KEYS = new Set([
   "assets",
   "clips",
   "controls",
+  "editorRegion",
+  "controlPresets",
+  "defaultControlPresetId",
   "description",
   "duration",
   "id",
   "kind",
   "label",
   "layers",
+  "objectLayout",
   "presets",
   "program",
   "scenes",
@@ -117,6 +124,12 @@ function validateEffectV1DocumentInternal(
   rejectUnknownKeys(input, ROOT_KEYS, "$", report);
   rejectEffectV1ExecutableFields(input, "$", report);
   validateEffectV1Identity(input, report);
+  validateEffectV1ObjectLayout(
+    input.objectLayout,
+    input.kind,
+    report,
+    input.controls,
+  );
 
   const assets = validateEffectV1Assets(input.assets, report);
   const layers = validateEffectV1Layers(input.layers, assets, report);
@@ -133,6 +146,8 @@ function validateEffectV1DocumentInternal(
     report,
   );
   const controlIds = validateEffectV1Controls(input.controls, report);
+  validateEffectV1ControlPresets(input, report);
+  validateEffectV1EditorRegion(input, report);
   const trackIds = validateEffectV1Timeline(
     input.timeline,
     layers,

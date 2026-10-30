@@ -1,3 +1,4 @@
+import { validateControlPresentation } from "./control-presentation.js";
 import {
   isRecord,
   rejectUnknownKeys,
@@ -25,7 +26,11 @@ const CLIP_KEYS = new Set([
   "start",
 ]);
 const CONTROL_KEYS = new Set([
+  "group",
+  "order",
+  "options",
   "defaultValue",
+  "localizedDefaultValue",
   "id",
   "kind",
   "label",
@@ -170,6 +175,7 @@ export function validateEffectV1Controls(
       validateLocaleText(control.label, `${path}.label`, false, report);
     }
     validateControlValue(control, path, report);
+    validateControlPresentation(control, path, report);
   });
   return ids;
 }

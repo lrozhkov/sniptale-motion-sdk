@@ -85,7 +85,11 @@ function findTemplatePhase(ctx: ViewerAppContext, template, phaseId) {
 }
 
 function getRendererType(ctx: ViewerAppContext, template) {
-  return template?.kind === "composition" ? "composition" : "effect";
+  return template?.domMotion
+    ? "dom"
+    : template?.kind === "composition"
+      ? "composition"
+      : "effect";
 }
 
 export function installTemplatesFallbacksOwner(ctx: ViewerAppContext): void {

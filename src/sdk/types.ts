@@ -4,24 +4,47 @@ export type LocaleText = {
   [locale: string]: string | undefined;
 };
 
+export type EffectControlPreset = {
+  id: string;
+  label: LocaleText & { en: string };
+  theme: { id: string; label: LocaleText & { en: string } };
+  style: { id: string; label: LocaleText & { en: string } };
+  values: Record<string, number | string>;
+};
+
 export type EffectArtifactType = "animation" | "transition";
 
-export type ControlDefinition =
-  | {
-      defaultValue: string;
-      id: string;
-      kind: "color" | "text";
-      label?: LocaleText;
-    }
-  | {
-      defaultValue: number;
-      id: string;
-      kind: "number";
-      label?: LocaleText;
-      max?: number;
-      min?: number;
-      step?: number;
-    };
+export type EffectControlPresentation = {
+  group?: string;
+  order?: number;
+  options?: { value: number | string; label: LocaleText }[];
+};
+
+export type ControlDefinition = EffectControlPresentation &
+  (
+    | {
+        defaultValue: string;
+        id: string;
+        kind: "text";
+        localizedDefaultValue?: LocaleText & { en: string };
+        label?: LocaleText;
+      }
+    | {
+        defaultValue: string;
+        id: string;
+        kind: "color";
+        label?: LocaleText;
+      }
+    | {
+        defaultValue: number;
+        id: string;
+        kind: "number";
+        label?: LocaleText;
+        max?: number;
+        min?: number;
+        step?: number;
+      }
+  );
 
 export type TimelinePhase = {
   duration: number;
@@ -154,8 +177,12 @@ export type EffectDefinition = {
   category?: string;
   clips: EffectClip[];
   controls?: ControlDefinition[];
+  controlPresets?: EffectControlPreset[];
+  defaultControlPresetId?: string;
   description?: LocaleText;
   duration: number;
+  /** Scriptless live HTML rendered by the DOM motion surface. */
+  domMotion?: import("./dom-motion/model.js").DomMotionDocument;
   /** Canonical v1 document retained by editor/runtime adapters. */
   effectV1?: unknown;
   effectId: string;

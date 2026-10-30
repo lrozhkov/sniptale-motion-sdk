@@ -11,7 +11,7 @@ Product development, build, effect, release, QA, and test-support commands live 
 
 ## Repository root
 
-The root contains repository policy and metadata, legal files, package manifests, the shared TypeScript configuration, and the owner directories `.agents/`, `docs/`, `schemas/`, `src/`, `tests/`, and `tooling/`. Application HTML belongs to `src/apps/viewer/` and `src/apps/sandbox/`; build, test, and application configuration belongs to `tooling/configs/`.
+The root contains repository policy and metadata, legal files, package manifests, the shared TypeScript configuration, and the owner directories `.agents/`, `.codex/`, `docs/`, `schemas/`, `src/`, `tests/`, and `tooling/`. `.codex/` owns local agent configuration, including the sandbox-provided directory; it is not an artifact storage root. Application HTML belongs to `src/apps/viewer/` and `src/apps/sandbox/`; build, test, and application configuration belongs to `tooling/configs/`.
 
 `.tmp/` owns ignored local inputs and disposable outputs, including templates, packs, media, review evidence, reports, coverage, browser output, and tool caches. `dist/` is the ignored build and release-candidate boundary. `node_modules/` is the ignored dependency installation boundary. No other root storage or output directory is permitted. Empty directories under `docs/` are forbidden.
 

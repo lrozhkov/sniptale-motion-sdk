@@ -71,3 +71,23 @@ describe("Effect v1 runtime control proof", () => {
     ).toBe(false);
   });
 });
+
+it("selects legal typed enum alternatives instead of inventing proof values", () => {
+  const cases = createEffectV1ControlProofCases([
+    {
+      id: "mode",
+      kind: "text",
+      defaultValue: "first",
+      options: [{ value: "first" }, { value: "together" }],
+    },
+    {
+      id: "direction",
+      kind: "number",
+      defaultValue: 1,
+      min: 0,
+      max: 100,
+      options: [{ value: 1 }, { value: 7 }],
+    },
+  ]);
+  expect(cases.map((c) => c.value)).toEqual(["together", 7]);
+});

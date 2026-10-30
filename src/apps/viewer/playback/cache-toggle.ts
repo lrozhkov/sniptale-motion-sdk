@@ -14,6 +14,7 @@ export function setPlaybackCacheEnabled(
   ctx: ViewerAppContext,
   enabled: boolean,
 ): void {
+  if (enabled && ctx.state.currentTemplate?.domMotion) return;
   const next = Boolean(enabled);
   const current = ctx.state.previewCacheEnabled !== false;
   if (next === current) {

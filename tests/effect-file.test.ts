@@ -14,8 +14,79 @@ import {
   validateSniptaleEffectFile,
 } from "../src/apps/viewer/effect-file/validation";
 import { SNIPTALE_EFFECT_FILE_SCHEMA } from "../src/apps/viewer/app/constants";
+import { installEffectFileServiceOwner } from "../src/apps/viewer/effect-file/service";
+import { installEffectFileImportExportOwner } from "../src/apps/viewer/effect-file/import-export";
 
 describe("Effect v1 file builder", () => {
+  it("round-trips an imported display label without source-file metadata", () => {
+    const template = createTemplate();
+    const originalLabel = { ...template.label };
+    const ctx = {} as any;
+    installEffectFileServiceOwner(ctx);
+    template.label = ctx.appendImportedLabel(template.label);
+
+    const source = buildEffectFileSource({ assets: createAssets(), template });
+    const validation = validateSniptaleEffectFile(source);
+
+    expect(validation).toMatchObject({ errors: [], ok: true });
+    expect(validation.payload.label).not.toHaveProperty("source");
+    expect(template.effectV1.label).toEqual(originalLabel);
+    expect(validation.payload.label).toEqual(originalLabel);
+    expect(validation.payload.label.en).toContain(originalLabel.en);
+  });
+
+  it("exports current control values without mutating template defaults", () => {
+    const template = createTemplate();
+    template.controls = [
+      { id: "title", kind: "text", defaultValue: "Original" },
+      { id: "opacity", kind: "number", defaultValue: 1, min: 0, max: 1 },
+      { id: "accent", kind: "color", defaultValue: "#ff9900" },
+    ];
+    template.effectV1.program.commands.push({
+      op: "text",
+      text: { op: "read", path: "controls.title" },
+      alpha: { op: "read", path: "controls.opacity" },
+      fill: { op: "read", path: "controls.accent" },
+      x: 0,
+      y: 0,
+    });
+    const controlValues = {
+      title: "",
+      opacity: 0,
+      sessionOnly: "not exported",
+    };
+    const ctx = {
+      deps: { buildEffectFileSource },
+      getEffectiveTemplate: (current) => current,
+      state: {
+        assets: createAssets(),
+        controls: controlValues,
+        currentTemplate: template,
+        modules: new Map(),
+      },
+    } as any;
+    installEffectFileImportExportOwner(ctx);
+    const source = ctx.buildCurrentEffectFile();
+    const validation = validateSniptaleEffectFile(source);
+
+    expect(validation).toMatchObject({ errors: [], ok: true });
+    expect(
+      validation.payload.controls.map((control) => control.defaultValue),
+    ).toEqual(["", 0, "#ff9900"]);
+    expect(source).not.toContain("sessionOnly");
+    expect(template.controls.map((control) => control.defaultValue)).toEqual([
+      "Original",
+      1,
+      "#ff9900",
+    ]);
+    const normalized = normalizeEffectFilePayload(validation.payload, []);
+    const reexported = buildEffectFilePayload({
+      assets: createAssets(),
+      template: normalized.template,
+    });
+    expect(reexported.controls).toEqual(validation.payload.controls);
+  });
+
   it("builds deterministic, pure JSON without runtime source", () => {
     const template = createTemplate();
     const payload = buildEffectFilePayload({

@@ -19,6 +19,11 @@ export async function renderCurrentFrame(
   ctx: ViewerAppContext,
   options: any = {},
 ) {
+  if (ctx.state.currentTemplate?.domMotion) {
+    await ctx.renderDomMotionFrame();
+    return;
+  }
+  ctx.disposeDomMotionSurface?.();
   invalidateStalePlaybackVideoCache(ctx);
   if (ctx.state.renderInFlight) {
     ctx.state.droppedFrames += 1;

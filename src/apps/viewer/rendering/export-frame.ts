@@ -114,6 +114,7 @@ function drawExportFrame(
 
 function usesOpaqueExportMatte(template): boolean {
   return (
+    template.effectV1?.kind === "targetEffect" ||
     template.kind === "sceneEffect" ||
     template.kind === "transitionEffect" ||
     template.kind === "composition"

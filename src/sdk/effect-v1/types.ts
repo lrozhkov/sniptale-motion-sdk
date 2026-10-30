@@ -1,5 +1,6 @@
 import type {
   ControlDefinition,
+  EffectControlPreset,
   EffectClip,
   EffectLayer,
   EffectScene,
@@ -7,6 +8,19 @@ import type {
   LocaleText,
 } from "../types.js";
 
+export type EffectV1EditorRegion = {
+  id: string;
+  label: { en: string; [locale: string]: string };
+  kind: "rect";
+  units: "percent";
+  position: "available-space";
+  /** Fraction of the shorter target dimension, not scene pixels. */
+  inset: number;
+  xControl: string;
+  yControl: string;
+  widthControl: string;
+  heightControl: string;
+};
 export const EFFECT_V1_SCHEMA = "sniptale.effect.v1" as const;
 export const EFFECT_V1_KINDS = [
   "standalone",
@@ -165,7 +179,12 @@ export type EffectV1PathSegment =
 type CommandBase = { layerId?: string };
 type StyledCommand = CommandBase & {
   alpha?: ExpressionValue;
-  blend?: "lighter" | "screen" | "source-over";
+  blend?:
+    | "lighter"
+    | "screen"
+    | "source-over"
+    | "source-atop"
+    | "destination-in";
   filter?: EffectV1Filter;
   shadow?: EffectV1Shadow;
 };
@@ -404,6 +423,21 @@ export type EffectV1GraphProgram = {
 
 export type EffectV1Program = EffectV1GraphProgram;
 
+export type EffectV1ObjectLayout = {
+  width: number;
+  height: number;
+  resize: "scale" | "reflow";
+  handles?: EffectV1ObjectHandle[];
+};
+
+export type EffectV1ObjectHandle = {
+  id: string;
+  label: LocaleText;
+  xControl: string;
+  yControl: string;
+  padding: number;
+};
+
 export type EffectV1Document = {
   assets: EffectV1Asset[];
   clips: EffectClip[];
@@ -414,7 +448,11 @@ export type EffectV1Document = {
   kind: EffectV1Kind;
   label: LocaleText;
   layers: EffectLayer[];
+  objectLayout?: EffectV1ObjectLayout;
+  editorRegion?: EffectV1EditorRegion;
   presets?: unknown[];
+  controlPresets?: EffectControlPreset[];
+  defaultControlPresetId?: string;
   program: EffectV1Program;
   scenes: EffectScene[];
   schemaVersion: typeof EFFECT_V1_SCHEMA;

@@ -1,8 +1,10 @@
+import { interpolateTimelineValue } from "../../../sdk/timeline/keyframe-value.js";
+export { interpolateTimelineValue };
 import {
   cubicBezierYForX,
   ease,
   resolveTimelineEase,
-} from "../../../shared/timeline/easing.js";
+} from "../../../sdk/timeline/easing.js";
 
 export { cubicBezierYForX, ease, resolveTimelineEase };
 
@@ -49,29 +51,6 @@ export function interpolatePoints(
   return sourceValues[sourceValues.length - 1];
 }
 
-export function interpolateTimelineValue(from: any, to: any, t: number): any {
-  if (typeof from === "number" && typeof to === "number") {
-    return lerp(from, to, t);
-  }
-  if (Array.isArray(from) && Array.isArray(to) && from.length === to.length) {
-    return from.map((value, index) =>
-      typeof value === "number" && typeof to[index] === "number"
-        ? lerp(value, to[index], t)
-        : t < 0.5
-          ? value
-          : to[index],
-    );
-  }
-  if (isPlainObject(from) && isPlainObject(to)) {
-    const result = { ...from };
-    for (const key of Object.keys(to)) {
-      result[key] = interpolateTimelineValue(from[key], to[key], t);
-    }
-    return result;
-  }
-  return t < 0.5 ? from : to;
-}
-
 export function segment(value: number, start: number, end: number): number {
   if (value <= start) return 0;
   if (value >= end) return 1;
@@ -101,8 +80,4 @@ export function lerp(a: number, b: number, t: number): number {
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function isPlainObject(value: unknown): value is Record<string, any> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

@@ -1,9 +1,10 @@
 import { resolve } from "node:path";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   root: resolve(import.meta.dirname, "../../.."),
   test: {
+    exclude: [...configDefaults.exclude, "**/.tmp/**"],
     coverage: {
       exclude: ["src/**/*.d.{ts,mts,cts}"],
       include: ["src/**/*.{ts,tsx,mts,cts}"],

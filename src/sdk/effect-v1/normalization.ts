@@ -9,7 +9,15 @@ export function normalizeEffectV1ToTemplate(
     category: "effect-v1",
     clips: structuredClone(document.clips),
     controls: structuredClone(document.controls),
-    description: structuredClone(document.description ?? {}),
+    ...(document.controlPresets
+      ? {
+          controlPresets: structuredClone(document.controlPresets),
+          defaultControlPresetId: document.defaultControlPresetId,
+        }
+      : {}),
+    ...(document.description !== undefined
+      ? { description: structuredClone(document.description) }
+      : {}),
     duration: document.duration,
     effectId: document.id,
     id: document.id,

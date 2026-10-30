@@ -1,3 +1,4 @@
+import { isEffectV1LocaleTag } from "./locale-tags.js";
 import { isSafeSvgText } from "../svg-safety.js";
 
 export const IDENTIFIER_PATTERN = /^[a-z][a-z0-9._-]{0,127}$/i;
@@ -103,19 +104,12 @@ export function validateRange(
 export function validateLocaleText(
   value: unknown,
   path: string,
-  requireRu: boolean,
+  _requireRu: boolean,
   report: any,
 ): void {
   if (!isRecord(value)) {
     report.error("LOCALE_TEXT", path, "Expected a locale text object.");
     return;
-  }
-  if (requireRu && (typeof value.ru !== "string" || value.ru.trim() === "")) {
-    report.error(
-      "LOCALE_RU_REQUIRED",
-      `${path}.ru`,
-      "Russian source text is required.",
-    );
   }
   if (typeof value.en !== "string" || value.en.trim() === "") {
     report.error(
@@ -125,7 +119,7 @@ export function validateLocaleText(
     );
   }
   for (const [locale, text] of Object.entries(value)) {
-    if (!/^[a-z]{2}(?:-[A-Z]{2})?$/.test(locale) || typeof text !== "string") {
+    if (!isEffectV1LocaleTag(locale) || typeof text !== "string") {
       report.error(
         "LOCALE_ENTRY",
         `${path}.${locale}`,

@@ -44,6 +44,7 @@ function drawCompletedFrame(
     return;
   }
   if (
+    template.effectV1?.kind === "targetEffect" ||
     template.kind === "sceneEffect" ||
     template.kind === "transitionEffect" ||
     template.kind === "composition"
@@ -111,6 +112,7 @@ export function shouldUseDirectPreviewSurface(
   _renderPlan: { scale?: number },
 ): boolean {
   const directFrame =
+    template.effectV1?.kind === "targetEffect" ||
     template.kind === "sceneEffect" ||
     template.kind === "transitionEffect" ||
     template.kind === "composition";
@@ -134,6 +136,7 @@ export function shouldUseFastPreviewSurface(
   bitmap: { height?: number; width?: number },
 ): boolean {
   const directFrame =
+    template.effectV1?.kind === "targetEffect" ||
     template.kind === "sceneEffect" ||
     template.kind === "transitionEffect" ||
     template.kind === "composition";

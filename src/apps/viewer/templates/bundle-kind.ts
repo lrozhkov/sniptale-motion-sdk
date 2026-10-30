@@ -1,5 +1,6 @@
 export const TEMPLATE_BUNDLE_KINDS = [
   "standalone",
+  "dom",
   "targetEffect",
   "transition",
 ] as const;
@@ -7,7 +8,7 @@ export const TEMPLATE_BUNDLE_KINDS = [
 export type TemplateBundleKind = (typeof TEMPLATE_BUNDLE_KINDS)[number];
 
 export function resolveTemplateBundleKind(template: any): TemplateBundleKind {
-  const kind = template?.effectV1?.kind;
+  const kind = template?.domMotion ? "dom" : template?.effectV1?.kind;
   return TEMPLATE_BUNDLE_KINDS.includes(kind) ? kind : "standalone";
 }
 
@@ -47,6 +48,11 @@ const BUNDLE_KIND_FALLBACKS: Record<
   TemplateBundleKind,
   { description: string; group: string; label: string }
 > = {
+  dom: {
+    description: "A live HTML page assembled in perspective.",
+    group: "HTML scenes",
+    label: "HTML scene",
+  },
   standalone: {
     description: "A self-contained scene with its own timeline.",
     group: "Standalone",

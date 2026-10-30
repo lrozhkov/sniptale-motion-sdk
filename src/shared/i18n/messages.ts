@@ -20,6 +20,17 @@ export const messages = {
     },
   },
   viewer: {
+    domMotion: {
+      loaded: { ru: "HTML-сцены загружены", en: "HTML motion scenes loaded" },
+      liveOnly: {
+        ru: "HTML-сцены воспроизводятся в реальном времени",
+        en: "HTML scenes use live preview",
+      },
+      exportUnavailable: {
+        ru: "Экспорт живой HTML-сцены в видео пока не поддерживается",
+        en: "Live HTML scenes do not support video export yet",
+      },
+    },
     appTitle: { en: "Sniptale Motion SDK", ru: "Sniptale Motion SDK" },
     appKicker: { en: "Motion workspace", ru: "Редактор анимации" },
     appSubtitle: {
@@ -629,6 +640,10 @@ export const messages = {
         name: { en: "Name", ru: "Название" },
         offset: { en: "Offset", ru: "Смещение" },
         opacity: { en: "Opacity", ru: "Непрозрачность" },
+        scrollbarOpacity: {
+          en: "Scrollbar opacity",
+          ru: "Непрозрачность полос прокрутки",
+        },
         path: { en: "Path", ru: "Путь" },
         phase: { en: "Phase", ru: "Фаза" },
         property: { en: "Property", ru: "Свойство" },
@@ -1195,6 +1210,8 @@ export const messages = {
       },
     },
     controls: {
+      visualPreset: { en: "Visual style", ru: "Визуальный стиль" },
+      customVisualPreset: { en: "Custom", ru: "Свои настройки" },
       title: { en: "Controls", ru: "Параметры" },
       caption: {
         en: "Composition parameters",
@@ -1346,6 +1363,7 @@ export const messages = {
         ru: "Фильтр композиций",
       },
       rendererTypes: {
+        dom: { ru: "HTML", en: "HTML" },
         composition: { en: "Composition", ru: "Композиция" },
         effect: { en: "Effect", ru: "Эффект" },
       },
@@ -1368,16 +1386,22 @@ export const messages = {
         },
       },
       bundleKinds: {
+        dom: { ru: "HTML-сцена", en: "HTML scene" },
         standalone: { en: "Standalone", ru: "Самостоятельная сцена" },
         targetEffect: { en: "Target effect", ru: "Эффект на медиа" },
         transition: { en: "Transition", ru: "Переход" },
       },
       bundleKindGroups: {
+        dom: { ru: "HTML-сцены", en: "HTML scenes" },
         standalone: { en: "Standalone", ru: "Самостоятельные" },
         targetEffect: { en: "Target effects", ru: "Эффекты на медиа" },
         transition: { en: "Transitions", ru: "Переходы" },
       },
       bundleKindDescriptions: {
+        dom: {
+          ru: "Живая HTML-страница с послойной сборкой в перспективе.",
+          en: "A live HTML page assembled in perspective.",
+        },
         standalone: {
           en: "A self-contained scene with its own timeline.",
           ru: "Самостоятельная сцена с собственной временной шкалой.",

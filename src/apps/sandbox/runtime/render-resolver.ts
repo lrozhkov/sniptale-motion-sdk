@@ -1,8 +1,5 @@
-import {
-  interpolateTimelineValue,
-  resolveTimelineEase,
-  segment,
-} from "./math.js";
+import { evaluateTimelineKeyframes } from "../../../sdk/timeline/keyframe-value.js";
+import { segment } from "./math.js";
 import { resolveRuntimeMotionPathTrackValue } from "./render-motion-path.js";
 
 type TimelineIndex = {
@@ -166,36 +163,7 @@ export function resolveTrackValue(
     return motionPathValue;
   }
   const keyframes = index.activeKeyframesByTrack.get(track) ?? [];
-  if (keyframes.length === 0) {
-    return fallback;
-  }
-  if (time <= keyframes[0].time) {
-    return keyframes[0].value ?? fallback;
-  }
-  const last = keyframes[keyframes.length - 1];
-  if (time >= last.time) {
-    return last.value ?? fallback;
-  }
-  const segmentIndex = findKeyframeSegmentIndex(keyframes, time);
-  const from = keyframes[segmentIndex];
-  const to = keyframes[segmentIndex + 1];
-  const raw = segment(time, from.time, to.time);
-  const eased = resolveTimelineEase(from, raw);
-  return interpolateTimelineValue(from.value, to.value, eased);
-}
-
-function findKeyframeSegmentIndex(keyframes: any[], time: number): number {
-  let low = 1;
-  let high = keyframes.length - 1;
-  while (low < high) {
-    const middle = Math.floor((low + high) * 0.5);
-    if (time <= keyframes[middle].time) {
-      high = middle;
-    } else {
-      low = middle + 1;
-    }
-  }
-  return low - 1;
+  return evaluateTimelineKeyframes(keyframes, time, fallback);
 }
 
 function isSceneEnabled(scenes: any[] = [], sceneId: string | null = null) {

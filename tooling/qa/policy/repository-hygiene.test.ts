@@ -163,6 +163,21 @@ describe("repository hygiene policy", () => {
     }
   });
 
+  it("recognizes agent configuration directories but rejects files at that seam", () => {
+    const root = mkdtempSync(join(tmpdir(), "sniptale-agent-topology-"));
+    try {
+      mkdirSync(join(root, ".codex"));
+      expect(inspectRootTopology(root)).toEqual([]);
+      rmSync(join(root, ".codex"), { recursive: true });
+      writeFileSync(join(root, ".codex"), "not a directory");
+      expect(inspectRootTopology(root)).toContain(
+        ".codex: root entry must be directory, found file",
+      );
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+
   it("enforces the root contract and rejects empty documentation directories", () => {
     const root = mkdtempSync(join(tmpdir(), "sniptale-root-topology-"));
     try {
