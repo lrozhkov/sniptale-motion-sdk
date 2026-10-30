@@ -171,11 +171,10 @@ function handleMotionPathTangentKeydown(
   );
   void ctx.renderCurrentFrame().finally(() => {
     ctx.updateCanvasSelectionBox();
-    ctx.refs.motionPathOverlay
-      .querySelector(
-        `.motion-path-tangent-handle[data-layer-id="${ctx.cssEscape(layerId)}"][data-x-keyframe-id="${ctx.cssEscape(xKeyframeId)}"][data-y-keyframe-id="${ctx.cssEscape(yKeyframeId)}"][data-side="${side}"]`,
-      )
-      ?.focus();
+    const handle = ctx.refs.motionPathOverlay.querySelector(
+      `.motion-path-tangent-handle[data-layer-id="${ctx.cssEscape(layerId)}"][data-x-keyframe-id="${ctx.cssEscape(xKeyframeId)}"][data-y-keyframe-id="${ctx.cssEscape(yKeyframeId)}"][data-side="${side}"]`,
+    );
+    if (handle instanceof SVGElement) handle.focus();
   });
 }
 

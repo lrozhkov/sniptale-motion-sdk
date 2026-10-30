@@ -7,6 +7,41 @@ import {
 } from "../src/shared/timeline/motion-path";
 
 describe("timeline motion path model", () => {
+  it("rejects malformed path metadata without coercing object identities", () => {
+    expect(
+      normalizeMotionPaths([
+        null,
+        [],
+        { layerId: {}, points: [] },
+        {
+          layerId: "card",
+          points: [null, [], { xKeyframeId: {}, yKeyframeId: "y" }],
+        },
+      ]),
+    ).toEqual([]);
+    const paths = normalizeMotionPaths([
+      {
+        layerId: "card",
+        points: [
+          {
+            xKeyframeId: "x",
+            yKeyframeId: "y",
+            kind: {},
+            inTangent: { x: { value: 1 }, y: Infinity },
+            outTangent: { x: "12", y: -3 },
+          },
+        ],
+      },
+    ]);
+    expect(paths[0].points[0]).toEqual({
+      xKeyframeId: "x",
+      yKeyframeId: "y",
+      kind: "linear",
+      inTangent: { x: 0, y: 0 },
+      outTangent: { x: 12, y: -3 },
+    });
+  });
+
   it("normalizes editor metadata without owning point positions", () => {
     expect(
       normalizeMotionPaths([
@@ -74,7 +109,7 @@ describe("timeline motion path model", () => {
   });
 });
 
-function createCurvedTimeline(): any {
+function createCurvedTimeline() {
   return {
     motionPaths: [
       {

@@ -1,0 +1,142 @@
+import { readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import {
+  parseEffectV1Source,
+  EFFECT_V1_KINDS,
+} from "../../sdk/effect-v1/index.js";
+import { cliMessages } from "../../shared/i18n/cli.js";
+import {
+  readMaterializedEffectV1Bundle,
+  EffectV1BundleError,
+} from "./bundle-source.js";
+import { parseCliArguments } from "./arguments.js";
+import { MotionCliError } from "./errors.js";
+import { initProject, newEffect } from "./project.js";
+
+export type CliContext = {
+  cwd: string;
+  packageRoot: string;
+  version: string;
+  stdout: (text: string) => void;
+  stderr: (text: string) => void;
+};
+
+export async function runMotionCli(
+  argv: string[],
+  context: CliContext,
+): Promise<number> {
+  try {
+    const args = parseCliArguments(argv);
+    const messages = cliMessages(args.locale);
+    if (args.values.version) {
+      context.stdout(
+        args.values.json
+          ? `${JSON.stringify({ ok: true, version: context.version })}\n`
+          : `${context.version}\n`,
+      );
+      return 0;
+    }
+    if (args.command === "help" || args.values.help) {
+      const text = `sniptale-motion ${context.version}\n\n${messages.help}`;
+      context.stdout(
+        args.values.json
+          ? `${JSON.stringify({ ok: true, help: text })}\n`
+          : text,
+      );
+      return 0;
+    }
+    let result: Record<string, unknown>;
+    if (args.command === "init") {
+      result = {
+        ok: true,
+        ...(await initProject(
+          context.cwd,
+          args.positional ?? ".",
+          context.version,
+        )),
+      };
+    } else if (args.command === "new") {
+      const kind = EFFECT_V1_KINDS.find(
+        (candidate) => candidate === (args.values.kind ?? "standalone"),
+      );
+      if (!kind)
+        throw new MotionCliError(
+          "ARGUMENTS",
+          `--kind must be ${EFFECT_V1_KINDS.join(", ")}.`,
+        );
+      if (!args.positional)
+        throw new MotionCliError("ARGUMENTS", "new requires an id.");
+      result = {
+        ok: true,
+        ...(await newEffect(context.cwd, args.positional, kind)),
+      };
+    } else if (args.command === "validate") {
+      if (!args.positional)
+        throw new MotionCliError("ARGUMENTS", "validate requires a file.");
+      const file = resolve(context.cwd, args.positional);
+      const source = await readMaterializedEffectV1Bundle(
+        file,
+        args.values["asset-root"]
+          ? resolve(context.cwd, args.values["asset-root"])
+          : undefined,
+      );
+      const { document: _document, ...validation } =
+        parseEffectV1Source(source);
+      result = {
+        ...validation,
+        file,
+        proof: {
+          schema: validation.ok ? "passed" : "failed",
+          runtime: "not-run",
+        },
+      };
+    } else if (args.command === "docs") {
+      const text = await readFile(
+        join(context.packageRoot, "README.md"),
+        "utf8",
+      );
+      context.stdout(
+        args.values.json ? `${JSON.stringify({ ok: true, text })}\n` : text,
+      );
+      return 0;
+    } else {
+      result = {
+        ok: true,
+        version: context.version,
+        node: process.version,
+        platform: process.platform,
+        architecture: process.arch,
+        browser: { status: "not-required", message: messages.browser },
+      };
+    }
+    if (args.values.json) context.stdout(`${JSON.stringify(result)}\n`);
+    else {
+      const stream = result.ok ? context.stdout : context.stderr;
+      stream(
+        `${result.ok ? messages.success : messages.failure}\n${JSON.stringify(result, null, 2)}\n`,
+      );
+    }
+    return result.ok ? 0 : 1;
+  } catch (error) {
+    const code =
+      error instanceof MotionCliError || error instanceof EffectV1BundleError
+        ? error.code
+        : filesystemCode(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (argv.includes("--json"))
+      context.stdout(
+        `${JSON.stringify({ ok: false, diagnostics: [{ code, message, path: error instanceof EffectV1BundleError ? error.path : "$", severity: "error" }] })}\n`,
+      );
+    else context.stderr(`${code}: ${message}\n`);
+    return code === "ARGUMENTS" ? 2 : 1;
+  }
+}
+
+function filesystemCode(error: unknown): string {
+  return error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof error.code === "string"
+    ? error.code
+    : "OPERATION_FAILED";
+}

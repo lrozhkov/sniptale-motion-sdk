@@ -1,6 +1,6 @@
 import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
 
-type CanvasFactory = (width: number, height: number) => any;
+type ProfileCanvas = { getContext?: (kind: "2d") => unknown };
 
 const PROFILED_METHODS = {
   createLinearGradient: "Gradient",
@@ -14,8 +14,8 @@ const PROFILED_METHODS = {
   strokeText: "Text",
 } as const;
 
-export function createCanvasOperationProfiler(
-  createCanvas: CanvasFactory,
+export function createCanvasOperationProfiler<Canvas extends ProfileCanvas>(
+  createCanvas: (width: number, height: number) => Canvas,
   profile: SandboxRenderProfile,
 ) {
   const restores: Array<() => void> = [];
@@ -24,7 +24,7 @@ export function createCanvasOperationProfiler(
     createCanvas(width: number, height: number) {
       const canvas = createCanvas(width, height);
       const context = canvas.getContext?.("2d");
-      if (context && !contexts.has(context)) {
+      if (context && typeof context === "object" && !contexts.has(context)) {
         contexts.add(context);
         instrumentContext(context, profile, restores);
       }
@@ -39,24 +39,27 @@ export function createCanvasOperationProfiler(
 }
 
 function instrumentContext(
-  context,
+  context: object,
   profile: SandboxRenderProfile,
   restores: Array<() => void>,
 ): void {
   for (const [method, category] of Object.entries(PROFILED_METHODS)) {
-    const original = context[method];
+    const original: unknown = Reflect.get(context, method);
     if (typeof original !== "function") {
       continue;
     }
     const hadOwn = Object.prototype.hasOwnProperty.call(context, method);
     try {
-      context[method] = (...args) => {
+      const instrumented = (...args: unknown[]): unknown => {
+        const filter: unknown = Reflect.get(context, "filter");
+        const shadowBlur: unknown = Reflect.get(context, "shadowBlur");
         const filtered =
           method === "drawImage" &&
-          typeof context.filter === "string" &&
-          context.filter !== "none";
+          typeof filter === "string" &&
+          filter !== "none";
         const shadowed =
-          Number(context.shadowBlur) > 0 &&
+          typeof shadowBlur === "number" &&
+          shadowBlur > 0 &&
           (method === "drawImage" ||
             method === "fill" ||
             method === "fillRect" ||
@@ -65,7 +68,7 @@ function instrumentContext(
             method === "strokeRect" ||
             method === "strokeText");
         const startedAt = performance.now();
-        const result = original.apply(context, args);
+        const result: unknown = Reflect.apply(original, context, args);
         const durationMs = Math.max(0, performance.now() - startedAt);
         recordCanvasOperation(profile, category, durationMs);
         if (filtered) {
@@ -78,11 +81,12 @@ function instrumentContext(
         }
         return result;
       };
+      if (!Reflect.set(context, method, instrumented)) continue;
       restores.push(() => {
         if (hadOwn) {
-          context[method] = original;
+          Reflect.set(context, method, original);
         } else {
-          delete context[method];
+          Reflect.deleteProperty(context, method);
         }
       });
     } catch {

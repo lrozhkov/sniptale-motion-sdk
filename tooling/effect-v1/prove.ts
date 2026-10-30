@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
 import { createSmokeRuntime } from "../test/smoke/runtime.mjs";
-import { readMaterializedEffectV1Bundle } from "./bundle-source.js";
+import { readMaterializedEffectV1Bundle } from "../../src/apps/cli/bundle-source.js";
 import { createEffectV1AssetMaterializationProof } from "./proof-assets.js";
 import {
   createEffectV1ControlProofCases,

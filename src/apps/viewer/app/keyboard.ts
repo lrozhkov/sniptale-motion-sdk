@@ -9,7 +9,7 @@ const TEXT_ENTRY_INPUT_TYPES = new Set([
   "url",
 ]);
 
-function handleGlobalSpaceKeydown(ctx: ViewerAppContext, event) {
+function handleGlobalSpaceKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
   if (
     event.code !== "Space" ||
     ctx.isTextEntryControl(event.target) ||
@@ -38,7 +38,7 @@ function hasOpenDropdownMenu(ctx: ViewerAppContext) {
   );
 }
 
-function handleGlobalKeydown(ctx: ViewerAppContext, event) {
+function handleGlobalKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
   if (
     event.code === "Escape" &&
     (ctx.refs.mp4ExportDialog?.open || ctx.refs.resetDraftDialog?.open)
@@ -223,7 +223,10 @@ export function hasNativeCopySelection(
 ): boolean {
   return Boolean(selection && !selection.isCollapsed && selection.toString());
 }
-function isEditingFormControl(ctx: ViewerAppContext, target) {
+function isEditingFormControl(
+  ctx: ViewerAppContext,
+  target: EventTarget | null,
+) {
   const element = target instanceof Element ? target : null;
   if (!element) {
     return false;
@@ -232,7 +235,7 @@ function isEditingFormControl(ctx: ViewerAppContext, target) {
     element.closest('input, textarea, select, [contenteditable="true"]'),
   );
 }
-function isTextEntryControl(ctx: ViewerAppContext, target) {
+function isTextEntryControl(ctx: ViewerAppContext, target: EventTarget | null) {
   const element = target instanceof Element ? target : null;
   const editable = element?.closest("input, textarea, [contenteditable]");
   if (editable instanceof HTMLInputElement) {
@@ -243,11 +246,17 @@ function isTextEntryControl(ctx: ViewerAppContext, target) {
   }
   return editable instanceof HTMLElement && editable.isContentEditable;
 }
-function isButtonLikeControl(ctx: ViewerAppContext, target) {
+function isButtonLikeControl(
+  ctx: ViewerAppContext,
+  target: EventTarget | null,
+) {
   const element = target instanceof Element ? target : null;
   return Boolean(element?.closest("button, a, summary"));
 }
-function shouldFocusInspectorFromEnter(ctx: ViewerAppContext, target) {
+function shouldFocusInspectorFromEnter(
+  ctx: ViewerAppContext,
+  target: EventTarget | null,
+) {
   const element = target instanceof Element ? target : null;
   return (
     !ctx.isButtonLikeControl(target) ||
@@ -256,18 +265,14 @@ function shouldFocusInspectorFromEnter(ctx: ViewerAppContext, target) {
 }
 
 export function installAppKeyboardOwner(ctx: ViewerAppContext): void {
-  ctx.handleGlobalSpaceKeydown = (...args: any[]) =>
-    (handleGlobalSpaceKeydown as any)(ctx, ...args);
-  ctx.handleGlobalKeydown = (...args: any[]) =>
-    (handleGlobalKeydown as any)(ctx, ...args);
-  ctx.hasOpenDropdownMenu = (...args: any[]) =>
-    (hasOpenDropdownMenu as any)(ctx, ...args);
-  ctx.isEditingFormControl = (...args: any[]) =>
-    (isEditingFormControl as any)(ctx, ...args);
-  ctx.isTextEntryControl = (...args: any[]) =>
-    (isTextEntryControl as any)(ctx, ...args);
-  ctx.isButtonLikeControl = (...args: any[]) =>
-    (isButtonLikeControl as any)(ctx, ...args);
-  ctx.shouldFocusInspectorFromEnter = (...args: any[]) =>
-    (shouldFocusInspectorFromEnter as any)(ctx, ...args);
+  ctx.handleGlobalSpaceKeydown = handleGlobalSpaceKeydown.bind(null, ctx);
+  ctx.handleGlobalKeydown = handleGlobalKeydown.bind(null, ctx);
+  ctx.hasOpenDropdownMenu = hasOpenDropdownMenu.bind(null, ctx);
+  ctx.isEditingFormControl = isEditingFormControl.bind(null, ctx);
+  ctx.isTextEntryControl = isTextEntryControl.bind(null, ctx);
+  ctx.isButtonLikeControl = isButtonLikeControl.bind(null, ctx);
+  ctx.shouldFocusInspectorFromEnter = shouldFocusInspectorFromEnter.bind(
+    null,
+    ctx,
+  );
 }

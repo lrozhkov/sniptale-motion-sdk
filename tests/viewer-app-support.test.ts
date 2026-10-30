@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../src/apps/viewer/app/dom-refs.js", () => ({
+  requireHtml: (selector: string) => document.querySelector(selector),
+  requireSvg: (selector: string) => document.querySelector(selector),
+  queryHtml: (selector: string) =>
+    Array.from(document.querySelectorAll(selector)),
+}));
+
 import {
   createEmptyBindingReads,
   formatBindingReadsTitle,

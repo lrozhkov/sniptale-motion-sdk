@@ -32,26 +32,30 @@ export const MAX_MODULE_BYTES = 260_000;
 export const MAX_ASSET_BYTES = 1_500_000;
 export const MAX_RENDER_PIXELS = 3840 * 2160;
 
-export function createRequestId(prefix) {
+export function createRequestId(prefix: string): string {
   const random = Math.random().toString(36).slice(2, 8);
   return `${prefix}:${Date.now().toString(36)}:${random}`;
 }
 
-export function clamp(value, min, max) {
+export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function easeOutCubic(t) {
+export function easeOutCubic(t: number): number {
   const p = clamp(t, 0, 1);
   return 1 - Math.pow(1 - p, 3);
 }
 
-export function easeInOutCubic(t) {
+export function easeInOutCubic(t: number): number {
   const p = clamp(t, 0, 1);
   return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 }
 
-export function readControlValue(controls, id, fallback) {
+export function readControlValue<Value, Fallback>(
+  controls: Readonly<Record<string, Value>> | null | undefined,
+  id: string,
+  fallback: Fallback,
+): Value | Fallback {
   const value = controls?.[id];
   return value === undefined || value === null || value === ""
     ? fallback

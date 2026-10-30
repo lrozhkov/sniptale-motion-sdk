@@ -209,7 +209,8 @@ function focusValidationIssue(ctx: ViewerAppContext, issue) {
       `.control-row[data-control-id="${ctx.cssEscape(issue.targetId)}"]`,
     );
     row?.scrollIntoView({ block: "center", inline: "nearest" });
-    row?.querySelector("input, select, button")?.focus();
+    const control = row?.querySelector("input, select, button");
+    if (control instanceof HTMLElement) control.focus();
     return;
   }
   ctx.clearTimelineSelection();

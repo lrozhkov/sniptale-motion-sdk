@@ -1,9 +1,16 @@
-import { isRecord, push } from "./common.js";
+import type { DemoPackIssue } from "./common.js";
+import { isRecord, push, records } from "./common.js";
 
 const POINT_KINDS = new Set(["corner", "linear", "smooth"]);
 
-export function validateTimelineMotionPaths(template, path, errors): void {
-  const motionPaths = template.timeline?.motionPaths;
+export function validateTimelineMotionPaths(
+  template: Record<string, unknown>,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
+  const motionPaths = isRecord(template.timeline)
+    ? template.timeline.motionPaths
+    : undefined;
   if (motionPaths === undefined) {
     return;
   }
@@ -11,10 +18,12 @@ export function validateTimelineMotionPaths(template, path, errors): void {
     push(errors, `${path}.timeline.motionPaths`, "Expected motion path list.");
     return;
   }
-  const layers = new Map<any, any>(
-    (template.layers ?? []).filter(isRecord).map((layer) => [layer.id, layer]),
+  const layers = new Map(
+    records(template.layers).map((layer) => [layer.id, layer]),
   );
-  const tracks = (template.timeline?.tracks ?? []).filter(isRecord);
+  const tracks = records(
+    isRecord(template.timeline) ? template.timeline.tracks : undefined,
+  );
   const seenLayers = new Set();
   motionPaths.forEach((motionPath, index) => {
     const motionPathPath = `${path}.timeline.motionPaths.${index}`;
@@ -62,16 +71,22 @@ export function validateTimelineMotionPaths(template, path, errors): void {
   });
 }
 
-function validateMotionPathPoints(points, path, xTrack, yTrack, errors): void {
+function validateMotionPathPoints(
+  points: unknown,
+  path: string,
+  xTrack: Record<string, unknown>,
+  yTrack: Record<string, unknown>,
+  errors: DemoPackIssue[],
+): void {
   if (!Array.isArray(points) || points.length < 2) {
     push(errors, `${path}.points`, "Expected at least two motion path points.");
     return;
   }
-  const xById = new Map<any, any>(
-    (xTrack.keyframes ?? []).map((keyframe) => [keyframe.id, keyframe]),
+  const xById = new Map(
+    records(xTrack.keyframes).map((keyframe) => [keyframe.id, keyframe]),
   );
-  const yById = new Map<any, any>(
-    (yTrack.keyframes ?? []).map((keyframe) => [keyframe.id, keyframe]),
+  const yById = new Map(
+    records(yTrack.keyframes).map((keyframe) => [keyframe.id, keyframe]),
   );
   const seenRefs = new Set();
   const seenTimes = new Set();
@@ -81,7 +96,10 @@ function validateMotionPathPoints(points, path, xTrack, yTrack, errors): void {
       push(errors, pointPath, "Expected motion path point.");
       return;
     }
-    if (!POINT_KINDS.has(point.kind ?? "linear")) {
+    if (
+      point.kind !== undefined &&
+      (typeof point.kind !== "string" || !POINT_KINDS.has(point.kind))
+    ) {
       push(errors, `${pointPath}.kind`, "Expected linear, smooth, or corner.");
     }
     validateTangent(point.inTangent, `${pointPath}.inTangent`, errors);
@@ -116,7 +134,7 @@ function validateMotionPathPoints(points, path, xTrack, yTrack, errors): void {
     ) {
       push(errors, pointPath, "Motion path keyframes must be numeric.");
     }
-    if (Math.abs(xKeyframe.time - yKeyframe.time) > 0.0001) {
+    if (Math.abs(Number(xKeyframe.time) - Number(yKeyframe.time)) > 0.0001) {
       push(
         errors,
         pointPath,
@@ -138,15 +156,26 @@ function validateMotionPathPoints(points, path, xTrack, yTrack, errors): void {
   });
 }
 
-function findSpatialTrack(tracks, layerId, property) {
+function findSpatialTrack(
+  tracks: Record<string, unknown>[],
+  layerId: unknown,
+  property: string,
+) {
   return tracks.find(
     (track) =>
       (track.layerId ?? track.target) === layerId &&
-      (track.property ?? track.id?.split(".").at(-1)) === property,
+      (track.property ??
+        (typeof track.id === "string"
+          ? track.id.split(".").at(-1)
+          : undefined)) === property,
   );
 }
 
-function validateTangent(value, path, errors): void {
+function validateTangent(
+  value: unknown,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (value === undefined) {
     return;
   }
@@ -159,7 +188,10 @@ function validateTangent(value, path, errors): void {
   }
 }
 
-function temporalSettingsMatch(left, right): boolean {
+function temporalSettingsMatch(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>,
+): boolean {
   const easing = left.easing ?? "linear";
   if (easing !== (right.easing ?? "linear")) {
     return false;
@@ -167,13 +199,14 @@ function temporalSettingsMatch(left, right): boolean {
   if (easing !== "bezier") {
     return true;
   }
-  if (!isRecord(left.handles) || !isRecord(right.handles)) {
+  const leftHandles = left.handles;
+  const rightHandles = right.handles;
+  if (!isRecord(leftHandles) || !isRecord(rightHandles)) {
     return false;
   }
   return ["x1", "y1", "x2", "y2"].every(
     (property) =>
-      Math.abs(
-        Number(left.handles[property]) - Number(right.handles[property]),
-      ) < 0.0001,
+      Math.abs(Number(leftHandles[property]) - Number(rightHandles[property])) <
+      0.0001,
   );
 }

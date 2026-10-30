@@ -141,7 +141,9 @@ export function createPreviewFrameCache(
     }
     while (bytes + entryBytes > byteBudget && entries.size > 0) {
       const oldestKey = entries.keys().next().value;
-      const oldest = entries.get(oldestKey)!;
+      if (oldestKey === undefined) break;
+      const oldest = entries.get(oldestKey);
+      if (!oldest) break;
       removeEntry(oldestKey, oldest);
       evictions += 1;
     }

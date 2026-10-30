@@ -1,3 +1,6 @@
+import type { RuntimeTimeline } from "./render-normalization.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
 import {
   createMotionPathGeometry,
   evaluateMotionPathGeometry,
@@ -11,8 +14,8 @@ const geometryCache = new WeakMap<
 >();
 
 export function resolveRuntimeMotionPathTrackValue(
-  timeline,
-  track,
+  timeline: RuntimeTimeline,
+  track: MotionPathTrack,
   time: number,
 ): number | null {
   const owner = getMotionPathLayerProperty(track);
@@ -43,7 +46,10 @@ export function resolveRuntimeMotionPathTrackValue(
   return position ? position[owner.property] : null;
 }
 
-function isRuntimeTrackEnabled(timeline, track): boolean {
+function isRuntimeTrackEnabled(
+  timeline: RuntimeTimeline,
+  track: MotionPathTrack,
+): boolean {
   return (
     track?.enabled !== false &&
     isRuntimeSceneEnabled(timeline, track?.sceneId) &&
@@ -51,7 +57,10 @@ function isRuntimeTrackEnabled(timeline, track): boolean {
   );
 }
 
-function isRuntimeKeyframeEnabled(timeline, keyframe): boolean {
+function isRuntimeKeyframeEnabled(
+  timeline: RuntimeTimeline,
+  keyframe: TimelineKeyframe<unknown>,
+): boolean {
   return (
     keyframe?.enabled !== false &&
     isRuntimeSceneEnabled(timeline, keyframe?.sceneId) &&
@@ -59,7 +68,10 @@ function isRuntimeKeyframeEnabled(timeline, keyframe): boolean {
   );
 }
 
-function isRuntimePhaseEnabled(timeline, phaseId): boolean {
+function isRuntimePhaseEnabled(
+  timeline: RuntimeTimeline,
+  phaseId?: string | null,
+): boolean {
   if (!phaseId) {
     return true;
   }
@@ -71,7 +83,10 @@ function isRuntimePhaseEnabled(timeline, phaseId): boolean {
   );
 }
 
-function isRuntimeSceneEnabled(timeline, sceneId): boolean {
+function isRuntimeSceneEnabled(
+  timeline: RuntimeTimeline,
+  sceneId?: string | null,
+): boolean {
   if (!sceneId) {
     return true;
   }

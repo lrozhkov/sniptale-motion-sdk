@@ -7,7 +7,7 @@ import {
 
 export const PREPARED_RENDER_MODEL = Symbol("preparedRenderModel");
 
-type PreparedRenderModel = {
+export type PreparedRenderModel = {
   clips: any[];
   duration: number;
   layers: any[];
@@ -22,7 +22,9 @@ export function createRenderModelCache() {
     clear() {
       current = null;
     },
-    resolve(message: Record<string | symbol, any>) {
+    resolve<Message extends Record<string | symbol, unknown>>(
+      message: Message,
+    ): Message & Record<string | symbol, unknown> {
       if (message.renderModelId === undefined) {
         return message;
       }
@@ -36,13 +38,14 @@ export function createRenderModelCache() {
       if (!current || current.id !== id) {
         throw new Error(`Missing cached render model ${id}.`);
       }
-      message.clips = current.prepared.clips;
-      message.duration = current.prepared.duration;
-      message.layers = current.prepared.layers;
-      message.scenes = current.prepared.scenes;
-      message.timeline = current.prepared.timeline;
-      message[PREPARED_RENDER_MODEL] = current.prepared;
-      return message;
+      return Object.assign(message, {
+        clips: current.prepared.clips,
+        duration: current.prepared.duration,
+        layers: current.prepared.layers,
+        scenes: current.prepared.scenes,
+        timeline: current.prepared.timeline,
+        [PREPARED_RENDER_MODEL]: current.prepared,
+      });
     },
   };
 }

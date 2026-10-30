@@ -1,3 +1,5 @@
+import type { BindingReads } from "../binding-reads.js";
+import type { RuntimeCanvasContext } from "../canvas-model.js";
 import type { EffectV1Command } from "../../../../sdk/effect-v1/types.js";
 import { createChildBindingReads } from "../binding-reads.js";
 import { getLogicalCanvasSize } from "../logical-canvas.js";
@@ -57,11 +59,11 @@ export function compositeEffectV1Pass(
 }
 
 function recordPassChildren(
-  passEntry,
-  passSize,
+  passEntry: { bindingReads?: BindingReads | null },
+  passSize: { width: number; height: number },
   width: number,
   height: number,
-  context,
+  context: RuntimeCanvasContext,
 ): void {
   if (!passEntry.bindingReads?.primitiveBounds) return;
   context.save();

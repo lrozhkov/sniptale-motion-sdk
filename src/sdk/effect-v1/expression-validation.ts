@@ -1,4 +1,5 @@
-import { EFFECT_V1_EXPRESSION_OPS, type EffectV1Expression } from "./types.js";
+import { EFFECT_V1_EXPRESSION_OPS } from "./types.js";
+import type { EffectV1ValidationReport } from "./diagnostics.js";
 import type { EffectV1ReadReferences } from "./graph-model.js";
 import { isRecord, rejectUnknownKeys } from "./validation-shared.js";
 
@@ -60,7 +61,7 @@ export const EXPRESSION_OPS = new Set<string>(EFFECT_V1_EXPRESSION_OPS);
 export function validateEffectV1Definitions(
   definitions: Record<string, unknown>,
   references: EffectV1ReadReferences,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   for (const [name, expression] of Object.entries(definitions)) {
     if (!/^[a-z][a-zA-Z0-9._-]{0,63}$/.test(name)) {
@@ -71,7 +72,7 @@ export function validateEffectV1Definitions(
       );
     }
     validateEffectV1Expression(
-      expression as EffectV1Expression,
+      expression,
       `$.program.definitions.${name}`,
       0,
       report,
@@ -82,9 +83,9 @@ export function validateEffectV1Definitions(
 }
 
 export function validateCommandExpressions(
-  command: Record<string, any>,
+  command: Record<string, unknown>,
   path: string,
-  report: any,
+  report: EffectV1ValidationReport,
   references: EffectV1ReadReferences,
 ): void {
   for (const [key, value] of Object.entries(command)) {
@@ -96,17 +97,11 @@ export function validateCommandExpressions(
 function walkExpressionCandidates(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationReport,
   references: EffectV1ReadReferences,
 ): void {
   if (isRecord(value) && typeof value.op === "string") {
-    validateEffectV1Expression(
-      value as EffectV1Expression,
-      path,
-      0,
-      report,
-      references,
-    );
+    validateEffectV1Expression(value, path, 0, report, references);
     return;
   }
   if (Array.isArray(value)) {
@@ -123,10 +118,10 @@ function walkExpressionCandidates(
 }
 
 export function validateEffectV1Expression(
-  value: EffectV1Expression,
+  value: unknown,
   path: string,
   depth: number,
-  report: any,
+  report: EffectV1ValidationReport,
   references: EffectV1ReadReferences,
 ): void {
   if (depth > MAX_EXPRESSION_DEPTH) {
@@ -147,11 +142,16 @@ export function validateEffectV1Expression(
     }
     return;
   }
-  if (!isRecord(value) || !EXPRESSION_OPS.has(String(value.op))) {
+  const operation = isRecord(value) ? value.op : undefined;
+  if (
+    !isRecord(value) ||
+    typeof operation !== "string" ||
+    !EXPRESSION_OPS.has(operation)
+  ) {
     report.error(
       "EXPRESSION_OP",
       `${path}.op`,
-      `Unknown expression operation "${String((value as any)?.op)}".`,
+      `Unknown expression operation "${String(operation)}".`,
     );
     return;
   }
@@ -203,9 +203,9 @@ export function validateEffectV1Expression(
 }
 
 function validateExpressionShape(
-  value: Record<string, any>,
+  value: Record<string, unknown>,
   path: string,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   const shape = EXPRESSION_SHAPES[String(value.op)];
   if (!shape) return;
@@ -254,7 +254,7 @@ function validateReadReference(
   value: unknown,
   path: string,
   references: EffectV1ReadReferences,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   if (typeof value !== "string") return;
   const reference = resolveDeclaredReference(value, references);
@@ -316,7 +316,7 @@ function isSafeReadPath(value: unknown): boolean {
 
 function validateDefinitionCycles(
   definitions: Record<string, unknown>,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   const refs = new Map<string, Set<string>>();
   for (const [name, expression] of Object.entries(definitions)) {

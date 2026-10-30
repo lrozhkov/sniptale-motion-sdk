@@ -153,7 +153,9 @@ export function startViewerApp(): void {
   const state = createViewerState();
   const refs = createViewerRefs();
   const previewContext = refs.canvas.getContext("2d");
-  const ctx = {
+  if (!previewContext)
+    throw new Error("Viewer Canvas 2D context is unavailable.");
+  const ctx: ViewerAppContext = {
     deps: viewerAppDependencies,
     lastPlaybackAudioTs: 0,
     playbackAnimationFrame: null,
@@ -164,7 +166,7 @@ export function startViewerApp(): void {
     previewContext,
     refs,
     state,
-  } as ViewerAppContext;
+  };
 
   installAppTimeFormatOwner(ctx);
   installAppIconsOwner(ctx);

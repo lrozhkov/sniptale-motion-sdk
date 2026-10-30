@@ -6,8 +6,8 @@ import {
   assertEffectV1AssetSignature,
   decodeEffectV1EmbeddedAsset,
   sha256EffectV1Bytes,
-} from "../../src/sdk/effect-v1/index.js";
-import { MAX_ASSET_BYTES } from "../../src/sdk/protocol.js";
+} from "../../sdk/effect-v1/index.js";
+import { MAX_ASSET_BYTES } from "../../sdk/protocol.js";
 
 const MAX_BUNDLE_ASSET_BYTES = MAX_ASSET_BYTES * 16;
 
@@ -27,12 +27,19 @@ export async function readMaterializedEffectV1Bundle(
   assetRoot?: string | null,
 ): Promise<string> {
   const source = await readFile(file, "utf8");
-  const document = JSON.parse(source);
-  if (!Array.isArray(document?.assets)) return source;
+  let document: unknown;
+  try {
+    document = JSON.parse(source);
+  } catch {
+    // The SDK parser owns JSON syntax diagnostics.
+    return source;
+  }
+  if (!isRecord(document) || !Array.isArray(document.assets)) return source;
+  const assets: unknown[] = document.assets;
   const root = resolve(assetRoot ?? dirname(file));
   let totalBytes = 0;
-  for (const [index, asset] of document.assets.entries()) {
-    if (!asset || typeof asset !== "object") continue;
+  for (const [index, asset] of assets.entries()) {
+    if (!isRecord(asset)) continue;
     const bytes =
       typeof asset.dataUrl === "string" || typeof asset.svgText === "string"
         ? decodeEffectV1EmbeddedAsset(asset)
@@ -231,4 +238,8 @@ function isSafeRelativeBundlePath(path: string): boolean {
     !path.split("/").includes("..") &&
     !/^[a-z]+:/i.test(path)
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

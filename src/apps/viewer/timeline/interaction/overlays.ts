@@ -7,6 +7,7 @@ function showTimelineSnapIndicator(ctx: ViewerAppContext, time) {
   const duration = ctx.getEffectiveDuration(ctx.state.currentTemplate);
   for (const root of [ctx.refs.timelineRuler, ctx.refs.timelineTracks]) {
     root.querySelectorAll(".timeline-snap-indicator").forEach((indicator) => {
+      if (!(indicator instanceof HTMLElement)) return;
       indicator.style.left = `${ctx.timelineContentPixel(time, duration, root)}px`;
       indicator.classList.add("visible");
     });
@@ -171,7 +172,7 @@ function updateTimelineHorizontalScrollSpacer(
     "--timeline-content-width",
     `${scrollableWidth}px`,
   );
-  if (!spacer) {
+  if (!(spacer instanceof HTMLElement)) {
     return;
   }
   spacer.style.left = `${rect.offsetLeft}px`;

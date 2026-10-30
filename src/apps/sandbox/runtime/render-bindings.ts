@@ -1,32 +1,48 @@
+import type { BindingReads } from "./binding-reads.js";
+
+type BindingContext = {
+  __bindingReads: BindingReads | null;
+  controls: Readonly<Record<string, unknown>>;
+  time: number;
+  track(id: string, fallback: unknown, at: number): unknown;
+  phaseProgress(id: string, at: number): number;
+};
+
 import { recordBindingRead } from "./binding-reads.js";
 import { ease } from "./math.js";
 
-export function resolveBindings(ctx, definitions, at) {
+export function resolveBindings(
+  ctx: BindingContext,
+  definitions: unknown,
+  at: number,
+): Record<string, unknown> {
   return resolveBindingObject(ctx, definitions, at);
 }
 
-export function resolveBindingObject(ctx, definitions, at) {
-  const result = {};
-  for (const [key, definition] of Object.entries(definitions ?? {})) {
+export function resolveBindingObject(
+  ctx: BindingContext,
+  definitions: unknown,
+  at: number,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, definition] of Object.entries(
+    isRecord(definitions) ? definitions : {},
+  )) {
     result[key] = resolveBindingValue(ctx, definition, 0, at);
   }
   return result;
 }
 
 export function resolveBindingValue(
-  ctx,
-  definition,
-  fallback = 0,
+  ctx: BindingContext,
+  definition: unknown,
+  fallback: unknown = 0,
   at = ctx.time,
-) {
+): unknown {
   if (typeof definition === "string") {
     return ctx.track(definition, fallback, at);
   }
-  if (
-    !definition ||
-    typeof definition !== "object" ||
-    Array.isArray(definition)
-  ) {
+  if (!isRecord(definition)) {
     return definition ?? fallback;
   }
   const baseFallback =
@@ -35,17 +51,17 @@ export function resolveBindingValue(
     definition.value ??
     fallback;
   let value = baseFallback;
-  if (definition.track) {
-    value = ctx.track(String(definition.track), baseFallback, at);
-  } else if (definition.control) {
+  if (typeof definition.track === "string" && definition.track) {
+    value = ctx.track(definition.track, baseFallback, at);
+  } else if (typeof definition.control === "string" && definition.control) {
     recordBindingRead(ctx.__bindingReads, "controls", definition.control);
     value = ctx.controls?.[definition.control] ?? baseFallback;
   }
-  if (definition.phase) {
+  if (typeof definition.phase === "string" && definition.phase) {
     value = multiplyBindingValue(
       value,
       ease(
-        definition.ease || "linear",
+        typeof definition.ease === "string" ? definition.ease : "linear",
         ctx.phaseProgress(definition.phase, at),
       ),
     );
@@ -59,7 +75,7 @@ export function resolveBindingValue(
   return value;
 }
 
-function multiplyBindingValue(value, multiplier) {
+function multiplyBindingValue(value: unknown, multiplier: number): unknown {
   if (typeof value === "number") {
     return value * multiplier;
   }
@@ -71,7 +87,7 @@ function multiplyBindingValue(value, multiplier) {
   return value;
 }
 
-function addBindingValue(value, offset) {
+function addBindingValue(value: unknown, offset: number): unknown {
   if (typeof value === "number") {
     return value + offset;
   }
@@ -81,4 +97,8 @@ function addBindingValue(value, offset) {
     );
   }
   return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

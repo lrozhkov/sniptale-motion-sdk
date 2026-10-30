@@ -10,6 +10,7 @@ Code, schemas, tests, and deterministic policies own implementation detail. This
 - [Security model](security/security-model.md): trust boundaries, enforced controls, accepted trade-offs, and residual risks.
 - [Provenance](oss/provenance.md): first-party license source, dependency evidence, generated notices, and local asset policy.
 - [Release readiness](oss/release.md): local candidate checks, legal payload, blockers, and publication boundary.
+- [Локальный npm-комплект](tooling/npm-toolkit.md): установка, команды и ограничения промежуточного кандидата.
 - [Code quality](tooling/code-quality.md): deterministic rule-to-check mapping and the explicit review-only set.
 
 Root policies remain at the repository root: [license](../LICENSE), [notice](../NOTICE), [contribution policy](../CONTRIBUTING.md), and [security support](../SECURITY.md).

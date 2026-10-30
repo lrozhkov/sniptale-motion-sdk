@@ -12,7 +12,7 @@ export interface ViewerAppContext {
   lastPlaybackRenderTs: number;
   lastPlaybackTs: number;
   lastPlaybackUiTs: number;
-  previewContext: CanvasRenderingContext2D | null;
+  previewContext: CanvasRenderingContext2D;
   refs: ReturnType<typeof createViewerRefs>;
   state: ReturnType<typeof createViewerState>;
   [viewerAction: string]: any;

@@ -1,3 +1,5 @@
+import type { SandboxRuntimeMessage } from "../message-boundary.js";
+import type { SandboxSessionOptions } from "../session-model.js";
 import {
   validateEffectV1Document,
   type EffectV1Document,
@@ -6,8 +8,8 @@ import { createEffectV1GraphRenderer } from "./interpreter.js";
 
 export function validateSandboxEffectDocument(
   postToParent: (message: unknown) => void,
-  runtime: any,
-  message: any,
+  runtime: SandboxSessionOptions["runtime"],
+  message: Extract<SandboxRuntimeMessage, { kind: "validateEffectDocument" }>,
 ): void {
   const validation = validateEffectV1Document(message.document);
   let error: string | undefined;
@@ -33,9 +35,9 @@ export function validateSandboxEffectDocument(
 
 export async function loadSandboxEffectDocument(
   postToParent: (message: unknown) => void,
-  registry: any,
-  runtime: any,
-  message: any,
+  registry: SandboxSessionOptions["registry"],
+  runtime: SandboxSessionOptions["runtime"],
+  message: Extract<SandboxRuntimeMessage, { kind: "loadEffectDocument" }>,
 ): Promise<void> {
   try {
     if (!registry.loadedModules.has(message.moduleId)) {
@@ -74,8 +76,8 @@ export async function loadSandboxEffectDocument(
 
 function registerDocument(
   document: EffectV1Document,
-  registry: any,
-  runtime: any,
+  registry: SandboxSessionOptions["registry"],
+  runtime: SandboxSessionOptions["runtime"],
 ): void {
   const renderer = createEffectV1GraphRenderer(document, runtime);
   if (document.kind === "standalone") {

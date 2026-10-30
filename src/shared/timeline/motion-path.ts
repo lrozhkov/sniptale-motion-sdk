@@ -1,4 +1,9 @@
+import type { TimelineKeyframe, TimelineTrack } from "../../sdk/types.js";
 import { resolveTimelineEase } from "../../sdk/timeline/easing.js";
+
+export type MotionPathTrack = Omit<TimelineTrack<unknown>, "layerId"> & {
+  layerId?: string | null;
+};
 
 export const MOTION_PATH_POINT_KINDS = ["corner", "linear", "smooth"] as const;
 
@@ -25,9 +30,9 @@ export type TimelineMotionPath = {
 export type ResolvedMotionPathPoint = TimelineMotionPathPoint & {
   time: number;
   x: number;
-  xKeyframe: any;
+  xKeyframe: TimelineKeyframe<unknown>;
   y: number;
-  yKeyframe: any;
+  yKeyframe: TimelineKeyframe<unknown>;
 };
 
 export type MotionPathGeometryResult =
@@ -35,8 +40,8 @@ export type MotionPathGeometryResult =
       layerId: string;
       ok: true;
       points: ResolvedMotionPathPoint[];
-      xTrack: any;
-      yTrack: any;
+      xTrack: MotionPathTrack;
+      yTrack: MotionPathTrack;
     }
   | {
       layerId: string;
@@ -56,12 +61,12 @@ export function normalizeMotionPaths(value: unknown): TimelineMotionPath[] {
     return [];
   }
   return value
-    .filter((entry) => entry && typeof entry === "object")
-    .map((entry: any) => ({
-      layerId: String(entry.layerId ?? ""),
+    .filter(isRecord)
+    .map((entry) => ({
+      layerId: typeof entry.layerId === "string" ? entry.layerId : "",
       points: Array.isArray(entry.points)
         ? entry.points
-            .filter((point) => point && typeof point === "object")
+            .filter(isRecord)
             .map(normalizeMotionPathPoint)
             .filter((point) => point.xKeyframeId && point.yKeyframeId)
         : [],
@@ -70,10 +75,13 @@ export function normalizeMotionPaths(value: unknown): TimelineMotionPath[] {
 }
 
 export function createMotionPathGeometry(
-  timeline,
+  timeline:
+    | { motionPaths?: unknown; tracks?: MotionPathTrack[] }
+    | null
+    | undefined,
   layerId: string,
   options: {
-    getTrackKeyframes?: (track: any) => any[];
+    getTrackKeyframes?: (track: MotionPathTrack) => TimelineKeyframe<unknown>[];
   } = {},
 ): MotionPathGeometryResult {
   const path = normalizeMotionPaths(timeline?.motionPaths).find(
@@ -90,10 +98,10 @@ export function createMotionPathGeometry(
   const getKeyframes =
     options.getTrackKeyframes ??
     ((track) => (Array.isArray(track?.keyframes) ? track.keyframes : []));
-  const xById = new Map<string, any>(
+  const xById = new Map<string, TimelineKeyframe<unknown>>(
     getKeyframes(xTrack).map((keyframe) => [keyframe.id, keyframe]),
   );
-  const yById = new Map<string, any>(
+  const yById = new Map<string, TimelineKeyframe<unknown>>(
     getKeyframes(yTrack).map((keyframe) => [keyframe.id, keyframe]),
   );
   const points: ResolvedMotionPathPoint[] = [];
@@ -148,7 +156,7 @@ export function evaluateMotionPathGeometry(
     return pickMotionPathPosition(points[0]);
   }
   const last = points.at(-1);
-  if (time >= last.time) {
+  if (last && time >= last.time) {
     return pickMotionPathPosition(last);
   }
   const index = findMotionPathSegmentIndex(points, time);
@@ -186,7 +194,12 @@ export function evaluateMotionPathGeometry(
   };
 }
 
-export function getMotionPathLayerProperty(track): {
+export function getMotionPathLayerProperty(
+  track:
+    | Partial<Pick<MotionPathTrack, "id" | "layerId" | "property" | "target">>
+    | null
+    | undefined,
+): {
   layerId: string;
   property: "x" | "y";
 } | null {
@@ -208,27 +221,39 @@ export function getMotionPathLayerProperty(track): {
   return layerId ? { layerId, property } : null;
 }
 
-function normalizeMotionPathPoint(point: any): TimelineMotionPathPoint {
-  const kind = MOTION_PATH_POINT_KINDS.includes(point.kind)
-    ? point.kind
-    : "linear";
+function normalizeMotionPathPoint(
+  point: Record<string, unknown>,
+): TimelineMotionPathPoint {
+  const kind =
+    point.kind === "corner" || point.kind === "smooth" ? point.kind : "linear";
   return {
     inTangent: normalizeMotionPathTangent(point.inTangent),
     kind,
     outTangent: normalizeMotionPathTangent(point.outTangent),
-    xKeyframeId: String(point.xKeyframeId ?? ""),
-    yKeyframeId: String(point.yKeyframeId ?? ""),
+    xKeyframeId: typeof point.xKeyframeId === "string" ? point.xKeyframeId : "",
+    yKeyframeId: typeof point.yKeyframeId === "string" ? point.yKeyframeId : "",
   };
 }
 
-function normalizeMotionPathTangent(value): MotionPathTangent {
-  return {
-    x: Number.isFinite(Number(value?.x)) ? Number(value.x) : 0,
-    y: Number.isFinite(Number(value?.y)) ? Number(value.y) : 0,
+function normalizeMotionPathTangent(value: unknown): MotionPathTangent {
+  const source = isRecord(value) ? value : {};
+  const numeric = (part: unknown) => {
+    const number =
+      typeof part === "number" || typeof part === "string" ? Number(part) : 0;
+    return Number.isFinite(number) ? number : 0;
   };
+  return { x: numeric(source.x), y: numeric(source.y) };
 }
 
-function findMotionPathTrack(timeline, layerId, property) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function findMotionPathTrack(
+  timeline: { tracks?: MotionPathTrack[] } | null | undefined,
+  layerId: string,
+  property: "x" | "y",
+) {
   return (timeline?.tracks ?? []).find(
     (track) =>
       getMotionPathLayerProperty(track)?.layerId === layerId &&
@@ -236,7 +261,10 @@ function findMotionPathTrack(timeline, layerId, property) {
   );
 }
 
-export function motionPathTemporalKeyframesMatch(left, right): boolean {
+export function motionPathTemporalKeyframesMatch(
+  left: Pick<TimelineKeyframe<unknown>, "easing" | "handles">,
+  right: Pick<TimelineKeyframe<unknown>, "easing" | "handles">,
+): boolean {
   const leftEasing = left.easing ?? "linear";
   const rightEasing = right.easing ?? "linear";
   if (leftEasing !== rightEasing) {
@@ -245,7 +273,7 @@ export function motionPathTemporalKeyframesMatch(left, right): boolean {
   if (leftEasing !== "bezier") {
     return true;
   }
-  return ["x1", "y1", "x2", "y2"].every(
+  return (["x1", "y1", "x2", "y2"] as const).every(
     (property) =>
       Math.abs(
         Number(left.handles?.[property]) - Number(right.handles?.[property]),
@@ -270,18 +298,30 @@ function findMotionPathSegmentIndex(
   return low - 1;
 }
 
-function pickMotionPathPosition(point): { x: number; y: number } {
+function pickMotionPathPosition(point: { x: number; y: number }): {
+  x: number;
+  y: number;
+} {
   return { x: point.x, y: point.y };
 }
 
-function addMotionPathVector(point, vector): { x: number; y: number } {
+function addMotionPathVector(
+  point: { x: number; y: number },
+  vector: MotionPathTangent | null,
+): { x: number; y: number } {
   return {
     x: point.x + (Number(vector?.x) || 0),
     y: point.y + (Number(vector?.y) || 0),
   };
 }
 
-function cubicBezierCoordinate(a, b, c, d, progress): number {
+function cubicBezierCoordinate(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  progress: number,
+): number {
   const inverse = 1 - progress;
   return (
     inverse ** 3 * a +

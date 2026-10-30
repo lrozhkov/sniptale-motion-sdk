@@ -1,41 +1,65 @@
 import { deepClone } from "./model.js";
 
 export type EditorSnapshot = {
-  assetEntries: [string, any][];
+  assetEntries: [string, unknown][];
   assetScopeIds: string[];
-  controls: any;
-  editorCommands: any[];
-  editorOverride: any;
+  controls: unknown;
+  editorCommands: unknown[];
+  editorOverride: unknown;
   label: string;
-  selectedClips: any[];
-  selectedItem: any;
-  selectedKeyframe?: any;
-  selectedKeyframes: any[];
-  selectedLayers: any[];
-  selectedPhases: any[];
+  selectedClips: unknown[];
+  selectedItem: unknown;
+  selectedKeyframe?: unknown;
+  selectedKeyframes: unknown[];
+  selectedLayers: unknown[];
+  selectedPhases: unknown[];
   selectedPresetId: string | null;
-  selectedScenes: any[];
+  selectedScenes: unknown[];
   templateId: string | null;
   time: number;
-  timelineOverride: any;
+  timelineOverride: unknown;
+};
+
+export type EditorCommand = {
+  payload: unknown;
+  templateId: string;
+  time: number;
+  type: string;
+};
+
+export type EditorHistoryState = {
+  controls: unknown;
+  editorCommands: unknown[];
+  editorOverrides: Map<string, unknown>;
+  historyPast: EditorSnapshot[];
+  historyFuture: EditorSnapshot[];
+  selectedClips?: unknown[];
+  selectedItem?: unknown;
+  selectedKeyframes?: unknown[];
+  selectedLayers?: unknown[];
+  selectedPhases?: unknown[];
+  selectedPresetId?: string | null;
+  selectedScenes?: unknown[];
+  timelineOverrides: Map<string, unknown>;
 };
 
 export function createEditorCommand(
-  command: any,
+  command: unknown,
   templateId: string,
   time: number,
-): any {
+): EditorCommand {
+  const value = isRecord(command) ? command : {};
   return {
-    payload: deepClone(command?.payload ?? {}),
+    payload: deepClone(value.payload ?? {}),
     templateId,
     time: Number(time) || 0,
-    type: String(command?.type || "edit"),
+    type: typeof value.type === "string" && value.type ? value.type : "edit",
   };
 }
 
 export function recordEditorCommand(
-  state: any,
-  command: any,
+  state: Pick<EditorHistoryState, "editorCommands">,
+  command: Record<string, unknown>,
   limit = 120,
 ): void {
   state.editorCommands.push({
@@ -46,7 +70,7 @@ export function recordEditorCommand(
 }
 
 export function commitEditorHistory(
-  state: any,
+  state: Pick<EditorHistoryState, "historyPast" | "historyFuture">,
   snapshot: EditorSnapshot,
   limit = 80,
 ): boolean {
@@ -61,12 +85,12 @@ export function commitEditorHistory(
 }
 
 export function captureEditorSnapshot(
-  state: any,
+  state: Omit<EditorHistoryState, "historyPast" | "historyFuture">,
   label: string,
   templateId: string | null,
   time: number,
   options: {
-    assetEntries?: [string, any][];
+    assetEntries?: [string, unknown][];
     assetScopeIds?: string[];
   } = {},
 ): EditorSnapshot {
@@ -86,7 +110,7 @@ export function captureEditorSnapshot(
     selectedItem: deepClone(state.selectedItem ?? { type: "effect" }),
     selectedClips: deepClone(state.selectedClips ?? []),
     selectedLayers: deepClone(state.selectedLayers ?? []),
-    selectedPresetId: state.selectedPresetId,
+    selectedPresetId: state.selectedPresetId ?? null,
     selectedPhases: deepClone(state.selectedPhases ?? []),
     selectedScenes: deepClone(state.selectedScenes ?? []),
     selectedKeyframes: deepClone(state.selectedKeyframes ?? []),
@@ -99,25 +123,27 @@ export function captureEditorSnapshot(
 }
 
 export function restoreEditorSnapshotState(
-  state: any,
+  state: Omit<EditorHistoryState, "historyPast" | "historyFuture">,
   snapshot: EditorSnapshot,
-  options: { fallbackControls?: any } = {},
+  options: { fallbackControls?: unknown } = {},
 ): void {
-  if (snapshot.editorOverride) {
-    state.editorOverrides.set(
-      snapshot.templateId,
-      deepClone(snapshot.editorOverride),
-    );
-  } else {
-    state.editorOverrides.delete(snapshot.templateId);
-  }
-  if (snapshot.timelineOverride) {
-    state.timelineOverrides.set(
-      snapshot.templateId,
-      deepClone(snapshot.timelineOverride),
-    );
-  } else {
-    state.timelineOverrides.delete(snapshot.templateId);
+  if (snapshot.templateId !== null) {
+    if (snapshot.editorOverride) {
+      state.editorOverrides.set(
+        snapshot.templateId,
+        deepClone(snapshot.editorOverride),
+      );
+    } else {
+      state.editorOverrides.delete(snapshot.templateId);
+    }
+    if (snapshot.timelineOverride) {
+      state.timelineOverrides.set(
+        snapshot.templateId,
+        deepClone(snapshot.timelineOverride),
+      );
+    } else {
+      state.timelineOverrides.delete(snapshot.templateId);
+    }
   }
   state.selectedItem = deepClone(snapshot.selectedItem ?? { type: "effect" });
   state.selectedClips = deepClone(snapshot.selectedClips ?? []);
@@ -133,4 +159,8 @@ export function restoreEditorSnapshotState(
   state.controls = deepClone(
     snapshot.controls ?? options.fallbackControls ?? {},
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

@@ -1,3 +1,4 @@
+import { createViewerSelectionState } from "../src/apps/viewer/timeline/model/selection-model.js";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -9,6 +10,41 @@ import { installModelSelectionStateOwner } from "../src/apps/viewer/timeline/mod
 import { installInteractionKeyframesOwner } from "../src/apps/viewer/timeline/interaction/keyframes";
 
 describe("viewer keyframe selection authority", () => {
+  it("creates independent initial selection collections", () => {
+    const first = createViewerSelectionState();
+    const second = createViewerSelectionState();
+    first.selectedLayers.push("card");
+    first.selectedKeyframes.push({ trackId: "opacity", keyframeId: "a" });
+    expect(second.selectedLayers).toEqual([]);
+    expect(second.selectedKeyframes).toEqual([]);
+    expect(second.selectedItem).toEqual({ type: "effect" });
+  });
+
+  it("rejects malformed reference values without string coercion", () => {
+    expect(
+      canonicalizeKeyframeSelection(createTimeline(), [
+        null,
+        [],
+        { trackId: { toString: 0 }, keyframeId: "a" },
+        { trackId: "opacity", keyframeId: { toString: 0 } },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("keeps distinct reference pairs containing delimiters", () => {
+    const timeline = {
+      tracks: [
+        { id: "a:b", keyframes: [{ id: "c", time: 0, value: 1 }] },
+        { id: "a", keyframes: [{ id: "b:c", time: 1, value: 1 }] },
+      ],
+    };
+    const refs = [
+      { trackId: "a:b", keyframeId: "c" },
+      { trackId: "a", keyframeId: "b:c" },
+    ];
+    expect(canonicalizeKeyframeSelection(timeline, refs)).toEqual(refs);
+  });
+
   it("canonicalizes refs and resolves stable selection bounds", () => {
     const timeline = createTimeline();
     const refs = canonicalizeKeyframeSelection(timeline, [

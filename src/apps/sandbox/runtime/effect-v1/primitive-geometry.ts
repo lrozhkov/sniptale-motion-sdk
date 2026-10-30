@@ -1,3 +1,4 @@
+import type { EffectV1PathSegment } from "../../../../sdk/effect-v1/types.js";
 import { recordPrimitivePaintRead } from "../primitive-paint-reads.js";
 import { n, type RenderState, valueOr } from "./model.js";
 
@@ -97,7 +98,8 @@ export function recordSegmentPathPrimitive(
 
 function resolveSegmentBoundsPoints(command: any, state: RenderState) {
   const points: Array<{ x: number; y: number }> = [];
-  const add = (x, y) => points.push({ x: n(x, state), y: n(y, state) });
+  const add = (x: unknown, y: unknown) =>
+    points.push({ x: n(x, state), y: n(y, state) });
   for (const segment of Array.isArray(command.segments)
     ? command.segments
     : []) {
@@ -124,7 +126,11 @@ function resolveSegmentBoundsPoints(command: any, state: RenderState) {
   return points;
 }
 
-function addEllipseBounds(points, segment, state): void {
+function addEllipseBounds(
+  points: { x: number; y: number }[],
+  segment: Extract<EffectV1PathSegment, { kind: "arc" | "ellipse" }>,
+  state: RenderState,
+): void {
   const centerX = n(segment.centerX, state);
   const centerY = n(segment.centerY, state);
   const radiusX = Math.abs(

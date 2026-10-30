@@ -63,6 +63,7 @@ async function bootstrap(ctx: ViewerAppContext) {
     ctx.logDiagnostic(readyForImport, "ok");
     return;
   }
+  if (!loaded.pack) throw new Error("Loaded templates require pack metadata.");
   ctx.setPackStatus(
     ctx.deps
       .t("viewer.status.loadedPack", "Loaded {pack}")

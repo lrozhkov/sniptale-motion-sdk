@@ -5,7 +5,7 @@ export async function normalizeRenderResult(
     markup: string,
     width: number,
     height: number,
-  ) => Promise<HTMLCanvasElement>,
+  ) => Promise<HTMLCanvasElement | OffscreenCanvas>,
   raster: {
     createCanvas?: (width: number, height: number) => any;
     height?: number;
@@ -93,6 +93,9 @@ async function copyRenderSourceToRaster(
 ): Promise<ImageBitmap> {
   const width = Math.max(1, Math.round(Number(raster.width) || 0));
   const height = Math.max(1, Math.round(Number(raster.height) || 0));
+  if (!raster.createCanvas) {
+    throw new Error("Canvas factory unavailable for raster normalization.");
+  }
   const canvas = raster.createCanvas(width, height);
   const context = canvas.getContext("2d");
   if (!context) {

@@ -291,11 +291,10 @@ function focusMotionPathPoint(
   xKeyframeId: string,
   yKeyframeId: string,
 ): void {
-  ctx.refs.motionPathOverlay
-    .querySelector(
-      `.motion-path-point[data-layer-id="${ctx.cssEscape(layerId)}"][data-x-keyframe-id="${ctx.cssEscape(xKeyframeId)}"][data-y-keyframe-id="${ctx.cssEscape(yKeyframeId)}"]`,
-    )
-    ?.focus();
+  const point = ctx.refs.motionPathOverlay.querySelector(
+    `.motion-path-point[data-layer-id="${ctx.cssEscape(layerId)}"][data-x-keyframe-id="${ctx.cssEscape(xKeyframeId)}"][data-y-keyframe-id="${ctx.cssEscape(yKeyframeId)}"]`,
+  );
+  if (point instanceof SVGElement) point.focus();
 }
 
 export function installCanvasPathPointDragOwner(ctx: ViewerAppContext): void {

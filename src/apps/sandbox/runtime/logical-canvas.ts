@@ -63,7 +63,12 @@ export function createLogicalCanvasFactory({
   };
 }
 
-export function getLogicalCanvasSize(canvas: LogicalCanvas): {
+export function getLogicalCanvasSize(
+  canvas: Pick<
+    LogicalCanvas,
+    "height" | "width" | "__sniptaleLogicalHeight" | "__sniptaleLogicalWidth"
+  >,
+): {
   height: number;
   width: number;
 } {

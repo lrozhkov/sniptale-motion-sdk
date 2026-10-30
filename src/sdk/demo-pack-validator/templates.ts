@@ -1,4 +1,11 @@
-import { isRecord, isSafeLocalPath, push } from "./common.js";
+import type { DemoPackIssue } from "./common.js";
+import {
+  describeValue,
+  isRecord,
+  isSafeLocalPath,
+  push,
+  records,
+} from "./common.js";
 import { validateTimelineMotionPaths } from "./motion-paths.js";
 import { readJson } from "./readers.js";
 
@@ -22,7 +29,11 @@ const LAYER_EDITOR_TRANSFORMS = new Set([
 ]);
 const MAX_LAYER_GROUP_DEPTH = 8;
 
-export async function readTemplates(baseUrl, manifest, errors) {
+export async function readTemplates(
+  baseUrl: string,
+  manifest: Record<string, unknown>,
+  errors: DemoPackIssue[],
+): Promise<Record<string, unknown>[]> {
   if (!Array.isArray(manifest.templates)) {
     return [];
   }
@@ -31,29 +42,38 @@ export async function readTemplates(baseUrl, manifest, errors) {
     if (!isSafeLocalPath(path)) {
       continue;
     }
+    const previousErrorCount = errors.length;
     const template = await readJson(`${baseUrl}${path}`, errors, path);
-    if (template) {
+    if (errors.length === previousErrorCount) {
       validateTemplate(template, path, errors);
-      templates.push(template);
+      if (isRecord(template)) templates.push(template);
     }
   }
   return templates;
 }
 
-export function validateTemplateModuleRefs(manifest, templates, errors) {
-  const moduleIds = new Set((manifest.modules ?? []).map((entry) => entry.id));
+export function validateTemplateModuleRefs(
+  manifest: Record<string, unknown>,
+  templates: readonly Record<string, unknown>[],
+  errors: DemoPackIssue[],
+): void {
+  const moduleIds = new Set(records(manifest.modules).map((entry) => entry.id));
   for (const template of templates) {
     if (!moduleIds.has(template.moduleId)) {
       push(
         errors,
-        `templates.${template.id}.moduleId`,
-        `Unknown module ${template.moduleId}.`,
+        `templates.${describeValue(template.id)}.moduleId`,
+        `Unknown module ${describeValue(template.moduleId)}.`,
       );
     }
   }
 }
 
-function validateTemplate(template, path, errors) {
+function validateTemplate(
+  template: unknown,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(template)) {
     push(errors, path, "Expected template object.");
     return;
@@ -89,7 +109,11 @@ function validateTemplate(template, path, errors) {
   }
 }
 
-function validateCompositionTemplate(template, path, errors) {
+function validateCompositionTemplate(
+  template: Record<string, unknown>,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!Array.isArray(template.scenes) || template.scenes.length === 0) {
     push(errors, `${path}.scenes`, "Expected composition scene list.");
     return;
@@ -116,7 +140,11 @@ function validateCompositionTemplate(template, path, errors) {
   }
 }
 
-function validateLayers(layers, path, errors) {
+function validateLayers(
+  layers: unknown,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!Array.isArray(layers)) {
     push(errors, `${path}.layers`, "Expected layer list.");
     return;
@@ -156,15 +184,17 @@ function validateLayers(layers, path, errors) {
     }
     if (
       layer.svgPartMode !== undefined &&
-      !["none", "reveal", "scatter"].includes(layer.svgPartMode)
+      (typeof layer.svgPartMode !== "string" ||
+        !["none", "reveal", "scatter"].includes(layer.svgPartMode))
     ) {
       push(errors, `${layerPath}.svgPartMode`, "Expected known SVG part mode.");
     }
     if (
       layer.partOrder !== undefined &&
-      !["document", "reverse", "center", "edges", "random"].includes(
-        layer.partOrder,
-      )
+      (typeof layer.partOrder !== "string" ||
+        !["document", "reverse", "center", "edges", "random"].includes(
+          layer.partOrder,
+        ))
     ) {
       push(errors, `${layerPath}.partOrder`, "Expected known SVG part order.");
     }
@@ -197,14 +227,24 @@ function validateLayers(layers, path, errors) {
   validateLayerHierarchy(layers, path, errors);
 }
 
-function validateLayerHierarchy(layers, path, errors) {
-  const records = layers.filter(isRecord) as any[];
-  const byId = new Map<string, any>(records.map((layer) => [layer.id, layer]));
-  const indexById = new Map<string, number>(
-    records.map((layer) => [layer.id, layers.indexOf(layer)]),
+function validateLayerHierarchy(
+  layers: unknown[],
+  path: string,
+  errors: DemoPackIssue[],
+): void {
+  const layerRecords = layers.filter(isRecord);
+  const byId = new Map(
+    layerRecords
+      .filter((layer) => typeof layer.id === "string")
+      .map((layer) => [layer.id, layer]),
   );
-  const childrenByParent = new Map<string, any[]>();
-  for (const layer of records) {
+  const indexById = new Map<string, number>(
+    layerRecords
+      .filter((layer) => typeof layer.id === "string")
+      .map((layer) => [String(layer.id), layers.indexOf(layer)]),
+  );
+  const childrenByParent = new Map<string, Record<string, unknown>[]>();
+  for (const layer of layerRecords) {
     const layerIndex = layers.indexOf(layer);
     if (
       layer.parentId !== undefined &&
@@ -218,7 +258,7 @@ function validateLayerHierarchy(layers, path, errors) {
       );
       continue;
     }
-    if (!layer.parentId) {
+    if (typeof layer.parentId !== "string" || !layer.parentId) {
       continue;
     }
     const parent = byId.get(layer.parentId);
@@ -239,12 +279,17 @@ function validateLayerHierarchy(layers, path, errors) {
     children.push(layer);
     childrenByParent.set(layer.parentId, children);
   }
-  for (const layer of records) {
+  for (const layer of layerRecords) {
+    if (typeof layer.id !== "string") continue;
     const layerIndex = layers.indexOf(layer);
     const visited = new Set();
-    let current: any = layer;
+    let current: Record<string, unknown> | undefined = layer;
     let depth = 0;
-    while (current?.parentId && byId.has(current.parentId)) {
+    while (
+      typeof current?.parentId === "string" &&
+      current.parentId &&
+      byId.has(current.parentId)
+    ) {
       if (visited.has(current.id)) {
         push(
           errors,
@@ -274,7 +319,7 @@ function validateLayerHierarchy(layers, path, errors) {
       subtreeVisited.add(id);
       subtreeIds.push(id);
       for (const child of childrenByParent.get(id) ?? []) {
-        visit(child.id);
+        if (typeof child.id === "string") visit(child.id);
       }
     };
     visit(layer.id);
@@ -284,6 +329,7 @@ function validateLayerHierarchy(layers, path, errors) {
       .sort((a, b) => a - b);
     const rootIndex = indexById.get(layer.id);
     if (
+      rootIndex === undefined ||
       indexes.length !== subtreeIds.length ||
       indexes[0] !== rootIndex ||
       indexes.some((index, offset) => index !== rootIndex + offset)
@@ -297,14 +343,19 @@ function validateLayerHierarchy(layers, path, errors) {
   }
 }
 
-export function validateLayerEditorDefinition(editor, path, errors) {
+export function validateLayerEditorDefinition(
+  editor: unknown,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(editor)) {
     push(errors, path, "Expected layer editor capability object.");
     return;
   }
   if (
     editor.canvas !== undefined &&
-    !LAYER_EDITOR_CANVAS_MODES.has(editor.canvas)
+    (typeof editor.canvas !== "string" ||
+      !LAYER_EDITOR_CANVAS_MODES.has(editor.canvas))
   ) {
     push(errors, `${path}.canvas`, "Expected known canvas mode.");
   }
@@ -328,7 +379,11 @@ export function validateLayerEditorDefinition(editor, path, errors) {
   );
 }
 
-function validateStringList(value, path, errors) {
+function validateStringList(
+  value: unknown,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (value === undefined) {
     return;
   }
@@ -340,7 +395,12 @@ function validateStringList(value, path, errors) {
   }
 }
 
-function validateKnownStringList(value, path, allowed, errors) {
+function validateKnownStringList(
+  value: unknown,
+  path: string,
+  allowed: ReadonlySet<string>,
+  errors: DemoPackIssue[],
+): void {
   if (value === undefined) {
     return;
   }
@@ -355,22 +415,30 @@ function validateKnownStringList(value, path, allowed, errors) {
   });
 }
 
-function validateClips(template, path, errors) {
+function validateClips(
+  template: Record<string, unknown>,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!Array.isArray(template.clips)) {
     push(errors, `${path}.clips`, "Expected clip list.");
     return;
   }
   const layerIds = new Set(
-    (template.layers ?? []).filter(isRecord).map((layer) => layer.id),
+    records(template.layers)
+      .filter(isRecord)
+      .map((layer) => layer.id),
   );
   const groupIds = new Set(
-    (template.layers ?? [])
+    records(template.layers)
       .filter(isRecord)
       .filter((layer) => layer.type === "group")
       .map((layer) => layer.id),
   );
   const sceneIds = new Set(
-    (template.scenes ?? []).filter(isRecord).map((scene) => scene.id),
+    records(template.scenes)
+      .filter(isRecord)
+      .map((scene) => scene.id),
   );
   template.clips.forEach((clip, index) => {
     const clipPath = `${path}.clips.${index}`;
@@ -390,7 +458,11 @@ function validateClips(template, path, errors) {
       clip.sceneId !== null &&
       !sceneIds.has(clip.sceneId)
     ) {
-      push(errors, `${clipPath}.sceneId`, `Unknown scene ${clip.sceneId}.`);
+      push(
+        errors,
+        `${clipPath}.sceneId`,
+        `Unknown scene ${describeValue(clip.sceneId)}.`,
+      );
     }
     if (typeof clip.start !== "number" || clip.start < 0) {
       push(errors, `${clipPath}.start`, "Expected non-negative start.");
@@ -410,7 +482,11 @@ function validateClips(template, path, errors) {
   });
 }
 
-function validateTimelineTemplate(template, path, errors) {
+function validateTimelineTemplate(
+  template: Record<string, unknown>,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(template.timeline)) {
     push(errors, `${path}.timeline`, "Expected timeline object.");
     return;
@@ -419,7 +495,9 @@ function validateTimelineTemplate(template, path, errors) {
     push(errors, `${path}.timeline.phases`, "Expected phase list.");
   } else {
     const sceneIds = new Set(
-      (template.scenes ?? []).filter(isRecord).map((scene) => scene.id),
+      records(template.scenes)
+        .filter(isRecord)
+        .map((scene) => scene.id),
     );
     template.timeline.phases.forEach((phase, index) =>
       validateTimelinePhase(
@@ -435,15 +513,17 @@ function validateTimelineTemplate(template, path, errors) {
     push(errors, `${path}.timeline.tracks`, "Expected track list.");
   } else {
     const phaseIds = new Set(
-      (template.timeline.phases ?? [])
+      records(template.timeline.phases)
         .filter(isRecord)
         .map((phase) => phase.id),
     );
     const sceneIds = new Set(
-      (template.scenes ?? []).filter(isRecord).map((scene) => scene.id),
+      records(template.scenes)
+        .filter(isRecord)
+        .map((scene) => scene.id),
     );
     const groupIds = new Set(
-      (template.layers ?? [])
+      records(template.layers)
         .filter(isRecord)
         .filter((layer) => layer.type === "group")
         .map((layer) => layer.id),
@@ -463,7 +543,13 @@ function validateTimelineTemplate(template, path, errors) {
   validateTimelineMotionPaths(template, path, errors);
 }
 
-function validateTimelinePhase(phase, path, duration, sceneIds, errors) {
+function validateTimelinePhase(
+  phase: unknown,
+  path: string,
+  duration: unknown,
+  sceneIds: ReadonlySet<unknown>,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(phase)) {
     push(errors, path, "Expected phase object.");
     return;
@@ -477,14 +563,16 @@ function validateTimelinePhase(phase, path, duration, sceneIds, errors) {
   if (
     typeof phase.start !== "number" ||
     phase.start < 0 ||
-    phase.start > duration
+    (typeof duration === "number" && phase.start > duration)
   ) {
     push(errors, `${path}.start`, "Expected start within template duration.");
   }
   if (
     typeof phase.duration !== "number" ||
     phase.duration <= 0 ||
-    phase.start + phase.duration > duration + 0.001
+    (typeof phase.start === "number" &&
+      typeof duration === "number" &&
+      phase.start + phase.duration > duration + 0.001)
   ) {
     push(
       errors,
@@ -503,19 +591,23 @@ function validateTimelinePhase(phase, path, duration, sceneIds, errors) {
     phase.sceneId !== null &&
     !sceneIds.has(phase.sceneId)
   ) {
-    push(errors, `${path}.sceneId`, `Unknown scene ${phase.sceneId}.`);
+    push(
+      errors,
+      `${path}.sceneId`,
+      `Unknown scene ${describeValue(phase.sceneId)}.`,
+    );
   }
 }
 
 function validateTimelineTrack(
-  track,
-  path,
-  duration,
-  phaseIds,
-  sceneIds,
-  groupIds,
-  errors,
-) {
+  track: unknown,
+  path: string,
+  duration: unknown,
+  phaseIds: ReadonlySet<unknown>,
+  sceneIds: ReadonlySet<unknown>,
+  groupIds: ReadonlySet<unknown>,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(track)) {
     push(errors, path, "Expected track object.");
     return;
@@ -539,14 +631,22 @@ function validateTimelineTrack(
     track.phaseId !== null &&
     !phaseIds.has(track.phaseId)
   ) {
-    push(errors, `${path}.phaseId`, `Unknown phase ${track.phaseId}.`);
+    push(
+      errors,
+      `${path}.phaseId`,
+      `Unknown phase ${describeValue(track.phaseId)}.`,
+    );
   }
   if (
     track.sceneId !== undefined &&
     track.sceneId !== null &&
     !sceneIds.has(track.sceneId)
   ) {
-    push(errors, `${path}.sceneId`, `Unknown scene ${track.sceneId}.`);
+    push(
+      errors,
+      `${path}.sceneId`,
+      `Unknown scene ${describeValue(track.sceneId)}.`,
+    );
   }
   if (track.enabled !== undefined && typeof track.enabled !== "boolean") {
     push(errors, `${path}.enabled`, "Expected boolean enabled flag.");
@@ -568,13 +668,13 @@ function validateTimelineTrack(
 }
 
 function validateTimelineKeyframe(
-  keyframe,
-  path,
-  duration,
-  phaseIds,
-  sceneIds,
-  errors,
-) {
+  keyframe: unknown,
+  path: string,
+  duration: unknown,
+  phaseIds: ReadonlySet<unknown>,
+  sceneIds: ReadonlySet<unknown>,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(keyframe)) {
     push(errors, path, "Expected keyframe object.");
     return;
@@ -585,7 +685,7 @@ function validateTimelineKeyframe(
   if (
     typeof keyframe.time !== "number" ||
     keyframe.time < 0 ||
-    keyframe.time > duration
+    (typeof duration === "number" && keyframe.time > duration)
   ) {
     push(errors, `${path}.time`, "Expected time within template duration.");
   }
@@ -603,21 +703,33 @@ function validateTimelineKeyframe(
     keyframe.phaseId !== null &&
     !phaseIds.has(keyframe.phaseId)
   ) {
-    push(errors, `${path}.phaseId`, `Unknown phase ${keyframe.phaseId}.`);
+    push(
+      errors,
+      `${path}.phaseId`,
+      `Unknown phase ${describeValue(keyframe.phaseId)}.`,
+    );
   }
   if (
     keyframe.sceneId !== undefined &&
     keyframe.sceneId !== null &&
     !sceneIds.has(keyframe.sceneId)
   ) {
-    push(errors, `${path}.sceneId`, `Unknown scene ${keyframe.sceneId}.`);
+    push(
+      errors,
+      `${path}.sceneId`,
+      `Unknown scene ${describeValue(keyframe.sceneId)}.`,
+    );
   }
   if (keyframe.handles !== undefined) {
     validateTimelineHandles(keyframe.handles, `${path}.handles`, errors);
   }
 }
 
-function validateTimelineHandles(handles, path, errors) {
+function validateTimelineHandles(
+  handles: unknown,
+  path: string,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(handles)) {
     push(errors, path, "Expected handles object.");
     return;

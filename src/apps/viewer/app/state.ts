@@ -1,3 +1,4 @@
+import { createViewerSelectionState } from "../timeline/model/selection-model.js";
 import { createEmptyBindingReads } from "./binding-reads.js";
 import {
   COMPOSITION_DESIGN_HEIGHT,
@@ -214,13 +215,8 @@ export function createViewerState(): any {
     sandboxAssetCacheKeys: new Set(),
     sandboxRenderAssetsId: null,
     sandboxRenderModelId: null,
-    selectedClips: [],
-    selectedItem: { type: "effect" },
-    selectedKeyframes: [],
-    selectedLayers: [],
-    selectedPhases: [],
+    ...createViewerSelectionState(),
     selectedPresetId: null,
-    selectedScenes: [],
     sidebarCollapsed: false,
     sidebarWidth: 340,
     snapIndicatorTimer: null,

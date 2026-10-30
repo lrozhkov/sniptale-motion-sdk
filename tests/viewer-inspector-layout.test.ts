@@ -63,7 +63,7 @@ describe("viewer inspector property layout", () => {
       "stroke",
       "strokeWidth",
       "width",
-    ]) {
+    ] as const) {
       expect(defaults[property]).toBe(runtimeLayer[property]);
     }
   });
@@ -94,6 +94,6 @@ describe("viewer inspector property layout", () => {
   });
 });
 
-function properties(fields) {
+function properties(fields: readonly { property: string }[]): string[] {
   return fields.map((field) => field.property);
 }

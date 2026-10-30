@@ -52,7 +52,7 @@ export function syncControlPresetSelection(
   template: EffectDefinition,
 ): void {
   const select = ctx.refs.controlsPanel.querySelector("[data-visual-preset]");
-  if (select)
+  if (select instanceof HTMLSelectElement)
     select.value =
       template.controlPresets?.find((preset) =>
         Object.entries(preset.values).every(([id, value]) =>

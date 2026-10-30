@@ -16,12 +16,16 @@ describe("sandbox render model cache", () => {
 
     expect(first).toBe(firstMessage);
     expect(second).toBe(secondMessage);
-    expect(first.layers[0]).toMatchObject({
-      id: "logo",
-      opacity: 1,
-      scaleX: 1,
-      scaleY: 1,
-    });
+    expect(first.layers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "logo",
+          opacity: 1,
+          scaleX: 1,
+          scaleY: 1,
+        }),
+      ]),
+    );
     expect(second.layers).toBe(first.layers);
     expect(second.timeline).toBe(first.timeline);
     expect(second.time).toBe(1);

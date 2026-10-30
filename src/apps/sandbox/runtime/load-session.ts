@@ -1,3 +1,4 @@
+import type { SandboxDocumentSessionOptions } from "./session-model.js";
 import { loadSandboxEffectDocument } from "./effect-v1/document-session.js";
 
 export async function loadSandboxRuntimeDefinition({
@@ -7,7 +8,7 @@ export async function loadSandboxRuntimeDefinition({
   renderQueue,
   responseSink,
   runtime,
-}) {
+}: SandboxDocumentSessionOptions) {
   await renderQueue;
   canvasPool.close();
   if (message.kind === "loadEffectDocument") {

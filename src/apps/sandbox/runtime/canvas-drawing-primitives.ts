@@ -1,6 +1,17 @@
+import type { RuntimeCanvasContext, RuntimeCanvas } from "./canvas-model.js";
+import type {
+  TextDrawOptions,
+  CodeBlockDrawOptions,
+  PathDrawOptions,
+  ParticlesDrawOptions,
+  CodeLine,
+} from "./canvas-drawing-model.js";
 import { clamp, roundRect } from "./math.js";
 
-export function drawText(context: any, args: any) {
+export function drawText(
+  context: RuntimeCanvasContext,
+  args?: TextDrawOptions | null,
+): void {
   const {
     alpha,
     color = "#ffffff",
@@ -36,7 +47,10 @@ export function drawText(context: any, args: any) {
   context.restore();
 }
 
-export function drawCodeBlock(context: any, args: any) {
+export function drawCodeBlock(
+  context: RuntimeCanvasContext,
+  args?: CodeBlockDrawOptions | null,
+): void {
   const {
     lines = [],
     x = 80,
@@ -75,7 +89,10 @@ export function drawCodeBlock(context: any, args: any) {
   context.restore();
 }
 
-export function drawPath(context: any, args: any) {
+export function drawPath(
+  context: RuntimeCanvasContext,
+  args?: PathDrawOptions | null,
+): void {
   const {
     points = [],
     progress = 1,
@@ -128,12 +145,16 @@ export function drawPath(context: any, args: any) {
   context.restore();
 }
 
-export function drawParticles(context: any, args: any) {
+export function drawParticles(
+  context: RuntimeCanvasContext,
+  args?: ParticlesDrawOptions | null,
+): void {
+  const canvas: RuntimeCanvas = context.canvas;
   const {
     count = 80,
     progress = 0,
-    width = context.canvas.__sniptaleLogicalWidth ?? context.canvas.width,
-    height = context.canvas.__sniptaleLogicalHeight ?? context.canvas.height,
+    width = canvas.__sniptaleLogicalWidth ?? canvas.width,
+    height = canvas.__sniptaleLogicalHeight ?? canvas.height,
     color = "#7cf7ff",
     alpha,
     seed = 1,
@@ -156,8 +177,8 @@ export function drawParticles(context: any, args: any) {
 }
 
 function drawCodeTokens(
-  context: any,
-  line: any,
+  context: RuntimeCanvasContext,
+  line: CodeLine,
   x: number,
   y: number,
   accent: string,

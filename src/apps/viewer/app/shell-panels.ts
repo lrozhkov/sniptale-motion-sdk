@@ -53,6 +53,7 @@ function setSidebarGroup(ctx: ViewerAppContext, group) {
   ctx.refs.sidebar.dataset.activeSidebar = nextGroup;
   syncTablistButtons(ctx.refs.sidebarTabs, nextGroup, "sidebarTab");
   ctx.refs.sidebar.querySelectorAll("[data-sidebar-panel]").forEach((panel) => {
+    if (!(panel instanceof HTMLElement)) return;
     panel.hidden = panel.dataset.sidebarPanel !== nextGroup;
   });
   ctx.syncSidebarHeading();
@@ -162,6 +163,7 @@ function setInspectorTab(ctx: ViewerAppContext, tab) {
     ctx.refs.inspectorPanel
       .querySelectorAll("[data-inspector-section]")
       .forEach((panel) => {
+        if (!(panel instanceof HTMLElement)) return;
         panel.hidden = panel.dataset.inspectorSection !== nextTab;
       });
   }
@@ -217,7 +219,7 @@ function syncInspectorTabs(
     "inspectorTab",
   );
   const tabList = ctx.refs.inspectorTabs[0]?.closest(".subtabs");
-  if (tabList) {
+  if (tabList instanceof HTMLElement) {
     tabList.hidden = available.size <= 1;
   }
 }
@@ -229,6 +231,7 @@ function setHealthTab(ctx: ViewerAppContext, tab) {
   ctx.state.activeHealthTab = nextTab;
   syncTablistButtons(ctx.refs.healthTabs, nextTab, "healthTab");
   ctx.refs.sidebar.querySelectorAll("[data-health-panel]").forEach((panel) => {
+    if (!(panel instanceof HTMLElement)) return;
     panel.hidden = panel.dataset.healthPanel !== nextTab;
   });
   if (nextTab === "renderer" && ctx.state.currentTemplate) {

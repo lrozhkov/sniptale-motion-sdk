@@ -1,4 +1,41 @@
-export function drawImageAsset(context, asset, args) {
+import type {
+  RuntimeCanvasContext,
+  PrimitiveLayerReference,
+} from "./canvas-model.js";
+
+export type BitmapAsset = {
+  bitmap?: ImageBitmap | null;
+  height?: number;
+  width?: number;
+};
+export type ImageAssetDrawOptions = PrimitiveLayerReference & {
+  alpha?: number;
+  fit?: "contain" | "cover";
+  height?: number;
+  opacity?: number;
+  rotate?: number;
+  scale?: number;
+  composite?: GlobalCompositeOperation;
+  filter?: string;
+  shadowBlur?: number;
+  shadowColor?: string;
+  width?: number;
+  x?: number;
+  y?: number;
+};
+export type AssetTrailDrawOptions = ImageAssetDrawOptions & {
+  count?: number;
+  dx?: number;
+  dy?: number;
+  rotateStep?: number;
+  scaleStep?: number;
+};
+
+export function drawImageAsset(
+  context: RuntimeCanvasContext,
+  asset: BitmapAsset | null | undefined,
+  args?: ImageAssetDrawOptions | null,
+): void {
   if (!asset || !asset.bitmap) {
     return;
   }
@@ -58,7 +95,11 @@ export function drawImageAsset(context, asset, args) {
   context.restore();
 }
 
-export function drawAssetTrail(context, asset, args) {
+export function drawAssetTrail(
+  context: RuntimeCanvasContext,
+  asset: BitmapAsset | null | undefined,
+  args?: AssetTrailDrawOptions | null,
+): void {
   if (!asset || !asset.bitmap) {
     return;
   }
@@ -93,14 +134,18 @@ export function drawAssetTrail(context, asset, args) {
   }
 }
 
-export function closeAssetBitmaps(assets) {
+export function closeAssetBitmaps(assets: unknown): void {
   if (!assets || typeof assets !== "object") {
     return;
   }
-  for (const asset of Object.values(assets) as any[]) {
-    const bitmap = asset?.bitmap ?? asset;
-    if (bitmap && typeof bitmap.close === "function") {
+  for (const asset of Object.values(assets)) {
+    const bitmap: unknown = isRecord(asset) ? (asset.bitmap ?? asset) : asset;
+    if (isRecord(bitmap) && typeof bitmap.close === "function") {
       bitmap.close();
     }
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
 }

@@ -6,6 +6,18 @@ import {
 } from "../src/apps/viewer/timeline/model/selection-consistency";
 
 describe("viewer selection consistency", () => {
+  it("does not coerce malformed primary identifiers", () => {
+    expect(
+      getPrimaryKeyframeSelection({
+        selectedKeyframes: [{ trackId: { toString: 0 }, keyframeId: "a" }],
+      }),
+    ).toBeNull();
+    const ctx = createContext(createTemplate());
+    ctx.state.selectedItem = { type: "layer", layerId: { toString: 0 } };
+    reconcileTimelineSelection(ctx);
+    expect(ctx.state.selectedItem).toEqual({ type: "effect" });
+  });
+
   it("reads the primary keyframe from the canonical selected collection", () => {
     expect(
       getPrimaryKeyframeSelection({

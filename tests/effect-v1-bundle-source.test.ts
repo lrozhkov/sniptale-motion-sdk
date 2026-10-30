@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   isPathContained,
   readMaterializedEffectV1Bundle,
-} from "../tooling/effect-v1/bundle-source";
+} from "../src/apps/cli/bundle-source";
 import { MAX_ASSET_BYTES } from "../src/sdk/protocol";
 
 const cleanup: string[] = [];

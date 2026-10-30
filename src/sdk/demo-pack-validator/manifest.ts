@@ -1,12 +1,23 @@
+import type { DemoPackIssue } from "./common.js";
 import { TARGET_ENGINE_VERSION } from "../protocol.js";
 import { validateAssetEntry } from "./assets.js";
 import { isRecord, isSafeLocalPath, push } from "./common.js";
 import { validateModuleEntry } from "./modules.js";
 
-export function validateManifest(manifest, errors) {
+export type DemoPackMetadata = Record<string, unknown> & {
+  packId: string;
+  version: string;
+  engineVersion: string;
+};
+
+export function validateManifest(
+  manifest: unknown,
+  errors: DemoPackIssue[],
+): manifest is DemoPackMetadata {
+  const previousErrorCount = errors.length;
   if (!isRecord(manifest)) {
     push(errors, "manifest", "Expected manifest object.");
-    return;
+    return false;
   }
   for (const key of ["packId", "version", "engineVersion"]) {
     if (typeof manifest[key] !== "string" || manifest[key].trim() === "") {
@@ -40,9 +51,12 @@ export function validateManifest(manifest, errors) {
       validateModuleEntry(item, index, errors),
     );
   }
-  if (Array.isArray(manifest.assets)) {
+  if (manifest.assets !== undefined && !Array.isArray(manifest.assets)) {
+    push(errors, "manifest.assets", "Expected asset entry list.");
+  } else if (Array.isArray(manifest.assets)) {
     manifest.assets.forEach((item, index) =>
       validateAssetEntry(item, index, errors),
     );
   }
+  return errors.length === previousErrorCount;
 }

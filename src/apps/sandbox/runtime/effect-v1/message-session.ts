@@ -1,3 +1,4 @@
+import type { SandboxDocumentSessionOptions } from "../session-model.js";
 import { loadSandboxRuntimeDefinition } from "../load-session.js";
 import { validateSandboxEffectDocument } from "./document-session.js";
 
@@ -8,7 +9,7 @@ export async function handleEffectDocumentMessage({
   renderQueue,
   responseSink,
   runtime,
-}): Promise<boolean> {
+}: SandboxDocumentSessionOptions): Promise<boolean> {
   if (message.kind === "validateEffectDocument") {
     validateSandboxEffectDocument(responseSink, runtime, message);
     return true;

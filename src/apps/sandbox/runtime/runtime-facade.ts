@@ -12,19 +12,28 @@ import { drawAssetTrail, drawImageAsset } from "./render-assets.js";
 import { recordPrimitivePaintRead } from "./primitive-paint-reads.js";
 import { installCanvasRenderQuality } from "./canvas-render-quality.js";
 import { getLogicalCanvasSize } from "./logical-canvas.js";
+import { createOptionalRuntimeAccess } from "./optional-runtime.js";
+import type { createSandboxRegistry } from "./registry.js";
+import type { RuntimeCanvas, RuntimeCanvasContext } from "./canvas-model.js";
+import type { RuntimeRenderState } from "./runtime-model.js";
 
-export function createSandboxRuntimeFacade(registry) {
-  let reactRuntime: any = null;
-  let reactRuntimePromise: Promise<any> | null = null;
-  let threeRuntime: any = null;
-  let threeRuntimePromise: Promise<any> | null = null;
-  const runtime: any = {
+export function createSandboxRuntimeFacade(
+  registry: ReturnType<typeof createSandboxRegistry>,
+) {
+  const initialState: RuntimeRenderState = {
     __bindingReads: null,
     __bindingReadMode: null,
     __renderQuality: "full",
     __renderViewport: null,
-    clear(canvas, color) {
-      const context = canvas.getContext("2d");
+  };
+  const optional = createOptionalRuntimeAccess(
+    (): RuntimeRenderState => runtime,
+  );
+  const runtime = {
+    ...initialState,
+    clear(canvas: RuntimeCanvas, color?: string): RuntimeCanvasContext {
+      const context: RuntimeCanvasContext | null = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas 2D context is unavailable.");
       const logicalSize = getLogicalCanvasSize(canvas);
       context.__sniptaleBindingReads = runtime.__bindingReads;
       context.save();
@@ -37,22 +46,21 @@ export function createSandboxRuntimeFacade(registry) {
       }
       return context;
     },
-    createCanvas(width, height) {
-      if (typeof OffscreenCanvas !== "undefined") {
+    createCanvas(width: number, height: number): RuntimeCanvas {
+      if (typeof OffscreenCanvas !== "undefined")
         return new OffscreenCanvas(width, height);
-      }
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       return canvas;
     },
-    drawRoundRect(context, x, y, width, height, radius) {
-      roundRect(context, x, y, width, height, radius);
-    },
-    drawCodeBlock(context, args) {
-      drawCodeBlock(context, args);
-    },
-    drawMask(context, drawMaskPath, drawContent) {
+    drawRoundRect: roundRect,
+    drawCodeBlock,
+    drawMask(
+      context: RuntimeCanvasContext,
+      drawMaskPath: (context: RuntimeCanvasContext) => void,
+      drawContent: (context: RuntimeCanvasContext) => void,
+    ): void {
       context.save();
       context.beginPath();
       drawMaskPath(context);
@@ -60,127 +68,53 @@ export function createSandboxRuntimeFacade(registry) {
       drawContent(context);
       context.restore();
     },
-    drawParticles(context, args) {
-      recordPrimitivePaintRead(context, args);
-      drawParticles(context, args);
+    drawParticles: withPrimitiveRead(drawParticles, 0),
+    drawImageAsset: withPrimitiveRead(drawImageAsset, 1),
+    drawAssetTrail: withPrimitiveRead(drawAssetTrail, 1),
+    drawPath: withPrimitiveRead(drawPath, 0),
+    drawSvgAsset: withPrimitiveRead(drawImageAsset, 1),
+    drawSvgVectorAsset: withPrimitiveRead(
+      (context: RuntimeCanvasContext, asset: unknown, args: unknown) =>
+        drawSvgVectorAsset(context, asset, args, drawImageAsset),
+      1,
+    ),
+    svgPartTransform: createSvgPartTransform,
+    drawText: withPrimitiveRead(drawText, 0),
+    parseSvgAsset,
+    registerEffect: registry.registerEffect,
+    registerComposition: registry.registerComposition,
+    get React() {
+      return optional.React;
     },
-    drawImageAsset(context, asset, args) {
-      recordPrimitivePaintRead(context, args);
-      drawImageAsset(context, asset, args);
+    get THREE() {
+      return optional.THREE;
     },
-    drawAssetTrail(context, asset, args) {
-      recordPrimitivePaintRead(context, args);
-      drawAssetTrail(context, asset, args);
+    get r3f() {
+      return optional.r3f;
     },
-    drawPath(context, args) {
-      recordPrimitivePaintRead(context, args);
-      drawPath(context, args);
+    get three() {
+      return optional.three;
     },
-    drawSvgAsset(context, asset, args) {
-      recordPrimitivePaintRead(context, args);
-      drawImageAsset(context, asset, args);
-    },
-    drawSvgVectorAsset(context, asset, args) {
-      recordPrimitivePaintRead(context, args);
-      drawSvgVectorAsset(context, asset, args, drawImageAsset);
-    },
-    svgPartTransform(args) {
-      return createSvgPartTransform(args);
-    },
-    drawText(context, args) {
-      recordPrimitivePaintRead(context, args);
-      drawText(context, args);
-    },
-    parseSvgAsset(asset) {
-      return parseSvgAsset(asset);
-    },
-    registerEffect(definition) {
-      registry.registerEffect(definition);
-    },
-    registerComposition(definition) {
-      registry.registerComposition(definition);
-    },
+    __prepareRuntimeCapabilities: optional.prepare,
   };
-  Object.defineProperties(runtime, {
-    React: {
-      enumerable: true,
-      get() {
-        return requireOptionalRuntime(reactRuntime, "React", "react");
-      },
-    },
-    THREE: {
-      enumerable: true,
-      get() {
-        return requireOptionalRuntime(threeRuntime?.THREE, "THREE", "three");
-      },
-    },
-    r3f: {
-      enumerable: true,
-      get() {
-        return requireOptionalRuntime(threeRuntime?.r3f, "r3f", "r3f");
-      },
-    },
-    three: {
-      enumerable: true,
-      get() {
-        return requireOptionalRuntime(threeRuntime?.three, "three", "three");
-      },
-    },
-    __prepareRuntimeCapabilities: {
-      async value(capabilities: unknown) {
-        const values = Array.isArray(capabilities) ? capabilities : [];
-        const needsR3f = values.includes("r3f");
-        const pending: Promise<any>[] = [];
-        if ((values.includes("react") || needsR3f) && !reactRuntime) {
-          reactRuntimePromise ??= import("./react-facade.js").then((module) =>
-            module.createReactFacade(),
-          );
-          pending.push(
-            reactRuntimePromise.then((value) => {
-              reactRuntime = value;
-            }),
-          );
-        }
-        if ((values.includes("three") || needsR3f) && !threeRuntime) {
-          threeRuntimePromise ??= import("./three-facade.js").then((module) =>
-            module.createThreeSandboxFacade({
-              getBindingReadMode: () => runtime.__bindingReadMode,
-              getRenderViewport: () => runtime.__renderViewport,
-            }),
-          );
-          pending.push(
-            threeRuntimePromise.then((value) => {
-              threeRuntime = value;
-            }),
-          );
-        }
-        try {
-          await Promise.all(pending);
-        } catch (error) {
-          if (!reactRuntime) {
-            reactRuntimePromise = null;
-          }
-          if (!threeRuntime) {
-            threeRuntimePromise = null;
-          }
-          throw error;
-        }
-      },
-    },
+  for (const property of ["React", "THREE", "r3f", "three"]) {
+    Object.defineProperty(runtime, property, { configurable: false });
+  }
+  Object.defineProperty(runtime, "__prepareRuntimeCapabilities", {
+    configurable: false,
+    enumerable: false,
+    writable: false,
   });
   installCanvasRenderQuality(() => runtime.__renderQuality);
   return runtime;
 }
 
-function requireOptionalRuntime(
-  value: any,
-  property: string,
-  capability: string,
+function withPrimitiveRead<Args extends unknown[], Result>(
+  draw: (context: RuntimeCanvasContext, ...args: Args) => Result,
+  optionsIndex: number,
 ) {
-  if (value) {
-    return value;
-  }
-  throw new Error(
-    `Runtime.${property} requires the ${capability} module capability.`,
-  );
+  return (context: RuntimeCanvasContext, ...args: Args): Result => {
+    recordPrimitivePaintRead(context, args[optionsIndex]);
+    return draw(context, ...args);
+  };
 }

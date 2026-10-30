@@ -265,9 +265,12 @@ function createResponse(body: unknown, ok = true, status = 200) {
   };
 }
 
-function createCanvasContextSpy(): any {
+function createCanvasContextSpy() {
   const gradient = { addColorStop: vi.fn() };
   return {
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 1,
     arcTo: vi.fn(),
     beginPath: vi.fn(),
     closePath: vi.fn(),

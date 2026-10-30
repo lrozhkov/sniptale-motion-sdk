@@ -90,6 +90,7 @@ function updateTimelinePlaybackRangeOverlay(ctx: ViewerAppContext) {
   ctx.updateTimelineTrackOverlayHeights();
   for (const root of [ctx.refs.timelineRuler, ctx.refs.timelineTracks]) {
     root.querySelectorAll(".timeline-playback-range").forEach((item) => {
+      if (!(item instanceof HTMLElement)) return;
       if (!range) {
         item.hidden = true;
         return;

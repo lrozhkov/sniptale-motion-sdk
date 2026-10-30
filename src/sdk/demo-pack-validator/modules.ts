@@ -1,8 +1,14 @@
+import type { EffectV1Document } from "../effect-v1/types.js";
+import type { DemoPackIssue } from "./common.js";
 import { validateEffectV1Document } from "../effect-v1/validation.js";
 import { isRecord, isSafeLocalPath, push } from "./common.js";
 import { readJson } from "./readers.js";
 
-export function validateModuleEntry(item, index, errors) {
+export function validateModuleEntry(
+  item: unknown,
+  index: number,
+  errors: DemoPackIssue[],
+): void {
   if (!isRecord(item)) {
     push(errors, `manifest.modules.${index}`, "Expected module entry.");
     return;
@@ -33,19 +39,32 @@ export function validateModuleEntry(item, index, errors) {
   }
 }
 
-export async function readModules(baseUrl, manifest, errors) {
-  const modules = new Map();
+export async function readModules(
+  baseUrl: string,
+  manifest: Record<string, unknown>,
+  errors: DemoPackIssue[],
+) {
+  const modules = new Map<
+    string,
+    { document: EffectV1Document; id: string; path: string }
+  >();
   if (!Array.isArray(manifest.modules)) {
     return modules;
   }
   for (const entry of manifest.modules) {
-    if (!isRecord(entry) || !isSafeLocalPath(entry.document)) continue;
+    if (
+      !isRecord(entry) ||
+      typeof entry.id !== "string" ||
+      !isSafeLocalPath(entry.document)
+    )
+      continue;
+    const previousErrorCount = errors.length;
     const document = await readJson(
       `${baseUrl}${entry.document}`,
       errors,
       entry.document,
     );
-    if (!document) continue;
+    if (errors.length !== previousErrorCount) continue;
     const validation = validateEffectV1Document(document);
     if (!validation.ok || !validation.document) {
       for (const diagnostic of validation.diagnostics) {
@@ -70,7 +89,10 @@ export async function readModules(baseUrl, manifest, errors) {
   return modules;
 }
 
-export function validateModuleSources(modules, errors) {
+export function validateModuleSources(
+  modules: ReadonlyMap<string, { path: string; source?: unknown }>,
+  errors: DemoPackIssue[],
+): void {
   for (const module of modules.values()) {
     if (typeof module.source === "string") {
       push(errors, module.path, "Executable effect modules are forbidden.");

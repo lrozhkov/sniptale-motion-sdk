@@ -136,6 +136,7 @@ export function inspectControlPresetValues(
     }
     if (
       control["kind"] === "text" ||
+      typeof control["group"] !== "string" ||
       !VISUAL_GROUPS.has(control["group"]) ||
       protectedIds.has(id)
     ) {

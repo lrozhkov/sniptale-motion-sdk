@@ -52,6 +52,15 @@ function walk(dir: string): string[] {
 }
 
 describe("architecture guardrails", () => {
+  it("keeps public SDK declarations fully strict", () => {
+    expect(
+      JSON.parse(read("tooling/configs/typescript/sdk.json")).compilerOptions,
+    ).toMatchObject({
+      strict: true,
+      noImplicitAny: true,
+      strictNullChecks: true,
+    });
+  });
   it("keeps repository documentation, storage, and policy state deterministic", () => {
     expect(inspectRepositoryHygiene(process.cwd())).toEqual([]);
   });
@@ -112,6 +121,7 @@ describe("architecture guardrails", () => {
 
     expect(scripts).toEqual({
       build: "npm run release:legal && node tooling/build/run.mjs",
+      "build:npm": "node tooling/release/npm/build.mjs",
       "build:local": "node tooling/build/run.mjs --include-local-demo-pack",
       dev: "node tooling/vite/dev.mjs",
       "effect:corpus": "tsx tooling/effect-v1/corpus/generate.ts",
@@ -145,6 +155,7 @@ describe("architecture guardrails", () => {
       test: "vitest run --config tooling/configs/qa/vitest.ts",
       "test:coverage":
         "vitest run --coverage --config tooling/configs/qa/vitest.ts",
+      "test:npm": "node tooling/release/npm/accept.mjs",
       "test:smoke": "node tooling/test/smoke/run.mjs",
       typecheck: "node node_modules/@typescript/native/bin/tsc --noEmit",
     });

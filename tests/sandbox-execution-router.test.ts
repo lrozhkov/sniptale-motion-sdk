@@ -1,3 +1,4 @@
+import type { SandboxRuntimeMessage } from "../src/apps/sandbox/runtime/message-boundary.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -23,13 +24,28 @@ function createWorkerHarness() {
   };
 }
 
-function createLoadMessage(overrides: Record<string, unknown> = {}) {
+function createLoadMessage(): Extract<
+  SandboxRuntimeMessage,
+  { kind: "loadEffectDocument" }
+> {
   return {
-    document: { schemaVersion: "sniptale.effect.v1" },
-    kind: "loadEffectDocument" as const,
+    document: {
+      assets: [],
+      clips: [],
+      controls: [],
+      duration: 1,
+      id: "effect-a",
+      kind: "standalone",
+      label: { ru: "Тест", en: "Test" },
+      layers: [],
+      program: { commands: [], kind: "graph", version: 1 },
+      scenes: [{ id: "main", start: 0, duration: 1 }],
+      schemaVersion: "sniptale.effect.v1",
+      timeline: { phases: [], tracks: [] },
+    },
+    kind: "loadEffectDocument",
     moduleId: "canvas-module",
     requestId: "load:1",
-    ...overrides,
   };
 }
 

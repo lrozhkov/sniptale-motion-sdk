@@ -71,6 +71,8 @@ export function validateEffectV1ObjectHandles(
       if (
         !isRecord(control) ||
         control.kind !== "number" ||
+        typeof control.min !== "number" ||
+        typeof control.max !== "number" ||
         !Number.isFinite(control.min) ||
         !Number.isFinite(control.max) ||
         control.min < -EFFECT_V1_HANDLE_MAX_COORDINATE ||

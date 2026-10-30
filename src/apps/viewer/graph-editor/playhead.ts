@@ -4,7 +4,7 @@ import { graphTimeToX } from "./model.js";
 function updateGraphEditorPlayhead(ctx: ViewerAppContext, time: number): void {
   const playhead = ctx.refs.curveEditor.querySelector(".graph-playhead");
   const viewport = ctx.state.graphEditorViewport;
-  if (!playhead || !viewport) {
+  if (!(playhead instanceof SVGElement) || !viewport) {
     return;
   }
   const visible = time >= viewport.timeStart && time <= viewport.timeEnd;

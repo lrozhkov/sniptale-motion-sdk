@@ -1,4 +1,8 @@
-export async function loadEmptyStartupPack() {
+import type { loadDemoPack } from "../../../sdk/validator.js";
+
+export async function loadEmptyStartupPack(): Promise<
+  Awaited<ReturnType<typeof loadDemoPack>>
+> {
   return {
     assets: new Map(),
     errors: [],
@@ -8,12 +12,15 @@ export async function loadEmptyStartupPack() {
   };
 }
 
-export function drawEmptyPreview(context, params) {
+export function drawEmptyPreview(
+  context: Pick<CanvasRenderingContext2D, "fillStyle" | "fillRect">,
+  params: { width: number; height: number },
+): void {
   context.fillStyle = "#050607";
   context.fillRect(0, 0, params.width, params.height);
 }
 
-export async function createEmptyInputFrames(width, height) {
+export async function createEmptyInputFrames(width: number, height: number) {
   const previousCanvas = new OffscreenCanvas(width, height);
   const nextCanvas = new OffscreenCanvas(width, height);
   fillInputSurface(previousCanvas, "#101216");
@@ -24,7 +31,7 @@ export async function createEmptyInputFrames(width, height) {
   };
 }
 
-function fillInputSurface(canvas, color) {
+function fillInputSurface(canvas: OffscreenCanvas, color: string): void {
   const context = canvas.getContext("2d");
   if (!context) {
     throw new Error("Transition preview surface is unavailable.");

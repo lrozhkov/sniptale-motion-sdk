@@ -1,9 +1,26 @@
+import type { EffectScene, TimelinePhase } from "../../../sdk/types.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+
+type FallbackTemplate = {
+  duration?: number;
+  timeline?: {
+    tracks?: readonly { target?: unknown }[];
+    phases?: readonly TimelinePhase[];
+  };
+  scenes?: unknown;
+  kind?: string;
+  domMotion?: unknown;
+};
+
 import type { ViewerAppContext } from "../app/context.js";
 
-function createFallbackLayers(ctx: ViewerAppContext, template) {
-  const ids = new Set();
+export function createFallbackLayers(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate,
+) {
+  const ids = new Set<string>();
   for (const track of template.timeline?.tracks ?? []) {
-    if (track.target) {
+    if (typeof track.target === "string" && track.target) {
       ids.add(track.target);
     }
   }
@@ -27,9 +44,12 @@ function createFallbackLayers(ctx: ViewerAppContext, template) {
   }));
 }
 
-function createFallbackClips(ctx: ViewerAppContext, template) {
-  const duration = ctx.getEffectiveDuration(template);
-  return ctx.createFallbackLayers(template).map((layer) => ({
+export function createFallbackClips(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate,
+) {
+  const duration = Number(ctx.getEffectiveDuration(template));
+  return createFallbackLayers(ctx, template).map((layer) => ({
     duration,
     layerId: layer.id,
     locked: false,
@@ -38,8 +58,11 @@ function createFallbackClips(ctx: ViewerAppContext, template) {
   }));
 }
 
-function createFallbackTimeline(ctx: ViewerAppContext, template) {
-  const duration = ctx.getEffectiveDuration(template);
+export function createFallbackTimeline(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate,
+): EditorTimeline {
+  const duration = Number(ctx.getEffectiveDuration(template));
   return {
     duration,
     phases: [{ id: "main", label: "Main", start: 0, duration, locked: true }],
@@ -47,34 +70,44 @@ function createFallbackTimeline(ctx: ViewerAppContext, template) {
   };
 }
 
-function createFallbackScenes(ctx: ViewerAppContext, template) {
-  const duration = ctx.getEffectiveDuration(template);
+export function createFallbackScenes(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate,
+): EffectScene[] {
+  const duration = Number(ctx.getEffectiveDuration(template));
   return [{ duration, id: "main", label: "Main", start: 0, locked: false }];
 }
 
-function normalizeScenes(
+export function normalizeScenes(
   ctx: ViewerAppContext,
-  scenes,
-  duration = ctx.getEffectiveDuration(),
+  scenes: unknown,
+  duration = Number(ctx.getEffectiveDuration()),
 ) {
   return ctx.deps.normalizeEditorScenes(scenes, duration);
 }
 
-function findTemplateScene(ctx: ViewerAppContext, template, sceneId) {
+export function findTemplateScene(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate | null | undefined,
+  sceneId: string | null | undefined,
+) {
   if (!sceneId) {
     return null;
   }
   return (
-    ctx
-      .normalizeScenes(
-        template?.scenes ?? [],
-        template?.duration ?? ctx.getEffectiveDuration(),
-      )
-      .find((scene) => scene.id === sceneId) ?? null
+    normalizeScenes(
+      ctx,
+      template?.scenes ?? [],
+      template?.duration ?? ctx.getEffectiveDuration(),
+    ).find((scene) => scene.id === sceneId) ?? null
   );
 }
 
-function findTemplatePhase(ctx: ViewerAppContext, template, phaseId) {
+export function findTemplatePhase(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate | null | undefined,
+  phaseId: string | null | undefined,
+) {
   if (!phaseId) {
     return null;
   }
@@ -84,7 +117,10 @@ function findTemplatePhase(ctx: ViewerAppContext, template, phaseId) {
   );
 }
 
-function getRendererType(ctx: ViewerAppContext, template) {
+export function getRendererType(
+  ctx: ViewerAppContext,
+  template: FallbackTemplate | null | undefined,
+): "dom" | "composition" | "effect" {
   return template?.domMotion
     ? "dom"
     : template?.kind === "composition"
@@ -93,20 +129,12 @@ function getRendererType(ctx: ViewerAppContext, template) {
 }
 
 export function installTemplatesFallbacksOwner(ctx: ViewerAppContext): void {
-  ctx.createFallbackLayers = (...args: any[]) =>
-    (createFallbackLayers as any)(ctx, ...args);
-  ctx.createFallbackClips = (...args: any[]) =>
-    (createFallbackClips as any)(ctx, ...args);
-  ctx.createFallbackTimeline = (...args: any[]) =>
-    (createFallbackTimeline as any)(ctx, ...args);
-  ctx.createFallbackScenes = (...args: any[]) =>
-    (createFallbackScenes as any)(ctx, ...args);
-  ctx.normalizeScenes = (...args: any[]) =>
-    (normalizeScenes as any)(ctx, ...args);
-  ctx.findTemplateScene = (...args: any[]) =>
-    (findTemplateScene as any)(ctx, ...args);
-  ctx.findTemplatePhase = (...args: any[]) =>
-    (findTemplatePhase as any)(ctx, ...args);
-  ctx.getRendererType = (...args: any[]) =>
-    (getRendererType as any)(ctx, ...args);
+  ctx.createFallbackLayers = createFallbackLayers.bind(null, ctx);
+  ctx.createFallbackClips = createFallbackClips.bind(null, ctx);
+  ctx.createFallbackTimeline = createFallbackTimeline.bind(null, ctx);
+  ctx.createFallbackScenes = createFallbackScenes.bind(null, ctx);
+  ctx.normalizeScenes = normalizeScenes.bind(null, ctx);
+  ctx.findTemplateScene = findTemplateScene.bind(null, ctx);
+  ctx.findTemplatePhase = findTemplatePhase.bind(null, ctx);
+  ctx.getRendererType = getRendererType.bind(null, ctx);
 }

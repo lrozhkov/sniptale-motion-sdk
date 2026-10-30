@@ -1,11 +1,11 @@
 import type { ViewerAppContext } from "./context.js";
 
-function setPackStatus(ctx: ViewerAppContext, text, variant) {
+function setPackStatus(ctx: ViewerAppContext, text: string, variant: string) {
   ctx.refs.packStatus.textContent = text;
   ctx.refs.packStatus.title = text;
   ctx.refs.packStatus.className = `status-chip ${variant}`;
 }
-function logDiagnostic(ctx: ViewerAppContext, message, level = "info") {
+function logDiagnostic(ctx: ViewerAppContext, message: string, level = "info") {
   const row = document.createElement("div");
   row.className = `diagnostic ${level}`;
   row.textContent = `${new Date().toLocaleTimeString()} · ${message}`;
@@ -94,8 +94,7 @@ function showCopyDiagnosticsState(ctx: ViewerAppContext, label: string): void {
 }
 
 export function installAppDiagnosticsOwner(ctx: ViewerAppContext): void {
-  ctx.setPackStatus = (...args: any[]) => (setPackStatus as any)(ctx, ...args);
-  ctx.logDiagnostic = (...args: any[]) => (logDiagnostic as any)(ctx, ...args);
-  ctx.copyDiagnostics = (...args: any[]) =>
-    (copyDiagnostics as any)(ctx, ...args);
+  ctx.setPackStatus = setPackStatus.bind(null, ctx);
+  ctx.logDiagnostic = logDiagnostic.bind(null, ctx);
+  ctx.copyDiagnostics = copyDiagnostics.bind(null, ctx);
 }

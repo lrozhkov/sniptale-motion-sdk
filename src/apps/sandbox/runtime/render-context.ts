@@ -1,3 +1,16 @@
+import type { SandboxRenderFrameMessage } from "./render-message-boundary.js";
+import type { PreparedRenderModel } from "./render-model-cache.js";
+import type { BindingReads } from "./binding-reads.js";
+
+type RenderCanvas = HTMLCanvasElement | OffscreenCanvas;
+type CanvasFactory = (width: number, height: number) => RenderCanvas;
+type CanvasRuntime = { createCanvas?: CanvasFactory };
+type RenderContextMessage = Partial<SandboxRenderFrameMessage> & {
+  [PREPARED_RENDER_MODEL]?: PreparedRenderModel;
+};
+
+export type SandboxRenderContext = ReturnType<typeof createRenderContext>;
+
 import { createBindingReads, recordBindingRead } from "./binding-reads.js";
 import { clamp } from "./math.js";
 import {
@@ -21,10 +34,14 @@ import { PREPARED_RENDER_MODEL } from "./render-model-cache.js";
 const trackPhaseBindingCache = new WeakMap<object, Map<string, string[]>>();
 
 export function createRenderContext(
-  message,
-  renderer,
-  runtime,
-  createCanvas = (width, height) => runtime.createCanvas(width, height),
+  message: RenderContextMessage,
+  renderer: { kind?: string; scenes?: unknown },
+  runtime: CanvasRuntime,
+  createCanvas: CanvasFactory = (width, height) => {
+    if (!runtime.createCanvas)
+      throw new Error("Canvas factory is unavailable.");
+    return runtime.createCanvas(width, height);
+  },
 ) {
   const preparedModel = message[PREPARED_RENDER_MODEL] ?? null;
   const duration = preparedModel?.duration ?? (Number(message.duration) || 1);
@@ -80,27 +97,36 @@ export function createRenderContext(
     timeline,
     time,
     width: Number(message.outputWidth ?? message.width) || 1280,
-    createCanvas(width = ctx.width, height = ctx.height) {
-      return createCanvas(width, height);
+    createCanvas(width?: number, height?: number): RenderCanvas {
+      return createCanvas(
+        width === undefined ? ctx.width : width,
+        height === undefined ? ctx.height : height,
+      );
     },
-    bindings(definitions, at = ctx.time) {
+    bindings(definitions: unknown, at?: number): Record<string, unknown> {
+      at = at === undefined ? ctx.time : at;
       return resolveBindings(ctx, definitions, at);
     },
-    curve(trackId) {
+    curve(trackId: string) {
       recordBindingRead(bindingReads, "tracks", trackId);
-      return timeline.tracks.find((track) => track.id === trackId) ?? null;
+      return (
+        timeline.tracks.find((track: { id: string }) => track.id === trackId) ??
+        null
+      );
     },
-    phaseProgress(phaseId, at = ctx.time) {
+    phaseProgress(phaseId: string, at?: number): number {
+      at = at === undefined ? ctx.time : at;
       recordBindingRead(bindingReads, "phases", phaseId);
       return resolvePhaseProgress(timeline, phaseId, at);
     },
-    isLayerActive(layerId, at = ctx.time) {
+    isLayerActive(layerId: string, at?: number): boolean {
+      at = at === undefined ? ctx.time : at;
       recordBindingRead(bindingReads, "layerGateReads", layerId);
       recordBindingRead(bindingReads, "layers", layerId);
       recordBindingRead(bindingReads, "clips", layerId);
       return isLayerActive(clips, layerId, at, scenes);
     },
-    renderSvg(markup) {
+    renderSvg(markup: string): Promise<RenderCanvas> {
       return renderSvgToCanvas(
         markup,
         ctx.width,
@@ -109,38 +135,47 @@ export function createRenderContext(
         createCanvas,
       );
     },
-    resolveLayer(layerId, at = ctx.time) {
+    resolveLayer(
+      layerId: string,
+      at?: number,
+    ): ReturnType<typeof resolveLayerState> {
+      at = at === undefined ? ctx.time : at;
       recordBindingRead(bindingReads, "layerGateReads", layerId);
       recordBindingRead(bindingReads, "layers", layerId);
       recordBindingRead(bindingReads, "clips", layerId);
       return resolveLayerState(layers, clips, timeline, layerId, at);
     },
-    resolveTrack(trackId, fallback = 0, at = ctx.time) {
+    resolveTrack(trackId: string, fallback: unknown = 0, at?: number): unknown {
+      at = at === undefined ? ctx.time : at;
       recordTrackBindingRead(bindingReads, trackPhaseBindings, trackId);
       return resolveTrackValue(timeline, trackId, at, fallback);
     },
-    track(trackId, fallback = 0, at = ctx.time) {
+    track(trackId: string, fallback: unknown = 0, at?: number): unknown {
+      at = at === undefined ? ctx.time : at;
       recordTrackBindingRead(bindingReads, trackPhaseBindings, trackId);
       return resolveTrackValue(timeline, trackId, at, fallback);
     },
-    value(definition, fallback = 0, at = ctx.time) {
+    value(definition: unknown, fallback: unknown = 0, at?: number): unknown {
+      at = at === undefined ? ctx.time : at;
       return resolveBindingValue(ctx, definition, fallback, at);
     },
-    values(definitions, at = ctx.time) {
+    values(definitions: unknown, at?: number): Record<string, unknown> {
+      at = at === undefined ? ctx.time : at;
       return resolveBindingObject(ctx, definitions, at);
     },
-    style(definitions, at = ctx.time) {
+    style(definitions: unknown, at?: number): Record<string, unknown> {
+      at = at === undefined ? ctx.time : at;
       return resolveBindingObject(ctx, definitions, at);
     },
   };
   return ctx;
 }
 
-function createTrackedControls(controls, bindingReads) {
-  const values =
-    controls && typeof controls === "object" && !Array.isArray(controls)
-      ? controls
-      : {};
+function createTrackedControls(
+  controls: unknown,
+  bindingReads: BindingReads | null,
+): Record<string, unknown> {
+  const values = isRecord(controls) ? controls : {};
   return new Proxy(values, {
     get(target, property, receiver) {
       if (typeof property === "string" && Object.hasOwn(target, property)) {
@@ -151,14 +186,24 @@ function createTrackedControls(controls, bindingReads) {
   });
 }
 
-function recordTrackBindingRead(bindingReads, trackPhaseBindings, trackId) {
+function recordTrackBindingRead(
+  bindingReads: BindingReads | null,
+  trackPhaseBindings: Map<string, string[]>,
+  trackId: string,
+): void {
   recordBindingRead(bindingReads, "tracks", trackId);
   for (const phaseId of trackPhaseBindings.get(trackId) ?? []) {
     recordBindingRead(bindingReads, "phases", phaseId);
   }
 }
 
-function getTrackPhaseBindings(timeline): Map<string, string[]> {
+function getTrackPhaseBindings(timeline: {
+  tracks?: {
+    id: string;
+    phaseId?: string | null;
+    keyframes?: { phaseId?: string | null }[];
+  }[];
+}): Map<string, string[]> {
   if (!timeline || typeof timeline !== "object") {
     return new Map();
   }
@@ -178,8 +223,11 @@ function getTrackPhaseBindings(timeline): Map<string, string[]> {
   return bindings;
 }
 
-function createTrackedInputFrames(inputFrames, bindingReads) {
-  const frames = inputFrames ?? {};
+function createTrackedInputFrames(
+  inputFrames: unknown,
+  bindingReads: BindingReads | null,
+) {
+  const frames = isRecord(inputFrames) ? inputFrames : {};
   return {
     get from() {
       recordBindingRead(bindingReads, "inputFrames", "from");
@@ -205,13 +253,16 @@ function createTrackedInputFrames(inputFrames, bindingReads) {
 }
 
 export async function renderSvgToCanvas(
-  markup,
-  width,
-  height,
-  runtime,
-  createCanvas = (canvasWidth, canvasHeight) =>
-    runtime.createCanvas(canvasWidth, canvasHeight),
-) {
+  markup: string,
+  width: number,
+  height: number,
+  runtime: CanvasRuntime,
+  createCanvas: CanvasFactory = (canvasWidth, canvasHeight) => {
+    if (!runtime.createCanvas)
+      throw new Error("Canvas factory is unavailable.");
+    return runtime.createCanvas(canvasWidth, canvasHeight);
+  },
+): Promise<RenderCanvas> {
   const svg = markup.trim().startsWith("<svg")
     ? markup
     : `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${markup}</svg>`;
@@ -227,10 +278,15 @@ export async function renderSvgToCanvas(
     });
     const canvas = createCanvas(width, height);
     const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas 2D context is unavailable.");
     context.clearRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
     return canvas;
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

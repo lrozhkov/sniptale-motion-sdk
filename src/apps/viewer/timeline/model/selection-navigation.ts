@@ -180,7 +180,7 @@ function focusInspectorForSelection(ctx: ViewerAppContext) {
   const focusable = (section ?? ctx.refs.inspectorPanel).querySelector(
     "input:not([disabled]), select:not([disabled]), button:not([disabled])",
   );
-  focusable?.focus();
+  if (focusable instanceof HTMLElement) focusable.focus();
 }
 
 function getInspectorFocusTabForSelection(_ctx: ViewerAppContext, item) {

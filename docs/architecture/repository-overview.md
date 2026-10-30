@@ -1,7 +1,8 @@
 # Repository Architecture
 
-The repository has four runtime and contract seams.
+The repository has five runtime and contract seams.
 
+- `src/apps/cli/` owns installed Node commands, project creation, and bundle file access.
 - `src/apps/viewer/` owns editor state, browser UI, imports, exports, playback, and the host side of sandbox transport.
 - `src/apps/sandbox/` owns isolated document execution, frame rendering, the render worker, and the sandbox side of transport.
 - `src/sdk/` owns public TypeScript contracts, the protocol, Effect v1 schema and validation, graph contracts, and reusable motion primitives.

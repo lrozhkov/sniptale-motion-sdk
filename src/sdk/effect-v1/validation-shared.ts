@@ -3,7 +3,7 @@ import { isSafeSvgText } from "../svg-safety.js";
 
 export const IDENTIFIER_PATTERN = /^[a-z][a-z0-9._-]{0,127}$/i;
 
-export function isRecord(value: unknown): value is Record<string, any> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 

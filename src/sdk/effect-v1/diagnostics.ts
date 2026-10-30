@@ -1,5 +1,10 @@
 import type { EffectV1Diagnostic, EffectV1ValidationResult } from "./types.js";
 
+export type EffectV1ValidationReport = Pick<
+  ReturnType<typeof createEffectV1Diagnostics>,
+  "error" | "warning"
+>;
+
 export function createEffectV1Diagnostics() {
   const diagnostics: EffectV1Diagnostic[] = [];
   return {

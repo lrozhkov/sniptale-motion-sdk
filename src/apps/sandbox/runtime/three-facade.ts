@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { createRoot, extend, flushSync } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -129,7 +130,11 @@ function createThreeFrameRenderer(
     get renderer() {
       return getRenderer();
     },
-    async render(scene, camera, renderOptions: any = {}) {
+    async render(
+      scene: THREE.Object3D,
+      camera: THREE.Camera,
+      renderOptions: any = {},
+    ) {
       if (isBindingAudit()) {
         return createBindingAuditBitmap(
           resolveThreeRenderSize(
@@ -222,7 +227,7 @@ function createR3fFrameRenderer(
 
   return Object.freeze({
     canvas,
-    async render(element, renderOptions: any = {}) {
+    async render(element: ReactNode, renderOptions: any = {}) {
       if (isBindingAudit()) {
         return createBindingAuditBitmap(
           resolveThreeRenderSize(
@@ -286,7 +291,12 @@ function ensureR3fCatalogue() {
   r3fCatalogueExtended = true;
 }
 
-function configureWebGlRenderer(renderer, width, height, options: any) {
+function configureWebGlRenderer(
+  renderer: THREE.WebGLRenderer,
+  width: number,
+  height: number,
+  options: any,
+) {
   renderer.setPixelRatio(positiveNumber(options.dpr, 1));
   renderer.setSize(width, height, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;

@@ -1,24 +1,31 @@
+import type {
+  EffectScene,
+  TimelinePhase,
+  TimelineKeyframe,
+} from "../../../sdk/types.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { RuntimeTimeline } from "./render-normalization.js";
 import { evaluateTimelineKeyframes } from "../../../sdk/timeline/keyframe-value.js";
 import { segment } from "./math.js";
 import { resolveRuntimeMotionPathTrackValue } from "./render-motion-path.js";
 
 type TimelineIndex = {
-  activeKeyframesByTrack: Map<any, any[]>;
-  phasesById: Map<string, any>;
-  scenesById: Map<string, any>;
-  tracksById: Map<string, any>;
+  activeKeyframesByTrack: Map<MotionPathTrack, TimelineKeyframe<unknown>[]>;
+  phasesById: Map<string, TimelinePhase>;
+  scenesById: Map<string, EffectScene>;
+  tracksById: Map<string, MotionPathTrack>;
 };
 
 const clipIndexes = new WeakMap<any[], Map<string, any[]>>();
 const layerIndexes = new WeakMap<any[], Map<string, any>>();
-const sceneIndexes = new WeakMap<any[], Map<string, any>>();
+const sceneIndexes = new WeakMap<EffectScene[], Map<string, EffectScene>>();
 const timelineIndexes = new WeakMap<object, TimelineIndex>();
 
 export function isLayerActive(
   clips: any[],
   layerId: string,
   time: number,
-  scenes: any[] = [],
+  scenes: EffectScene[] = [],
 ): boolean {
   const layerClips = getClipsByLayer(clips).get(layerId) ?? [];
   if (layerClips.length === 0) {
@@ -36,7 +43,7 @@ export function isLayerActive(
 export function resolveLayerState(
   layers: any[],
   clips: any[],
-  timeline: any,
+  timeline: RuntimeTimeline,
   layerId: string,
   time: number,
 ): any {
@@ -123,7 +130,7 @@ export function resolveLayerState(
 }
 
 export function resolvePhaseProgress(
-  timeline: any,
+  timeline: RuntimeTimeline,
   phaseId: string,
   time: number,
 ): number {
@@ -139,11 +146,11 @@ export function resolvePhaseProgress(
 }
 
 export function resolveTrackValue(
-  timeline: any,
+  timeline: RuntimeTimeline,
   trackId: string,
   time: number,
-  fallback: any,
-): any {
+  fallback: unknown,
+): unknown {
   const index = getTimelineIndex(timeline);
   const track = index.tracksById.get(trackId);
   if (
@@ -166,7 +173,10 @@ export function resolveTrackValue(
   return evaluateTimelineKeyframes(keyframes, time, fallback);
 }
 
-function isSceneEnabled(scenes: any[] = [], sceneId: string | null = null) {
+function isSceneEnabled(
+  scenes: EffectScene[] = [],
+  sceneId: string | null = null,
+) {
   if (!sceneId) {
     return true;
   }
@@ -174,7 +184,10 @@ function isSceneEnabled(scenes: any[] = [], sceneId: string | null = null) {
   return !scene || scene.enabled !== false;
 }
 
-function isPhaseEnabled(timeline: any, phaseId: string | null = null) {
+function isPhaseEnabled(
+  timeline: RuntimeTimeline,
+  phaseId: string | null = null,
+) {
   if (!phaseId) {
     return true;
   }
@@ -186,7 +199,7 @@ function isPhaseEnabled(timeline: any, phaseId: string | null = null) {
   );
 }
 
-function getTimelineIndex(timeline: any): TimelineIndex {
+function getTimelineIndex(timeline: RuntimeTimeline): TimelineIndex {
   if (!timeline || typeof timeline !== "object") {
     return {
       activeKeyframesByTrack: new Map(),
@@ -246,7 +259,7 @@ function getClipsByLayer(clips: any[]): Map<string, any[]> {
   return index;
 }
 
-function getScenesById(scenes: any[]): Map<string, any> {
+function getScenesById(scenes: EffectScene[]): Map<string, EffectScene> {
   let index = sceneIndexes.get(scenes);
   if (!index) {
     index = new Map(scenes.map((scene) => [scene.id, scene]));

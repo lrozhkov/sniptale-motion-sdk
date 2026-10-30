@@ -56,7 +56,15 @@ describe("viewer editor draft model", () => {
     expect(record?.historyPast[0].label).toBe("edit-5");
     expect(record?.historyFuture).toEqual([]);
     expect(record?.current.assetScopeIds).toEqual(["image"]);
-    expect(record?.current.assetEntries[0][1].blob).toBe(blob);
+    const restoredAsset = record?.current.assetEntries[0][1];
+    if (
+      !restoredAsset ||
+      typeof restoredAsset !== "object" ||
+      !("blob" in restoredAsset)
+    ) {
+      throw new Error("Expected draft asset record with a blob.");
+    }
+    expect(restoredAsset.blob).toBe(blob);
     expect(
       normalizeEditorDraftRecord(
         {

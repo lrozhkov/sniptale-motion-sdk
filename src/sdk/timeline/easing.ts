@@ -5,7 +5,10 @@ type BezierHandles = {
   y2: number;
 };
 
-export function resolveTimelineEase(keyframe: any, progress: number): number {
+export function resolveTimelineEase(
+  keyframe: { easing?: string; handles?: unknown } | null | undefined,
+  progress: number,
+): number {
   if (keyframe?.easing === "hold") {
     return progress >= 1 ? 1 : 0;
   }
@@ -32,7 +35,7 @@ export function cubicBezierYForX(handles: unknown, x: number): number {
   return cubicBezier(0, normalized.y1, normalized.y2, 1, t);
 }
 
-export function ease(name: string, progress: number): number {
+export function ease(name: string | undefined, progress: number): number {
   const p = clamp(progress, 0, 1);
   if (name === "in") return p * p * p;
   if (name === "out") return 1 - Math.pow(1 - p, 3);

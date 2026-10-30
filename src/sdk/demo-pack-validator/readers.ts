@@ -1,7 +1,12 @@
+import type { DemoPackIssue } from "./common.js";
 import { MAX_MODULE_BYTES } from "../protocol.js";
 import { push } from "./common.js";
 
-export async function readJson(url, errors, path) {
+export async function readJson(
+  url: string,
+  errors: DemoPackIssue[],
+  path: string,
+): Promise<unknown> {
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -15,7 +20,11 @@ export async function readJson(url, errors, path) {
   }
 }
 
-export async function readText(url, errors, path) {
+export async function readText(
+  url: string,
+  errors: DemoPackIssue[],
+  path: string,
+): Promise<string | null> {
   try {
     const response = await fetch(url);
     if (!response.ok) {

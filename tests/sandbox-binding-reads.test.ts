@@ -12,6 +12,37 @@ import { createRenderContext } from "../src/apps/sandbox/runtime/render-context"
 import { normalizeRenderResult } from "../src/apps/sandbox/runtime/render-result";
 
 describe("sandbox binding reads", () => {
+  it("uses the current context time when no method time is supplied", () => {
+    const context = createRenderContext(
+      {
+        time: 0,
+        timeline: {
+          phases: [],
+          tracks: [
+            {
+              id: "position",
+              keyframes: [
+                { id: "a", time: 0, value: 0 },
+                { id: "b", time: 1, value: 100 },
+              ],
+            },
+          ],
+        },
+      },
+      {},
+      {},
+    );
+    expect(context.track("position")).toBe(0);
+    context.time = 0.5;
+    expect(context.track("position")).toBe(50);
+    expect(context.resolveTrack("position")).toBe(50);
+    expect(context.value({ track: "position" })).toBe(50);
+    expect(context.bindings({ x: { track: "position" } })).toEqual({ x: 50 });
+    expect(context.values({ x: { track: "position" } })).toEqual({ x: 50 });
+    expect(context.style({ x: { track: "position" } })).toEqual({ x: 50 });
+    expect(context.track("position", 0, 1)).toBe(100);
+  });
+
   it("keeps the parent scope for nested render-pass reads", () => {
     const child = createChildBindingReads(
       createBindingReads({

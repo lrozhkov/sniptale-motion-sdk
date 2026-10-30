@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { validateEffectV1Document } from "../src/sdk/effect-v1";
-import { createStarterDocument } from "../tooling/effect-v1/new";
+import { createStarterDocument } from "../src/apps/cli/starter";
 
 describe("Effect v1 starter", () => {
   it.each(["standalone", "targetEffect", "transition"] as const)(
@@ -11,19 +11,23 @@ describe("Effect v1 starter", () => {
       const validation = validateEffectV1Document(document);
       const commands = document.program.commands;
       const title = commands.find(
-        (command: any) => command.op === "text" && command.layerId === "title",
+        (command) => command.op === "text" && command.layerId === "title",
       );
 
       expect(validation).toMatchObject({ ok: true });
       expect(
-        commands.some((command: any) => command.layerId === "background"),
+        commands.some(
+          (command) => "layerId" in command && command.layerId === "background",
+        ),
       ).toBe(true);
-      expect(commands.some((command: any) => command.layerId === "title")).toBe(
-        true,
-      );
       expect(
         commands.some(
-          (command: any) =>
+          (command) => "layerId" in command && command.layerId === "title",
+        ),
+      ).toBe(true);
+      expect(
+        commands.some(
+          (command) =>
             command.op === "shape" &&
             JSON.stringify(command.x).includes('"path":"progress"'),
         ),

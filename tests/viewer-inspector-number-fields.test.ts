@@ -1,25 +1,34 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { syncInspectorLayerPropertyState } from "../src/apps/viewer/inspector/number-fields";
 
+class InputStub {
+  dataset: { layerId: string; property: string };
+  constructor(
+    layerId: string,
+    public value: string,
+  ) {
+    this.dataset = { layerId, property: "x" };
+  }
+}
+class ButtonStub {
+  classList = { toggle: vi.fn() };
+  dataset = { layerId: "card", property: "x" };
+  setAttribute = vi.fn();
+  title = "";
+}
+
 describe("viewer inspector numeric field synchronization", () => {
+  beforeEach(() => {
+    vi.stubGlobal("HTMLInputElement", InputStub);
+    vi.stubGlobal("HTMLButtonElement", ButtonStub);
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("updates matching transform fields and key states during canvas drag", () => {
-    const xInput = {
-      dataset: { layerId: "card", property: "x" },
-      value: "0",
-    };
-    const otherInput = {
-      dataset: { layerId: "other", property: "x" },
-      value: "12",
-    };
-    const keyButton = {
-      classList: { toggle: vi.fn() },
-      dataset: { layerId: "card", property: "x" },
-      setAttribute: vi.fn(),
-      title: "",
-    };
+    const xInput = new InputStub("card", "0");
+    const otherInput = new InputStub("other", "12");
+    const keyButton = new ButtonStub();
     vi.stubGlobal("document", { activeElement: null });
     const ctx = {
       deps: { t: (_key: string, fallback: string) => fallback },
@@ -32,7 +41,8 @@ describe("viewer inspector numeric field synchronization", () => {
             .mockReturnValueOnce([keyButton]),
         },
       },
-      roundInspectorNumber: (value) => Math.round(Number(value) * 1000) / 1000,
+      roundInspectorNumber: (value: unknown) =>
+        Math.round(Number(value) * 1000) / 1000,
     } as any;
 
     syncInspectorLayerPropertyState(ctx, "card", { x: 24.4612 });
@@ -45,10 +55,7 @@ describe("viewer inspector numeric field synchronization", () => {
   });
 
   it("does not overwrite a numeric field while the user is editing it", () => {
-    const input = {
-      dataset: { layerId: "card", property: "x" },
-      value: "draft",
-    };
+    const input = new InputStub("card", "draft");
     vi.stubGlobal("document", { activeElement: input });
     const ctx = {
       refs: {

@@ -151,15 +151,20 @@ function validateCommands(
       );
       return;
     }
-    if (!isRecord(command) || !GRAPH_OPS.has(String(command.op))) {
+    const operation = isRecord(command) ? command.op : undefined;
+    if (
+      !isRecord(command) ||
+      typeof operation !== "string" ||
+      !GRAPH_OPS.has(operation)
+    ) {
       report.error(
         "COMMAND_OP",
         `${commandPath}.op`,
-        `Unknown render command "${String((command as any)?.op)}".`,
+        `Unknown render command "${String(operation)}".`,
       );
       continue;
     }
-    rejectUnknownKeys(command, COMMAND_KEYS[command.op], commandPath, report);
+    rejectUnknownKeys(command, COMMAND_KEYS[operation], commandPath, report);
     validateEffectV1CommandSemantics(command, commandPath, passes, report);
     validateCommandExpressions(command, commandPath, report, references);
     validateCommandReferences(
@@ -170,14 +175,14 @@ function validateCommands(
       references,
       report,
     );
-    if (command.op === "renderPass") {
+    if (operation === "renderPass") {
       requireIdentifier(command.id, `${commandPath}.id`, report);
     }
-    if (command.op === "compositePass") {
+    if (operation === "compositePass") {
       requireIdentifier(command.passId, `${commandPath}.passId`, report);
     }
     const children = command.commands;
-    if (commandNeedsChildren(command.op)) {
+    if (commandNeedsChildren(operation)) {
       if (!Array.isArray(children)) {
         report.error(
           "CHILD_COMMANDS_TYPE",
@@ -186,7 +191,7 @@ function validateCommands(
         );
         continue;
       }
-      const loopMultiplier = isLoop(command.op)
+      const loopMultiplier = isLoop(operation)
         ? Math.max(1, resolveLoopBound(command, commandPath, report))
         : 1;
       validateCommands(

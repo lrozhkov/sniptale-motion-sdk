@@ -1,11 +1,25 @@
+import type { EffectScene, TimelinePhase } from "../../../sdk/types.js";
+import type {
+  MotionPathTrack,
+  TimelineMotionPath,
+} from "../../../shared/timeline/motion-path.js";
+
+export type RuntimeTimeline = {
+  duration?: number;
+  motionPaths?: TimelineMotionPath[];
+  phases: TimelinePhase[];
+  scenes?: EffectScene[];
+  tracks: MotionPathTrack[];
+};
+
 import { clamp } from "./math.js";
 import { normalizeMotionPaths } from "../../../shared/timeline/motion-path.js";
 
-export function normalizeScenes(rawScenes: any, duration: number): any[] {
+export function normalizeScenes(rawScenes: unknown, duration: number) {
   const safeDuration = Math.max(0.001, Number(duration) || 1);
   return Array.isArray(rawScenes)
     ? rawScenes
-        .filter((scene) => scene && typeof scene === "object")
+        .filter(isRecord)
         .map((scene, index) => ({
           duration: Math.max(0.001, Number(scene.duration) || safeDuration),
           enabled: scene.enabled !== false,
@@ -13,16 +27,13 @@ export function normalizeScenes(rawScenes: any, duration: number): any[] {
           label: String(scene.label ?? scene.id ?? ""),
           locked: Boolean(scene.locked),
           start: Math.max(0, Number(scene.start) || 0),
-          transition:
-            scene.transition && typeof scene.transition === "object"
-              ? scene.transition
-              : null,
+          transition: isRecord(scene.transition) ? scene.transition : null,
         }))
         .filter((scene) => scene.id)
     : [];
 }
 
-export function resolveScene(time: number, scenes: any): any {
+export function resolveScene(time: number, scenes: EffectScene[]): EffectScene {
   const list = (Array.isArray(scenes) ? scenes : []).filter(
     (scene) => scene.enabled !== false,
   );
@@ -46,17 +57,17 @@ export function resolveScene(time: number, scenes: any): any {
 }
 
 export function normalizeTimeline(
-  rawTimeline: any,
+  rawTimeline: unknown,
   duration: number,
-  scenes: any[] = [],
-): any {
-  if (!rawTimeline || typeof rawTimeline !== "object") {
+  scenes: EffectScene[] = [],
+): RuntimeTimeline {
+  if (!isRecord(rawTimeline)) {
     return { duration, phases: [], tracks: [] };
   }
   const motionPaths = normalizeMotionPaths(rawTimeline.motionPaths);
   const phases = Array.isArray(rawTimeline.phases)
     ? rawTimeline.phases
-        .filter((phase) => phase && typeof phase === "object")
+        .filter(isRecord)
         .map((phase) => ({
           duration: Math.max(0.001, Number(phase.duration) || 0.001),
           enabled: phase.enabled !== false,
@@ -70,7 +81,7 @@ export function normalizeTimeline(
     : [];
   const tracks = Array.isArray(rawTimeline.tracks)
     ? rawTimeline.tracks
-        .filter((track) => track && typeof track === "object")
+        .filter(isRecord)
         .map((track) => ({
           id: String(track.id ?? ""),
           enabled: track.enabled !== false,
@@ -93,12 +104,12 @@ export function normalizeTimeline(
   };
 }
 
-export function normalizeLayers(rawLayers: any): any[] {
+export function normalizeLayers(rawLayers: unknown) {
   if (!Array.isArray(rawLayers)) {
     return [];
   }
   return rawLayers
-    .filter((layer) => layer && typeof layer === "object")
+    .filter(isRecord)
     .map((layer) => ({
       id: String(layer.id ?? ""),
       align: typeof layer.align === "string" ? layer.align : "center",
@@ -189,24 +200,27 @@ export function normalizeLayers(rawLayers: any): any[] {
     .filter((layer) => layer.id && layer.type !== "group");
 }
 
-export function normalizePathPoints(pathPoints: any): any[] {
+export function normalizePathPoints(pathPoints: unknown) {
   if (!Array.isArray(pathPoints)) {
     return [];
   }
   return pathPoints
-    .map((point) => ({
-      x: Math.max(-2, Math.min(2, Number(point?.x) || 0)),
-      y: Math.max(-2, Math.min(2, Number(point?.y) || 0)),
-    }))
+    .map((value: unknown) => {
+      const point = isRecord(value) ? value : {};
+      return {
+        x: Math.max(-2, Math.min(2, Number(point?.x) || 0)),
+        y: Math.max(-2, Math.min(2, Number(point?.y) || 0)),
+      };
+    })
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
 }
 
-export function normalizeClips(rawClips: any, duration: number): any[] {
+export function normalizeClips(rawClips: unknown, duration: number) {
   if (!Array.isArray(rawClips)) {
     return [];
   }
   return rawClips
-    .filter((clip) => clip && typeof clip === "object")
+    .filter(isRecord)
     .map((clip) => ({
       duration: Math.max(0.001, Number(clip.duration) || duration),
       enabled: clip.enabled !== false,
@@ -219,12 +233,12 @@ export function normalizeClips(rawClips: any, duration: number): any[] {
     .filter((clip) => clip.layerId);
 }
 
-export function normalizeKeyframes(rawKeyframes: any, duration: number): any[] {
+export function normalizeKeyframes(rawKeyframes: unknown, duration: number) {
   if (!Array.isArray(rawKeyframes)) {
     return [];
   }
   return rawKeyframes
-    .filter((keyframe) => keyframe && typeof keyframe === "object")
+    .filter(isRecord)
     .map((keyframe, index) => ({
       easing: typeof keyframe.easing === "string" ? keyframe.easing : "linear",
       enabled: keyframe.enabled !== false,
@@ -238,8 +252,8 @@ export function normalizeKeyframes(rawKeyframes: any, duration: number): any[] {
     .sort((a, b) => a.time - b.time);
 }
 
-export function normalizeHandles(handles: any): any {
-  if (!handles || typeof handles !== "object") {
+export function normalizeHandles(handles: unknown) {
+  if (!isRecord(handles)) {
     return { x1: 0.25, y1: 0.1, x2: 0.25, y2: 1 };
   }
   return {
@@ -248,4 +262,8 @@ export function normalizeHandles(handles: any): any {
     y1: clamp(Number(handles.y1) || 0, 0, 1),
     y2: clamp(Number(handles.y2) || 0, 0, 1),
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

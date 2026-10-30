@@ -1,3 +1,4 @@
+import type { EditorHistoryState } from "../src/apps/viewer/editor/history.js";
 import { describe, expect, it } from "vitest";
 
 import { setLocale } from "../src/shared/i18n";
@@ -19,6 +20,74 @@ import {
 } from "../src/apps/viewer/editor/model";
 
 describe("viewer editor model", () => {
+  it("preserves preset timeline timing and extension fields without normalization", () => {
+    const timeline = {
+      phases: [{ id: "short", duration: 0.02, start: 0.001 }],
+      tracks: [],
+      extension: { source: "author" },
+    };
+    const presets = normalizePresets([{ id: "precise", timeline }]);
+    expect(presets[0].timeline).toEqual(timeline);
+    expect(presets[0].timeline).not.toBe(timeline);
+    expect(normalizePresets([{ id: 7, timeline: "legacy" }])).toMatchObject([
+      { id: "7", timeline: "legacy" },
+    ]);
+  });
+
+  it("parses malformed nested records without coercing object fields", () => {
+    const invalidNumber = { toString: 0 };
+    expect(() =>
+      normalizeScenes(
+        [
+          null,
+          [],
+          { id: invalidNumber, duration: invalidNumber, start: Infinity },
+        ],
+        2,
+      ),
+    ).not.toThrow();
+    expect(
+      normalizeScenes(
+        [null, [], { id: invalidNumber, duration: invalidNumber }],
+        2,
+      ),
+    ).toMatchObject([{ id: "scene-1", duration: 2 }]);
+    expect(
+      normalizeTimeline(
+        {
+          phases: [null, [], { id: "p", duration: Infinity }],
+          tracks: [
+            null,
+            [],
+            {
+              id: "t",
+              keyframes: [
+                null,
+                [],
+                {
+                  id: "k",
+                  time: invalidNumber,
+                  value: 1,
+                  handles: { x1: invalidNumber },
+                },
+              ],
+            },
+          ],
+        },
+        2,
+      ),
+    ).toMatchObject({
+      phases: [{ id: "p", duration: 0.05 }],
+      tracks: [
+        { id: "t", keyframes: [{ id: "k", time: 0, handles: { x1: 0 } }] },
+      ],
+    });
+    expect(appendCopyLabel({ en: [], ru: "Текст" })).toEqual({
+      en: "Текст Copy",
+      ru: "Текст — копия",
+    });
+  });
+
   it("normalizes scenes, presets, timeline, and controls", () => {
     expect(normalizeScenes([], 3)).toEqual([
       {
@@ -137,6 +206,17 @@ describe("viewer editor model", () => {
 });
 
 describe("viewer editor history", () => {
+  it("does not create override keys for a snapshot without a template", () => {
+    const state = createHistoryState();
+    const snapshot = captureEditorSnapshot(state, "empty", null, 0);
+    snapshot.editorOverride = { duration: 99 };
+    snapshot.timelineOverride = { duration: 99 };
+    restoreEditorSnapshotState(state, snapshot);
+    expect([...state.editorOverrides.keys()]).toEqual(["template-1"]);
+    expect([...state.timelineOverrides.keys()]).toEqual(["template-1"]);
+    expect(state.editorOverrides.get("template-1")).toEqual({ duration: 3 });
+  });
+
   it("records commands and restores snapshots", () => {
     const state = createHistoryState();
     const command = createEditorCommand(
@@ -166,7 +246,7 @@ describe("viewer editor history", () => {
   });
 });
 
-function createHistoryState(): any {
+function createHistoryState(): EditorHistoryState {
   return {
     controls: { speed: 2 },
     editorCommands: [],

@@ -5,7 +5,7 @@ import { parseEffectV1Source } from "../../src/sdk/effect-v1/index.js";
 import {
   EffectV1BundleError,
   readMaterializedEffectV1Bundle,
-} from "./bundle-source.js";
+} from "../../src/apps/cli/bundle-source.js";
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {

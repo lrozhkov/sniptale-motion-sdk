@@ -98,21 +98,23 @@ export function syncInspectorLayerPropertyState(
     "input[data-layer-id][data-property]",
   );
   for (const input of inputs) {
+    if (!(input instanceof HTMLInputElement)) continue;
+    const property = input.dataset.property;
     if (
+      !property ||
       input.dataset.layerId !== layerId ||
-      !propertyNames.has(input.dataset.property ?? "") ||
+      !propertyNames.has(property) ||
       document.activeElement === input
     ) {
       continue;
     }
-    input.value = String(
-      ctx.roundInspectorNumber(properties[input.dataset.property]),
-    );
+    input.value = String(ctx.roundInspectorNumber(properties[property]));
   }
   const keyButtons = ctx.refs.inspectorPanel.querySelectorAll(
     ".inspector-key-button[data-layer-id][data-property]",
   );
   for (const button of keyButtons) {
+    if (!(button instanceof HTMLButtonElement)) continue;
     const property = button.dataset.property ?? "";
     if (button.dataset.layerId !== layerId || !propertyNames.has(property)) {
       continue;

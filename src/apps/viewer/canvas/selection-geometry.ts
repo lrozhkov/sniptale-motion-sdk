@@ -177,7 +177,7 @@ function hideCanvasSelection(ctx: ViewerAppContext) {
     ctx.refs.canvasSelectionBox.hidden &&
     !ctx.refs.canvasSelectionBox.dataset.layerId &&
     ctx.refs.canvasInfoHud.hidden &&
-    ctx.refs.motionPathOverlay.hidden
+    ctx.refs.motionPathOverlay.hasAttribute("hidden")
   ) {
     return;
   }

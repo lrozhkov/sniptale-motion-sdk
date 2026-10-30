@@ -280,6 +280,7 @@ describe("sandbox render model resolver", () => {
     let timeReads = 0;
     const keyframes = Array.from({ length: 4096 }, (_, index) => ({
       easing: "linear",
+      id: `key-${index}`,
       get time() {
         timeReads += 1;
         return index;

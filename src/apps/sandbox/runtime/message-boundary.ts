@@ -1,4 +1,7 @@
-import { validateEffectV1Document } from "../../../sdk/effect-v1/index.js";
+import {
+  validateEffectV1Document,
+  type EffectV1Document,
+} from "../../../sdk/effect-v1/index.js";
 import { MessageKind } from "../../../sdk/protocol.js";
 import {
   parseSandboxRenderFrameMessage,
@@ -8,7 +11,7 @@ import {
 export type SandboxRuntimeMessage =
   | { kind: "dispose" }
   | {
-      document: Record<string, unknown>;
+      document: EffectV1Document;
       kind: "loadEffectDocument";
       moduleId: string;
       requestId: string;
@@ -23,10 +26,10 @@ export type SandboxRuntimeMessage =
 export function parseSandboxRuntimeMessage(
   value: unknown,
 ): SandboxRuntimeMessage | null {
-  if (!value || typeof value !== "object") {
+  if (!isRecord(value)) {
     return null;
   }
-  const message = value as Record<string, unknown>;
+  const message = value;
   if (message.kind === MessageKind.DISPOSE) {
     return { kind: "dispose" };
   }
@@ -41,23 +44,18 @@ export function parseSandboxRuntimeMessage(
       return null;
     }
     return {
-      document: validation.document as unknown as Record<string, unknown>,
+      document: validation.document,
       kind: "loadEffectDocument",
       moduleId: message.moduleId,
       requestId: message.requestId,
     };
   }
   if (message.kind === MessageKind.VALIDATE_EFFECT_DOCUMENT) {
-    if (
-      !message.document ||
-      typeof message.document !== "object" ||
-      Array.isArray(message.document) ||
-      typeof message.requestId !== "string"
-    ) {
+    if (!isRecord(message.document) || typeof message.requestId !== "string") {
       return null;
     }
     return {
-      document: message.document as Record<string, unknown>,
+      document: message.document,
       kind: "validateEffectDocument",
       requestId: message.requestId,
     };
@@ -65,4 +63,8 @@ export function parseSandboxRuntimeMessage(
   return message.kind === MessageKind.RENDER_FRAME
     ? parseSandboxRenderFrameMessage(message)
     : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

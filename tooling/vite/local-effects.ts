@@ -8,7 +8,7 @@ import { validateEffectV1Document } from "../../src/sdk/effect-v1/index.js";
 import {
   EffectV1BundleError,
   readMaterializedEffectV1Bundle,
-} from "../effect-v1/bundle-source.js";
+} from "../../src/apps/cli/bundle-source.js";
 
 export const LOCAL_EFFECTS_ROUTE = "/__sniptale/local-effects";
 const EFFECT_FILE_SUFFIX = ".sniptale-effect.json";

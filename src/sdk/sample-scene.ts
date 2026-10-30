@@ -1,5 +1,36 @@
-export function drawSampleScene(context, params) {
-  const { height, phase = "base", progress = 0, width } = params;
+type SampleSceneContext = Pick<
+  CanvasRenderingContext2D,
+  | "createLinearGradient"
+  | "fillStyle"
+  | "fillRect"
+  | "save"
+  | "restore"
+  | "strokeStyle"
+  | "lineWidth"
+  | "beginPath"
+  | "moveTo"
+  | "lineTo"
+  | "stroke"
+>;
+
+type TransitionFrameContext = SampleSceneContext &
+  Pick<
+    CanvasRenderingContext2D,
+    "globalAlpha" | "fill" | "arcTo" | "closePath"
+  >;
+
+type SampleSceneParams = {
+  height: number;
+  width: number;
+  phase?: string;
+  progress?: number;
+};
+
+export function drawSampleScene(
+  context: SampleSceneContext,
+  params: SampleSceneParams,
+): void {
+  const { height, phase = "base", width } = params;
   const gradient = context.createLinearGradient(0, 0, width, height);
   gradient.addColorStop(0, phase === "next" ? "#edf0ed" : "#080b0c");
   gradient.addColorStop(1, phase === "next" ? "#ffffff" : "#121719");
@@ -16,42 +47,50 @@ export function drawSampleScene(context, params) {
   }
 }
 
-export async function createInputFrames(width, height, progress) {
+export async function createInputFrames(
+  width: number,
+  height: number,
+  progress: number,
+) {
   const previousCanvas = new OffscreenCanvas(width, height);
   const nextCanvas = new OffscreenCanvas(width, height);
-  drawSampleScene(previousCanvas.getContext("2d"), {
+  const previousContext = previousCanvas.getContext("2d");
+  const nextContext = nextCanvas.getContext("2d");
+  if (!previousContext || !nextContext) {
+    throw new Error("Canvas 2D context is unavailable.");
+  }
+  drawSampleScene(previousContext, {
     height,
     phase: "previous",
     progress,
     width,
   });
-  drawSampleScene(nextCanvas.getContext("2d"), {
+  drawSampleScene(nextContext, {
     height,
     phase: "next",
     progress,
     width,
   });
   drawAbstractTransitionFrame(
-    previousCanvas.getContext("2d"),
+    previousContext,
     width,
     height,
     progress,
     "previous",
   );
-  drawAbstractTransitionFrame(
-    nextCanvas.getContext("2d"),
-    width,
-    height,
-    progress,
-    "next",
-  );
+  drawAbstractTransitionFrame(nextContext, width, height, progress, "next");
   return {
     next: await createImageBitmap(nextCanvas),
     previous: await createImageBitmap(previousCanvas),
   };
 }
 
-function drawGrid(context, width, height, color) {
+function drawGrid(
+  context: SampleSceneContext,
+  width: number,
+  height: number,
+  color: string,
+): void {
   context.save();
   context.strokeStyle = color;
   context.lineWidth = 1;
@@ -70,7 +109,13 @@ function drawGrid(context, width, height, color) {
   context.restore();
 }
 
-function drawAbstractTransitionFrame(context, width, height, progress, phase) {
+function drawAbstractTransitionFrame(
+  context: TransitionFrameContext,
+  width: number,
+  height: number,
+  progress: number,
+  phase: "previous" | "next",
+): void {
   const cx = width * (phase === "next" ? 0.36 : 0.56);
   const cy = height * 0.5;
   const size = Math.min(width, height) * (phase === "next" ? 0.22 : 0.18);
@@ -96,7 +141,14 @@ function drawAbstractTransitionFrame(context, width, height, progress, phase) {
   context.restore();
 }
 
-function roundRect(context, x, y, width, height, radius) {
+function roundRect(
+  context: TransitionFrameContext,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
   context.beginPath();
   context.moveTo(x + radius, y);
   context.arcTo(x + width, y, x + width, y + height, radius);
