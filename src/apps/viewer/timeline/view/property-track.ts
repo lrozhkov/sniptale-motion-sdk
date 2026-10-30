@@ -231,10 +231,16 @@ function getTrackKeyframesForParent(
 export function installTimelinePropertyTrackViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderTimelinePropertyTrackLane = (...args: any[]) =>
-    (renderTimelinePropertyTrackLane as any)(ctx, ...args);
-  ctx.createTimelineKeyframePoint = (...args: any[]) =>
-    (createTimelineKeyframePoint as any)(ctx, ...args);
-  ctx.getTrackKeyframesForParent = (...args: any[]) =>
-    (getTrackKeyframesForParent as any)(ctx, ...args);
+  ctx.renderTimelinePropertyTrackLane = renderTimelinePropertyTrackLane.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createTimelineKeyframePoint = createTimelineKeyframePoint.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getTrackKeyframesForParent = getTrackKeyframesForParent.bind(
+    undefined,
+    ctx,
+  );
 }

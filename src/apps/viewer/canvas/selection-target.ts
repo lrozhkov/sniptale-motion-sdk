@@ -112,8 +112,9 @@ function getCanvasSelectionTarget(
 }
 
 export function installCanvasSelectionTargetOwner(ctx: ViewerAppContext): void {
-  ctx.getCanvasSelectionLayerId = (...args: any[]) =>
-    (getCanvasSelectionLayerId as any)(ctx, ...args);
-  ctx.getCanvasSelectionTarget = (...args: any[]) =>
-    (getCanvasSelectionTarget as any)(ctx, ...args);
+  ctx.getCanvasSelectionLayerId = getCanvasSelectionLayerId.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getCanvasSelectionTarget = getCanvasSelectionTarget.bind(undefined, ctx);
 }

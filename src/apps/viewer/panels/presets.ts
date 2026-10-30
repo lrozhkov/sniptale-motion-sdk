@@ -266,15 +266,11 @@ function setPresets(ctx: ViewerAppContext, presets) {
 }
 
 export function installPanelsPresetsOwner(ctx: ViewerAppContext): void {
-  ctx.renderPresetsPanel = (...args: any[]) =>
-    (renderPresetsPanel as any)(ctx, ...args);
-  ctx.saveCurrentAsPreset = (...args: any[]) =>
-    (saveCurrentAsPreset as any)(ctx, ...args);
-  ctx.duplicateSelectedPreset = (...args: any[]) =>
-    (duplicateSelectedPreset as any)(ctx, ...args);
-  ctx.duplicatePreset = (...args: any[]) =>
-    (duplicatePreset as any)(ctx, ...args);
-  ctx.deletePreset = (...args: any[]) => (deletePreset as any)(ctx, ...args);
-  ctx.applyPreset = (...args: any[]) => (applyPreset as any)(ctx, ...args);
-  ctx.setPresets = (...args: any[]) => (setPresets as any)(ctx, ...args);
+  ctx.renderPresetsPanel = renderPresetsPanel.bind(undefined, ctx);
+  ctx.saveCurrentAsPreset = saveCurrentAsPreset.bind(undefined, ctx);
+  ctx.duplicateSelectedPreset = duplicateSelectedPreset.bind(undefined, ctx);
+  ctx.duplicatePreset = duplicatePreset.bind(undefined, ctx);
+  ctx.deletePreset = deletePreset.bind(undefined, ctx);
+  ctx.applyPreset = applyPreset.bind(undefined, ctx);
+  ctx.setPresets = setPresets.bind(undefined, ctx);
 }

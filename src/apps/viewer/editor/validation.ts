@@ -64,12 +64,18 @@ export function isRendererContractCoveragePending(
 }
 
 export function installEditorValidationOwner(ctx: ViewerAppContext): void {
-  ctx.collectEditorValidationErrors = (...args: any[]) =>
-    (collectEditorValidationErrors as any)(ctx, ...args);
-  ctx.collectEditorValidationIssues = (...args: any[]) =>
-    (collectEditorValidationIssues as any)(ctx, ...args);
-  ctx.createEditorValidationOptions = (...args: any[]) =>
-    (createEditorValidationOptions as any)(ctx, ...args);
-  ctx.isRendererContractCoveragePending = (...args: any[]) =>
-    (isRendererContractCoveragePending as any)(ctx, ...args);
+  ctx.collectEditorValidationErrors = collectEditorValidationErrors.bind(
+    undefined,
+    ctx,
+  );
+  ctx.collectEditorValidationIssues = collectEditorValidationIssues.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createEditorValidationOptions = createEditorValidationOptions.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isRendererContractCoveragePending =
+    isRendererContractCoveragePending.bind(undefined, ctx);
 }

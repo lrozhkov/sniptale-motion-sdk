@@ -118,8 +118,6 @@ function getDragClickTargetKey(target): string | null {
 }
 
 export function installAppPointerDragOwner(ctx: ViewerAppContext): void {
-  ctx.bindPointerDrag = (...args: any[]) =>
-    (bindPointerDrag as any)(ctx, ...args);
-  ctx.shouldSuppressDragClick = (...args: any[]) =>
-    (shouldSuppressDragClick as any)(ctx, ...args);
+  ctx.bindPointerDrag = bindPointerDrag.bind(undefined, ctx);
+  ctx.shouldSuppressDragClick = shouldSuppressDragClick.bind(undefined, ctx);
 }

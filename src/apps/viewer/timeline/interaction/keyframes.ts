@@ -96,14 +96,14 @@ function updateSelectedKeyframe(
   const pairedKeyframe = pairedTrack?.keyframes.find(
     (item) => item.id === pairedRef?.keyframeId,
   );
-  if (pairedKeyframe) {
+  if (pairedTrack && pairedKeyframe) {
     if (typeof patch.time === "number") {
       pairedKeyframe.time = keyframe.time;
     }
-    if (patch.easing) {
+    if (patch.easing && keyframe.easing !== undefined) {
       pairedKeyframe.easing = keyframe.easing;
     }
-    if (patch.handles) {
+    if (patch.handles && keyframe.handles) {
       pairedKeyframe.handles = { ...keyframe.handles };
       pairedKeyframe.easing = "bezier";
     }
@@ -188,16 +188,16 @@ function getSelectedKeyframeRefs(ctx: ViewerAppContext) {
   return Array.from(unique.values());
 }
 export function installInteractionKeyframesOwner(ctx: ViewerAppContext): void {
-  ctx.collectKeyframeParentLinks = (...args: any[]) =>
-    (collectKeyframeParentLinks as any)(ctx, ...args);
-  ctx.findSelectedKeyframe = (...args: any[]) =>
-    (findSelectedKeyframe as any)(ctx, ...args);
-  ctx.updateSelectedKeyframe = (...args: any[]) =>
-    (updateSelectedKeyframe as any)(ctx, ...args);
-  ctx.addKeyframeAtPlayhead = (...args: any[]) =>
-    (addKeyframeAtPlayhead as any)(ctx, ...args);
-  ctx.resolveTrackValueForNewKeyframe = (...args: any[]) =>
-    (resolveTrackValueForNewKeyframe as any)(ctx, ...args);
-  ctx.getSelectedKeyframeRefs = (...args: any[]) =>
-    (getSelectedKeyframeRefs as any)(ctx, ...args);
+  ctx.collectKeyframeParentLinks = collectKeyframeParentLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.findSelectedKeyframe = findSelectedKeyframe.bind(undefined, ctx);
+  ctx.updateSelectedKeyframe = updateSelectedKeyframe.bind(undefined, ctx);
+  ctx.addKeyframeAtPlayhead = addKeyframeAtPlayhead.bind(undefined, ctx);
+  ctx.resolveTrackValueForNewKeyframe = resolveTrackValueForNewKeyframe.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getSelectedKeyframeRefs = getSelectedKeyframeRefs.bind(undefined, ctx);
 }

@@ -277,10 +277,14 @@ function addRangeSamples(times: Set<number>, rawStart, rawDuration) {
 export function installRenderingContractCoverageOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.mergeRendererContractReads = (...args: any[]) =>
-    (mergeRendererContractReads as any)(ctx, ...args);
-  ctx.createRendererContractSampleTimes = (...args: any[]) =>
-    (createRendererContractSampleTimes as any)(ctx, ...args);
-  ctx.refreshRendererContractCoverage = (...args: any[]) =>
-    (refreshRendererContractCoverage as any)(ctx, ...args);
+  ctx.mergeRendererContractReads = mergeRendererContractReads.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createRendererContractSampleTimes =
+    createRendererContractSampleTimes.bind(undefined, ctx);
+  ctx.refreshRendererContractCoverage = refreshRendererContractCoverage.bind(
+    undefined,
+    ctx,
+  );
 }

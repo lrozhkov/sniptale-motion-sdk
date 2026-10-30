@@ -169,6 +169,8 @@ function hasSelectionModifier(event): boolean {
 }
 
 export function installCanvasMarqueeOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasMarqueeSelection = (...args: any[]) =>
-    (beginCanvasMarqueeSelection as any)(ctx, ...args);
+  ctx.beginCanvasMarqueeSelection = beginCanvasMarqueeSelection.bind(
+    undefined,
+    ctx,
+  );
 }

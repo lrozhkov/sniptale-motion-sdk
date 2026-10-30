@@ -219,21 +219,24 @@ function schedulePlaybackRenderContinuation(ctx: ViewerAppContext): boolean {
 
 export function installPlaybackServiceOwner(ctx: ViewerAppContext): void {
   ctx.schedulePlaybackTick = () => schedulePlaybackTick(ctx);
-  ctx.playbackTick = (...args: any[]) => (playbackTick as any)(ctx, ...args);
-  ctx.toggleLoopPlayback = (...args: any[]) =>
-    (toggleLoopPlayback as any)(ctx, ...args);
-  ctx.togglePlayback = (...args: any[]) =>
-    (togglePlayback as any)(ctx, ...args);
-  ctx.pausePlayback = (...args: any[]) => (pausePlayback as any)(ctx, ...args);
-  ctx.startPlayback = (...args: any[]) => (startPlayback as any)(ctx, ...args);
-  ctx.beginPlaybackCacheWarm = (...args: any[]) =>
-    (beginPlaybackCacheWarm as any)(ctx, ...args);
-  ctx.advancePlaybackCacheWarmResult = (...args: any[]) =>
-    (advancePlaybackCacheWarmResult as any)(ctx, ...args);
-  ctx.continuePlaybackRendering = (...args: any[]) =>
-    (continuePlaybackRendering as any)(ctx, ...args);
-  ctx.schedulePlaybackRenderContinuation = (...args: any[]) =>
-    (schedulePlaybackRenderContinuation as any)(ctx, ...args);
-  ctx.stopPlaybackForRuntimeRecovery = (...args: any[]) =>
-    (stopPlaybackForRuntimeRecovery as any)(ctx, ...args);
+  ctx.playbackTick = playbackTick.bind(undefined, ctx);
+  ctx.toggleLoopPlayback = toggleLoopPlayback.bind(undefined, ctx);
+  ctx.togglePlayback = togglePlayback.bind(undefined, ctx);
+  ctx.pausePlayback = pausePlayback.bind(undefined, ctx);
+  ctx.startPlayback = startPlayback.bind(undefined, ctx);
+  ctx.beginPlaybackCacheWarm = beginPlaybackCacheWarm.bind(undefined, ctx);
+  ctx.advancePlaybackCacheWarmResult = advancePlaybackCacheWarmResult.bind(
+    undefined,
+    ctx,
+  );
+  ctx.continuePlaybackRendering = continuePlaybackRendering.bind(
+    undefined,
+    ctx,
+  );
+  ctx.schedulePlaybackRenderContinuation =
+    schedulePlaybackRenderContinuation.bind(undefined, ctx);
+  ctx.stopPlaybackForRuntimeRecovery = stopPlaybackForRuntimeRecovery.bind(
+    undefined,
+    ctx,
+  );
 }

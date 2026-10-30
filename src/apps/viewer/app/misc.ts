@@ -95,7 +95,7 @@ function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
           ? { ...keyframe, phaseId: null }
           : keyframe,
       ),
-      phaseId: track.phaseId === phase.id ? null : track.phaseId,
+      ...(track.phaseId === phase.id ? { phaseId: null } : {}),
     }));
     ctx.clearTimelineSelection();
     ctx.state.timelineOverrides.set(
@@ -135,7 +135,7 @@ function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
           ? { ...keyframe, sceneId: null }
           : keyframe,
       ),
-      sceneId: track.sceneId === scene.id ? null : track.sceneId,
+      ...(track.sceneId === scene.id ? { sceneId: null } : {}),
     }));
     ctx.setEditorOverride({
       clips,
@@ -171,17 +171,14 @@ function cssEscape(_ctx: ViewerAppContext, value) {
 }
 
 export function installAppMiscOwner(ctx: ViewerAppContext): void {
-  ctx.findSceneIdAtTime = (...args: any[]) =>
-    (findSceneIdAtTime as any)(ctx, ...args);
-  ctx.findPhaseIdAtTime = (...args: any[]) =>
-    (findPhaseIdAtTime as any)(ctx, ...args);
-  ctx.setAllSceneRowsExpanded = (...args: any[]) =>
-    (setAllSceneRowsExpanded as any)(ctx, ...args);
-  ctx.isTimeInsideAnyScene = (...args: any[]) =>
-    (isTimeInsideAnyScene as any)(ctx, ...args);
-  ctx.deleteSelectedTimelineItem = (...args: any[]) =>
-    (deleteSelectedTimelineItem as any)(ctx, ...args);
-  ctx.timelineDeltaFromPixels = (...args: any[]) =>
-    (timelineDeltaFromPixels as any)(ctx, ...args);
-  ctx.cssEscape = (...args: any[]) => (cssEscape as any)(ctx, ...args);
+  ctx.findSceneIdAtTime = findSceneIdAtTime.bind(undefined, ctx);
+  ctx.findPhaseIdAtTime = findPhaseIdAtTime.bind(undefined, ctx);
+  ctx.setAllSceneRowsExpanded = setAllSceneRowsExpanded.bind(undefined, ctx);
+  ctx.isTimeInsideAnyScene = isTimeInsideAnyScene.bind(undefined, ctx);
+  ctx.deleteSelectedTimelineItem = deleteSelectedTimelineItem.bind(
+    undefined,
+    ctx,
+  );
+  ctx.timelineDeltaFromPixels = timelineDeltaFromPixels.bind(undefined, ctx);
+  ctx.cssEscape = cssEscape.bind(undefined, ctx);
 }

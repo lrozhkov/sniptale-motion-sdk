@@ -104,8 +104,9 @@ function moveSelectedCanvasAnchor(ctx: ViewerAppContext, delta) {
 }
 
 export function installCanvasPivotKeyboardOwner(ctx: ViewerAppContext): void {
-  ctx.rotateSelectedCanvasLayer = (...args: any[]) =>
-    (rotateSelectedCanvasLayer as any)(ctx, ...args);
-  ctx.moveSelectedCanvasAnchor = (...args: any[]) =>
-    (moveSelectedCanvasAnchor as any)(ctx, ...args);
+  ctx.rotateSelectedCanvasLayer = rotateSelectedCanvasLayer.bind(
+    undefined,
+    ctx,
+  );
+  ctx.moveSelectedCanvasAnchor = moveSelectedCanvasAnchor.bind(undefined, ctx);
 }

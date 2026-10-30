@@ -109,14 +109,13 @@ function updateTimelinePlaybackRangeOverlay(ctx: ViewerAppContext) {
 
 export function installTimelinePlaybackRangeOwner(ctx: ViewerAppContext): void {
   Object.assign(ctx, {
-    beginRulerScrub: (...args: any[]) => (beginRulerScrub as any)(ctx, ...args),
-    clearPlaybackRange: (...args: any[]) =>
-      (clearPlaybackRange as any)(ctx, ...args),
-    getActivePlaybackRange: (...args: any[]) =>
-      (getActivePlaybackRange as any)(ctx, ...args),
-    setPlaybackRange: (...args: any[]) =>
-      (setPlaybackRange as any)(ctx, ...args),
-    updateTimelinePlaybackRangeOverlay: (...args: any[]) =>
-      (updateTimelinePlaybackRangeOverlay as any)(ctx, ...args),
+    beginRulerScrub: beginRulerScrub.bind(undefined, ctx),
+    clearPlaybackRange: clearPlaybackRange.bind(undefined, ctx),
+    getActivePlaybackRange: getActivePlaybackRange.bind(undefined, ctx),
+    setPlaybackRange: setPlaybackRange.bind(undefined, ctx),
+    updateTimelinePlaybackRangeOverlay: updateTimelinePlaybackRangeOverlay.bind(
+      undefined,
+      ctx,
+    ),
   });
 }

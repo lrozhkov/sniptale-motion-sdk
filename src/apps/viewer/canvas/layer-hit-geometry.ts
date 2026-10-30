@@ -49,6 +49,5 @@ export function usesIntrinsicCanvasGeometry(capabilities): boolean {
 export function installCanvasLayerHitGeometryOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getLayerCanvasHitBox = (...args: any[]) =>
-    (getLayerCanvasHitBox as any)(ctx, ...args);
+  ctx.getLayerCanvasHitBox = getLayerCanvasHitBox.bind(undefined, ctx);
 }

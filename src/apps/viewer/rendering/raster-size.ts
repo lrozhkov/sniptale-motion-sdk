@@ -57,10 +57,7 @@ function applyPreviewRasterSize(ctx: ViewerAppContext) {
 }
 
 export function installRenderingRasterSizeOwner(ctx: ViewerAppContext): void {
-  ctx.getCompositionDesignSize = (...args: any[]) =>
-    (getCompositionDesignSize as any)(ctx, ...args);
-  ctx.getPreviewRasterSize = (...args: any[]) =>
-    (getPreviewRasterSize as any)(ctx, ...args);
-  ctx.applyPreviewRasterSize = (...args: any[]) =>
-    (applyPreviewRasterSize as any)(ctx, ...args);
+  ctx.getCompositionDesignSize = getCompositionDesignSize.bind(undefined, ctx);
+  ctx.getPreviewRasterSize = getPreviewRasterSize.bind(undefined, ctx);
+  ctx.applyPreviewRasterSize = applyPreviewRasterSize.bind(undefined, ctx);
 }

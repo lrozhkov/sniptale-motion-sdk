@@ -50,6 +50,5 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
 }
 
 export function installLocalEffectStartupOwner(ctx: ViewerAppContext): void {
-  ctx.bootstrapLocalEffects = (...args: any[]) =>
-    (bootstrapLocalEffects as any)(ctx, ...args);
+  ctx.bootstrapLocalEffects = bootstrapLocalEffects.bind(undefined, ctx);
 }

@@ -74,10 +74,7 @@ function getEffectiveTemplate(
 }
 
 export function installTemplatesControllerOwner(ctx: ViewerAppContext): void {
-  ctx.createPresetFromTemplate = (...args: any[]) =>
-    (createPresetFromTemplate as any)(ctx, ...args);
-  ctx.drawBaseForTemplate = (...args: any[]) =>
-    (drawBaseForTemplate as any)(ctx, ...args);
-  ctx.getEffectiveTemplate = (...args: any[]) =>
-    (getEffectiveTemplate as any)(ctx, ...args);
+  ctx.createPresetFromTemplate = createPresetFromTemplate.bind(undefined, ctx);
+  ctx.drawBaseForTemplate = drawBaseForTemplate.bind(undefined, ctx);
+  ctx.getEffectiveTemplate = getEffectiveTemplate.bind(undefined, ctx);
 }

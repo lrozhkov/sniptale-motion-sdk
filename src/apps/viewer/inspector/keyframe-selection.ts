@@ -291,6 +291,8 @@ function createInspectorGroup(label, bodyClass) {
 export function installInspectorKeyframeSelectionOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendKeyframeSelectionInspector = (...args: any[]) =>
-    (appendKeyframeSelectionInspector as any)(ctx, ...args);
+  ctx.appendKeyframeSelectionInspector = appendKeyframeSelectionInspector.bind(
+    undefined,
+    ctx,
+  );
 }

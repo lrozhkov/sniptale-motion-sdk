@@ -148,28 +148,28 @@ function isPhaseCompatibleWithLayer(
 export function installTimelineOwnershipPredicatesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.clipBelongsToScene = (...args: any[]) =>
-    (clipBelongsToScene as any)(ctx, ...args);
-  ctx.isGlobalTimelineClip = (...args: any[]) =>
-    (isGlobalTimelineClip as any)(ctx, ...args);
-  ctx.getGlobalTimelineLayerIds = (...args: any[]) =>
-    (getGlobalTimelineLayerIds as any)(ctx, ...args);
-  ctx.phaseBelongsToScene = (...args: any[]) =>
-    (phaseBelongsToScene as any)(ctx, ...args);
-  ctx.keyframeBelongsToScene = (...args: any[]) =>
-    (keyframeBelongsToScene as any)(ctx, ...args);
-  ctx.timeBelongsToScene = (...args: any[]) =>
-    (timeBelongsToScene as any)(ctx, ...args);
-  ctx.keyframeLinkKey = (...args: any[]) =>
-    (keyframeLinkKey as any)(ctx, ...args);
-  ctx.keyframeBelongsToSelectedPhase = (...args: any[]) =>
-    (keyframeBelongsToSelectedPhase as any)(ctx, ...args);
-  ctx.timingBelongsToSelectedScene = (...args: any[]) =>
-    (timingBelongsToSelectedScene as any)(ctx, ...args);
-  ctx.inferTrackProperty = (...args: any[]) =>
-    (inferTrackProperty as any)(ctx, ...args);
-  ctx.getPhaseTrackLayerIds = (...args: any[]) =>
-    (getPhaseTrackLayerIds as any)(ctx, ...args);
-  ctx.isPhaseCompatibleWithLayer = (...args: any[]) =>
-    (isPhaseCompatibleWithLayer as any)(ctx, ...args);
+  ctx.clipBelongsToScene = clipBelongsToScene.bind(undefined, ctx);
+  ctx.isGlobalTimelineClip = isGlobalTimelineClip.bind(undefined, ctx);
+  ctx.getGlobalTimelineLayerIds = getGlobalTimelineLayerIds.bind(
+    undefined,
+    ctx,
+  );
+  ctx.phaseBelongsToScene = phaseBelongsToScene.bind(undefined, ctx);
+  ctx.keyframeBelongsToScene = keyframeBelongsToScene.bind(undefined, ctx);
+  ctx.timeBelongsToScene = timeBelongsToScene.bind(undefined, ctx);
+  ctx.keyframeLinkKey = keyframeLinkKey.bind(undefined, ctx);
+  ctx.keyframeBelongsToSelectedPhase = keyframeBelongsToSelectedPhase.bind(
+    undefined,
+    ctx,
+  );
+  ctx.timingBelongsToSelectedScene = timingBelongsToSelectedScene.bind(
+    undefined,
+    ctx,
+  );
+  ctx.inferTrackProperty = inferTrackProperty.bind(undefined, ctx);
+  ctx.getPhaseTrackLayerIds = getPhaseTrackLayerIds.bind(undefined, ctx);
+  ctx.isPhaseCompatibleWithLayer = isPhaseCompatibleWithLayer.bind(
+    undefined,
+    ctx,
+  );
 }

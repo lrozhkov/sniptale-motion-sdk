@@ -123,8 +123,7 @@ export function syncPlaybackCacheButton(ctx: ViewerAppContext): void {
 export function installPlaybackCacheToggleOwner(ctx: ViewerAppContext): void {
   ctx.initializePlaybackCachePreference = () =>
     initializePlaybackCachePreference(ctx);
-  ctx.setPlaybackCacheEnabled = (...args: any[]) =>
-    (setPlaybackCacheEnabled as any)(ctx, ...args);
+  ctx.setPlaybackCacheEnabled = setPlaybackCacheEnabled.bind(undefined, ctx);
   ctx.syncPlaybackCacheButton = () => syncPlaybackCacheButton(ctx);
 }
 

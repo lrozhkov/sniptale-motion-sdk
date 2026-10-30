@@ -60,16 +60,19 @@ function normalizePreviewBindingReads(ctx: ViewerAppContext, reads) {
 export function installRenderingPreviewQualityOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getPreviewRenderPlan = (...args: any[]) =>
-    (getPreviewRenderPlan as any)(ctx, ...args);
-  ctx.getContractRenderSize = (...args: any[]) =>
-    (getContractRenderSize as any)(ctx, ...args);
-  ctx.normalizePreviewBindingReads = (...args: any[]) =>
-    (normalizePreviewBindingReads as any)(ctx, ...args);
-  ctx.syncPreviewQualityBadge = (...args: any[]) =>
-    (syncPreviewQualityBadge as any)(ctx, ...args);
-  ctx.refinePreviewAtFullQuality = (...args: any[]) =>
-    (refinePreviewAtFullQuality as any)(ctx, ...args);
-  ctx.settlePreviewAfterInteraction = (...args: any[]) =>
-    (settlePreviewAfterInteraction as any)(ctx, ...args);
+  ctx.getPreviewRenderPlan = getPreviewRenderPlan.bind(undefined, ctx);
+  ctx.getContractRenderSize = getContractRenderSize.bind(undefined, ctx);
+  ctx.normalizePreviewBindingReads = normalizePreviewBindingReads.bind(
+    undefined,
+    ctx,
+  );
+  ctx.syncPreviewQualityBadge = syncPreviewQualityBadge.bind(undefined, ctx);
+  ctx.refinePreviewAtFullQuality = refinePreviewAtFullQuality.bind(
+    undefined,
+    ctx,
+  );
+  ctx.settlePreviewAfterInteraction = settlePreviewAfterInteraction.bind(
+    undefined,
+    ctx,
+  );
 }

@@ -92,10 +92,7 @@ function markSandboxRenderHealthy(
 export function installTransportRuntimeRecoveryOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.requestSandbox = (...args: any[]) =>
-    (requestSandbox as any)(ctx, ...args);
-  ctx.markSandboxRuntimeReady = (...args: any[]) =>
-    (markSandboxRuntimeReady as any)(ctx, ...args);
-  ctx.markSandboxRenderHealthy = (...args: any[]) =>
-    (markSandboxRenderHealthy as any)(ctx, ...args);
+  ctx.requestSandbox = requestSandbox.bind(undefined, ctx);
+  ctx.markSandboxRuntimeReady = markSandboxRuntimeReady.bind(undefined, ctx);
+  ctx.markSandboxRenderHealthy = markSandboxRenderHealthy.bind(undefined, ctx);
 }

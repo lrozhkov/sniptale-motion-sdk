@@ -132,18 +132,29 @@ function appendTimelineEnabledToggle(
 }
 
 export function installTimelineEnabledOwner(ctx: ViewerAppContext): void {
-  ctx.isTimelineItemEnabled = (...args: any[]) =>
-    (isTimelineItemEnabled as any)(ctx, ...args);
-  ctx.toggleTimelineSceneEnabled = (...args: any[]) =>
-    (toggleTimelineSceneEnabled as any)(ctx, ...args);
-  ctx.toggleTimelineClipEnabled = (...args: any[]) =>
-    (toggleTimelineClipEnabled as any)(ctx, ...args);
-  ctx.toggleTimelinePhaseEnabled = (...args: any[]) =>
-    (toggleTimelinePhaseEnabled as any)(ctx, ...args);
-  ctx.toggleTimelineTrackEnabled = (...args: any[]) =>
-    (toggleTimelineTrackEnabled as any)(ctx, ...args);
-  ctx.toggleTimelineKeyframeEnabled = (...args: any[]) =>
-    (toggleTimelineKeyframeEnabled as any)(ctx, ...args);
-  ctx.appendTimelineEnabledToggle = (...args: any[]) =>
-    (appendTimelineEnabledToggle as any)(ctx, ...args);
+  ctx.isTimelineItemEnabled = isTimelineItemEnabled.bind(undefined, ctx);
+  ctx.toggleTimelineSceneEnabled = toggleTimelineSceneEnabled.bind(
+    undefined,
+    ctx,
+  );
+  ctx.toggleTimelineClipEnabled = toggleTimelineClipEnabled.bind(
+    undefined,
+    ctx,
+  );
+  ctx.toggleTimelinePhaseEnabled = toggleTimelinePhaseEnabled.bind(
+    undefined,
+    ctx,
+  );
+  ctx.toggleTimelineTrackEnabled = toggleTimelineTrackEnabled.bind(
+    undefined,
+    ctx,
+  );
+  ctx.toggleTimelineKeyframeEnabled = toggleTimelineKeyframeEnabled.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendTimelineEnabledToggle = appendTimelineEnabledToggle.bind(
+    undefined,
+    ctx,
+  );
 }

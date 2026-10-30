@@ -224,8 +224,10 @@ function createSelectionUnavailableNote(ctx, model) {
 export function installInspectorLayerSelectionOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.isLayerSelectionInspector = (...args: any[]) =>
-    (isLayerSelectionInspector as any)(ctx, ...args);
-  ctx.appendLayerMultiSelectionOverview = (...args: any[]) =>
-    (appendLayerMultiSelectionOverview as any)(ctx, ...args);
+  ctx.isLayerSelectionInspector = isLayerSelectionInspector.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendLayerMultiSelectionOverview =
+    appendLayerMultiSelectionOverview.bind(undefined, ctx);
 }

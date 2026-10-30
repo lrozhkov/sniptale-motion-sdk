@@ -1,6 +1,9 @@
 import type { ViewerAppContext } from "../app/context.js";
 import { prepareCanvasGesture } from "./gesture.js";
-import { resolveNumericTrack as resolveNumericTrackOwner } from "./numeric-track.js";
+import {
+  getDefaultLayerProperty,
+  resolveNumericTrack as resolveNumericTrackOwner,
+} from "./numeric-track.js";
 import { updateLayerPropertiesAtTime as updateLayerPropertiesAtTimeOwner } from "./property-batch.js";
 import { updateLayerPropertyBatchAtTime as updateLayerPropertyBatchAtTimeOwner } from "./property-batch.js";
 
@@ -274,46 +277,34 @@ function getResolvedLayerProperty(
   );
 }
 
-function getDefaultLayerProperty(ctx: ViewerAppContext, layer, property) {
-  if (
-    property === "opacity" ||
-    property === "scaleX" ||
-    property === "scaleY"
-  ) {
-    return Number.isFinite(Number(layer[property]))
-      ? Number(layer[property])
-      : 1;
-  }
-  return Number.isFinite(Number(layer[property])) ? Number(layer[property]) : 0;
-}
-
 export function installCanvasPropertyUpdatesOwner(ctx: ViewerAppContext): void {
-  ctx.updatePathPoint = (...args: any[]) =>
-    (updatePathPoint as any)(ctx, ...args);
-  ctx.updateLayerPosition = (...args: any[]) =>
-    (updateLayerPosition as any)(ctx, ...args);
-  ctx.updateLayerPositionAtTime = (...args: any[]) =>
-    (updateLayerPositionAtTime as any)(ctx, ...args);
-  ctx.updateLayerPropertiesAtTime = (...args: any[]) =>
-    (updateLayerPropertiesAtTimeOwner as any)(ctx, ...args);
-  ctx.updateLayerPropertyBatchAtTime = (...args: any[]) =>
-    (updateLayerPropertyBatchAtTimeOwner as any)(ctx, ...args);
-  ctx.updateLayerDefinitionProperty = (...args: any[]) =>
-    (updateLayerDefinitionProperty as any)(ctx, ...args);
-  ctx.updateLayerClipProperty = (...args: any[]) =>
-    (updateLayerClipProperty as any)(ctx, ...args);
-  ctx.updateLayerProperty = (...args: any[]) =>
-    (updateLayerProperty as any)(ctx, ...args);
-  ctx.updateLayerPropertyAtTime = (...args: any[]) =>
-    (updateLayerPropertyAtTime as any)(ctx, ...args);
-  ctx.nudgeSelectedLayer = (...args: any[]) =>
-    (nudgeSelectedLayer as any)(ctx, ...args);
-  ctx.upsertTrackKeyframe = (...args: any[]) =>
-    (upsertTrackKeyframe as any)(ctx, ...args);
-  ctx.getResolvedLayerProperty = (...args: any[]) =>
-    (getResolvedLayerProperty as any)(ctx, ...args);
-  ctx.getDefaultLayerProperty = (...args: any[]) =>
-    (getDefaultLayerProperty as any)(ctx, ...args);
-  ctx.resolveNumericTrack = (...args: any[]) =>
-    (resolveNumericTrackOwner as any)(ctx, ...args);
+  ctx.updatePathPoint = updatePathPoint.bind(undefined, ctx);
+  ctx.updateLayerPosition = updateLayerPosition.bind(undefined, ctx);
+  ctx.updateLayerPositionAtTime = updateLayerPositionAtTime.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateLayerPropertiesAtTime = updateLayerPropertiesAtTimeOwner.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateLayerPropertyBatchAtTime = updateLayerPropertyBatchAtTimeOwner.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateLayerDefinitionProperty = updateLayerDefinitionProperty.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateLayerClipProperty = updateLayerClipProperty.bind(undefined, ctx);
+  ctx.updateLayerProperty = updateLayerProperty.bind(undefined, ctx);
+  ctx.updateLayerPropertyAtTime = updateLayerPropertyAtTime.bind(
+    undefined,
+    ctx,
+  );
+  ctx.nudgeSelectedLayer = nudgeSelectedLayer.bind(undefined, ctx);
+  ctx.upsertTrackKeyframe = upsertTrackKeyframe.bind(undefined, ctx);
+  ctx.getResolvedLayerProperty = getResolvedLayerProperty.bind(undefined, ctx);
+  ctx.getDefaultLayerProperty = getDefaultLayerProperty.bind(undefined);
+  ctx.resolveNumericTrack = resolveNumericTrackOwner.bind(undefined, ctx);
 }

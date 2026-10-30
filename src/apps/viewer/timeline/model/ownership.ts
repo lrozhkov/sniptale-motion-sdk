@@ -276,24 +276,21 @@ function hasInvalidTiming(ctx: ViewerAppContext, template) {
 }
 
 export function installModelOwnershipOwner(ctx: ViewerAppContext): void {
-  ctx.createSelectedKeyframeSegmentRange = (...args: any[]) =>
-    (createSelectedKeyframeSegmentRange as any)(ctx, ...args);
-  ctx.getSelectedTimelineRange = (...args: any[]) =>
-    (getSelectedTimelineRange as any)(ctx, ...args);
-  ctx.frameTimelineRange = (...args: any[]) =>
-    (frameTimelineRange as any)(ctx, ...args);
-  ctx.isTimeInsideRange = (...args: any[]) =>
-    (isTimeInsideRange as any)(ctx, ...args);
-  ctx.isRangeInsideScene = (...args: any[]) =>
-    (isRangeInsideScene as any)(ctx, ...args);
-  ctx.isPhaseSceneBoundaryInvalid = (...args: any[]) =>
-    (isPhaseSceneBoundaryInvalid as any)(ctx, ...args);
-  ctx.isKeyframeTimingInvalid = (...args: any[]) =>
-    (isKeyframeTimingInvalid as any)(ctx, ...args);
-  ctx.isTimeInsideBoundaryRange = (...args: any[]) =>
-    (isTimeInsideBoundaryRange as any)(ctx, ...args);
-  ctx.isRangeInvalid = (...args: any[]) =>
-    (isRangeInvalid as any)(ctx, ...args);
-  ctx.hasInvalidTiming = (...args: any[]) =>
-    (hasInvalidTiming as any)(ctx, ...args);
+  ctx.createSelectedKeyframeSegmentRange =
+    createSelectedKeyframeSegmentRange.bind(undefined, ctx);
+  ctx.getSelectedTimelineRange = getSelectedTimelineRange.bind(undefined, ctx);
+  ctx.frameTimelineRange = frameTimelineRange.bind(undefined, ctx);
+  ctx.isTimeInsideRange = isTimeInsideRange.bind(undefined, ctx);
+  ctx.isRangeInsideScene = isRangeInsideScene.bind(undefined, ctx);
+  ctx.isPhaseSceneBoundaryInvalid = isPhaseSceneBoundaryInvalid.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isKeyframeTimingInvalid = isKeyframeTimingInvalid.bind(undefined, ctx);
+  ctx.isTimeInsideBoundaryRange = isTimeInsideBoundaryRange.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isRangeInvalid = isRangeInvalid.bind(undefined, ctx);
+  ctx.hasInvalidTiming = hasInvalidTiming.bind(undefined, ctx);
 }

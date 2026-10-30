@@ -39,6 +39,5 @@ function renderTimelineLayerTree(
 }
 
 export function installTimelineLayerTreeViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderTimelineLayerTree = (...args: any[]) =>
-    (renderTimelineLayerTree as any)(ctx, ...args);
+  ctx.renderTimelineLayerTree = renderTimelineLayerTree.bind(undefined, ctx);
 }

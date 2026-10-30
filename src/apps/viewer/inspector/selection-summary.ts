@@ -277,10 +277,10 @@ function appendAssetUsageInspector(ctx: ViewerAppContext, layers) {
 export function installInspectorSelectionSummaryOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderSelectionCrumb = (...args: any[]) =>
-    (renderSelectionCrumb as any)(ctx, ...args);
-  ctx.getSelectionCrumbModel = (...args: any[]) =>
-    (getSelectionCrumbModel as any)(ctx, ...args);
-  ctx.appendAssetUsageInspector = (...args: any[]) =>
-    (appendAssetUsageInspector as any)(ctx, ...args);
+  ctx.renderSelectionCrumb = renderSelectionCrumb.bind(undefined, ctx);
+  ctx.getSelectionCrumbModel = getSelectionCrumbModel.bind(undefined, ctx);
+  ctx.appendAssetUsageInspector = appendAssetUsageInspector.bind(
+    undefined,
+    ctx,
+  );
 }

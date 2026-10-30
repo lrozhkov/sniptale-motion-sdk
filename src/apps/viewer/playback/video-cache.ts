@@ -248,19 +248,24 @@ async function preparePlaybackVideoCache(
 }
 
 export function installPlaybackVideoCacheOwner(ctx: ViewerAppContext): void {
-  ctx.beginPlaybackVideoCache = (...args: any[]) =>
-    (beginPlaybackVideoCache as any)(ctx, ...args);
-  ctx.capturePlaybackVideoCacheFrame = (...args: any[]) =>
-    (capturePlaybackVideoCacheFrame as any)(ctx, ...args);
-  ctx.hidePlaybackVideoCacheSurface = (...args: any[]) =>
-    (hidePlaybackVideoCacheSurface as any)(ctx, ...args);
-  ctx.invalidatePlaybackVideoCache = (...args: any[]) =>
-    (invalidatePlaybackVideoCache as any)(ctx, ...args);
+  ctx.beginPlaybackVideoCache = beginPlaybackVideoCache.bind(undefined, ctx);
+  ctx.capturePlaybackVideoCacheFrame = capturePlaybackVideoCacheFrame.bind(
+    undefined,
+    ctx,
+  );
+  ctx.hidePlaybackVideoCacheSurface = hidePlaybackVideoCacheSurface.bind(
+    undefined,
+    ctx,
+  );
+  ctx.invalidatePlaybackVideoCache = invalidatePlaybackVideoCache.bind(
+    undefined,
+    ctx,
+  );
   ctx.isPlaybackVideoCacheCurrent = () => isPlaybackVideoCacheCurrent(ctx);
-  ctx.shouldPreferPlaybackVideoCache = (...args: any[]) =>
-    (shouldPreferPlaybackVideoCache as any)(ctx, ...args);
-  ctx.stopPlaybackVideoCache = (...args: any[]) =>
-    (stopPlaybackVideoCache as any)(ctx, ...args);
-  ctx.syncPlaybackVideoCache = (...args: any[]) =>
-    (syncPlaybackVideoCache as any)(ctx, ...args);
+  ctx.shouldPreferPlaybackVideoCache = shouldPreferPlaybackVideoCache.bind(
+    undefined,
+    ctx,
+  );
+  ctx.stopPlaybackVideoCache = stopPlaybackVideoCache.bind(undefined, ctx);
+  ctx.syncPlaybackVideoCache = syncPlaybackVideoCache.bind(undefined, ctx);
 }

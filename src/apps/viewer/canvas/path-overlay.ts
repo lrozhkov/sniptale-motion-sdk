@@ -172,16 +172,19 @@ function getEditablePathStagePoint(ctx: ViewerAppContext, layer, point) {
 }
 
 export function installCanvasPathOverlayOwner(ctx: ViewerAppContext): void {
-  ctx.hideMotionPathOverlay = (...args: any[]) =>
-    (hideMotionPathOverlay as any)(ctx, ...args);
-  ctx.renderMotionPathOverlay = (...args: any[]) =>
-    (renderMotionPathOverlay as any)(ctx, ...args);
-  ctx.renderSelectedMotionPathOverlay = (...args: any[]) =>
-    (renderSelectedMotionPathOverlay as any)(ctx, ...args);
-  ctx.renderEditablePathOverlay = (...args: any[]) =>
-    (renderEditablePathOverlay as any)(ctx, ...args);
-  ctx.getEditablePathPoints = (...args: any[]) =>
-    (getEditablePathPoints as any)(ctx, ...args);
-  ctx.getEditablePathStagePoint = (...args: any[]) =>
-    (getEditablePathStagePoint as any)(ctx, ...args);
+  ctx.hideMotionPathOverlay = hideMotionPathOverlay.bind(undefined, ctx);
+  ctx.renderMotionPathOverlay = renderMotionPathOverlay.bind(undefined, ctx);
+  ctx.renderSelectedMotionPathOverlay = renderSelectedMotionPathOverlay.bind(
+    undefined,
+    ctx,
+  );
+  ctx.renderEditablePathOverlay = renderEditablePathOverlay.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getEditablePathPoints = getEditablePathPoints.bind(undefined, ctx);
+  ctx.getEditablePathStagePoint = getEditablePathStagePoint.bind(
+    undefined,
+    ctx,
+  );
 }

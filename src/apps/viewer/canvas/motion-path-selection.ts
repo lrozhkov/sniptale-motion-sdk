@@ -185,14 +185,15 @@ function keyframeRefKey(ref): string {
 export function installCanvasMotionPathSelectionOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getCanvasMotionPathModel = (...args: any[]) =>
-    (getCanvasMotionPathModel as any)(ctx, ...args);
-  ctx.selectCanvasMotionPathPoint = (...args: any[]) =>
-    (selectCanvasMotionPathPoint as any)(ctx, ...args);
-  ctx.isCanvasMotionPathSelectionForLayer = (...args: any[]) =>
-    (isCanvasMotionPathSelectionForLayer as any)(ctx, ...args);
-  ctx.getSelectedCanvasMotionPathPoints = (...args: any[]) =>
-    (getSelectedCanvasMotionPathPoints as any)(ctx, ...args);
-  ctx.getFullySelectedCanvasMotionPathPoints = (...args: any[]) =>
-    (getFullySelectedCanvasMotionPathPoints as any)(ctx, ...args);
+  ctx.getCanvasMotionPathModel = getCanvasMotionPathModel.bind(undefined, ctx);
+  ctx.selectCanvasMotionPathPoint = selectCanvasMotionPathPoint.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isCanvasMotionPathSelectionForLayer =
+    isCanvasMotionPathSelectionForLayer.bind(undefined, ctx);
+  ctx.getSelectedCanvasMotionPathPoints =
+    getSelectedCanvasMotionPathPoints.bind(undefined, ctx);
+  ctx.getFullySelectedCanvasMotionPathPoints =
+    getFullySelectedCanvasMotionPathPoints.bind(undefined, ctx);
 }

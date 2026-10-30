@@ -180,16 +180,14 @@ function isLayerActiveAtTime(ctx: ViewerAppContext, template, layerId, time) {
 }
 
 export function installLayersPropertiesOwner(ctx: ViewerAppContext): void {
-  ctx.toggleLayerVisibility = (...args: any[]) =>
-    (toggleLayerVisibility as any)(ctx, ...args);
-  ctx.toggleLayerLock = (...args: any[]) =>
-    (toggleLayerLock as any)(ctx, ...args);
-  ctx.getTrackLayerId = (...args: any[]) =>
-    (getTrackLayerId as any)(ctx, ...args);
-  ctx.hasLayerPropertyKeyframeAtCurrentTime = (...args: any[]) =>
-    (hasLayerPropertyKeyframeAtCurrentTime as any)(ctx, ...args);
-  ctx.toggleLayerPropertyKeyframe = (...args: any[]) =>
-    (toggleLayerPropertyKeyframe as any)(ctx, ...args);
-  ctx.isLayerActiveAtTime = (...args: any[]) =>
-    (isLayerActiveAtTime as any)(ctx, ...args);
+  ctx.toggleLayerVisibility = toggleLayerVisibility.bind(undefined, ctx);
+  ctx.toggleLayerLock = toggleLayerLock.bind(undefined, ctx);
+  ctx.getTrackLayerId = getTrackLayerId.bind(undefined, ctx);
+  ctx.hasLayerPropertyKeyframeAtCurrentTime =
+    hasLayerPropertyKeyframeAtCurrentTime.bind(undefined, ctx);
+  ctx.toggleLayerPropertyKeyframe = toggleLayerPropertyKeyframe.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isLayerActiveAtTime = isLayerActiveAtTime.bind(undefined, ctx);
 }

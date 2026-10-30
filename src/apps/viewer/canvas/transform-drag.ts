@@ -111,6 +111,5 @@ function beginCanvasLayerDrag(
 }
 
 export function installCanvasTransformDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasLayerDrag = (...args: any[]) =>
-    (beginCanvasLayerDrag as any)(ctx, ...args);
+  ctx.beginCanvasLayerDrag = beginCanvasLayerDrag.bind(undefined, ctx);
 }

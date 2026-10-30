@@ -76,6 +76,5 @@ function toggleSelectionClass(
 }
 
 export function installTimelineSelectionViewOwner(ctx: ViewerAppContext): void {
-  ctx.syncTimelineSelection = (...args: any[]) =>
-    (syncTimelineSelection as any)(ctx, ...args);
+  ctx.syncTimelineSelection = syncTimelineSelection.bind(undefined, ctx);
 }

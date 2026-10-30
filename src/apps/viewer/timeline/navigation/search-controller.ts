@@ -240,13 +240,9 @@ export function installTimelineLayerSearchController(
   ctx: ViewerAppContext,
 ): void {
   Object.assign(ctx, {
-    closeTimelineLayerSearch: (...args: any[]) =>
-      (closeTimelineLayerSearch as any)(ctx, ...args),
-    openTimelineLayerSearch: (...args: any[]) =>
-      (openTimelineLayerSearch as any)(ctx, ...args),
-    renderTimelineLayerSearch: (...args: any[]) =>
-      (renderTimelineLayerSearch as any)(ctx, ...args),
-    wireTimelineLayerSearch: (...args: any[]) =>
-      (wireTimelineLayerSearch as any)(ctx, ...args),
+    closeTimelineLayerSearch: closeTimelineLayerSearch.bind(undefined, ctx),
+    openTimelineLayerSearch: openTimelineLayerSearch.bind(undefined, ctx),
+    renderTimelineLayerSearch: renderTimelineLayerSearch.bind(undefined, ctx),
+    wireTimelineLayerSearch: wireTimelineLayerSearch.bind(undefined, ctx),
   });
 }

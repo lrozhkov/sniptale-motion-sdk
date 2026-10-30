@@ -98,8 +98,6 @@ function focusRevealedTimelineLayer(
 }
 
 export function installTimelineLayerRevealOwner(ctx: ViewerAppContext): void {
-  ctx.revealTimelineLayer = (...args: any[]) =>
-    (revealTimelineLayer as any)(ctx, ...args);
-  ctx.revealTimelineLayerById = (...args: any[]) =>
-    (revealTimelineLayerById as any)(ctx, ...args);
+  ctx.revealTimelineLayer = revealTimelineLayer.bind(undefined, ctx);
+  ctx.revealTimelineLayerById = revealTimelineLayerById.bind(undefined, ctx);
 }

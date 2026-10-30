@@ -117,12 +117,8 @@ function updateExportAvailability(
 }
 
 export function installEffectFileServiceOwner(ctx: ViewerAppContext): void {
-  ctx.sanitizeIdentifier = (...args: any[]) =>
-    (sanitizeIdentifier as any)(ctx, ...args);
-  ctx.appendImportedLabel = (...args: any[]) =>
-    (appendImportedLabel as any)(ctx, ...args);
-  ctx.assertExportable = (...args: any[]) =>
-    (assertExportable as any)(ctx, ...args);
-  ctx.updateExportAvailability = (...args: any[]) =>
-    (updateExportAvailability as any)(ctx, ...args);
+  ctx.sanitizeIdentifier = sanitizeIdentifier.bind(undefined, ctx);
+  ctx.appendImportedLabel = appendImportedLabel.bind(undefined, ctx);
+  ctx.assertExportable = assertExportable.bind(undefined, ctx);
+  ctx.updateExportAvailability = updateExportAvailability.bind(undefined, ctx);
 }

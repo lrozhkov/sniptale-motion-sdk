@@ -194,8 +194,9 @@ function modulo(value: number, divisor: number): number {
 export function installCanvasTransformHandlesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.ensureCanvasTransformHandles = (...args: any[]) =>
-    (ensureCanvasTransformHandles as any)(ctx, ...args);
-  ctx.updateCanvasAnchorHandle = (...args: any[]) =>
-    (updateCanvasAnchorHandle as any)(ctx, ...args);
+  ctx.ensureCanvasTransformHandles = ensureCanvasTransformHandles.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateCanvasAnchorHandle = updateCanvasAnchorHandle.bind(undefined, ctx);
 }

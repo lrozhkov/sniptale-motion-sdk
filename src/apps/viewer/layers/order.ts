@@ -150,8 +150,6 @@ function clamp(value, min, max) {
 }
 
 export function installLayersOrderOwner(ctx: ViewerAppContext): void {
-  ctx.beginLayerPanelDrag = (...args: any[]) =>
-    (beginLayerPanelDrag as any)(ctx, ...args);
-  ctx.moveSelectedLayerOrder = (...args: any[]) =>
-    (moveSelectedLayerOrder as any)(ctx, ...args);
+  ctx.beginLayerPanelDrag = beginLayerPanelDrag.bind(undefined, ctx);
+  ctx.moveSelectedLayerOrder = moveSelectedLayerOrder.bind(undefined, ctx);
 }

@@ -241,29 +241,23 @@ export function isPreviewFullscreenActive(ctx: ViewerAppContext): boolean {
 }
 
 export function installAppShellLayoutOwner(ctx: ViewerAppContext): void {
-  ctx.setSidebarCollapsed = (...args: any[]) =>
-    (setSidebarCollapsed as any)(ctx, ...args);
-  ctx.setSidebarWidth = (...args: any[]) =>
-    (setSidebarWidth as any)(ctx, ...args);
-  ctx.setTimelineEditorHeight = (...args: any[]) =>
-    (setTimelineEditorHeight as any)(ctx, ...args);
-  ctx.setPreviewZoom = (...args: any[]) =>
-    (setPreviewZoom as any)(ctx, ...args);
-  ctx.setPreviewGuides = (...args: any[]) =>
-    (setPreviewGuides as any)(ctx, ...args);
-  ctx.setPreviewSnap = (...args: any[]) =>
-    (setPreviewSnap as any)(ctx, ...args);
-  ctx.beginSidebarWidthResize = (...args: any[]) =>
-    (beginSidebarWidthResize as any)(ctx, ...args);
-  ctx.handleSidebarWidthResizerKeydown = (...args: any[]) =>
-    (handleSidebarWidthResizerKeydown as any)(ctx, ...args);
-  ctx.beginLayoutResize = (...args: any[]) =>
-    (beginLayoutResize as any)(ctx, ...args);
-  ctx.handleLayoutResizerKeydown = (...args: any[]) =>
-    (handleLayoutResizerKeydown as any)(ctx, ...args);
-  ctx.togglePreviewFullscreen = (...args: any[]) =>
-    (togglePreviewFullscreen as any)(ctx, ...args);
-  ctx.syncFullscreenButton = (...args: any[]) =>
-    (syncFullscreenButton as any)(ctx, ...args);
+  ctx.setSidebarCollapsed = setSidebarCollapsed.bind(undefined, ctx);
+  ctx.setSidebarWidth = setSidebarWidth.bind(undefined, ctx);
+  ctx.setTimelineEditorHeight = setTimelineEditorHeight.bind(undefined, ctx);
+  ctx.setPreviewZoom = setPreviewZoom.bind(undefined, ctx);
+  ctx.setPreviewGuides = setPreviewGuides.bind(undefined, ctx);
+  ctx.setPreviewSnap = setPreviewSnap.bind(undefined, ctx);
+  ctx.beginSidebarWidthResize = beginSidebarWidthResize.bind(undefined, ctx);
+  ctx.handleSidebarWidthResizerKeydown = handleSidebarWidthResizerKeydown.bind(
+    undefined,
+    ctx,
+  );
+  ctx.beginLayoutResize = beginLayoutResize.bind(undefined, ctx);
+  ctx.handleLayoutResizerKeydown = handleLayoutResizerKeydown.bind(
+    undefined,
+    ctx,
+  );
+  ctx.togglePreviewFullscreen = togglePreviewFullscreen.bind(undefined, ctx);
+  ctx.syncFullscreenButton = syncFullscreenButton.bind(undefined, ctx);
   ctx.isPreviewFullscreenActive = () => isPreviewFullscreenActive(ctx);
 }

@@ -126,6 +126,5 @@ function renderInspectorContext(ctx: ViewerAppContext, item, template) {
 export function installInspectorContextHeaderOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderInspectorContext = (...args: any[]) =>
-    (renderInspectorContext as any)(ctx, ...args);
+  ctx.renderInspectorContext = renderInspectorContext.bind(undefined, ctx);
 }

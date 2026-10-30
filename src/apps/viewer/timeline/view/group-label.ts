@@ -124,8 +124,9 @@ function renderPropertyTrackRows(
 export function installTimelineGroupLabelViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.decorateTimelineGroupLabel = (...args: any[]) =>
-    (decorateTimelineGroupLabel as any)(ctx, ...args);
-  ctx.renderPropertyTrackRows = (...args: any[]) =>
-    (renderPropertyTrackRows as any)(ctx, ...args);
+  ctx.decorateTimelineGroupLabel = decorateTimelineGroupLabel.bind(
+    undefined,
+    ctx,
+  );
+  ctx.renderPropertyTrackRows = renderPropertyTrackRows.bind(undefined, ctx);
 }

@@ -114,6 +114,8 @@ function appendKeyframeCurveInspector(
 export function installInspectorKeyframeCurveOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendKeyframeCurveInspector = (...args: any[]) =>
-    (appendKeyframeCurveInspector as any)(ctx, ...args);
+  ctx.appendKeyframeCurveInspector = appendKeyframeCurveInspector.bind(
+    undefined,
+    ctx,
+  );
 }

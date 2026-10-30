@@ -185,17 +185,14 @@ function restoreEditorSnapshotAssets(
 export function installEditorHistoryControllerOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.commitHistory = (...args: any[]) => (commitHistory as any)(ctx, ...args);
-  ctx.captureEditorSnapshot = (...args: any[]) =>
-    (captureEditorSnapshot as any)(ctx, ...args);
-  ctx.getEditorAssetScopeIds = (...args: any[]) =>
-    (getEditorAssetScopeIds as any)(ctx, ...args);
-  ctx.restoreEditorSnapshot = (...args: any[]) =>
-    (restoreEditorSnapshot as any)(ctx, ...args);
-  ctx.restoreEditorSnapshotData = (...args: any[]) =>
-    (restoreEditorSnapshotData as any)(ctx, ...args);
-  ctx.undoEditorEdit = (...args: any[]) =>
-    (undoEditorEdit as any)(ctx, ...args);
-  ctx.redoEditorEdit = (...args: any[]) =>
-    (redoEditorEdit as any)(ctx, ...args);
+  ctx.commitHistory = commitHistory.bind(undefined, ctx);
+  ctx.captureEditorSnapshot = captureEditorSnapshot.bind(undefined, ctx);
+  ctx.getEditorAssetScopeIds = getEditorAssetScopeIds.bind(undefined, ctx);
+  ctx.restoreEditorSnapshot = restoreEditorSnapshot.bind(undefined, ctx);
+  ctx.restoreEditorSnapshotData = restoreEditorSnapshotData.bind(
+    undefined,
+    ctx,
+  );
+  ctx.undoEditorEdit = undoEditorEdit.bind(undefined, ctx);
+  ctx.redoEditorEdit = redoEditorEdit.bind(undefined, ctx);
 }

@@ -144,8 +144,9 @@ function resetExportDrawingState(context): void {
 }
 
 export function installRenderingExportFrameOwner(ctx: ViewerAppContext): void {
-  ctx.renderFrameBitmapForExport = (...args: any[]) =>
-    (renderFrameBitmapForExport as any)(ctx, ...args);
-  ctx.drawExportFrame = (...args: any[]) =>
-    (drawExportFrame as any)(ctx, ...args);
+  ctx.renderFrameBitmapForExport = renderFrameBitmapForExport.bind(
+    undefined,
+    ctx,
+  );
+  ctx.drawExportFrame = drawExportFrame.bind(undefined, ctx);
 }

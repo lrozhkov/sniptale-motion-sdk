@@ -135,16 +135,16 @@ function getValidCanvasIsolationGroupId(ctx, hierarchy): string | null {
 }
 
 export function installCanvasSelectionLevelOwner(ctx: ViewerAppContext): void {
-  ctx.resolveCanvasHitSelectionLayerId = (...args: any[]) =>
-    (resolveCanvasHitSelectionLayerId as any)(ctx, ...args);
-  ctx.getCanvasSelectionLevelLayerIds = (...args: any[]) =>
-    (getCanvasSelectionLevelLayerIds as any)(ctx, ...args);
-  ctx.selectCanvasLayers = (...args: any[]) =>
-    (selectCanvasLayers as any)(ctx, ...args);
-  ctx.enterCanvasGroup = (...args: any[]) =>
-    (enterCanvasGroup as any)(ctx, ...args);
-  ctx.enterSelectedCanvasGroup = (...args: any[]) =>
-    (enterSelectedCanvasGroup as any)(ctx, ...args);
-  ctx.exitCanvasGroupIsolation = (...args: any[]) =>
-    (exitCanvasGroupIsolation as any)(ctx, ...args);
+  ctx.resolveCanvasHitSelectionLayerId = resolveCanvasHitSelectionLayerId.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getCanvasSelectionLevelLayerIds = getCanvasSelectionLevelLayerIds.bind(
+    undefined,
+    ctx,
+  );
+  ctx.selectCanvasLayers = selectCanvasLayers.bind(undefined, ctx);
+  ctx.enterCanvasGroup = enterCanvasGroup.bind(undefined, ctx);
+  ctx.enterSelectedCanvasGroup = enterSelectedCanvasGroup.bind(undefined, ctx);
+  ctx.exitCanvasGroupIsolation = exitCanvasGroupIsolation.bind(undefined, ctx);
 }

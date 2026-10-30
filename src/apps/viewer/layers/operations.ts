@@ -12,5 +12,5 @@ function focusLayer(ctx: ViewerAppContext, layerId, preferredTab = null) {
 }
 
 export function installLayersOperationsOwner(ctx: ViewerAppContext): void {
-  ctx.focusLayer = (...args: any[]) => (focusLayer as any)(ctx, ...args);
+  ctx.focusLayer = focusLayer.bind(undefined, ctx);
 }

@@ -252,14 +252,12 @@ function applyClipMovePlan(
 }
 
 export function installModelClipMovePlansOwner(ctx: ViewerAppContext): void {
-  ctx.createClipMovePlan = (...args: any[]) =>
-    (createClipMovePlan as any)(ctx, ...args);
-  ctx.keyframeCanMoveWithClip = (...args: any[]) =>
-    (keyframeCanMoveWithClip as any)(ctx, ...args);
-  ctx.keyframePhaseCanMoveWithClip = (...args: any[]) =>
-    (keyframePhaseCanMoveWithClip as any)(ctx, ...args);
-  ctx.getClipMovablePhaseIds = (...args: any[]) =>
-    (getClipMovablePhaseIds as any)(ctx, ...args);
-  ctx.applyClipMovePlan = (...args: any[]) =>
-    (applyClipMovePlan as any)(ctx, ...args);
+  ctx.createClipMovePlan = createClipMovePlan.bind(undefined, ctx);
+  ctx.keyframeCanMoveWithClip = keyframeCanMoveWithClip.bind(undefined, ctx);
+  ctx.keyframePhaseCanMoveWithClip = keyframePhaseCanMoveWithClip.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getClipMovablePhaseIds = getClipMovablePhaseIds.bind(undefined, ctx);
+  ctx.applyClipMovePlan = applyClipMovePlan.bind(undefined, ctx);
 }

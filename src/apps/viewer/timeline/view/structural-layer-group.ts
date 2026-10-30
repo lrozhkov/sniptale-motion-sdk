@@ -152,6 +152,8 @@ function appendGroupLockToggle(ctx, label, groupId, locked): void {
 export function installTimelineStructuralLayerGroupViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderStructuralLayerGroup = (...args: any[]) =>
-    (renderStructuralLayerGroup as any)(ctx, ...args);
+  ctx.renderStructuralLayerGroup = renderStructuralLayerGroup.bind(
+    undefined,
+    ctx,
+  );
 }

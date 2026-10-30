@@ -222,8 +222,6 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
 }
 
 export function installCanvasPivotDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasRotationDrag = (...args: any[]) =>
-    (beginCanvasRotationDrag as any)(ctx, ...args);
-  ctx.beginCanvasAnchorDrag = (...args: any[]) =>
-    (beginCanvasAnchorDrag as any)(ctx, ...args);
+  ctx.beginCanvasRotationDrag = beginCanvasRotationDrag.bind(undefined, ctx);
+  ctx.beginCanvasAnchorDrag = beginCanvasAnchorDrag.bind(undefined, ctx);
 }

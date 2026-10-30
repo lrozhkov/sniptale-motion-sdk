@@ -257,39 +257,26 @@ function clearSelection(ctx: ViewerAppContext) {
 }
 
 export function installModelSelectionStateOwner(ctx: ViewerAppContext): void {
-  ctx.clearTimelineSelection = (...args: any[]) =>
-    (clearTimelineSelection as any)(ctx, ...args);
-  ctx.selectClipBlock = (...args: any[]) =>
-    (selectClipBlock as any)(ctx, ...args);
-  ctx.selectLayer = (...args: any[]) => (selectLayer as any)(ctx, ...args);
-  ctx.selectPhaseBlock = (...args: any[]) =>
-    (selectPhaseBlock as any)(ctx, ...args);
-  ctx.selectSceneBlock = (...args: any[]) =>
-    (selectSceneBlock as any)(ctx, ...args);
-  ctx.selectTrackLane = (...args: any[]) =>
-    (selectTrackLane as any)(ctx, ...args);
-  ctx.toggleSelectionValue = (...args: any[]) =>
-    (toggleSelectionValue as any)(ctx, ...args);
-  ctx.selectKeyframe = (...args: any[]) =>
-    (selectKeyframe as any)(ctx, ...args);
-  ctx.isSelectedKeyframe = (...args: any[]) =>
-    (isSelectedKeyframe as any)(ctx, ...args);
-  ctx.isSelectedClip = (...args: any[]) =>
-    (isSelectedClip as any)(ctx, ...args);
-  ctx.isSelectedLayer = (...args: any[]) =>
-    (isSelectedLayer as any)(ctx, ...args);
-  ctx.isSelectedPhase = (...args: any[]) =>
-    (isSelectedPhase as any)(ctx, ...args);
-  ctx.isSelectedScene = (...args: any[]) =>
-    (isSelectedScene as any)(ctx, ...args);
-  ctx.toggleKeyframeSelection = (...args: any[]) =>
-    (toggleKeyframeSelection as any)(ctx, ...args);
-  ctx.setSelectedKeyframes = (...args: any[]) =>
-    (setSelectedKeyframes as any)(ctx, ...args);
-  ctx.prepareKeyframeSelectionForPointer = (...args: any[]) =>
-    (prepareKeyframeSelectionForPointer as any)(ctx, ...args);
-  ctx.clearSelection = (...args: any[]) =>
-    (clearSelection as any)(ctx, ...args);
-  ctx.clearSelectionCollections = (...args: any[]) =>
-    (clearSelectionCollections as any)(ctx, ...args);
+  ctx.clearTimelineSelection = clearTimelineSelection.bind(undefined, ctx);
+  ctx.selectClipBlock = selectClipBlock.bind(undefined, ctx);
+  ctx.selectLayer = selectLayer.bind(undefined, ctx);
+  ctx.selectPhaseBlock = selectPhaseBlock.bind(undefined, ctx);
+  ctx.selectSceneBlock = selectSceneBlock.bind(undefined, ctx);
+  ctx.selectTrackLane = selectTrackLane.bind(undefined, ctx);
+  ctx.toggleSelectionValue = toggleSelectionValue.bind(undefined, ctx);
+  ctx.selectKeyframe = selectKeyframe.bind(undefined, ctx);
+  ctx.isSelectedKeyframe = isSelectedKeyframe.bind(undefined, ctx);
+  ctx.isSelectedClip = isSelectedClip.bind(undefined, ctx);
+  ctx.isSelectedLayer = isSelectedLayer.bind(undefined, ctx);
+  ctx.isSelectedPhase = isSelectedPhase.bind(undefined, ctx);
+  ctx.isSelectedScene = isSelectedScene.bind(undefined, ctx);
+  ctx.toggleKeyframeSelection = toggleKeyframeSelection.bind(undefined, ctx);
+  ctx.setSelectedKeyframes = setSelectedKeyframes.bind(undefined, ctx);
+  ctx.prepareKeyframeSelectionForPointer =
+    prepareKeyframeSelectionForPointer.bind(undefined, ctx);
+  ctx.clearSelection = clearSelection.bind(undefined, ctx);
+  ctx.clearSelectionCollections = clearSelectionCollections.bind(
+    undefined,
+    ctx,
+  );
 }

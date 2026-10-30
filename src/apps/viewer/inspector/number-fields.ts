@@ -137,12 +137,17 @@ export function syncInspectorLayerPropertyState(
 }
 
 export function installInspectorNumberFieldsOwner(ctx: ViewerAppContext): void {
-  ctx.createInspectorNumberField = (...args: any[]) =>
-    (createInspectorNumberField as any)(ctx, ...args);
-  ctx.appendInspectorNumberField = (...args: any[]) =>
-    (appendInspectorNumberField as any)(ctx, ...args);
-  ctx.roundInspectorNumber = (...args: any[]) =>
-    (roundInspectorNumber as any)(ctx, ...args);
-  ctx.syncInspectorLayerPropertyState = (...args: any[]) =>
-    (syncInspectorLayerPropertyState as any)(ctx, ...args);
+  ctx.createInspectorNumberField = createInspectorNumberField.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendInspectorNumberField = appendInspectorNumberField.bind(
+    undefined,
+    ctx,
+  );
+  ctx.roundInspectorNumber = roundInspectorNumber.bind(undefined, ctx);
+  ctx.syncInspectorLayerPropertyState = syncInspectorLayerPropertyState.bind(
+    undefined,
+    ctx,
+  );
 }

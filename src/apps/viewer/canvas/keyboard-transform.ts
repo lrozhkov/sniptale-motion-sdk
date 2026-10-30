@@ -55,6 +55,6 @@ function handleCanvasTransformHandleKeydown(ctx: ViewerAppContext, event) {
 export function installCanvasKeyboardTransformOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.handleCanvasTransformHandleKeydown = (...args: any[]) =>
-    (handleCanvasTransformHandleKeydown as any)(ctx, ...args);
+  ctx.handleCanvasTransformHandleKeydown =
+    handleCanvasTransformHandleKeydown.bind(undefined, ctx);
 }

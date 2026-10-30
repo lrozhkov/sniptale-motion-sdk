@@ -17,6 +17,8 @@ function updateGraphEditorPlayhead(ctx: ViewerAppContext, time: number): void {
 }
 
 export function installGraphEditorPlayheadOwner(ctx: ViewerAppContext): void {
-  ctx.updateGraphEditorPlayhead = (...args: any[]) =>
-    (updateGraphEditorPlayhead as any)(ctx, ...args);
+  ctx.updateGraphEditorPlayhead = updateGraphEditorPlayhead.bind(
+    undefined,
+    ctx,
+  );
 }

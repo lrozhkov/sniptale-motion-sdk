@@ -256,25 +256,15 @@ function syncHealthState(ctx: ViewerAppContext) {
 }
 
 export function installAppShellPanelsOwner(ctx: ViewerAppContext): void {
-  ctx.syncSidebarHeading = (...args: any[]) =>
-    (syncSidebarHeading as any)(ctx, ...args);
-  ctx.setSidebarGroup = (...args: any[]) =>
-    (setSidebarGroup as any)(ctx, ...args);
-  ctx.setActionsMenuOpen = (...args: any[]) =>
-    (setActionsMenuOpen as any)(ctx, ...args);
-  ctx.toggleActionsMenu = (...args: any[]) =>
-    (toggleActionsMenu as any)(ctx, ...args);
-  ctx.handleActionsMenuKeydown = (...args: any[]) =>
-    (handleActionsMenuKeydown as any)(ctx, ...args);
-  ctx.syncLocaleMenuOptions = (...args: any[]) =>
-    (syncLocaleMenuOptions as any)(ctx, ...args);
-  ctx.selectLocaleMenuOption = (...args: any[]) =>
-    (selectLocaleMenuOption as any)(ctx, ...args);
-  ctx.setInspectorTab = (...args: any[]) =>
-    (setInspectorTab as any)(ctx, ...args);
-  ctx.syncInspectorTabs = (...args: any[]) =>
-    (syncInspectorTabs as any)(ctx, ...args);
-  ctx.setHealthTab = (...args: any[]) => (setHealthTab as any)(ctx, ...args);
-  ctx.syncHealthState = (...args: any[]) =>
-    (syncHealthState as any)(ctx, ...args);
+  ctx.syncSidebarHeading = syncSidebarHeading.bind(undefined, ctx);
+  ctx.setSidebarGroup = setSidebarGroup.bind(undefined, ctx);
+  ctx.setActionsMenuOpen = setActionsMenuOpen.bind(undefined, ctx);
+  ctx.toggleActionsMenu = toggleActionsMenu.bind(undefined, ctx);
+  ctx.handleActionsMenuKeydown = handleActionsMenuKeydown.bind(undefined, ctx);
+  ctx.syncLocaleMenuOptions = syncLocaleMenuOptions.bind(undefined, ctx);
+  ctx.selectLocaleMenuOption = selectLocaleMenuOption.bind(undefined, ctx);
+  ctx.setInspectorTab = setInspectorTab.bind(undefined, ctx);
+  ctx.syncInspectorTabs = syncInspectorTabs.bind(undefined, ctx);
+  ctx.setHealthTab = setHealthTab.bind(undefined, ctx);
+  ctx.syncHealthState = syncHealthState.bind(undefined, ctx);
 }

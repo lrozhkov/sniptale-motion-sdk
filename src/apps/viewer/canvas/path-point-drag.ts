@@ -298,8 +298,9 @@ function focusMotionPathPoint(
 }
 
 export function installCanvasPathPointDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginMotionPathPointDrag = (...args: any[]) =>
-    (beginMotionPathPointDrag as any)(ctx, ...args);
-  ctx.handleMotionPathPointKeydown = (...args: any[]) =>
-    (handleMotionPathPointKeydown as any)(ctx, ...args);
+  ctx.beginMotionPathPointDrag = beginMotionPathPointDrag.bind(undefined, ctx);
+  ctx.handleMotionPathPointKeydown = handleMotionPathPointKeydown.bind(
+    undefined,
+    ctx,
+  );
 }

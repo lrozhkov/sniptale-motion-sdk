@@ -101,6 +101,8 @@ function reportKeyframePropertyFailure(ctx): false {
 export function installInteractionKeyframePropertiesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.updateSelectedKeyframesBatch = (...args: any[]) =>
-    (updateSelectedKeyframesBatch as any)(ctx, ...args);
+  ctx.updateSelectedKeyframesBatch = updateSelectedKeyframesBatch.bind(
+    undefined,
+    ctx,
+  );
 }

@@ -263,6 +263,5 @@ function renderInspector(ctx: ViewerAppContext) {
 }
 
 export function installInspectorOverviewOwner(ctx: ViewerAppContext): void {
-  ctx.renderInspector = (...args: any[]) =>
-    (renderInspector as any)(ctx, ...args);
+  ctx.renderInspector = renderInspector.bind(undefined, ctx);
 }

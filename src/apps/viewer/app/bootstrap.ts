@@ -1,8 +1,5 @@
 import { installDomMotionOwner } from "../dom-motion/controller.js";
-import { createViewerRefs } from "./refs.js";
-import { createViewerState } from "./state.js";
-import { viewerAppDependencies } from "./dependencies.js";
-import type { ViewerAppContext } from "./context.js";
+import { createViewerContext } from "./create-context.js";
 import { wireViewerStartup } from "./startup.js";
 import { installViewerTestApi } from "../test-api.js";
 import { includesLocalDemoPack } from "./build-flags.js";
@@ -150,23 +147,7 @@ import { installAppDiagnosticsOwner } from "./diagnostics.js";
 import { installAppPointerDragOwner } from "./pointer-drag.js";
 import { installPreviewMediaSessionOwner } from "../preview-media/session.js";
 export function startViewerApp(): void {
-  const state = createViewerState();
-  const refs = createViewerRefs();
-  const previewContext = refs.canvas.getContext("2d");
-  if (!previewContext)
-    throw new Error("Viewer Canvas 2D context is unavailable.");
-  const ctx: ViewerAppContext = {
-    deps: viewerAppDependencies,
-    lastPlaybackAudioTs: 0,
-    playbackAnimationFrame: null,
-    playbackRenderTimer: null,
-    lastPlaybackRenderTs: 0,
-    lastPlaybackTs: 0,
-    lastPlaybackUiTs: 0,
-    previewContext,
-    refs,
-    state,
-  };
+  const ctx = createViewerContext();
 
   installAppTimeFormatOwner(ctx);
   installAppIconsOwner(ctx);

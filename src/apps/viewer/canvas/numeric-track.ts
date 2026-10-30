@@ -83,3 +83,19 @@ function isSceneEnabled(scenes: any[] = [], sceneId = null) {
   const scene = scenes.find((item) => item.id === sceneId);
   return !scene || scene.enabled !== false;
 }
+
+export function getDefaultLayerProperty(
+  layer: Record<string, unknown>,
+  property: string,
+): number {
+  if (
+    property === "opacity" ||
+    property === "scaleX" ||
+    property === "scaleY"
+  ) {
+    return Number.isFinite(Number(layer[property]))
+      ? Number(layer[property])
+      : 1;
+  }
+  return Number.isFinite(Number(layer[property])) ? Number(layer[property]) : 0;
+}

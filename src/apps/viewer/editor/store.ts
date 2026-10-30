@@ -1,4 +1,9 @@
 import type { ViewerAppContext } from "../app/context.js";
+import {
+  readEditorTimeline,
+  type EditorTimelineSource,
+} from "./timeline-source.js";
+import type { EditorTimeline } from "./model-types.js";
 
 function getEditorOverride(
   ctx: ViewerAppContext,
@@ -101,19 +106,21 @@ function setCurrentDuration(ctx: ViewerAppContext, duration) {
   ctx.renderInspector();
   void ctx.renderCurrentFrame();
 }
-function getEffectiveTimeline(
+export function getEffectiveTimeline(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
+): EditorTimeline {
   if (!template) {
     return { duration: 1, phases: [], tracks: [] };
   }
   const override = ctx.state.timelineOverrides.get(template.id);
-  const timeline = ctx.deps.deepClone(
+  const timeline: unknown = ctx.deps.deepClone(
     override ?? template.timeline ?? ctx.createFallbackTimeline(template),
   );
-  timeline.duration = ctx.getEffectiveDuration(template);
-  return timeline;
+  return readEditorTimeline(
+    timeline,
+    Number(ctx.getEffectiveDuration(template)),
+  );
 }
 function setEffectiveTimeline(ctx: ViewerAppContext, timeline) {
   if (!ctx.state.currentTemplate) {
@@ -204,31 +211,18 @@ function snapDuration(ctx: ViewerAppContext, duration) {
   });
 }
 export function installEditorStoreOwner(ctx: ViewerAppContext): void {
-  ctx.getEditorOverride = (...args: any[]) =>
-    (getEditorOverride as any)(ctx, ...args);
-  ctx.setEditorOverride = (...args: any[]) =>
-    (setEditorOverride as any)(ctx, ...args);
-  ctx.applyEditorCommand = (...args: any[]) =>
-    (applyEditorCommand as any)(ctx, ...args);
-  ctx.beginEditorCommand = (...args: any[]) =>
-    (beginEditorCommand as any)(ctx, ...args);
-  ctx.recordEditorCommand = (...args: any[]) =>
-    (recordEditorCommand as any)(ctx, ...args);
-  ctx.getCanonicalEditorState = (...args: any[]) =>
-    (getCanonicalEditorState as any)(ctx, ...args);
-  ctx.getEffectiveDuration = (...args: any[]) =>
-    (getEffectiveDuration as any)(ctx, ...args);
-  ctx.setCurrentDuration = (...args: any[]) =>
-    (setCurrentDuration as any)(ctx, ...args);
-  ctx.getEffectiveTimeline = (...args: any[]) =>
-    (getEffectiveTimeline as any)(ctx, ...args);
-  ctx.setEffectiveTimeline = (...args: any[]) =>
-    (setEffectiveTimeline as any)(ctx, ...args);
-  ctx.renderTimelineEditor = (...args: any[]) =>
-    (renderTimelineEditor as any)(ctx, ...args);
-  ctx.beginDurationTrim = (...args: any[]) =>
-    (beginDurationTrim as any)(ctx, ...args);
-  ctx.timelineDurationPercent = (...args: any[]) =>
-    (timelineDurationPercent as any)(ctx, ...args);
-  ctx.snapDuration = (...args: any[]) => (snapDuration as any)(ctx, ...args);
+  ctx.getEditorOverride = getEditorOverride.bind(undefined, ctx);
+  ctx.setEditorOverride = setEditorOverride.bind(undefined, ctx);
+  ctx.applyEditorCommand = applyEditorCommand.bind(undefined, ctx);
+  ctx.beginEditorCommand = beginEditorCommand.bind(undefined, ctx);
+  ctx.recordEditorCommand = recordEditorCommand.bind(undefined, ctx);
+  ctx.getCanonicalEditorState = getCanonicalEditorState.bind(undefined, ctx);
+  ctx.getEffectiveDuration = getEffectiveDuration.bind(undefined, ctx);
+  ctx.setCurrentDuration = setCurrentDuration.bind(undefined, ctx);
+  ctx.getEffectiveTimeline = getEffectiveTimeline.bind(undefined, ctx);
+  ctx.setEffectiveTimeline = setEffectiveTimeline.bind(undefined, ctx);
+  ctx.renderTimelineEditor = renderTimelineEditor.bind(undefined, ctx);
+  ctx.beginDurationTrim = beginDurationTrim.bind(undefined, ctx);
+  ctx.timelineDurationPercent = timelineDurationPercent.bind(undefined, ctx);
+  ctx.snapDuration = snapDuration.bind(undefined, ctx);
 }

@@ -190,26 +190,21 @@ function handleTimelineWheel(ctx: ViewerAppContext, event) {
 }
 export function installInteractionViewportOwner(ctx: ViewerAppContext): void {
   Object.assign(ctx, {
-    getTimelineViewport: (...args: any[]) =>
-      (getTimelineViewport as any)(ctx, ...args),
-    getVisibleTimelineTicks: (...args: any[]) =>
-      (getVisibleTimelineTicks as any)(ctx, ...args),
-    handleTimelineWheel: (...args: any[]) =>
-      (handleTimelineWheel as any)(ctx, ...args),
-    panTimeline: (...args: any[]) => (panTimeline as any)(ctx, ...args),
-    seekFromTimelineEvent: (...args: any[]) =>
-      (seekFromTimelineEvent as any)(ctx, ...args),
-    seekToTime: (...args: any[]) => (seekToTime as any)(ctx, ...args),
-    setTimelineZoom: (...args: any[]) => (setTimelineZoom as any)(ctx, ...args),
-    snapTime: (...args: any[]) => (snapTime as any)(ctx, ...args),
-    timelineContentPixel: (...args: any[]) =>
-      (timelineContentPixel as any)(ctx, ...args),
-    timelinePercent: (...args: any[]) => (timelinePercent as any)(ctx, ...args),
-    timelineTimeFromEvent: (...args: any[]) =>
-      (timelineTimeFromEvent as any)(ctx, ...args),
-    timelineRawTimeFromEvent: (...args: any[]) =>
-      (timelineRawTimeFromEvent as any)(ctx, ...args),
-    updateTimelineViewportLabel: (...args: any[]) =>
-      (updateTimelineViewportLabel as any)(ctx, ...args),
+    getTimelineViewport: getTimelineViewport.bind(undefined, ctx),
+    getVisibleTimelineTicks: getVisibleTimelineTicks.bind(undefined, ctx),
+    handleTimelineWheel: handleTimelineWheel.bind(undefined, ctx),
+    panTimeline: panTimeline.bind(undefined, ctx),
+    seekFromTimelineEvent: seekFromTimelineEvent.bind(undefined, ctx),
+    seekToTime: seekToTime.bind(undefined, ctx),
+    setTimelineZoom: setTimelineZoom.bind(undefined, ctx),
+    snapTime: snapTime.bind(undefined, ctx),
+    timelineContentPixel: timelineContentPixel.bind(undefined, ctx),
+    timelinePercent: timelinePercent.bind(undefined, ctx),
+    timelineTimeFromEvent: timelineTimeFromEvent.bind(undefined, ctx),
+    timelineRawTimeFromEvent: timelineRawTimeFromEvent.bind(undefined, ctx),
+    updateTimelineViewportLabel: updateTimelineViewportLabel.bind(
+      undefined,
+      ctx,
+    ),
   });
 }

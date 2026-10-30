@@ -179,10 +179,8 @@ async function verifyMediaBlob(blob: Blob): Promise<void> {
 }
 
 export function installAssetsLayerBindingOwner(ctx: ViewerAppContext): void {
-  ctx.addAssetLayer = (...args: any[]) => (addAssetLayer as any)(ctx, ...args);
-  ctx.replaceAsset = (...args: any[]) => (replaceAsset as any)(ctx, ...args);
-  ctx.prepareImportedAssets = (...args: any[]) =>
-    (prepareImportedAssets as any)(ctx, ...args);
-  ctx.verifyImportedAssets = (...args: any[]) =>
-    (verifyImportedAssets as any)(ctx, ...args);
+  ctx.addAssetLayer = addAssetLayer.bind(undefined, ctx);
+  ctx.replaceAsset = replaceAsset.bind(undefined, ctx);
+  ctx.prepareImportedAssets = prepareImportedAssets.bind(undefined, ctx);
+  ctx.verifyImportedAssets = verifyImportedAssets.bind(undefined, ctx);
 }

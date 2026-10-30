@@ -215,12 +215,8 @@ function createExpandedSceneIdSet(
 }
 
 export function installAppShellOwner(ctx: ViewerAppContext): void {
-  ctx.renderLocalizedShell = (...args: any[]) =>
-    (renderLocalizedShell as any)(ctx, ...args);
-  ctx.syncPlaybackButtons = (...args: any[]) =>
-    (syncPlaybackButtons as any)(ctx, ...args);
-  ctx.setMoveLinkedKeys = (...args: any[]) =>
-    (setMoveLinkedKeys as any)(ctx, ...args);
-  ctx.createExpandedSceneIdSet = (...args: any[]) =>
-    (createExpandedSceneIdSet as any)(ctx, ...args);
+  ctx.renderLocalizedShell = renderLocalizedShell.bind(undefined, ctx);
+  ctx.syncPlaybackButtons = syncPlaybackButtons.bind(undefined, ctx);
+  ctx.setMoveLinkedKeys = setMoveLinkedKeys.bind(undefined, ctx);
+  ctx.createExpandedSceneIdSet = createExpandedSceneIdSet.bind(undefined, ctx);
 }

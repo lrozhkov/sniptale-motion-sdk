@@ -158,19 +158,15 @@ export function installTimelineVirtualizationOwner(
   ctx: ViewerAppContext,
 ): void {
   Object.assign(ctx, {
-    beginTimelineVirtualRender: (...args: any[]) =>
-      (beginTimelineVirtualRender as any)(ctx, ...args),
-    claimTimelineVirtualRow: (...args: any[]) =>
-      (claimTimelineVirtualRow as any)(ctx, ...args),
-    endTimelineVirtualRender: (...args: any[]) =>
-      (endTimelineVirtualRender as any)(ctx, ...args),
-    getTimelineLayerRowIndex: (...args: any[]) =>
-      (getTimelineLayerRowIndex as any)(ctx, ...args),
-    getTimelineItemRowIndex: (...args: any[]) =>
-      (getTimelineItemRowIndex as any)(ctx, ...args),
-    scheduleTimelineVirtualRender: (...args: any[]) =>
-      (scheduleTimelineVirtualRender as any)(ctx, ...args),
-    scrollTimelineRowIntoView: (...args: any[]) =>
-      (scrollTimelineRowIntoView as any)(ctx, ...args),
+    beginTimelineVirtualRender: beginTimelineVirtualRender.bind(undefined, ctx),
+    claimTimelineVirtualRow: claimTimelineVirtualRow.bind(undefined, ctx),
+    endTimelineVirtualRender: endTimelineVirtualRender.bind(undefined, ctx),
+    getTimelineLayerRowIndex: getTimelineLayerRowIndex.bind(undefined, ctx),
+    getTimelineItemRowIndex: getTimelineItemRowIndex.bind(undefined, ctx),
+    scheduleTimelineVirtualRender: scheduleTimelineVirtualRender.bind(
+      undefined,
+      ctx,
+    ),
+    scrollTimelineRowIntoView: scrollTimelineRowIntoView.bind(undefined, ctx),
   });
 }

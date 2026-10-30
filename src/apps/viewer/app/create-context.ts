@@ -1,0 +1,28 @@
+import { createViewerRefs } from "./refs.js";
+import { createViewerState } from "./state.js";
+import { viewerAppDependencies } from "./dependencies.js";
+import type { ViewerAppContext } from "./context.js";
+import { getEffectiveTimeline } from "../editor/store.js";
+
+export function createViewerContext(): ViewerAppContext {
+  const refs = createViewerRefs();
+  const previewContext = refs.canvas.getContext("2d");
+  if (!previewContext)
+    throw new Error("Viewer Canvas 2D context is unavailable.");
+  const ctx: ViewerAppContext = {
+    deps: viewerAppDependencies,
+    state: createViewerState(),
+    refs,
+    previewContext,
+    lastPlaybackAudioTs: 0,
+    playbackAnimationFrame: null,
+    playbackRenderTimer: null,
+    lastPlaybackRenderTs: 0,
+    lastPlaybackTs: 0,
+    lastPlaybackUiTs: 0,
+    getEffectiveTimeline(template) {
+      return getEffectiveTimeline(ctx, template);
+    },
+  };
+  return ctx;
+}

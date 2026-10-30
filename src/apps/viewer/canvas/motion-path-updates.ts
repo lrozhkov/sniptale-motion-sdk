@@ -257,14 +257,18 @@ export function reportCanvasMotionPathEditFailure(
 export function installCanvasMotionPathUpdatesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.updateCanvasMotionPathPointPosition = (...args: any[]) =>
-    (updateCanvasMotionPathPointPosition as any)(ctx, ...args);
-  ctx.updateCanvasMotionPathTangent = (...args: any[]) =>
-    (updateCanvasMotionPathTangent as any)(ctx, ...args);
-  ctx.canEditCanvasMotionPathPoint = (...args: any[]) =>
-    (canEditCanvasMotionPathPoint as any)(ctx, ...args);
-  ctx.getCanvasMotionPathPointEditBlockReason = (...args: any[]) =>
-    (getCanvasMotionPathPointEditBlockReason as any)(ctx, ...args);
-  ctx.reportCanvasMotionPathEditFailure = (...args: any[]) =>
-    (reportCanvasMotionPathEditFailure as any)(ctx, ...args);
+  ctx.updateCanvasMotionPathPointPosition =
+    updateCanvasMotionPathPointPosition.bind(undefined, ctx);
+  ctx.updateCanvasMotionPathTangent = updateCanvasMotionPathTangent.bind(
+    undefined,
+    ctx,
+  );
+  ctx.canEditCanvasMotionPathPoint = canEditCanvasMotionPathPoint.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getCanvasMotionPathPointEditBlockReason =
+    getCanvasMotionPathPointEditBlockReason.bind(undefined, ctx);
+  ctx.reportCanvasMotionPathEditFailure =
+    reportCanvasMotionPathEditFailure.bind(undefined, ctx);
 }

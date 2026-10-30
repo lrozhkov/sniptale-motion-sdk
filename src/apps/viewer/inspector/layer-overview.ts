@@ -113,8 +113,12 @@ export function appendClipSelectionOverview(
 export function installInspectorLayerOverviewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendLayerSelectionOverview = (...args: any[]) =>
-    (appendLayerSelectionOverview as any)(ctx, ...args);
-  ctx.appendClipSelectionOverview = (...args: any[]) =>
-    (appendClipSelectionOverview as any)(ctx, ...args);
+  ctx.appendLayerSelectionOverview = appendLayerSelectionOverview.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendClipSelectionOverview = appendClipSelectionOverview.bind(
+    undefined,
+    ctx,
+  );
 }

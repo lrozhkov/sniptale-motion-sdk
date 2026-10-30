@@ -275,6 +275,8 @@ function localizeFields(ctx: ViewerAppContext, fields) {
 export function installInspectorLayerPropertiesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendLayerPropertiesInspector = (...args: any[]) =>
-    (appendLayerPropertiesInspector as any)(ctx, ...args);
+  ctx.appendLayerPropertiesInspector = appendLayerPropertiesInspector.bind(
+    undefined,
+    ctx,
+  );
 }

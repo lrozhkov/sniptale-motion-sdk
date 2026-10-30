@@ -89,8 +89,6 @@ function beginGraphEditorPan(ctx: ViewerAppContext, event, model) {
 }
 
 export function installGraphEditorPanZoomOwner(ctx: ViewerAppContext): void {
-  ctx.handleGraphEditorWheel = (...args: any[]) =>
-    (handleGraphEditorWheel as any)(ctx, ...args);
-  ctx.beginGraphEditorPan = (...args: any[]) =>
-    (beginGraphEditorPan as any)(ctx, ...args);
+  ctx.handleGraphEditorWheel = handleGraphEditorWheel.bind(undefined, ctx);
+  ctx.beginGraphEditorPan = beginGraphEditorPan.bind(undefined, ctx);
 }

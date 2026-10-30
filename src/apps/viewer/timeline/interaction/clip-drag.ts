@@ -179,5 +179,5 @@ function getClipSceneWindow(effectiveTemplate, clip, duration) {
 }
 
 export function installInteractionClipDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginClipDrag = (...args: any[]) => (beginClipDrag as any)(ctx, ...args);
+  ctx.beginClipDrag = beginClipDrag.bind(undefined, ctx);
 }

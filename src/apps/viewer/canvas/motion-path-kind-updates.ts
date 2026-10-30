@@ -148,8 +148,12 @@ function distance(left, right): number {
 export function installCanvasMotionPathKindUpdatesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.updateCanvasMotionPathPointKind = (...args: any[]) =>
-    (updateCanvasMotionPathPointKind as any)(ctx, ...args);
-  ctx.updateCanvasMotionPathPointKinds = (...args: any[]) =>
-    (updateCanvasMotionPathPointKinds as any)(ctx, ...args);
+  ctx.updateCanvasMotionPathPointKind = updateCanvasMotionPathPointKind.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateCanvasMotionPathPointKinds = updateCanvasMotionPathPointKinds.bind(
+    undefined,
+    ctx,
+  );
 }

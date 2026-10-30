@@ -279,16 +279,13 @@ function downloadMp4Blob(ctx: ViewerAppContext, blob: Blob) {
 }
 
 export function installVideoExportControllerOwner(ctx: ViewerAppContext): void {
-  ctx.localizeMp4ExportDialog = (...args: any[]) =>
-    (localizeMp4ExportDialog as any)(ctx, ...args);
-  ctx.openMp4ExportDialog = (...args: any[]) =>
-    (openMp4ExportDialog as any)(ctx, ...args);
-  ctx.closeMp4ExportDialog = (...args: any[]) =>
-    (closeMp4ExportDialog as any)(ctx, ...args);
-  ctx.updateMp4ExportSize = (...args: any[]) =>
-    (updateMp4ExportSize as any)(ctx, ...args);
-  ctx.updateMp4ExportCustomSize = (...args: any[]) =>
-    (updateMp4ExportCustomSize as any)(ctx, ...args);
-  ctx.startMp4Export = (...args: any[]) =>
-    (startMp4Export as any)(ctx, ...args);
+  ctx.localizeMp4ExportDialog = localizeMp4ExportDialog.bind(undefined, ctx);
+  ctx.openMp4ExportDialog = openMp4ExportDialog.bind(undefined, ctx);
+  ctx.closeMp4ExportDialog = closeMp4ExportDialog.bind(undefined, ctx);
+  ctx.updateMp4ExportSize = updateMp4ExportSize.bind(undefined, ctx);
+  ctx.updateMp4ExportCustomSize = updateMp4ExportCustomSize.bind(
+    undefined,
+    ctx,
+  );
+  ctx.startMp4Export = startMp4Export.bind(undefined, ctx);
 }

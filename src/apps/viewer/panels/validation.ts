@@ -18,9 +18,10 @@ function toTitleLabel(ctx: ViewerAppContext, value) {
 }
 
 export function installPanelsValidationOwner(ctx: ViewerAppContext): void {
-  ctx.createValidationIssue = (...args: any[]) =>
-    (createValidationIssue as any)(ctx, ...args);
-  ctx.categorizeValidationIssue = (...args: any[]) =>
-    (categorizeValidationIssue as any)(ctx, ...args);
-  ctx.toTitleLabel = (...args: any[]) => (toTitleLabel as any)(ctx, ...args);
+  ctx.createValidationIssue = createValidationIssue.bind(undefined, ctx);
+  ctx.categorizeValidationIssue = categorizeValidationIssue.bind(
+    undefined,
+    ctx,
+  );
+  ctx.toTitleLabel = toTitleLabel.bind(undefined, ctx);
 }

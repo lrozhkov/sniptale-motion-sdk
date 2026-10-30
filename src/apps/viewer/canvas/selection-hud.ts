@@ -291,10 +291,10 @@ function getCanvasSnapStatusForBox(ctx: ViewerAppContext, box, layer = null) {
 }
 
 export function installCanvasSelectionHudOwner(ctx: ViewerAppContext): void {
-  ctx.hideCanvasInfoHud = (...args: any[]) =>
-    (hideCanvasInfoHud as any)(ctx, ...args);
-  ctx.updateCanvasInfoHud = (...args: any[]) =>
-    (updateCanvasInfoHud as any)(ctx, ...args);
-  ctx.getCanvasSnapStatusForBox = (...args: any[]) =>
-    (getCanvasSnapStatusForBox as any)(ctx, ...args);
+  ctx.hideCanvasInfoHud = hideCanvasInfoHud.bind(undefined, ctx);
+  ctx.updateCanvasInfoHud = updateCanvasInfoHud.bind(undefined, ctx);
+  ctx.getCanvasSnapStatusForBox = getCanvasSnapStatusForBox.bind(
+    undefined,
+    ctx,
+  );
 }

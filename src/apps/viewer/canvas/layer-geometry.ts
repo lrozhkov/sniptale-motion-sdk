@@ -273,20 +273,18 @@ function getCanvasBoxPivot(box, anchor) {
 }
 
 export function installCanvasLayerGeometryOwner(ctx: ViewerAppContext): void {
-  ctx.getLayerCanvasBox = (...args: any[]) =>
-    (getLayerCanvasBox as any)(ctx, ...args);
-  ctx.getResolvedLayerAnchor = (...args: any[]) =>
-    (getResolvedLayerAnchor as any)(ctx, ...args);
-  ctx.getLayerCanvasPivot = (...args: any[]) =>
-    (getLayerCanvasPivot as any)(ctx, ...args);
-  ctx.getLayerBaseCanvasBox = (...args: any[]) =>
-    (getLayerBaseCanvasBox as any)(ctx, ...args);
-  ctx.getLayerAuthorCanvasBox = (...args: any[]) =>
-    (getLayerAuthorCanvasBox as any)(ctx, ...args);
-  ctx.getLayerPrimitiveCanvasBox = (...args: any[]) =>
-    (getLayerPrimitiveCanvasBox as any)(ctx, ...args);
-  ctx.layerHasAuthorGeometryHints = (...args: any[]) =>
-    (layerHasAuthorGeometryHints as any)(ctx, ...args);
-  ctx.getLayerStaticCanvasBox = (...args: any[]) =>
-    (getLayerStaticCanvasBox as any)(ctx, ...args);
+  ctx.getLayerCanvasBox = getLayerCanvasBox.bind(undefined, ctx);
+  ctx.getResolvedLayerAnchor = getResolvedLayerAnchor.bind(undefined, ctx);
+  ctx.getLayerCanvasPivot = getLayerCanvasPivot.bind(undefined, ctx);
+  ctx.getLayerBaseCanvasBox = getLayerBaseCanvasBox.bind(undefined, ctx);
+  ctx.getLayerAuthorCanvasBox = getLayerAuthorCanvasBox.bind(undefined, ctx);
+  ctx.getLayerPrimitiveCanvasBox = getLayerPrimitiveCanvasBox.bind(
+    undefined,
+    ctx,
+  );
+  ctx.layerHasAuthorGeometryHints = layerHasAuthorGeometryHints.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getLayerStaticCanvasBox = getLayerStaticCanvasBox.bind(undefined, ctx);
 }

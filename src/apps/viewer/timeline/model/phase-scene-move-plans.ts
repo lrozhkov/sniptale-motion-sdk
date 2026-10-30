@@ -302,12 +302,8 @@ function applySceneMovePlan(
 export function installModelPhaseSceneMovePlansOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.createPhaseMovePlan = (...args: any[]) =>
-    (createPhaseMovePlan as any)(ctx, ...args);
-  ctx.applyPhaseMovePlan = (...args: any[]) =>
-    (applyPhaseMovePlan as any)(ctx, ...args);
-  ctx.createSceneMovePlan = (...args: any[]) =>
-    (createSceneMovePlan as any)(ctx, ...args);
-  ctx.applySceneMovePlan = (...args: any[]) =>
-    (applySceneMovePlan as any)(ctx, ...args);
+  ctx.createPhaseMovePlan = createPhaseMovePlan.bind(undefined, ctx);
+  ctx.applyPhaseMovePlan = applyPhaseMovePlan.bind(undefined, ctx);
+  ctx.createSceneMovePlan = createSceneMovePlan.bind(undefined, ctx);
+  ctx.applySceneMovePlan = applySceneMovePlan.bind(undefined, ctx);
 }

@@ -119,15 +119,10 @@ function removeAssetIfUnused(ctx: ViewerAppContext, assetId) {
 }
 
 export function installAssetsPanelControllerOwner(ctx: ViewerAppContext): void {
-  ctx.handleAssetDragOver = (...args: any[]) =>
-    (handleAssetDragOver as any)(ctx, ...args);
-  ctx.handleAssetDrop = (...args: any[]) =>
-    (handleAssetDrop as any)(ctx, ...args);
-  ctx.renderAssetsPanel = (...args: any[]) =>
-    (renderAssetsPanel as any)(ctx, ...args);
-  ctx.selectAsset = (...args: any[]) => (selectAsset as any)(ctx, ...args);
-  ctx.renameAssetPath = (...args: any[]) =>
-    (renameAssetPath as any)(ctx, ...args);
-  ctx.removeAssetIfUnused = (...args: any[]) =>
-    (removeAssetIfUnused as any)(ctx, ...args);
+  ctx.handleAssetDragOver = handleAssetDragOver.bind(undefined, ctx);
+  ctx.handleAssetDrop = handleAssetDrop.bind(undefined, ctx);
+  ctx.renderAssetsPanel = renderAssetsPanel.bind(undefined, ctx);
+  ctx.selectAsset = selectAsset.bind(undefined, ctx);
+  ctx.renameAssetPath = renameAssetPath.bind(undefined, ctx);
+  ctx.removeAssetIfUnused = removeAssetIfUnused.bind(undefined, ctx);
 }

@@ -223,10 +223,7 @@ function wireTemplateCombobox(ctx: ViewerAppContext): void {
 }
 
 export function installTemplatesComboboxOwner(ctx: ViewerAppContext): void {
-  ctx.setTemplateComboboxOpen = (...args: any[]) =>
-    (setTemplateComboboxOpen as any)(ctx, ...args);
-  ctx.syncTemplateCombobox = (...args: any[]) =>
-    (syncTemplateCombobox as any)(ctx, ...args);
-  ctx.wireTemplateCombobox = (...args: any[]) =>
-    (wireTemplateCombobox as any)(ctx, ...args);
+  ctx.setTemplateComboboxOpen = setTemplateComboboxOpen.bind(undefined, ctx);
+  ctx.syncTemplateCombobox = syncTemplateCombobox.bind(undefined, ctx);
+  ctx.wireTemplateCombobox = wireTemplateCombobox.bind(undefined, ctx);
 }

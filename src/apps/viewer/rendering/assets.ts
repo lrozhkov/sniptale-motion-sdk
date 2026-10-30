@@ -183,14 +183,12 @@ function getSvgRasterSize(_ctx: ViewerAppContext, asset, image) {
 }
 
 export function installRenderingAssetsOwner(ctx: ViewerAppContext): void {
-  ctx.createRenderAssets = (...args: any[]) =>
-    (createRenderAssets as any)(ctx, ...args);
-  ctx.createAssetBitmap = (...args: any[]) =>
-    (createAssetBitmap as any)(ctx, ...args);
-  ctx.commitRenderAssetTransfers = (...args: any[]) =>
-    (commitRenderAssetTransfers as any)(ctx, ...args);
-  ctx.resetRenderAssetCache = (...args: any[]) =>
-    (resetRenderAssetCache as any)(ctx, ...args);
-  ctx.getSvgRasterSize = (...args: any[]) =>
-    (getSvgRasterSize as any)(ctx, ...args);
+  ctx.createRenderAssets = createRenderAssets.bind(undefined, ctx);
+  ctx.createAssetBitmap = createAssetBitmap.bind(undefined, ctx);
+  ctx.commitRenderAssetTransfers = commitRenderAssetTransfers.bind(
+    undefined,
+    ctx,
+  );
+  ctx.resetRenderAssetCache = resetRenderAssetCache.bind(undefined, ctx);
+  ctx.getSvgRasterSize = getSvgRasterSize.bind(undefined, ctx);
 }

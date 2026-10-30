@@ -48,6 +48,5 @@ async function createRenderInputFrames(
 }
 
 export function installRenderingInputFramesOwner(ctx: ViewerAppContext): void {
-  ctx.createRenderInputFrames = (...args: any[]) =>
-    (createRenderInputFrames as any)(ctx, ...args);
+  ctx.createRenderInputFrames = createRenderInputFrames.bind(undefined, ctx);
 }

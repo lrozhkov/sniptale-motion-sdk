@@ -118,6 +118,6 @@ function dedupePositionUpdates(
 export function installCanvasMotionPathBatchUpdatesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.updateCanvasMotionPathPointPositions = (...args: any[]) =>
-    (updateCanvasMotionPathPointPositions as any)(ctx, ...args);
+  ctx.updateCanvasMotionPathPointPositions =
+    updateCanvasMotionPathPointPositions.bind(undefined, ctx);
 }

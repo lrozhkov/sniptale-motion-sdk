@@ -80,8 +80,10 @@ export function resetRenderModelCache(state: any): void {
 }
 
 export function installRenderingModelCacheOwner(ctx: ViewerAppContext): void {
-  ctx.getRenderTemplateSnapshot = (...args: any[]) =>
-    (resolveRenderTemplateSnapshot as any)(ctx, ...args);
+  ctx.getRenderTemplateSnapshot = resolveRenderTemplateSnapshot.bind(
+    undefined,
+    ctx,
+  );
   ctx.createRenderModelEnvelope = (effectiveTemplate: any) =>
     createRenderModelEnvelope(ctx.state, effectiveTemplate);
   ctx.commitRenderModelEnvelope = (envelope: Record<string, unknown>) =>

@@ -241,24 +241,32 @@ function syncInspectorSelectTitle(select: HTMLSelectElement): void {
 export function installInspectorOwnershipEditorsOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendTimingOwnershipInspector = (...args: any[]) =>
-    (appendTimingOwnershipInspector as any)(ctx, ...args);
-  ctx.appendClipOwnershipEditor = (...args: any[]) =>
-    (appendClipOwnershipEditor as any)(ctx, ...args);
-  ctx.appendPhaseOwnershipEditor = (...args: any[]) =>
-    (appendPhaseOwnershipEditor as any)(ctx, ...args);
-  ctx.appendTrackOwnershipEditor = (...args: any[]) =>
-    (appendTrackOwnershipEditor as any)(ctx, ...args);
-  ctx.appendTrackKeyframeActions = (...args: any[]) =>
-    (appendTrackKeyframeActions as any)(ctx, ...args);
-  ctx.appendKeyframeOwnershipEditor = (...args: any[]) =>
-    (appendKeyframeOwnershipEditor as any)(ctx, ...args);
-  ctx.appendOwnershipHeading = (...args: any[]) =>
-    (appendOwnershipHeading as any)(ctx, ...args);
-  ctx.createSceneOptions = (...args: any[]) =>
-    (createSceneOptions as any)(ctx, ...args);
-  ctx.createPhaseOptions = (...args: any[]) =>
-    (createPhaseOptions as any)(ctx, ...args);
-  ctx.appendInspectorSelectRow = (...args: any[]) =>
-    (appendInspectorSelectRow as any)(ctx, ...args);
+  ctx.appendTimingOwnershipInspector = appendTimingOwnershipInspector.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendClipOwnershipEditor = appendClipOwnershipEditor.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendPhaseOwnershipEditor = appendPhaseOwnershipEditor.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendTrackOwnershipEditor = appendTrackOwnershipEditor.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendTrackKeyframeActions = appendTrackKeyframeActions.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendKeyframeOwnershipEditor = appendKeyframeOwnershipEditor.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendOwnershipHeading = appendOwnershipHeading.bind(undefined, ctx);
+  ctx.createSceneOptions = createSceneOptions.bind(undefined, ctx);
+  ctx.createPhaseOptions = createPhaseOptions.bind(undefined, ctx);
+  ctx.appendInspectorSelectRow = appendInspectorSelectRow.bind(undefined, ctx);
 }

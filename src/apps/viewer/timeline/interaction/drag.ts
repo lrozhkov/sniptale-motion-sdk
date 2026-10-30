@@ -21,8 +21,6 @@ function rectContainsRectCenter(ctx: ViewerAppContext, a, b) {
 }
 
 export function installInteractionDragOwner(ctx: ViewerAppContext): void {
-  ctx.rectsIntersect = (...args: any[]) =>
-    (rectsIntersect as any)(ctx, ...args);
-  ctx.rectContainsRectCenter = (...args: any[]) =>
-    (rectContainsRectCenter as any)(ctx, ...args);
+  ctx.rectsIntersect = rectsIntersect.bind(undefined, ctx);
+  ctx.rectContainsRectCenter = rectContainsRectCenter.bind(undefined, ctx);
 }

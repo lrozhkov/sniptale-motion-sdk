@@ -229,12 +229,8 @@ function renderSceneTracksGroup(
 }
 
 export function installTimelineClipGroupViewOwner(ctx: ViewerAppContext): void {
-  ctx.getSceneClampedClipInterval = (...args: any[]) =>
-    (getSceneClampedClipInterval as any)(...args);
-  ctx.createLayerIntervalBlock = (...args: any[]) =>
-    (createLayerIntervalBlock as any)(ctx, ...args);
-  ctx.renderLayerIntervalRow = (...args: any[]) =>
-    (renderLayerIntervalRow as any)(ctx, ...args);
-  ctx.renderSceneTracksGroup = (...args: any[]) =>
-    (renderSceneTracksGroup as any)(ctx, ...args);
+  ctx.getSceneClampedClipInterval = getSceneClampedClipInterval.bind(undefined);
+  ctx.createLayerIntervalBlock = createLayerIntervalBlock.bind(undefined, ctx);
+  ctx.renderLayerIntervalRow = renderLayerIntervalRow.bind(undefined, ctx);
+  ctx.renderSceneTracksGroup = renderSceneTracksGroup.bind(undefined, ctx);
 }

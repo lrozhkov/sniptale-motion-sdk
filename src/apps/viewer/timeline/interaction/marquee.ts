@@ -278,10 +278,14 @@ function addKeyframeAtPlayheadForSelection(ctx: ViewerAppContext) {
 }
 
 export function installInteractionMarqueeOwner(ctx: ViewerAppContext): void {
-  ctx.beginTimelineMarqueeSelection = (...args: any[]) =>
-    (beginTimelineMarqueeSelection as any)(ctx, ...args);
-  ctx.updateMarqueeTimelineSelection = (...args: any[]) =>
-    (updateMarqueeTimelineSelection as any)(ctx, ...args);
-  ctx.addKeyframeAtPlayheadForSelection = (...args: any[]) =>
-    (addKeyframeAtPlayheadForSelection as any)(ctx, ...args);
+  ctx.beginTimelineMarqueeSelection = beginTimelineMarqueeSelection.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateMarqueeTimelineSelection = updateMarqueeTimelineSelection.bind(
+    undefined,
+    ctx,
+  );
+  ctx.addKeyframeAtPlayheadForSelection =
+    addKeyframeAtPlayheadForSelection.bind(undefined, ctx);
 }

@@ -263,13 +263,12 @@ async function selectInitialTemplateWhenReady(ctx: ViewerAppContext) {
 }
 
 export function installTemplatesSelectionOwner(ctx: ViewerAppContext): void {
-  ctx.bootstrap = (...args: any[]) => (bootstrap as any)(ctx, ...args);
-  ctx.populateTemplates = (...args: any[]) =>
-    (populateTemplates as any)(ctx, ...args);
-  ctx.selectTemplate = (...args: any[]) =>
-    (selectTemplate as any)(ctx, ...args);
-  ctx.updateTemplateContext = (...args: any[]) =>
-    (updateTemplateContext as any)(ctx, ...args);
-  ctx.selectInitialTemplateWhenReady = (...args: any[]) =>
-    (selectInitialTemplateWhenReady as any)(ctx, ...args);
+  ctx.bootstrap = bootstrap.bind(undefined, ctx);
+  ctx.populateTemplates = populateTemplates.bind(undefined, ctx);
+  ctx.selectTemplate = selectTemplate.bind(undefined, ctx);
+  ctx.updateTemplateContext = updateTemplateContext.bind(undefined, ctx);
+  ctx.selectInitialTemplateWhenReady = selectInitialTemplateWhenReady.bind(
+    undefined,
+    ctx,
+  );
 }

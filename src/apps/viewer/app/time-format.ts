@@ -36,7 +36,6 @@ function formatSecondsRange(
 }
 
 export function installAppTimeFormatOwner(ctx: ViewerAppContext): void {
-  ctx.formatSeconds = (...args: any[]) => (formatSeconds as any)(ctx, ...args);
-  ctx.formatSecondsRange = (...args: any[]) =>
-    (formatSecondsRange as any)(ctx, ...args);
+  ctx.formatSeconds = formatSeconds.bind(undefined, ctx);
+  ctx.formatSecondsRange = formatSecondsRange.bind(undefined, ctx);
 }

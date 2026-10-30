@@ -281,14 +281,12 @@ function shouldUpdateRenderStatsUi(ctx: ViewerAppContext): boolean {
 }
 
 export function installRenderingFrameOwner(ctx: ViewerAppContext): void {
-  ctx.drawCompletedFrame = (...args: any[]) =>
-    (drawCompletedFrame as any)(ctx, ...args);
-  ctx.shouldUseDirectPreviewSurface = (...args: any[]) =>
-    (shouldUseDirectPreviewSurface as any)(ctx, ...args);
-  ctx.createFrameBuffer = (...args: any[]) =>
-    (createFrameBuffer as any)(ctx, ...args);
-  ctx.updateRenderStats = (...args: any[]) =>
-    (updateRenderStats as any)(ctx, ...args);
-  ctx.setRenderStatus = (...args: any[]) =>
-    (setRenderStatus as any)(ctx, ...args);
+  ctx.drawCompletedFrame = drawCompletedFrame.bind(undefined, ctx);
+  ctx.shouldUseDirectPreviewSurface = shouldUseDirectPreviewSurface.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createFrameBuffer = createFrameBuffer.bind(undefined, ctx);
+  ctx.updateRenderStats = updateRenderStats.bind(undefined, ctx);
+  ctx.setRenderStatus = setRenderStatus.bind(undefined, ctx);
 }

@@ -107,10 +107,16 @@ function appendClipTimingInspector(ctx: ViewerAppContext, clip, totalDuration) {
 }
 
 export function installInspectorTimingOwner(ctx: ViewerAppContext): void {
-  ctx.appendPhaseTimingInspector = (...args: any[]) =>
-    (appendPhaseTimingInspector as any)(ctx, ...args);
-  ctx.appendSceneTimingInspector = (...args: any[]) =>
-    (appendSceneTimingInspector as any)(ctx, ...args);
-  ctx.appendClipTimingInspector = (...args: any[]) =>
-    (appendClipTimingInspector as any)(ctx, ...args);
+  ctx.appendPhaseTimingInspector = appendPhaseTimingInspector.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendSceneTimingInspector = appendSceneTimingInspector.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendClipTimingInspector = appendClipTimingInspector.bind(
+    undefined,
+    ctx,
+  );
 }

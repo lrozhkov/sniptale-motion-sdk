@@ -251,14 +251,12 @@ function buildCurrentEffectFile(ctx: ViewerAppContext) {
 export function installEffectFileImportExportOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.exportCurrentEffectFile = (...args: any[]) =>
-    (exportCurrentEffectFile as any)(ctx, ...args);
-  ctx.importSelectedEffectFile = (...args: any[]) =>
-    (importSelectedEffectFile as any)(ctx, ...args);
-  ctx.importEffectFileSource = (...args: any[]) =>
-    (importEffectFileSource as any)(ctx, ...args);
-  ctx.validateCurrentEffectFileSource = (...args: any[]) =>
-    (validateCurrentEffectFileSource as any)(ctx, ...args);
-  ctx.buildCurrentEffectFile = (...args: any[]) =>
-    (buildCurrentEffectFile as any)(ctx, ...args);
+  ctx.exportCurrentEffectFile = exportCurrentEffectFile.bind(undefined, ctx);
+  ctx.importSelectedEffectFile = importSelectedEffectFile.bind(undefined, ctx);
+  ctx.importEffectFileSource = importEffectFileSource.bind(undefined, ctx);
+  ctx.validateCurrentEffectFileSource = validateCurrentEffectFileSource.bind(
+    undefined,
+    ctx,
+  );
+  ctx.buildCurrentEffectFile = buildCurrentEffectFile.bind(undefined, ctx);
 }

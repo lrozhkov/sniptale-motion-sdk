@@ -272,18 +272,11 @@ function isTrackOwnedByLayer(ctx: ViewerAppContext, track, layerId) {
 }
 
 export function installLayersClipboardOwner(ctx: ViewerAppContext): void {
-  ctx.duplicateSelectedLayers = (...args: any[]) =>
-    (duplicateSelectedLayers as any)(ctx, ...args);
-  ctx.duplicateSelectedLayer = (...args: any[]) =>
-    (duplicateSelectedLayer as any)(ctx, ...args);
-  ctx.createDuplicateLayerId = (...args: any[]) =>
-    (createDuplicateLayerId as any)(ctx, ...args);
-  ctx.duplicateLayerTracks = (...args: any[]) =>
-    (duplicateLayerTracks as any)(ctx, ...args);
-  ctx.deleteSelectedLayers = (...args: any[]) =>
-    (deleteSelectedLayers as any)(ctx, ...args);
-  ctx.deleteSelectedLayer = (...args: any[]) =>
-    (deleteSelectedLayer as any)(ctx, ...args);
-  ctx.isTrackOwnedByLayer = (...args: any[]) =>
-    (isTrackOwnedByLayer as any)(ctx, ...args);
+  ctx.duplicateSelectedLayers = duplicateSelectedLayers.bind(undefined, ctx);
+  ctx.duplicateSelectedLayer = duplicateSelectedLayer.bind(undefined, ctx);
+  ctx.createDuplicateLayerId = createDuplicateLayerId.bind(undefined, ctx);
+  ctx.duplicateLayerTracks = duplicateLayerTracks.bind(undefined, ctx);
+  ctx.deleteSelectedLayers = deleteSelectedLayers.bind(undefined, ctx);
+  ctx.deleteSelectedLayer = deleteSelectedLayer.bind(undefined, ctx);
+  ctx.isTrackOwnedByLayer = isTrackOwnedByLayer.bind(undefined, ctx);
 }

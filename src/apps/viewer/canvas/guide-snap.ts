@@ -244,12 +244,12 @@ function getCanvasGestureSnapGuides(
 }
 
 export function installCanvasGuideSnapOwner(ctx: ViewerAppContext): void {
-  ctx.createCanvasGuideSnapSession = (...args: any[]) =>
-    (createCanvasGuideSnapSession as any)(ctx, ...args);
-  ctx.createCanvasGuideSnapSessionForBox = (...args: any[]) =>
-    (createCanvasGuideSnapSessionForBox as any)(ctx, ...args);
-  ctx.applyCanvasGuideSnap = (...args: any[]) =>
-    (applyCanvasGuideSnap as any)(ctx, ...args);
-  ctx.getCanvasSnapGuides = (...args: any[]) =>
-    (getCanvasSnapGuides as any)(ctx, ...args);
+  ctx.createCanvasGuideSnapSession = createCanvasGuideSnapSession.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createCanvasGuideSnapSessionForBox =
+    createCanvasGuideSnapSessionForBox.bind(undefined, ctx);
+  ctx.applyCanvasGuideSnap = applyCanvasGuideSnap.bind(undefined, ctx);
+  ctx.getCanvasSnapGuides = getCanvasSnapGuides.bind(undefined, ctx);
 }

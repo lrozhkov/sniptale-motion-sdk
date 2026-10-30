@@ -271,37 +271,33 @@ function syncSnapshotTime(ctx: ViewerAppContext, time: unknown): void {
 }
 
 export function installEditorDraftOwner(ctx: ViewerAppContext): void {
-  ctx.prepareEditorDraftForTemplate = (...args: any[]) =>
-    (prepareEditorDraftForTemplate as any)(ctx, ...args);
-  ctx.markEditorChanged = (...args: any[]) =>
-    (markEditorChanged as any)(ctx, ...args);
-  ctx.saveEditorDraftNow = (...args: any[]) =>
-    (saveEditorDraftNow as any)(ctx, ...args);
-  ctx.flushEditorDraft = (...args: any[]) =>
-    (flushEditorDraft as any)(ctx, ...args);
-  ctx.resetEditorToSource = (...args: any[]) =>
-    (resetEditorToSource as any)(ctx, ...args);
-  ctx.deleteActiveEditorDraft = (...args: any[]) =>
-    (deleteActiveEditorDraft as any)(ctx, ...args);
-  ctx.hasEditorContentChanges = (...args: any[]) =>
-    (hasEditorContentChanges as any)(ctx, ...args);
-  ctx.getEditorContentFingerprint = (...args: any[]) =>
-    (getEditorContentFingerprint as any)(ctx, ...args);
-  ctx.getEditorSourceFingerprint = (...args: any[]) =>
-    (getEditorSourceFingerprint as any)(ctx, ...args);
-  ctx.syncEditorWorkflowUi = (...args: any[]) =>
-    (syncEditorWorkflowUi as any)(ctx, ...args);
-  ctx.getPreferredDraftTemplateId = (...args: any[]) =>
-    (getPreferredDraftTemplateId as any)(ctx, ...args);
-  ctx.handleEditorPageHide = (...args: any[]) =>
-    (handleEditorPageHide as any)(ctx, ...args);
-  ctx.handleEditorBeforeUnload = (...args: any[]) =>
-    (handleEditorBeforeUnload as any)(ctx, ...args);
-  ctx.openResetDraftDialog = (...args: any[]) =>
-    (openResetDraftDialog as any)(ctx, ...args);
-  ctx.closeResetDraftDialog = (...args: any[]) =>
-    (closeResetDraftDialog as any)(ctx, ...args);
-  ctx.confirmResetEditorDraft = (...args: any[]) =>
-    (confirmResetEditorDraft as any)(ctx, ...args);
+  ctx.prepareEditorDraftForTemplate = prepareEditorDraftForTemplate.bind(
+    undefined,
+    ctx,
+  );
+  ctx.markEditorChanged = markEditorChanged.bind(undefined, ctx);
+  ctx.saveEditorDraftNow = saveEditorDraftNow.bind(undefined, ctx);
+  ctx.flushEditorDraft = flushEditorDraft.bind(undefined, ctx);
+  ctx.resetEditorToSource = resetEditorToSource.bind(undefined, ctx);
+  ctx.deleteActiveEditorDraft = deleteActiveEditorDraft.bind(undefined, ctx);
+  ctx.hasEditorContentChanges = hasEditorContentChanges.bind(undefined, ctx);
+  ctx.getEditorContentFingerprint = getEditorContentFingerprint.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getEditorSourceFingerprint = getEditorSourceFingerprint.bind(
+    undefined,
+    ctx,
+  );
+  ctx.syncEditorWorkflowUi = syncEditorWorkflowUi.bind(undefined, ctx);
+  ctx.getPreferredDraftTemplateId = getPreferredDraftTemplateId.bind(
+    undefined,
+    ctx,
+  );
+  ctx.handleEditorPageHide = handleEditorPageHide.bind(undefined, ctx);
+  ctx.handleEditorBeforeUnload = handleEditorBeforeUnload.bind(undefined, ctx);
+  ctx.openResetDraftDialog = openResetDraftDialog.bind(undefined, ctx);
+  ctx.closeResetDraftDialog = closeResetDraftDialog.bind(undefined, ctx);
+  ctx.confirmResetEditorDraft = confirmResetEditorDraft.bind(undefined, ctx);
   void draftStorage.cleanup().catch(() => {});
 }

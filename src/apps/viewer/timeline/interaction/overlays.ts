@@ -259,29 +259,36 @@ export function installInteractionTimelineOverlaysOwner(
   ctx: ViewerAppContext,
 ): void {
   Object.assign(ctx, {
-    getTimelineContentMetrics: (...args: any[]) =>
-      (getTimelineContentMetrics as any)(ctx, ...args),
-    getTimelineContentRect: (...args: any[]) =>
-      (getTimelineContentRect as any)(ctx, ...args),
-    getTimelineHorizontalOverflowWidth: (...args: any[]) =>
-      (getTimelineHorizontalOverflowWidth as any)(ctx, ...args),
-    getTimelineScrollableContentWidth: (...args: any[]) =>
-      (getTimelineScrollableContentWidth as any)(ctx, ...args),
-    getTimelineTrackOverlayHeight: (...args: any[]) =>
-      (getTimelineTrackOverlayHeight as any)(ctx, ...args),
-    getTimelineVisibleContentWidth: (...args: any[]) =>
-      (getTimelineVisibleContentWidth as any)(ctx, ...args),
-    handleTimelineTracksScroll: (...args: any[]) =>
-      (handleTimelineTracksScroll as any)(ctx, ...args),
-    observeTimelineContentMetrics: (...args: any[]) =>
-      (observeTimelineContentMetrics as any)(ctx, ...args),
-    showTimelineSnapIndicator: (...args: any[]) =>
-      (showTimelineSnapIndicator as any)(ctx, ...args),
-    updateTimelineHorizontalScrollSpacer: (...args: any[]) =>
-      (updateTimelineHorizontalScrollSpacer as any)(ctx, ...args),
-    updateTimelinePlayhead: (...args: any[]) =>
-      (updateTimelinePlayhead as any)(ctx, ...args),
-    updateTimelineTrackOverlayHeights: (...args: any[]) =>
-      (updateTimelineTrackOverlayHeights as any)(ctx, ...args),
+    getTimelineContentMetrics: getTimelineContentMetrics.bind(undefined, ctx),
+    getTimelineContentRect: getTimelineContentRect.bind(undefined, ctx),
+    getTimelineHorizontalOverflowWidth: getTimelineHorizontalOverflowWidth.bind(
+      undefined,
+      ctx,
+    ),
+    getTimelineScrollableContentWidth: getTimelineScrollableContentWidth.bind(
+      undefined,
+      ctx,
+    ),
+    getTimelineTrackOverlayHeight: getTimelineTrackOverlayHeight.bind(
+      undefined,
+      ctx,
+    ),
+    getTimelineVisibleContentWidth: getTimelineVisibleContentWidth.bind(
+      undefined,
+      ctx,
+    ),
+    handleTimelineTracksScroll: handleTimelineTracksScroll.bind(undefined, ctx),
+    observeTimelineContentMetrics: observeTimelineContentMetrics.bind(
+      undefined,
+      ctx,
+    ),
+    showTimelineSnapIndicator: showTimelineSnapIndicator.bind(undefined, ctx),
+    updateTimelineHorizontalScrollSpacer:
+      updateTimelineHorizontalScrollSpacer.bind(undefined, ctx),
+    updateTimelinePlayhead: updateTimelinePlayhead.bind(undefined, ctx),
+    updateTimelineTrackOverlayHeights: updateTimelineTrackOverlayHeights.bind(
+      undefined,
+      ctx,
+    ),
   });
 }

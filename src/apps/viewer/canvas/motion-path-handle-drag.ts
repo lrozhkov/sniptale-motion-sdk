@@ -190,8 +190,12 @@ function getKeyboardTangentDelta(event) {
 export function installCanvasMotionPathHandleDragOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginMotionPathTangentDrag = (...args: any[]) =>
-    (beginMotionPathTangentDrag as any)(ctx, ...args);
-  ctx.handleMotionPathTangentKeydown = (...args: any[]) =>
-    (handleMotionPathTangentKeydown as any)(ctx, ...args);
+  ctx.beginMotionPathTangentDrag = beginMotionPathTangentDrag.bind(
+    undefined,
+    ctx,
+  );
+  ctx.handleMotionPathTangentKeydown = handleMotionPathTangentKeydown.bind(
+    undefined,
+    ctx,
+  );
 }

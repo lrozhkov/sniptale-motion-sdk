@@ -230,10 +230,7 @@ function isCurrentPreviewMediaGeneration(
 }
 
 export function installPreviewMediaSessionOwner(ctx: ViewerAppContext): void {
-  ctx.createPreviewMediaFrame = (...args: any[]) =>
-    (createPreviewMediaFrame as any)(ctx, ...args);
-  ctx.syncPreviewMediaUi = (...args: any[]) =>
-    (syncPreviewMediaUi as any)(ctx, ...args);
-  ctx.wirePreviewMediaSession = (...args: any[]) =>
-    (wirePreviewMediaSession as any)(ctx, ...args);
+  ctx.createPreviewMediaFrame = createPreviewMediaFrame.bind(undefined, ctx);
+  ctx.syncPreviewMediaUi = syncPreviewMediaUi.bind(undefined, ctx);
+  ctx.wirePreviewMediaSession = wirePreviewMediaSession.bind(undefined, ctx);
 }

@@ -276,22 +276,37 @@ function assignKeyframeOwnershipAtTime(
 }
 
 export function installModelOwnershipLinksOwner(ctx: ViewerAppContext): void {
-  ctx.getKeyframeOwnershipSceneId = (...args: any[]) =>
-    (getKeyframeOwnershipSceneId as any)(ctx, ...args);
-  ctx.markOwnershipLink = (...args: any[]) =>
-    (markOwnershipLink as any)(ctx, ...args);
-  ctx.createEmptyOwnershipLinks = (...args: any[]) =>
-    (createEmptyOwnershipLinks as any)(ctx, ...args);
-  ctx.buildSelectedOwnershipLinks = (...args: any[]) =>
-    (buildSelectedOwnershipLinks as any)(ctx, ...args);
-  ctx.collectSceneOwnershipLinks = (...args: any[]) =>
-    (collectSceneOwnershipLinks as any)(ctx, ...args);
-  ctx.collectClipOwnershipLinks = (...args: any[]) =>
-    (collectClipOwnershipLinks as any)(ctx, ...args);
-  ctx.collectPhaseOwnershipLinks = (...args: any[]) =>
-    (collectPhaseOwnershipLinks as any)(ctx, ...args);
-  ctx.collectTrackOwnershipLinks = (...args: any[]) =>
-    (collectTrackOwnershipLinks as any)(ctx, ...args);
-  ctx.assignKeyframeOwnershipAtTime = (...args: any[]) =>
-    (assignKeyframeOwnershipAtTime as any)(ctx, ...args);
+  ctx.getKeyframeOwnershipSceneId = getKeyframeOwnershipSceneId.bind(
+    undefined,
+    ctx,
+  );
+  ctx.markOwnershipLink = markOwnershipLink.bind(undefined, ctx);
+  ctx.createEmptyOwnershipLinks = createEmptyOwnershipLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.buildSelectedOwnershipLinks = buildSelectedOwnershipLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.collectSceneOwnershipLinks = collectSceneOwnershipLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.collectClipOwnershipLinks = collectClipOwnershipLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.collectPhaseOwnershipLinks = collectPhaseOwnershipLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.collectTrackOwnershipLinks = collectTrackOwnershipLinks.bind(
+    undefined,
+    ctx,
+  );
+  ctx.assignKeyframeOwnershipAtTime = assignKeyframeOwnershipAtTime.bind(
+    undefined,
+    ctx,
+  );
 }

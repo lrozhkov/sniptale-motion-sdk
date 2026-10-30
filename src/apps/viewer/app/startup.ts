@@ -291,6 +291,5 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
 }
 
 export function installAppStartupOwner(ctx: ViewerAppContext): void {
-  ctx.wireViewerStartup = (...args: any[]) =>
-    (wireViewerStartup as any)(ctx, ...args);
+  ctx.wireViewerStartup = wireViewerStartup.bind(undefined, ctx);
 }

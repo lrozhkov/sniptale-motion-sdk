@@ -165,10 +165,7 @@ function readInputValue(ctx: ViewerAppContext, input, control) {
 }
 
 export function installPanelsControlsOwner(ctx: ViewerAppContext): void {
-  ctx.renderControls = (...args: any[]) =>
-    (renderControls as any)(ctx, ...args);
-  ctx.createControlInput = (...args: any[]) =>
-    (createControlInput as any)(ctx, ...args);
-  ctx.readInputValue = (...args: any[]) =>
-    (readInputValue as any)(ctx, ...args);
+  ctx.renderControls = renderControls.bind(undefined, ctx);
+  ctx.createControlInput = createControlInput.bind(undefined, ctx);
+  ctx.readInputValue = readInputValue.bind(undefined, ctx);
 }

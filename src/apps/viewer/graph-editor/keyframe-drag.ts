@@ -141,6 +141,5 @@ function beginGraphKeyframeDrag(
 export function installGraphEditorKeyframeDragOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginGraphKeyframeDrag = (...args: any[]) =>
-    (beginGraphKeyframeDrag as any)(ctx, ...args);
+  ctx.beginGraphKeyframeDrag = beginGraphKeyframeDrag.bind(undefined, ctx);
 }

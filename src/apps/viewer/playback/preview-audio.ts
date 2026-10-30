@@ -239,8 +239,6 @@ function syncPreviewAudio(ctx: ViewerAppContext, time: number): void {
 }
 
 export function installPlaybackPreviewAudioOwner(ctx: ViewerAppContext): void {
-  ctx.stopPreviewAudio = (...args: any[]) =>
-    (stopPreviewAudio as any)(ctx, ...args);
-  ctx.syncPreviewAudio = (...args: any[]) =>
-    (syncPreviewAudio as any)(ctx, ...args);
+  ctx.stopPreviewAudio = stopPreviewAudio.bind(undefined, ctx);
+  ctx.syncPreviewAudio = syncPreviewAudio.bind(undefined, ctx);
 }

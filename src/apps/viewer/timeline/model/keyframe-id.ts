@@ -27,6 +27,5 @@ function createKeyframeId(
 }
 
 export function installTimelineKeyframeIdOwner(ctx: ViewerAppContext): void {
-  ctx.createKeyframeId = (...args: any[]) =>
-    (createKeyframeId as any)(ctx, ...args);
+  ctx.createKeyframeId = createKeyframeId.bind(undefined, ctx);
 }

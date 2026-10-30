@@ -101,8 +101,9 @@ function appendBreadcrumbSeparator(ctx: ViewerAppContext, breadcrumb): void {
 export function installCanvasIsolationBreadcrumbOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getCanvasIsolationPath = (...args: any[]) =>
-    (getCanvasIsolationPath as any)(ctx, ...args);
-  ctx.renderCanvasIsolationBreadcrumb = (...args: any[]) =>
-    (renderCanvasIsolationBreadcrumb as any)(ctx, ...args);
+  ctx.getCanvasIsolationPath = getCanvasIsolationPath.bind(undefined, ctx);
+  ctx.renderCanvasIsolationBreadcrumb = renderCanvasIsolationBreadcrumb.bind(
+    undefined,
+    ctx,
+  );
 }

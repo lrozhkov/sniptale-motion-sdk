@@ -223,20 +223,12 @@ function createTimelineBlock(
 
 export function installViewEditorOwner(ctx: ViewerAppContext): void {
   installTimelineTracksViewOwner(ctx);
-  ctx.renderTimelineRuler = (...args: any[]) =>
-    (renderTimelineRuler as any)(ctx, ...args);
-  ctx.decorateSceneLaneLabel = (...args: any[]) =>
-    (decorateSceneLaneLabel as any)(ctx, ...args);
-  ctx.getSceneTimelineSummary = (...args: any[]) =>
-    (getSceneTimelineSummary as any)(ctx, ...args);
-  ctx.toggleSceneExpansion = (...args: any[]) =>
-    (toggleSceneExpansion as any)(ctx, ...args);
-  ctx.isSceneExpanded = (...args: any[]) =>
-    (isSceneExpanded as any)(ctx, ...args);
-  ctx.createTimelineLane = (...args: any[]) =>
-    (createTimelineLane as any)(ctx, ...args);
-  ctx.decorateTimelineRowDepth = (...args: any[]) =>
-    (decorateTimelineRowDepth as any)(ctx, ...args);
-  ctx.createTimelineBlock = (...args: any[]) =>
-    (createTimelineBlock as any)(ctx, ...args);
+  ctx.renderTimelineRuler = renderTimelineRuler.bind(undefined, ctx);
+  ctx.decorateSceneLaneLabel = decorateSceneLaneLabel.bind(undefined, ctx);
+  ctx.getSceneTimelineSummary = getSceneTimelineSummary.bind(undefined, ctx);
+  ctx.toggleSceneExpansion = toggleSceneExpansion.bind(undefined, ctx);
+  ctx.isSceneExpanded = isSceneExpanded.bind(undefined, ctx);
+  ctx.createTimelineLane = createTimelineLane.bind(undefined, ctx);
+  ctx.decorateTimelineRowDepth = decorateTimelineRowDepth.bind(undefined, ctx);
+  ctx.createTimelineBlock = createTimelineBlock.bind(undefined, ctx);
 }

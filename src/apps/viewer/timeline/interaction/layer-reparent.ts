@@ -138,8 +138,12 @@ function clearLayerDropTarget(target: HTMLElement | null): void {
 }
 
 export function installTimelineLayerReparentOwner(ctx: ViewerAppContext): void {
-  ctx.appendTimelineLayerDragGrip = (...args: any[]) =>
-    (appendTimelineLayerDragGrip as any)(ctx, ...args);
-  ctx.beginTimelineLayerReparent = (...args: any[]) =>
-    (beginTimelineLayerReparent as any)(ctx, ...args);
+  ctx.appendTimelineLayerDragGrip = appendTimelineLayerDragGrip.bind(
+    undefined,
+    ctx,
+  );
+  ctx.beginTimelineLayerReparent = beginTimelineLayerReparent.bind(
+    undefined,
+    ctx,
+  );
 }

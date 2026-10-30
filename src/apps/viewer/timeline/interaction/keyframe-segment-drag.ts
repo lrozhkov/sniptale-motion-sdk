@@ -34,6 +34,7 @@ function beginKeyframeSegmentDrag(
   }
   const fromKeyframe = keyframes[fromIndex];
   const toKeyframe = keyframes[toIndex];
+  if (!fromKeyframe || !toKeyframe) return;
   const previous = fromIndex > 0 ? keyframes[fromIndex - 1] : null;
   const next = toIndex < keyframes.length - 1 ? keyframes[toIndex + 1] : null;
   const body =
@@ -184,8 +185,6 @@ function getSegmentDragLimits(
 export function installInteractionKeyframeSegmentDragOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginKeyframeSegmentDrag = (...args: any[]) =>
-    (beginKeyframeSegmentDrag as any)(ctx, ...args);
-  ctx.getSegmentDragLimits = (...args: any[]) =>
-    (getSegmentDragLimits as any)(ctx, ...args);
+  ctx.beginKeyframeSegmentDrag = beginKeyframeSegmentDrag.bind(undefined, ctx);
+  ctx.getSegmentDragLimits = getSegmentDragLimits.bind(undefined, ctx);
 }

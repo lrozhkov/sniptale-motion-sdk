@@ -254,20 +254,15 @@ function updateTrackOwnership(ctx: ViewerAppContext, trackId, patch) {
 export function installInspectorOwnershipSummaryOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getSceneOwnershipSummary = (...args: any[]) =>
-    (getSceneOwnershipSummary as any)(ctx, ...args);
-  ctx.getClipOwnershipSummary = (...args: any[]) =>
-    (getClipOwnershipSummary as any)(ctx, ...args);
-  ctx.getPhaseOwnershipSummary = (...args: any[]) =>
-    (getPhaseOwnershipSummary as any)(ctx, ...args);
-  ctx.getTrackOwnershipSummary = (...args: any[]) =>
-    (getTrackOwnershipSummary as any)(ctx, ...args);
-  ctx.getKeyframeOwnershipSummary = (...args: any[]) =>
-    (getKeyframeOwnershipSummary as any)(ctx, ...args);
-  ctx.updateClipOwnership = (...args: any[]) =>
-    (updateClipOwnership as any)(ctx, ...args);
-  ctx.updatePhaseOwnership = (...args: any[]) =>
-    (updatePhaseOwnership as any)(ctx, ...args);
-  ctx.updateTrackOwnership = (...args: any[]) =>
-    (updateTrackOwnership as any)(ctx, ...args);
+  ctx.getSceneOwnershipSummary = getSceneOwnershipSummary.bind(undefined, ctx);
+  ctx.getClipOwnershipSummary = getClipOwnershipSummary.bind(undefined, ctx);
+  ctx.getPhaseOwnershipSummary = getPhaseOwnershipSummary.bind(undefined, ctx);
+  ctx.getTrackOwnershipSummary = getTrackOwnershipSummary.bind(undefined, ctx);
+  ctx.getKeyframeOwnershipSummary = getKeyframeOwnershipSummary.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateClipOwnership = updateClipOwnership.bind(undefined, ctx);
+  ctx.updatePhaseOwnership = updatePhaseOwnership.bind(undefined, ctx);
+  ctx.updateTrackOwnership = updateTrackOwnership.bind(undefined, ctx);
 }

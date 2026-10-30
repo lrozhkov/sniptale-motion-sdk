@@ -38,6 +38,5 @@ function navigateSelectedKeyframe(
 }
 
 export function installModelSelectionOwner(ctx: ViewerAppContext): void {
-  ctx.navigateSelectedKeyframe = (...args: any[]) =>
-    (navigateSelectedKeyframe as any)(ctx, ...args);
+  ctx.navigateSelectedKeyframe = navigateSelectedKeyframe.bind(undefined, ctx);
 }

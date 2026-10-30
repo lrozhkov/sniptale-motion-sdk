@@ -253,22 +253,33 @@ function scrollTimelineElementHorizontallyIntoView(ctx, element) {
 export function installModelSelectionNavigationOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.cycleTimelineSelection = (...args: any[]) =>
-    (cycleTimelineSelection as any)(ctx, ...args);
-  ctx.getVisibleTimelineSelectionItems = (...args: any[]) =>
-    (getVisibleTimelineSelectionItems as any)(ctx, ...args);
-  ctx.isTimelineSelectionItemCurrent = (...args: any[]) =>
-    (isTimelineSelectionItemCurrent as any)(ctx, ...args);
-  ctx.applyTimelineSelectionItem = (...args: any[]) =>
-    (applyTimelineSelectionItem as any)(ctx, ...args);
-  ctx.scrollSelectedTimelineItemIntoView = (...args: any[]) =>
-    (scrollSelectedTimelineItemIntoView as any)(ctx, ...args);
-  ctx.focusInspectorForSelection = (...args: any[]) =>
-    (focusInspectorForSelection as any)(ctx, ...args);
-  ctx.getInspectorFocusTabForSelection = (...args: any[]) =>
-    (getInspectorFocusTabForSelection as any)(ctx, ...args);
-  ctx.frameSelectedTimelineItem = (...args: any[]) =>
-    (frameSelectedTimelineItem as any)(ctx, ...args);
-  ctx.scrollTimelineElementHorizontallyIntoView = (...args: any[]) =>
-    (scrollTimelineElementHorizontallyIntoView as any)(ctx, ...args);
+  ctx.cycleTimelineSelection = cycleTimelineSelection.bind(undefined, ctx);
+  ctx.getVisibleTimelineSelectionItems = getVisibleTimelineSelectionItems.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isTimelineSelectionItemCurrent = isTimelineSelectionItemCurrent.bind(
+    undefined,
+    ctx,
+  );
+  ctx.applyTimelineSelectionItem = applyTimelineSelectionItem.bind(
+    undefined,
+    ctx,
+  );
+  ctx.scrollSelectedTimelineItemIntoView =
+    scrollSelectedTimelineItemIntoView.bind(undefined, ctx);
+  ctx.focusInspectorForSelection = focusInspectorForSelection.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getInspectorFocusTabForSelection = getInspectorFocusTabForSelection.bind(
+    undefined,
+    ctx,
+  );
+  ctx.frameSelectedTimelineItem = frameSelectedTimelineItem.bind(
+    undefined,
+    ctx,
+  );
+  ctx.scrollTimelineElementHorizontallyIntoView =
+    scrollTimelineElementHorizontallyIntoView.bind(undefined, ctx);
 }

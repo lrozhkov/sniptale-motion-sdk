@@ -1,4 +1,4 @@
-import type { TimelineMotionPath } from "../../../shared/timeline/motion-path.js";
+import type { TimelineMotionPath } from "../../../sdk/types.js";
 
 export function duplicateLayerMotionPaths(
   motionPaths: TimelineMotionPath[] | undefined,

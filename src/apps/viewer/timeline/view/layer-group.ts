@@ -126,6 +126,5 @@ function shouldRenderLayerInterval(ctx: ViewerAppContext, clip, duration) {
 export function installTimelineLayerGroupViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderLayerGroup = (...args: any[]) =>
-    (renderLayerGroup as any)(ctx, ...args);
+  ctx.renderLayerGroup = renderLayerGroup.bind(undefined, ctx);
 }

@@ -31,6 +31,8 @@ function createCurveHandleNumberField(
 export function installInspectorKeyframeCurveHandlesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.createCurveHandleNumberField = (...args: any[]) =>
-    (createCurveHandleNumberField as any)(ctx, ...args);
+  ctx.createCurveHandleNumberField = createCurveHandleNumberField.bind(
+    undefined,
+    ctx,
+  );
 }

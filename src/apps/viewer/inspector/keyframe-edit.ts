@@ -39,6 +39,8 @@ function appendKeyframeEditInspector(
 }
 
 export function installInspectorKeyframeEditOwner(ctx: ViewerAppContext): void {
-  ctx.appendKeyframeEditInspector = (...args: any[]) =>
-    (appendKeyframeEditInspector as any)(ctx, ...args);
+  ctx.appendKeyframeEditInspector = appendKeyframeEditInspector.bind(
+    undefined,
+    ctx,
+  );
 }

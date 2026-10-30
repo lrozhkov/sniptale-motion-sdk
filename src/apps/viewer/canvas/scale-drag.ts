@@ -225,8 +225,9 @@ function canResizeHandle(
 }
 
 export function installCanvasScaleDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasScaleDrag = (...args: any[]) =>
-    (beginCanvasScaleDrag as any)(ctx, ...args);
-  ctx.resizeSelectedCanvasLayer = (...args: any[]) =>
-    (resizeSelectedCanvasLayer as any)(ctx, ...args);
+  ctx.beginCanvasScaleDrag = beginCanvasScaleDrag.bind(undefined, ctx);
+  ctx.resizeSelectedCanvasLayer = resizeSelectedCanvasLayer.bind(
+    undefined,
+    ctx,
+  );
 }

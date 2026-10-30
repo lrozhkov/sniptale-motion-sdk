@@ -104,10 +104,16 @@ function clearCompositionWorkspaceView(
 export function installCompositionWorkspaceViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.captureCompositionWorkspaceView = (...args: any[]) =>
-    (captureCompositionWorkspaceView as any)(ctx, ...args);
-  ctx.clearCompositionWorkspaceView = (...args: any[]) =>
-    (clearCompositionWorkspaceView as any)(ctx, ...args);
-  ctx.restoreCompositionWorkspaceView = (...args: any[]) =>
-    (restoreCompositionWorkspaceView as any)(ctx, ...args);
+  ctx.captureCompositionWorkspaceView = captureCompositionWorkspaceView.bind(
+    undefined,
+    ctx,
+  );
+  ctx.clearCompositionWorkspaceView = clearCompositionWorkspaceView.bind(
+    undefined,
+    ctx,
+  );
+  ctx.restoreCompositionWorkspaceView = restoreCompositionWorkspaceView.bind(
+    undefined,
+    ctx,
+  );
 }

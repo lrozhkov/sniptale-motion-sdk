@@ -72,6 +72,8 @@ function beginEditablePathPointDrag(
 export function installCanvasEditablePathPointDragOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginEditablePathPointDrag = (...args: any[]) =>
-    (beginEditablePathPointDrag as any)(ctx, ...args);
+  ctx.beginEditablePathPointDrag = beginEditablePathPointDrag.bind(
+    undefined,
+    ctx,
+  );
 }

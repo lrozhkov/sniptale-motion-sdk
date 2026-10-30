@@ -276,16 +276,23 @@ function reportKeyframeTimePlanFailure(ctx, reason): false {
 export function installInteractionKeyframeBatchOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.moveSelectedKeyframesBySeconds = (...args: any[]) =>
-    (moveSelectedKeyframesBySeconds as any)(ctx, ...args);
-  ctx.scaleSelectedKeyframeTimes = (...args: any[]) =>
-    (scaleSelectedKeyframeTimes as any)(ctx, ...args);
-  ctx.setKeyframeSelectionRangeProperty = (...args: any[]) =>
-    (setKeyframeSelectionRangeProperty as any)(ctx, ...args);
-  ctx.alignSelectedKeyframes = (...args: any[]) =>
-    (alignSelectedKeyframes as any)(ctx, ...args);
-  ctx.distributeSelectedKeyframes = (...args: any[]) =>
-    (distributeSelectedKeyframes as any)(ctx, ...args);
-  ctx.quantizeSelectedKeyframes = (...args: any[]) =>
-    (quantizeSelectedKeyframes as any)(ctx, ...args);
+  ctx.moveSelectedKeyframesBySeconds = moveSelectedKeyframesBySeconds.bind(
+    undefined,
+    ctx,
+  );
+  ctx.scaleSelectedKeyframeTimes = scaleSelectedKeyframeTimes.bind(
+    undefined,
+    ctx,
+  );
+  ctx.setKeyframeSelectionRangeProperty =
+    setKeyframeSelectionRangeProperty.bind(undefined, ctx);
+  ctx.alignSelectedKeyframes = alignSelectedKeyframes.bind(undefined, ctx);
+  ctx.distributeSelectedKeyframes = distributeSelectedKeyframes.bind(
+    undefined,
+    ctx,
+  );
+  ctx.quantizeSelectedKeyframes = quantizeSelectedKeyframes.bind(
+    undefined,
+    ctx,
+  );
 }

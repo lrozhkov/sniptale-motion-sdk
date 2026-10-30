@@ -201,18 +201,23 @@ function isCanvasTransformHandleEvent(ctx: ViewerAppContext, event) {
 }
 
 export function installCanvasHitTestingOwner(ctx: ViewerAppContext): void {
-  ctx.getCanvasPointFromEvent = (...args: any[]) =>
-    (getCanvasPointFromEvent as any)(ctx, ...args);
-  ctx.beginCanvasHitTestPointerDown = (...args: any[]) =>
-    (beginCanvasHitTestPointerDown as any)(ctx, ...args);
-  ctx.handleCanvasDoubleClick = (...args: any[]) =>
-    (handleCanvasDoubleClick as any)(ctx, ...args);
-  ctx.findTopCanvasLayerAtEvent = (...args: any[]) =>
-    (findTopCanvasLayerAtEvent as any)(ctx, ...args);
-  ctx.isCanvasPointInsideLayer = (...args: any[]) =>
-    (isCanvasPointInsideLayer as any)(ctx, ...args);
-  ctx.beginCanvasSelectionPointerDown = (...args: any[]) =>
-    (beginCanvasSelectionPointerDown as any)(ctx, ...args);
-  ctx.isCanvasTransformHandleEvent = (...args: any[]) =>
-    (isCanvasTransformHandleEvent as any)(ctx, ...args);
+  ctx.getCanvasPointFromEvent = getCanvasPointFromEvent.bind(undefined, ctx);
+  ctx.beginCanvasHitTestPointerDown = beginCanvasHitTestPointerDown.bind(
+    undefined,
+    ctx,
+  );
+  ctx.handleCanvasDoubleClick = handleCanvasDoubleClick.bind(undefined, ctx);
+  ctx.findTopCanvasLayerAtEvent = findTopCanvasLayerAtEvent.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isCanvasPointInsideLayer = isCanvasPointInsideLayer.bind(undefined, ctx);
+  ctx.beginCanvasSelectionPointerDown = beginCanvasSelectionPointerDown.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isCanvasTransformHandleEvent = isCanvasTransformHandleEvent.bind(
+    undefined,
+    ctx,
+  );
 }

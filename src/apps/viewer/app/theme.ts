@@ -119,10 +119,8 @@ function syncThemeButton(ctx: ViewerAppContext) {
 }
 
 export function installAppThemeOwner(ctx: ViewerAppContext): void {
-  ctx.applyTheme = (...args: any[]) => (applyTheme as any)(ctx, ...args);
-  ctx.toggleTheme = (...args: any[]) => (toggleTheme as any)(ctx, ...args);
-  ctx.initializeTheme = (...args: any[]) =>
-    (initializeTheme as any)(ctx, ...args);
-  ctx.syncThemeButton = (...args: any[]) =>
-    (syncThemeButton as any)(ctx, ...args);
+  ctx.applyTheme = applyTheme.bind(undefined, ctx);
+  ctx.toggleTheme = toggleTheme.bind(undefined, ctx);
+  ctx.initializeTheme = initializeTheme.bind(undefined, ctx);
+  ctx.syncThemeButton = syncThemeButton.bind(undefined, ctx);
 }

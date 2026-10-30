@@ -100,8 +100,6 @@ function renderTimelineGridLines(
 }
 
 export function installTimelineTracksViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderTimelineTracks = (...args: any[]) =>
-    (renderTimelineTracks as any)(ctx, ...args);
-  ctx.renderTimelineGridLines = (...args: any[]) =>
-    (renderTimelineGridLines as any)(ctx, ...args);
+  ctx.renderTimelineTracks = renderTimelineTracks.bind(undefined, ctx);
+  ctx.renderTimelineGridLines = renderTimelineGridLines.bind(undefined, ctx);
 }

@@ -181,10 +181,13 @@ function beginCanvasSelectionRotationDrag(ctx: ViewerAppContext, event) {
 export function installCanvasSelectionTransformOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginCanvasSelectionDrag = (...args: any[]) =>
-    (beginCanvasSelectionDrag as any)(ctx, ...args);
-  ctx.beginCanvasSelectionScaleDrag = (...args: any[]) =>
-    (beginCanvasSelectionScaleDrag as any)(ctx, ...args);
-  ctx.beginCanvasSelectionRotationDrag = (...args: any[]) =>
-    (beginCanvasSelectionRotationDrag as any)(ctx, ...args);
+  ctx.beginCanvasSelectionDrag = beginCanvasSelectionDrag.bind(undefined, ctx);
+  ctx.beginCanvasSelectionScaleDrag = beginCanvasSelectionScaleDrag.bind(
+    undefined,
+    ctx,
+  );
+  ctx.beginCanvasSelectionRotationDrag = beginCanvasSelectionRotationDrag.bind(
+    undefined,
+    ctx,
+  );
 }

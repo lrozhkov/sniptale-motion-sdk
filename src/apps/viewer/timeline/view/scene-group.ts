@@ -173,6 +173,5 @@ function appendSceneEdge(ctx, block, sceneId, edge) {
 }
 
 export function installViewSceneGroupOwner(ctx: ViewerAppContext): void {
-  ctx.renderSceneTimelineGroup = (...args: any[]) =>
-    (renderSceneTimelineGroup as any)(ctx, ...args);
+  ctx.renderSceneTimelineGroup = renderSceneTimelineGroup.bind(undefined, ctx);
 }

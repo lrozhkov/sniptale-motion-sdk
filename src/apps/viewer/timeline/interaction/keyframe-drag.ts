@@ -100,8 +100,9 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
           const keyframe = selectedTrack?.keyframes.find(
             (item) => item.id === entry.keyframeId,
           );
-          if (keyframe) {
-            keyframe.time = plan.updates[keyframeRefKey(entry)];
+          const nextTime = plan.updates[keyframeRefKey(entry)];
+          if (keyframe && nextTime !== undefined) {
+            keyframe.time = nextTime;
             if (entry === primary) {
               primaryTime = keyframe.time;
             }
@@ -127,6 +128,5 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
 export function installInteractionKeyframeDragOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginKeyframeDrag = (...args: any[]) =>
-    (beginKeyframeDrag as any)(ctx, ...args);
+  ctx.beginKeyframeDrag = beginKeyframeDrag.bind(undefined, ctx);
 }

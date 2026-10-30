@@ -148,18 +148,20 @@ export function wireEffectFileJsonBindingActions(ctx: ViewerAppContext): void {
 }
 
 export function installEffectFileJsonBindingOwner(ctx: ViewerAppContext): void {
-  ctx.bindTemplateSourceJson = (...args: any[]) =>
-    (bindTemplateSourceJson as any)(ctx, ...args);
-  ctx.validateBoundTemplateJson = (...args: any[]) =>
-    (validateBoundTemplateJson as any)(ctx, ...args);
-  ctx.saveBoundTemplateJson = (...args: any[]) =>
-    (saveBoundTemplateJson as any)(ctx, ...args);
-  ctx.exportCurrentTemplateJson = (...args: any[]) =>
-    (exportCurrentTemplateJson as any)(ctx, ...args);
-  ctx.createUniqueTemplateId = (...args: any[]) =>
-    (createUniqueTemplateId as any)(ctx, ...args);
-  ctx.buildCurrentTemplateJson = (...args: any[]) =>
-    (buildCurrentTemplateJson as any)(ctx, ...args);
-  ctx.wireEffectFileJsonBindingActions = (...args: any[]) =>
-    (wireEffectFileJsonBindingActions as any)(ctx, ...args);
+  ctx.bindTemplateSourceJson = bindTemplateSourceJson.bind(undefined, ctx);
+  ctx.validateBoundTemplateJson = validateBoundTemplateJson.bind(
+    undefined,
+    ctx,
+  );
+  ctx.saveBoundTemplateJson = saveBoundTemplateJson.bind(undefined, ctx);
+  ctx.exportCurrentTemplateJson = exportCurrentTemplateJson.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createUniqueTemplateId = createUniqueTemplateId.bind(undefined, ctx);
+  ctx.buildCurrentTemplateJson = buildCurrentTemplateJson.bind(undefined, ctx);
+  ctx.wireEffectFileJsonBindingActions = wireEffectFileJsonBindingActions.bind(
+    undefined,
+    ctx,
+  );
 }

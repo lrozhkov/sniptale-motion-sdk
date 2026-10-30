@@ -125,6 +125,8 @@ function resolveNormalizedHandle(pointer, viewport, keyframe, next) {
 }
 
 export function installGraphEditorHandleDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginGraphBezierHandleDrag = (...args: any[]) =>
-    (beginGraphBezierHandleDrag as any)(ctx, ...args);
+  ctx.beginGraphBezierHandleDrag = beginGraphBezierHandleDrag.bind(
+    undefined,
+    ctx,
+  );
 }

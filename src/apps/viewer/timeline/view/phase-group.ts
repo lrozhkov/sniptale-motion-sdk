@@ -134,6 +134,5 @@ function renderPhaseGroup(
 export function installTimelinePhaseGroupViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderPhaseGroup = (...args: any[]) =>
-    (renderPhaseGroup as any)(ctx, ...args);
+  ctx.renderPhaseGroup = renderPhaseGroup.bind(undefined, ctx);
 }

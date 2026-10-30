@@ -260,14 +260,9 @@ function updateKeyframeEasing(
 }
 
 export function installInspectorCurveEditorOwner(ctx: ViewerAppContext): void {
-  ctx.createCurveSvg = (...args: any[]) =>
-    (createCurveSvg as any)(ctx, ...args);
-  ctx.createCurveHandle = (...args: any[]) =>
-    (createCurveHandle as any)(ctx, ...args);
-  ctx.createCurveField = (...args: any[]) =>
-    (createCurveField as any)(ctx, ...args);
-  ctx.createEasingField = (...args: any[]) =>
-    (createEasingField as any)(ctx, ...args);
-  ctx.updateKeyframeEasing = (...args: any[]) =>
-    (updateKeyframeEasing as any)(ctx, ...args);
+  ctx.createCurveSvg = createCurveSvg.bind(undefined, ctx);
+  ctx.createCurveHandle = createCurveHandle.bind(undefined, ctx);
+  ctx.createCurveField = createCurveField.bind(undefined, ctx);
+  ctx.createEasingField = createEasingField.bind(undefined, ctx);
+  ctx.updateKeyframeEasing = updateKeyframeEasing.bind(undefined, ctx);
 }

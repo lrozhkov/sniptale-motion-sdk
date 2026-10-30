@@ -108,8 +108,6 @@ function updateSceneProperty(ctx: ViewerAppContext, sceneId, property, value) {
 export function installTimelineTimingPropertiesOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.updatePhaseProperty = (...args: any[]) =>
-    (updatePhaseProperty as any)(ctx, ...args);
-  ctx.updateSceneProperty = (...args: any[]) =>
-    (updateSceneProperty as any)(ctx, ...args);
+  ctx.updatePhaseProperty = updatePhaseProperty.bind(undefined, ctx);
+  ctx.updateSceneProperty = updateSceneProperty.bind(undefined, ctx);
 }

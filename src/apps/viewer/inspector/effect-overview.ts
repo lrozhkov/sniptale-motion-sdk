@@ -55,6 +55,5 @@ function renderEffectOverview(
 export function installInspectorEffectOverviewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderEffectOverview = (...args: any[]) =>
-    (renderEffectOverview as any)(ctx, ...args);
+  ctx.renderEffectOverview = renderEffectOverview.bind(undefined, ctx);
 }

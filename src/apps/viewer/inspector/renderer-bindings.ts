@@ -174,12 +174,17 @@ function findRendererBindingSceneId(ctx: ViewerAppContext, template, item) {
 export function installInspectorRendererBindingsOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderRendererBindingsPanel = (...args: any[]) =>
-    (renderRendererBindingsPanel as any)(ctx, ...args);
-  ctx.buildRendererBindingCoverage = (...args: any[]) =>
-    (buildRendererBindingCoverage as any)(ctx, ...args);
-  ctx.focusRendererBindingItem = (...args: any[]) =>
-    (focusRendererBindingItem as any)(ctx, ...args);
-  ctx.findRendererBindingSceneId = (...args: any[]) =>
-    (findRendererBindingSceneId as any)(ctx, ...args);
+  ctx.renderRendererBindingsPanel = renderRendererBindingsPanel.bind(
+    undefined,
+    ctx,
+  );
+  ctx.buildRendererBindingCoverage = buildRendererBindingCoverage.bind(
+    undefined,
+    ctx,
+  );
+  ctx.focusRendererBindingItem = focusRendererBindingItem.bind(undefined, ctx);
+  ctx.findRendererBindingSceneId = findRendererBindingSceneId.bind(
+    undefined,
+    ctx,
+  );
 }

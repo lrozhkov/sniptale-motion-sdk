@@ -279,6 +279,8 @@ function formatNumber(value): string {
 export function installInspectorMotionPathPointOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendMotionPathPointInspector = (...args: any[]) =>
-    (appendMotionPathPointInspector as any)(ctx, ...args);
+  ctx.appendMotionPathPointInspector = appendMotionPathPointInspector.bind(
+    undefined,
+    ctx,
+  );
 }

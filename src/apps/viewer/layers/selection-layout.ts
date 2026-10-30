@@ -137,8 +137,6 @@ function reportUnavailableSelectionLayout(ctx): false {
 }
 
 export function installLayersSelectionLayoutOwner(ctx: ViewerAppContext): void {
-  ctx.alignLayerSelection = (...args: any[]) =>
-    (alignLayerSelection as any)(ctx, ...args);
-  ctx.distributeLayerSelection = (...args: any[]) =>
-    (distributeLayerSelection as any)(ctx, ...args);
+  ctx.alignLayerSelection = alignLayerSelection.bind(undefined, ctx);
+  ctx.distributeLayerSelection = distributeLayerSelection.bind(undefined, ctx);
 }

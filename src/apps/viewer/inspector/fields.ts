@@ -200,26 +200,26 @@ function appendInspectorClipField(ctx: ViewerAppContext, clip, field) {
 }
 
 export function installInspectorFieldsOwner(ctx: ViewerAppContext): void {
-  ctx.prepareInspectorSections = (...args: any[]) =>
-    (prepareInspectorSections as any)(ctx, ...args);
-  ctx.setInspectorAppendSection = (...args: any[]) =>
-    (setInspectorAppendSection as any)(ctx, ...args);
-  ctx.isInspectorSectionActive = (...args: any[]) =>
-    (isInspectorSectionActive as any)(ctx, ...args);
-  ctx.getInspectorAppendTarget = (...args: any[]) =>
-    (getInspectorAppendTarget as any)(ctx, ...args);
-  ctx.appendInspectorNode = (...args: any[]) =>
-    (appendInspectorNode as any)(ctx, ...args);
-  ctx.appendInspectorRows = (...args: any[]) =>
-    (appendInspectorRows as any)(ctx, ...args);
-  ctx.appendInspectorKeyframeNumberField = (...args: any[]) =>
-    (appendInspectorKeyframeNumberField as any)(ctx, ...args);
-  ctx.appendInspectorKeyframeEasingField = (...args: any[]) =>
-    (appendInspectorKeyframeEasingField as any)(ctx, ...args);
-  ctx.appendInspectorSceneField = (...args: any[]) =>
-    (appendInspectorSceneField as any)(ctx, ...args);
-  ctx.appendInspectorPhaseField = (...args: any[]) =>
-    (appendInspectorPhaseField as any)(ctx, ...args);
-  ctx.appendInspectorClipField = (...args: any[]) =>
-    (appendInspectorClipField as any)(ctx, ...args);
+  ctx.prepareInspectorSections = prepareInspectorSections.bind(undefined, ctx);
+  ctx.setInspectorAppendSection = setInspectorAppendSection.bind(
+    undefined,
+    ctx,
+  );
+  ctx.isInspectorSectionActive = isInspectorSectionActive.bind(undefined, ctx);
+  ctx.getInspectorAppendTarget = getInspectorAppendTarget.bind(undefined, ctx);
+  ctx.appendInspectorNode = appendInspectorNode.bind(undefined, ctx);
+  ctx.appendInspectorRows = appendInspectorRows.bind(undefined, ctx);
+  ctx.appendInspectorKeyframeNumberField =
+    appendInspectorKeyframeNumberField.bind(undefined, ctx);
+  ctx.appendInspectorKeyframeEasingField =
+    appendInspectorKeyframeEasingField.bind(undefined, ctx);
+  ctx.appendInspectorSceneField = appendInspectorSceneField.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendInspectorPhaseField = appendInspectorPhaseField.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendInspectorClipField = appendInspectorClipField.bind(undefined, ctx);
 }

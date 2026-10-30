@@ -305,8 +305,6 @@ function beginSceneDrag(ctx: ViewerAppContext, event, sceneId, mode) {
 export function installInteractionPhaseSceneDragOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginPhaseDrag = (...args: any[]) =>
-    (beginPhaseDrag as any)(ctx, ...args);
-  ctx.beginSceneDrag = (...args: any[]) =>
-    (beginSceneDrag as any)(ctx, ...args);
+  ctx.beginPhaseDrag = beginPhaseDrag.bind(undefined, ctx);
+  ctx.beginSceneDrag = beginSceneDrag.bind(undefined, ctx);
 }

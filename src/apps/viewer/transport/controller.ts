@@ -203,12 +203,8 @@ export function resolveSandboxPort(
 }
 
 export function installTransportControllerOwner(ctx: ViewerAppContext): void {
-  ctx.handleSandboxMessage = (...args: any[]) =>
-    (handleSandboxMessage as any)(ctx, ...args);
-  ctx.ensureModuleLoaded = (...args: any[]) =>
-    (ensureModuleLoaded as any)(ctx, ...args);
-  ctx.createUniqueModuleId = (...args: any[]) =>
-    (createUniqueModuleId as any)(ctx, ...args);
-  ctx.createSandboxUrl = (...args: any[]) =>
-    (createSandboxUrl as any)(ctx, ...args);
+  ctx.handleSandboxMessage = handleSandboxMessage.bind(undefined, ctx);
+  ctx.ensureModuleLoaded = ensureModuleLoaded.bind(undefined, ctx);
+  ctx.createUniqueModuleId = createUniqueModuleId.bind(undefined, ctx);
+  ctx.createSandboxUrl = createSandboxUrl.bind(undefined, ctx);
 }

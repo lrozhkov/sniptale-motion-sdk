@@ -10,14 +10,22 @@ import { installTimelineLayerRevealOwner } from "./reveal.js";
 import { installTimelineLayerSearchController } from "./search-controller.js";
 
 export function installTimelineNavigationOwners(ctx: ViewerAppContext): void {
-  ctx.getTimelineLayerSearchResults = (...args: any[]) =>
-    (getTimelineLayerSearchResults as any)(ctx, ...args);
-  ctx.createTimelineLayerSearchIndex = (...args: any[]) =>
-    (createTimelineLayerSearchIndex as any)(ctx, ...args);
-  ctx.filterTimelineLayerSearchResults = (...args: any[]) =>
-    (filterTimelineLayerSearchResults as any)(ctx, ...args);
-  ctx.getTimelineLayerOccurrences = (...args: any[]) =>
-    (getTimelineLayerOccurrences as any)(ctx, ...args);
+  ctx.getTimelineLayerSearchResults = getTimelineLayerSearchResults.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createTimelineLayerSearchIndex = createTimelineLayerSearchIndex.bind(
+    undefined,
+    ctx,
+  );
+  ctx.filterTimelineLayerSearchResults = filterTimelineLayerSearchResults.bind(
+    undefined,
+    ctx,
+  );
+  ctx.getTimelineLayerOccurrences = getTimelineLayerOccurrences.bind(
+    undefined,
+    ctx,
+  );
   ctx.normalizeTimelineLayerSearch = normalizeTimelineLayerSearch;
   installTimelineLayerRevealOwner(ctx);
   installTimelineLayerSearchController(ctx);

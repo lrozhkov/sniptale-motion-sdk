@@ -34,6 +34,8 @@ function renderGlobalTimelineGroup(
 export function installTimelineGlobalGroupViewOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.renderGlobalTimelineGroup = (...args: any[]) =>
-    (renderGlobalTimelineGroup as any)(ctx, ...args);
+  ctx.renderGlobalTimelineGroup = renderGlobalTimelineGroup.bind(
+    undefined,
+    ctx,
+  );
 }

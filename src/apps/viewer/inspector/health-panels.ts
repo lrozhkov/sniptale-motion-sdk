@@ -223,14 +223,12 @@ function scrollTimelineTargetIntoView(ctx: ViewerAppContext, selector) {
 }
 
 export function installInspectorHealthPanelsOwner(ctx: ViewerAppContext): void {
-  ctx.renderValidationPanel = (...args: any[]) =>
-    (renderValidationPanel as any)(ctx, ...args);
-  ctx.groupValidationIssues = (...args: any[]) =>
-    (groupValidationIssues as any)(ctx, ...args);
-  ctx.issueTargetLabel = (...args: any[]) =>
-    (issueTargetLabel as any)(ctx, ...args);
-  ctx.focusValidationIssue = (...args: any[]) =>
-    (focusValidationIssue as any)(ctx, ...args);
-  ctx.scrollTimelineTargetIntoView = (...args: any[]) =>
-    (scrollTimelineTargetIntoView as any)(ctx, ...args);
+  ctx.renderValidationPanel = renderValidationPanel.bind(undefined, ctx);
+  ctx.groupValidationIssues = groupValidationIssues.bind(undefined, ctx);
+  ctx.issueTargetLabel = issueTargetLabel.bind(undefined, ctx);
+  ctx.focusValidationIssue = focusValidationIssue.bind(undefined, ctx);
+  ctx.scrollTimelineTargetIntoView = scrollTimelineTargetIntoView.bind(
+    undefined,
+    ctx,
+  );
 }

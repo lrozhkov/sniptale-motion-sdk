@@ -114,10 +114,13 @@ function appendInspectorLayerField(
 export function installInspectorLayerContentFieldsOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getLayerContentFields = (...args: any[]) =>
-    (getLayerContentFields as any)(...args);
-  ctx.createInspectorLayerField = (...args: any[]) =>
-    (createInspectorLayerField as any)(ctx, ...args);
-  ctx.appendInspectorLayerField = (...args: any[]) =>
-    (appendInspectorLayerField as any)(ctx, ...args);
+  ctx.getLayerContentFields = getLayerContentFields.bind(undefined);
+  ctx.createInspectorLayerField = createInspectorLayerField.bind(
+    undefined,
+    ctx,
+  );
+  ctx.appendInspectorLayerField = appendInspectorLayerField.bind(
+    undefined,
+    ctx,
+  );
 }

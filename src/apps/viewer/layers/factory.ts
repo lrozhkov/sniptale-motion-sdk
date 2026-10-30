@@ -12,6 +12,5 @@ function createUniqueLayerId(ctx: ViewerAppContext, kind, layers) {
 }
 
 export function installLayersFactoryOwner(ctx: ViewerAppContext): void {
-  ctx.createUniqueLayerId = (...args: any[]) =>
-    (createUniqueLayerId as any)(ctx, ...args);
+  ctx.createUniqueLayerId = createUniqueLayerId.bind(undefined, ctx);
 }

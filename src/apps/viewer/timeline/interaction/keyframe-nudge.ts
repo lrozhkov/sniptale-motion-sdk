@@ -22,6 +22,8 @@ function nudgeSelectedKeyframesByFrames(
 }
 
 export function installTimelineKeyframeNudgeOwner(ctx: ViewerAppContext): void {
-  ctx.nudgeSelectedKeyframesByFrames = (...args: any[]) =>
-    (nudgeSelectedKeyframesByFrames as any)(ctx, ...args);
+  ctx.nudgeSelectedKeyframesByFrames = nudgeSelectedKeyframesByFrames.bind(
+    undefined,
+    ctx,
+  );
 }

@@ -216,12 +216,20 @@ function createKeyframeNavigationButton(
 export function installInspectorKeyframeSegmentOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.createKeyframeSegmentTools = (...args: any[]) =>
-    (createKeyframeSegmentTools as any)(ctx, ...args);
-  ctx.createKeyframeSegmentField = (...args: any[]) =>
-    (createKeyframeSegmentField as any)(ctx, ...args);
-  ctx.updateKeyframeSegmentTiming = (...args: any[]) =>
-    (updateKeyframeSegmentTiming as any)(ctx, ...args);
-  ctx.createKeyframeNavigationButton = (...args: any[]) =>
-    (createKeyframeNavigationButton as any)(ctx, ...args);
+  ctx.createKeyframeSegmentTools = createKeyframeSegmentTools.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createKeyframeSegmentField = createKeyframeSegmentField.bind(
+    undefined,
+    ctx,
+  );
+  ctx.updateKeyframeSegmentTiming = updateKeyframeSegmentTiming.bind(
+    undefined,
+    ctx,
+  );
+  ctx.createKeyframeNavigationButton = createKeyframeNavigationButton.bind(
+    undefined,
+    ctx,
+  );
 }

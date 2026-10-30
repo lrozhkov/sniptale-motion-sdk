@@ -30,6 +30,5 @@ function renderCurveEditor(ctx: ViewerAppContext, timeline) {
 }
 
 export function installGraphEditorViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderCurveEditor = (...args: any[]) =>
-    (renderCurveEditor as any)(ctx, ...args);
+  ctx.renderCurveEditor = renderCurveEditor.bind(undefined, ctx);
 }

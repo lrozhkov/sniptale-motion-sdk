@@ -181,18 +181,16 @@ function escapeCssColor(ctx: ViewerAppContext, value) {
 export function installInspectorSvgPartFieldsOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.appendSvgPartPicker = (...args: any[]) =>
-    (appendSvgPartPicker as any)(ctx, ...args);
-  ctx.parseSvgPartsForInspector = (...args: any[]) =>
-    (parseSvgPartsForInspector as any)(ctx, ...args);
-  ctx.walkSvgInspectorNodes = (...args: any[]) =>
-    (walkSvgInspectorNodes as any)(ctx, ...args);
-  ctx.createGeneratedSvgInspectorPartId = (...args: any[]) =>
-    (createGeneratedSvgInspectorPartId as any)(ctx, ...args);
-  ctx.normalizeSvgPaint = (...args: any[]) =>
-    (normalizeSvgPaint as any)(ctx, ...args);
-  ctx.parseCsvList = (...args: any[]) => (parseCsvList as any)(ctx, ...args);
-  ctx.escapeHtml = (...args: any[]) => (escapeHtml as any)(ctx, ...args);
-  ctx.escapeCssColor = (...args: any[]) =>
-    (escapeCssColor as any)(ctx, ...args);
+  ctx.appendSvgPartPicker = appendSvgPartPicker.bind(undefined, ctx);
+  ctx.parseSvgPartsForInspector = parseSvgPartsForInspector.bind(
+    undefined,
+    ctx,
+  );
+  ctx.walkSvgInspectorNodes = walkSvgInspectorNodes.bind(undefined, ctx);
+  ctx.createGeneratedSvgInspectorPartId =
+    createGeneratedSvgInspectorPartId.bind(undefined, ctx);
+  ctx.normalizeSvgPaint = normalizeSvgPaint.bind(undefined, ctx);
+  ctx.parseCsvList = parseCsvList.bind(undefined, ctx);
+  ctx.escapeHtml = escapeHtml.bind(undefined, ctx);
+  ctx.escapeCssColor = escapeCssColor.bind(undefined, ctx);
 }

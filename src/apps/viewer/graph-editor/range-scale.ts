@@ -72,6 +72,5 @@ function beginGraphSelectionScale(ctx: ViewerAppContext, event, model, edge) {
 }
 
 export function installGraphEditorRangeScaleOwner(ctx: ViewerAppContext): void {
-  ctx.beginGraphSelectionScale = (...args: any[]) =>
-    (beginGraphSelectionScale as any)(ctx, ...args);
+  ctx.beginGraphSelectionScale = beginGraphSelectionScale.bind(undefined, ctx);
 }

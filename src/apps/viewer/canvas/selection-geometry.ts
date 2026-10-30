@@ -211,10 +211,11 @@ function setStyleValue(
 export function installCanvasSelectionGeometryOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.updateCanvasSelectionBox = (...args: any[]) =>
-    (updateCanvasSelectionBox as any)(ctx, ...args);
-  ctx.observeCanvasSelectionViewport = (...args: any[]) =>
-    (observeCanvasSelectionViewport as any)(ctx, ...args);
-  ctx.scheduleCanvasSelectionPlaybackUpdate = (...args: any[]) =>
-    (scheduleCanvasSelectionPlaybackUpdate as any)(ctx, ...args);
+  ctx.updateCanvasSelectionBox = updateCanvasSelectionBox.bind(undefined, ctx);
+  ctx.observeCanvasSelectionViewport = observeCanvasSelectionViewport.bind(
+    undefined,
+    ctx,
+  );
+  ctx.scheduleCanvasSelectionPlaybackUpdate =
+    scheduleCanvasSelectionPlaybackUpdate.bind(undefined, ctx);
 }

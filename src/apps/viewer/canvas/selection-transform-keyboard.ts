@@ -113,12 +113,11 @@ function beginKeyboardSelectionCommand(ctx, snapshot, coalescePrefix): void {
 export function installCanvasSelectionTransformKeyboardOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.moveCanvasSelectionBy = (...args: any[]) =>
-    (moveCanvasSelectionBy as any)(ctx, ...args);
-  ctx.rotateCanvasSelectionBy = (...args: any[]) =>
-    (rotateCanvasSelectionBy as any)(ctx, ...args);
-  ctx.scaleCanvasSelectionBy = (...args: any[]) =>
-    (scaleCanvasSelectionBy as any)(ctx, ...args);
-  ctx.setCanvasSelectionFrameProperty = (...args: any[]) =>
-    (setCanvasSelectionFrameProperty as any)(ctx, ...args);
+  ctx.moveCanvasSelectionBy = moveCanvasSelectionBy.bind(undefined, ctx);
+  ctx.rotateCanvasSelectionBy = rotateCanvasSelectionBy.bind(undefined, ctx);
+  ctx.scaleCanvasSelectionBy = scaleCanvasSelectionBy.bind(undefined, ctx);
+  ctx.setCanvasSelectionFrameProperty = setCanvasSelectionFrameProperty.bind(
+    undefined,
+    ctx,
+  );
 }

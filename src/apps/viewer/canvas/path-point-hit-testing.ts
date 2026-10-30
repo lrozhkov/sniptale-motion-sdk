@@ -113,12 +113,18 @@ function findMotionPathPointNearEvent(ctx: ViewerAppContext, event) {
 export function installCanvasPathPointHitTestingOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.beginMotionPathPointHitDrag = (...args: any[]) =>
-    (beginMotionPathPointHitDrag as any)(ctx, ...args);
-  ctx.beginOverlappingTransformHandleDrag = (...args: any[]) =>
-    (beginOverlappingTransformHandleDrag as any)(ctx, ...args);
-  ctx.findEditablePathPointNearEvent = (...args: any[]) =>
-    (findEditablePathPointNearEvent as any)(ctx, ...args);
-  ctx.findMotionPathPointNearEvent = (...args: any[]) =>
-    (findMotionPathPointNearEvent as any)(ctx, ...args);
+  ctx.beginMotionPathPointHitDrag = beginMotionPathPointHitDrag.bind(
+    undefined,
+    ctx,
+  );
+  ctx.beginOverlappingTransformHandleDrag =
+    beginOverlappingTransformHandleDrag.bind(undefined, ctx);
+  ctx.findEditablePathPointNearEvent = findEditablePathPointNearEvent.bind(
+    undefined,
+    ctx,
+  );
+  ctx.findMotionPathPointNearEvent = findMotionPathPointNearEvent.bind(
+    undefined,
+    ctx,
+  );
 }

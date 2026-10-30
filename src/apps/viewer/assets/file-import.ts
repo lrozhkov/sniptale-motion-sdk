@@ -116,12 +116,12 @@ function dataUrlToBlob(
 }
 
 export function installAssetsFileImportOwner(ctx: ViewerAppContext): void {
-  ctx.rasterizeSvgAsset = (...args: any[]) =>
-    (rasterizeSvgAsset as any)(ctx, ...args);
-  ctx.replaceSelectedAssetFile = (...args: any[]) =>
-    (replaceSelectedAssetFile as any)(ctx, ...args);
-  ctx.createAuthorAssetFromFile = (...args: any[]) =>
-    (createAuthorAssetFromFile as any)(ctx, ...args);
-  ctx.fileToDataUrl = (...args: any[]) => (fileToDataUrl as any)(ctx, ...args);
-  ctx.dataUrlToBlob = (...args: any[]) => (dataUrlToBlob as any)(ctx, ...args);
+  ctx.rasterizeSvgAsset = rasterizeSvgAsset.bind(undefined, ctx);
+  ctx.replaceSelectedAssetFile = replaceSelectedAssetFile.bind(undefined, ctx);
+  ctx.createAuthorAssetFromFile = createAuthorAssetFromFile.bind(
+    undefined,
+    ctx,
+  );
+  ctx.fileToDataUrl = fileToDataUrl.bind(undefined, ctx);
+  ctx.dataUrlToBlob = dataUrlToBlob.bind(undefined, ctx);
 }

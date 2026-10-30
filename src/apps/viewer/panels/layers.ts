@@ -148,8 +148,6 @@ function toggleLayerPanelGroup(ctx, groupId): boolean {
 }
 
 export function installPanelsLayersOwner(ctx: ViewerAppContext): void {
-  ctx.renderLayersPanel = (...args: any[]) =>
-    (renderLayersPanel as any)(ctx, ...args);
-  ctx.toggleLayerPanelGroup = (...args: any[]) =>
-    (toggleLayerPanelGroup as any)(ctx, ...args);
+  ctx.renderLayersPanel = renderLayersPanel.bind(undefined, ctx);
+  ctx.toggleLayerPanelGroup = toggleLayerPanelGroup.bind(undefined, ctx);
 }

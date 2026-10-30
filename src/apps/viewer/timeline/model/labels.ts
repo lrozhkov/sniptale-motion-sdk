@@ -20,6 +20,8 @@ function getTimelineTrackDisplayLabel(ctx: ViewerAppContext, track) {
 }
 
 export function installTimelineLabelsOwner(ctx: ViewerAppContext): void {
-  ctx.getTimelineTrackDisplayLabel = (...args: any[]) =>
-    (getTimelineTrackDisplayLabel as any)(ctx, ...args);
+  ctx.getTimelineTrackDisplayLabel = getTimelineTrackDisplayLabel.bind(
+    undefined,
+    ctx,
+  );
 }

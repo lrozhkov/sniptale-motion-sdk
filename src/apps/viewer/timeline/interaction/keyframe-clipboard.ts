@@ -145,6 +145,7 @@ function insertKeyframeClipboard(
   const insertedMappings = [];
   for (const entry of clipboard) {
     const track = timeline.tracks.find((item) => item.id === entry.trackId);
+    if (!track) return reportKeyframePlacementFailure(ctx);
     const next = ctx.deps.deepClone(entry.keyframe);
     next.time = ctx.snapTime(
       ctx.deps.clamp(Number(entry.keyframe.time) + offset, 0, duration),
@@ -256,12 +257,11 @@ function reportKeyframePlacementFailure(ctx): false {
 export function installInteractionKeyframeClipboardOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.copySelectedKeyframes = (...args: any[]) =>
-    (copySelectedKeyframes as any)(ctx, ...args);
-  ctx.pasteKeyframesAtPlayhead = (...args: any[]) =>
-    (pasteKeyframesAtPlayhead as any)(ctx, ...args);
-  ctx.duplicateSelectedKeyframes = (...args: any[]) =>
-    (duplicateSelectedKeyframes as any)(ctx, ...args);
-  ctx.deleteSelectedKeyframes = (...args: any[]) =>
-    (deleteSelectedKeyframes as any)(ctx, ...args);
+  ctx.copySelectedKeyframes = copySelectedKeyframes.bind(undefined, ctx);
+  ctx.pasteKeyframesAtPlayhead = pasteKeyframesAtPlayhead.bind(undefined, ctx);
+  ctx.duplicateSelectedKeyframes = duplicateSelectedKeyframes.bind(
+    undefined,
+    ctx,
+  );
+  ctx.deleteSelectedKeyframes = deleteSelectedKeyframes.bind(undefined, ctx);
 }

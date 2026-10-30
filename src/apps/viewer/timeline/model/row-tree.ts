@@ -165,21 +165,19 @@ function addExpandedLayerRows(ctx, rowIds: Set<string>, rows): void {
 
 export function installTimelineRowTreeOwner(ctx: ViewerAppContext): void {
   Object.assign(ctx, {
-    createExpandedTimelineRowIdSet: (...args: any[]) =>
-      (createExpandedTimelineRowIdSet as any)(ctx, ...args),
-    createInitialTimelineRowIdSet: (...args: any[]) =>
-      (createInitialTimelineRowIdSet as any)(ctx, ...args),
-    createTimelineRowTree: (...args: any[]) =>
-      (createTimelineRowTree as any)(ctx, ...args),
-    getTimelineRowExpansionId: (...args: any[]) =>
-      (getTimelineRowExpansionId as any)(ctx, ...args),
-    isTimelineRowExpanded: (...args: any[]) =>
-      (isTimelineRowExpanded as any)(ctx, ...args),
-    setAllTimelineRowsExpanded: (...args: any[]) =>
-      (setAllTimelineRowsExpanded as any)(ctx, ...args),
-    setTimelineRowExpanded: (...args: any[]) =>
-      (setTimelineRowExpanded as any)(ctx, ...args),
-    toggleTimelineRowExpansion: (...args: any[]) =>
-      (toggleTimelineRowExpansion as any)(ctx, ...args),
+    createExpandedTimelineRowIdSet: createExpandedTimelineRowIdSet.bind(
+      undefined,
+      ctx,
+    ),
+    createInitialTimelineRowIdSet: createInitialTimelineRowIdSet.bind(
+      undefined,
+      ctx,
+    ),
+    createTimelineRowTree: createTimelineRowTree.bind(undefined, ctx),
+    getTimelineRowExpansionId: getTimelineRowExpansionId.bind(undefined, ctx),
+    isTimelineRowExpanded: isTimelineRowExpanded.bind(undefined, ctx),
+    setAllTimelineRowsExpanded: setAllTimelineRowsExpanded.bind(undefined, ctx),
+    setTimelineRowExpanded: setTimelineRowExpanded.bind(undefined, ctx),
+    toggleTimelineRowExpansion: toggleTimelineRowExpansion.bind(undefined, ctx),
   });
 }

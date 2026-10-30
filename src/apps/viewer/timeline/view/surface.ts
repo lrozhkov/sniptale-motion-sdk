@@ -75,10 +75,7 @@ function renderTimelineSurface(
 }
 
 export function installTimelineSurfaceViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderTimelineModel = (...args: any[]) =>
-    (renderTimelineModel as any)(ctx, ...args);
-  ctx.renderTimelineStructure = (...args: any[]) =>
-    (renderTimelineStructure as any)(ctx, ...args);
-  ctx.renderTimelineViewport = (...args: any[]) =>
-    (renderTimelineViewport as any)(ctx, ...args);
+  ctx.renderTimelineModel = renderTimelineModel.bind(undefined, ctx);
+  ctx.renderTimelineStructure = renderTimelineStructure.bind(undefined, ctx);
+  ctx.renderTimelineViewport = renderTimelineViewport.bind(undefined, ctx);
 }

@@ -101,10 +101,7 @@ function getGroupingFailureMessage(ctx: ViewerAppContext, reason: string) {
 }
 
 export function installLayersGroupingOwner(ctx: ViewerAppContext): void {
-  ctx.getLayerGroupingState = (...args: any[]) =>
-    (getLayerGroupingState as any)(ctx, ...args);
-  ctx.groupSelectedLayers = (...args: any[]) =>
-    (groupSelectedLayers as any)(ctx, ...args);
-  ctx.ungroupSelectedLayers = (...args: any[]) =>
-    (ungroupSelectedLayers as any)(ctx, ...args);
+  ctx.getLayerGroupingState = getLayerGroupingState.bind(undefined, ctx);
+  ctx.groupSelectedLayers = groupSelectedLayers.bind(undefined, ctx);
+  ctx.ungroupSelectedLayers = ungroupSelectedLayers.bind(undefined, ctx);
 }

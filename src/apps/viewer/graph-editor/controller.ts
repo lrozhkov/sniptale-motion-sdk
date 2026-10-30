@@ -119,14 +119,12 @@ function clampGraphTimeViewport(viewport, duration): void {
 }
 
 export function installGraphEditorControllerOwner(ctx: ViewerAppContext): void {
-  ctx.toggleGraphEditor = (...args: any[]) =>
-    (toggleGraphEditor as any)(ctx, ...args);
-  ctx.fitGraphEditor = (...args: any[]) =>
-    (fitGraphEditor as any)(ctx, ...args);
-  ctx.zoomGraphEditor = (...args: any[]) =>
-    (zoomGraphEditor as any)(ctx, ...args);
-  ctx.setGraphEditorViewport = (...args: any[]) =>
-    (setGraphEditorViewport as any)(ctx, ...args);
-  ctx.setGraphEditorLinkedHandles = (...args: any[]) =>
-    (setGraphEditorLinkedHandles as any)(ctx, ...args);
+  ctx.toggleGraphEditor = toggleGraphEditor.bind(undefined, ctx);
+  ctx.fitGraphEditor = fitGraphEditor.bind(undefined, ctx);
+  ctx.zoomGraphEditor = zoomGraphEditor.bind(undefined, ctx);
+  ctx.setGraphEditorViewport = setGraphEditorViewport.bind(undefined, ctx);
+  ctx.setGraphEditorLinkedHandles = setGraphEditorLinkedHandles.bind(
+    undefined,
+    ctx,
+  );
 }

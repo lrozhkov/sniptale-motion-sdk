@@ -144,6 +144,5 @@ function beginTrackDrag(
 }
 
 export function installInteractionTrackDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginTrackDrag = (...args: any[]) =>
-    (beginTrackDrag as any)(ctx, ...args);
+  ctx.beginTrackDrag = beginTrackDrag.bind(undefined, ctx);
 }

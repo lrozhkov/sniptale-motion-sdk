@@ -49,12 +49,8 @@ function setSelectedLayers(
 export function installLayersHierarchyControllerOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getLayerHierarchy = (...args: any[]) =>
-    (getLayerHierarchy as any)(ctx, ...args);
-  ctx.getSelectedLayerRootIds = (...args: any[]) =>
-    (getSelectedLayerRootIds as any)(ctx, ...args);
-  ctx.getSelectedLayerLeafIds = (...args: any[]) =>
-    (getSelectedLayerLeafIds as any)(ctx, ...args);
-  ctx.setSelectedLayers = (...args: any[]) =>
-    (setSelectedLayers as any)(ctx, ...args);
+  ctx.getLayerHierarchy = getLayerHierarchy.bind(undefined, ctx);
+  ctx.getSelectedLayerRootIds = getSelectedLayerRootIds.bind(undefined, ctx);
+  ctx.getSelectedLayerLeafIds = getSelectedLayerLeafIds.bind(undefined, ctx);
+  ctx.setSelectedLayers = setSelectedLayers.bind(undefined, ctx);
 }
