@@ -69,6 +69,9 @@ await runQaWrapper("qa:security", async ({ run, writeStdout }) => {
 
   await securityRun("Gitleaks version", "gitleaks", ["version"]);
   await securityRun("OSV-Scanner version", "osv-scanner", ["--version"]);
+  await securityRun("dependency release age", "node", [
+    "tooling/qa/security/dependency-age.mjs",
+  ]);
   await securityRun("npm advisory audit", "npm", [
     "audit",
     "--json",
@@ -113,6 +116,7 @@ await runQaWrapper("qa:security", async ({ run, writeStdout }) => {
         schemaVersion: 2,
         status: "passed",
         checks: [
+          "dependency-release-age-and-registry-identity",
           "npm-advisories",
           "npm-registry-signatures",
           "osv-lockfile",

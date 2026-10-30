@@ -7,6 +7,7 @@ Code, schemas, tests, and deterministic policies are the implementation authorit
 - Keep runtime entrypoints thin and place product logic under the matching viewer, sandbox, SDK, shared, tooling, or test owner. Repository commands and support code belong under `tooling/`; do not create a top-level `scripts/` directory.
 - Treat JSON, files, `postMessage`, generated data, and browser API results as unknown until the receiving boundary parses or validates them.
 - Keep Effect v1 runtime documents declarative, dependency-free, deterministic, and compatible with the sandbox.
+- Select dependency versions that were published at least seven days ago, including transitive dependencies and downloaded development tools. A younger version is permitted only to fix a verified vulnerability, with the exact package version, advisory, and temporary exception recorded and checked. Do not use package-wide or scope-wide release-age exclusions. Review dependency installation scripts before explicitly running any of them.
 - Use `path owns the domain, filename owns the role` and prefer TypeScript owner modules over compatibility files.
 - Do not add debt baselines, long-lived allowlists, known-failure snapshots, or generated policies that normalize current debt.
 - Keep temporary files, templates, packs, media assets, generated evidence, reports, coverage, browser output, and tool caches under ignored `.tmp/` storage. Do not commit their contents or placeholder files. Keep `docs/` free of empty directories.

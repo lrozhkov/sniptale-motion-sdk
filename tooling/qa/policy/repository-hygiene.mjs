@@ -22,6 +22,7 @@ const ROOT_ENTRY_CONTRACT = new Map([
   [".codex", "directory"],
   [".git", "git-metadata"],
   [".gitignore", "file"],
+  [".npmrc", "file"],
   [".prettierignore", "file"],
   [".prettierrc.json", "file"],
   [".tmp", "directory"],

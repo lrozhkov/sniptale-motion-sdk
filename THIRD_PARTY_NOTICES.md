@@ -2,7 +2,7 @@
 
 This file is generated from the production dependency graph in package-lock.json. Every redistributed legal file is preserved byte-for-byte.
 
-## `@babel/runtime` 7.29.7
+## `@babel/runtime` 7.29.10
 
 License expression: `MIT`
 
@@ -10,13 +10,13 @@ Installed package: `node_modules/@babel/runtime`
 
 License input: `node_modules/@babel/runtime/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/@babel__runtime-7.29.7.txt`](LICENSES/dependencies/@babel__runtime-7.29.7.txt)
+Redistributed license: [`LICENSES/dependencies/@babel__runtime-7.29.10.txt`](LICENSES/dependencies/@babel__runtime-7.29.10.txt)
 
 License SHA-256: `117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76`
 
 Package repository: https://github.com/babel/babel.git
 
-Locked package tarball: https://registry.npmjs.org/@babel/runtime/-/runtime-7.29.7.tgz
+Locked package tarball: https://registry.npmjs.org/@babel/runtime/-/runtime-7.29.10.tgz
 
 ## `@react-three/fiber` 9.6.1
 
@@ -38,7 +38,7 @@ Commit-addressed license origin: https://raw.githubusercontent.com/pmndrs/react-
 
 Pinned license SHA-256: `9c35b5de7b7493a707fffe4eb23bd2f7f449153c1911f7c6eefb4e591fd5349a`
 
-## `@types/dom-mediacapture-transform` 0.1.11
+## `@types/dom-mediacapture-transform` 0.1.12
 
 License expression: `MIT`
 
@@ -46,13 +46,13 @@ Installed package: `node_modules/@types/dom-mediacapture-transform`
 
 License input: `node_modules/@types/dom-mediacapture-transform/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/@types__dom-mediacapture-transform-0.1.11.txt`](LICENSES/dependencies/@types__dom-mediacapture-transform-0.1.11.txt)
+Redistributed license: [`LICENSES/dependencies/@types__dom-mediacapture-transform-0.1.12.txt`](LICENSES/dependencies/@types__dom-mediacapture-transform-0.1.12.txt)
 
 License SHA-256: `c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383`
 
 Package repository: https://github.com/DefinitelyTyped/DefinitelyTyped.git
 
-Locked package tarball: https://registry.npmjs.org/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.11.tgz
+Locked package tarball: https://registry.npmjs.org/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.12.tgz
 
 ## `@types/dom-webcodecs` 0.1.13
 
@@ -70,7 +70,7 @@ Package repository: https://github.com/DefinitelyTyped/DefinitelyTyped.git
 
 Locked package tarball: https://registry.npmjs.org/@types/dom-webcodecs/-/dom-webcodecs-0.1.13.tgz
 
-## `@types/react` 19.2.17
+## `@types/react` 19.3.0
 
 License expression: `MIT`
 
@@ -78,13 +78,13 @@ Installed package: `node_modules/@types/react`
 
 License input: `node_modules/@types/react/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/@types__react-19.2.17.txt`](LICENSES/dependencies/@types__react-19.2.17.txt)
+Redistributed license: [`LICENSES/dependencies/@types__react-19.3.0.txt`](LICENSES/dependencies/@types__react-19.3.0.txt)
 
 License SHA-256: `c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383`
 
 Package repository: https://github.com/DefinitelyTyped/DefinitelyTyped.git
 
-Locked package tarball: https://registry.npmjs.org/@types/react/-/react-19.2.17.tgz
+Locked package tarball: https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz
 
 ## `@types/react-reconciler` 0.28.9
 
@@ -182,7 +182,7 @@ Package repository: https://github.com/feross/ieee754.git
 
 Locked package tarball: https://registry.npmjs.org/ieee754/-/ieee754-1.2.1.tgz
 
-## `its-fine` 2.0.0
+## `its-fine` 2.1.1
 
 License expression: `MIT`
 
@@ -190,15 +190,15 @@ Installed package: `node_modules/its-fine`
 
 License input: `node_modules/its-fine/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/its-fine-2.0.0.txt`](LICENSES/dependencies/its-fine-2.0.0.txt)
+Redistributed license: [`LICENSES/dependencies/its-fine-2.1.1.txt`](LICENSES/dependencies/its-fine-2.1.1.txt)
 
-License SHA-256: `506bca9e41227d2ae1fbea8342a1fcff853af8198e9e1f37693a635e86efc539`
+License SHA-256: `643123eeb38f154d93cb8323e1289a648d3f343b411a9340453c010e325d0c82`
 
 Package repository: https://github.com/pmndrs/its-fine
 
-Locked package tarball: https://registry.npmjs.org/its-fine/-/its-fine-2.0.0.tgz
+Locked package tarball: https://registry.npmjs.org/its-fine/-/its-fine-2.1.1.tgz
 
-## `lucide` 1.17.0
+## `lucide` 1.61.0
 
 License expression: `ISC`
 
@@ -206,15 +206,15 @@ Installed package: `node_modules/lucide`
 
 License input: `node_modules/lucide/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/lucide-1.17.0.txt`](LICENSES/dependencies/lucide-1.17.0.txt)
+Redistributed license: [`LICENSES/dependencies/lucide-1.61.0.txt`](LICENSES/dependencies/lucide-1.61.0.txt)
 
 License SHA-256: `b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57`
 
 Package repository: https://github.com/lucide-icons/lucide.git
 
-Locked package tarball: https://registry.npmjs.org/lucide/-/lucide-1.17.0.tgz
+Locked package tarball: https://registry.npmjs.org/lucide/-/lucide-1.61.0.tgz
 
-## `mediabunny` 1.46.0
+## `mediabunny` 1.62.1
 
 License expression: `MPL-2.0`
 
@@ -222,15 +222,15 @@ Installed package: `node_modules/mediabunny`
 
 License input: `node_modules/mediabunny/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/mediabunny-1.46.0.txt`](LICENSES/dependencies/mediabunny-1.46.0.txt)
+Redistributed license: [`LICENSES/dependencies/mediabunny-1.62.1.txt`](LICENSES/dependencies/mediabunny-1.62.1.txt)
 
 License SHA-256: `3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04`
 
 Package repository: https://github.com/Vanilagy/mediabunny.git
 
-Locked package tarball: https://registry.npmjs.org/mediabunny/-/mediabunny-1.46.0.tgz
+Locked package tarball: https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz
 
-MPL corresponding source: https://registry.npmjs.org/mediabunny/-/mediabunny-1.46.0.tgz
+MPL corresponding source: https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz
 
 ## `react` 19.2.7
 
@@ -328,7 +328,7 @@ Package repository: https://github.com/mrdoob/three.js
 
 Locked package tarball: https://registry.npmjs.org/three/-/three-0.184.0.tgz
 
-## `use-sync-external-store` 1.6.0
+## `use-sync-external-store` 1.7.0
 
 License expression: `MIT`
 
@@ -336,15 +336,15 @@ Installed package: `node_modules/use-sync-external-store`
 
 License input: `node_modules/use-sync-external-store/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/use-sync-external-store-1.6.0.txt`](LICENSES/dependencies/use-sync-external-store-1.6.0.txt)
+Redistributed license: [`LICENSES/dependencies/use-sync-external-store-1.7.0.txt`](LICENSES/dependencies/use-sync-external-store-1.7.0.txt)
 
 License SHA-256: `da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93`
 
-Package repository: https://github.com/facebook/react.git
+Package repository: https://github.com/react/react.git
 
-Locked package tarball: https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.6.0.tgz
+Locked package tarball: https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.7.0.tgz
 
-## `zustand` 5.0.14
+## `zustand` 5.0.16
 
 License expression: `MIT`
 
@@ -352,10 +352,10 @@ Installed package: `node_modules/zustand`
 
 License input: `node_modules/zustand/LICENSE`
 
-Redistributed license: [`LICENSES/dependencies/zustand-5.0.14.txt`](LICENSES/dependencies/zustand-5.0.14.txt)
+Redistributed license: [`LICENSES/dependencies/zustand-5.0.16.txt`](LICENSES/dependencies/zustand-5.0.16.txt)
 
 License SHA-256: `c1e6e266563517467b1bf874817d23e426f3149252bd7d42758cd697514b8417`
 
 Package repository: https://github.com/pmndrs/zustand.git
 
-Locked package tarball: https://registry.npmjs.org/zustand/-/zustand-5.0.14.tgz
+Locked package tarball: https://registry.npmjs.org/zustand/-/zustand-5.0.16.tgz

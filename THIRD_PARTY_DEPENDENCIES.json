@@ -3,15 +3,15 @@
   "entries": [
     {
       "packageName": "@babel/runtime",
-      "version": "7.29.7",
+      "version": "7.29.10",
       "packagePath": "node_modules/@babel/runtime",
       "licenseExpression": "MIT",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/@babel/runtime/LICENSE",
-      "archivePath": "LICENSES/dependencies/@babel__runtime-7.29.7.txt",
+      "archivePath": "LICENSES/dependencies/@babel__runtime-7.29.10.txt",
       "sha256": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76",
       "sourceUrl": "https://github.com/babel/babel.git",
-      "packageResolved": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.29.7.tgz"
+      "packageResolved": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.29.10.tgz"
     },
     {
       "packageName": "@react-three/fiber",
@@ -32,15 +32,15 @@
     },
     {
       "packageName": "@types/dom-mediacapture-transform",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "packagePath": "node_modules/@types/dom-mediacapture-transform",
       "licenseExpression": "MIT",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/@types/dom-mediacapture-transform/LICENSE",
-      "archivePath": "LICENSES/dependencies/@types__dom-mediacapture-transform-0.1.11.txt",
+      "archivePath": "LICENSES/dependencies/@types__dom-mediacapture-transform-0.1.12.txt",
       "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
       "sourceUrl": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "packageResolved": "https://registry.npmjs.org/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.11.tgz"
+      "packageResolved": "https://registry.npmjs.org/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.12.tgz"
     },
     {
       "packageName": "@types/dom-webcodecs",
@@ -56,15 +56,15 @@
     },
     {
       "packageName": "@types/react",
-      "version": "19.2.17",
+      "version": "19.3.0",
       "packagePath": "node_modules/@types/react",
       "licenseExpression": "MIT",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/@types/react/LICENSE",
-      "archivePath": "LICENSES/dependencies/@types__react-19.2.17.txt",
+      "archivePath": "LICENSES/dependencies/@types__react-19.3.0.txt",
       "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
       "sourceUrl": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "packageResolved": "https://registry.npmjs.org/@types/react/-/react-19.2.17.tgz"
+      "packageResolved": "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz"
     },
     {
       "packageName": "@types/react-reconciler",
@@ -140,40 +140,40 @@
     },
     {
       "packageName": "its-fine",
-      "version": "2.0.0",
+      "version": "2.1.1",
       "packagePath": "node_modules/its-fine",
       "licenseExpression": "MIT",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/its-fine/LICENSE",
-      "archivePath": "LICENSES/dependencies/its-fine-2.0.0.txt",
-      "sha256": "506bca9e41227d2ae1fbea8342a1fcff853af8198e9e1f37693a635e86efc539",
+      "archivePath": "LICENSES/dependencies/its-fine-2.1.1.txt",
+      "sha256": "643123eeb38f154d93cb8323e1289a648d3f343b411a9340453c010e325d0c82",
       "sourceUrl": "https://github.com/pmndrs/its-fine",
-      "packageResolved": "https://registry.npmjs.org/its-fine/-/its-fine-2.0.0.tgz"
+      "packageResolved": "https://registry.npmjs.org/its-fine/-/its-fine-2.1.1.tgz"
     },
     {
       "packageName": "lucide",
-      "version": "1.17.0",
+      "version": "1.61.0",
       "packagePath": "node_modules/lucide",
       "licenseExpression": "ISC",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/lucide/LICENSE",
-      "archivePath": "LICENSES/dependencies/lucide-1.17.0.txt",
+      "archivePath": "LICENSES/dependencies/lucide-1.61.0.txt",
       "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
       "sourceUrl": "https://github.com/lucide-icons/lucide.git",
-      "packageResolved": "https://registry.npmjs.org/lucide/-/lucide-1.17.0.tgz"
+      "packageResolved": "https://registry.npmjs.org/lucide/-/lucide-1.61.0.tgz"
     },
     {
       "packageName": "mediabunny",
-      "version": "1.46.0",
+      "version": "1.62.1",
       "packagePath": "node_modules/mediabunny",
       "licenseExpression": "MPL-2.0",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/mediabunny/LICENSE",
-      "archivePath": "LICENSES/dependencies/mediabunny-1.46.0.txt",
+      "archivePath": "LICENSES/dependencies/mediabunny-1.62.1.txt",
       "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
       "sourceUrl": "https://github.com/Vanilagy/mediabunny.git",
-      "packageResolved": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.46.0.tgz",
-      "correspondingSourceUrl": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.46.0.tgz"
+      "packageResolved": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz",
+      "correspondingSourceUrl": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz"
     },
     {
       "packageName": "react",
@@ -249,27 +249,27 @@
     },
     {
       "packageName": "use-sync-external-store",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "packagePath": "node_modules/use-sync-external-store",
       "licenseExpression": "MIT",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/use-sync-external-store/LICENSE",
-      "archivePath": "LICENSES/dependencies/use-sync-external-store-1.6.0.txt",
+      "archivePath": "LICENSES/dependencies/use-sync-external-store-1.7.0.txt",
       "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
-      "sourceUrl": "https://github.com/facebook/react.git",
-      "packageResolved": "https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.6.0.tgz"
+      "sourceUrl": "https://github.com/react/react.git",
+      "packageResolved": "https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.7.0.tgz"
     },
     {
       "packageName": "zustand",
-      "version": "5.0.14",
+      "version": "5.0.16",
       "packagePath": "node_modules/zustand",
       "licenseExpression": "MIT",
       "licenseSourceKind": "installed-file",
       "licenseSource": "node_modules/zustand/LICENSE",
-      "archivePath": "LICENSES/dependencies/zustand-5.0.14.txt",
+      "archivePath": "LICENSES/dependencies/zustand-5.0.16.txt",
       "sha256": "c1e6e266563517467b1bf874817d23e426f3149252bd7d42758cd697514b8417",
       "sourceUrl": "https://github.com/pmndrs/zustand.git",
-      "packageResolved": "https://registry.npmjs.org/zustand/-/zustand-5.0.14.tgz"
+      "packageResolved": "https://registry.npmjs.org/zustand/-/zustand-5.0.16.tgz"
     }
   ]
 }

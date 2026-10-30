@@ -22,7 +22,11 @@ const viewerBuildEnvironment = {
 };
 
 await rm("dist", { force: true, recursive: true });
-await execa("npx", ["tsc", "-p", "tooling/configs/typescript/sdk.json"]);
+await execa(process.execPath, [
+  "node_modules/@typescript/native/bin/tsc",
+  "-p",
+  "tooling/configs/typescript/sdk.json",
+]);
 await writeDeclarationManifest("dist");
 await execa(
   "npx",

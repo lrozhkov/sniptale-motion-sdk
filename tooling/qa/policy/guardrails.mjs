@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { inspectRepositoryHygiene } from "./repository-hygiene.mjs";
 import { inspectRuntimeDependencyOwnership } from "./runtime-dependencies.mjs";
+import { inspectDependencyAdmission } from "../security/dependency-admission.mjs";
 
 const repoRoot = process.cwd();
 const violations = [];
@@ -229,6 +230,7 @@ walk(repoRoot);
 detectImportCycles();
 violations.push(...inspectRepositoryHygiene(repoRoot));
 violations.push(...inspectRuntimeDependencyOwnership(repoRoot));
+violations.push(...inspectDependencyAdmission(repoRoot));
 
 if (violations.length > 0) {
   console.error("Guardrail violations:");

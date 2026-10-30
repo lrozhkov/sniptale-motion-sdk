@@ -130,6 +130,7 @@ describe("architecture guardrails", () => {
       "qa:checkpoint": "node tooling/qa/wrappers/checkpoint.mjs",
       "qa:closeout": "node tooling/qa/wrappers/closeout.mjs",
       "qa:coverage": "node tooling/qa/wrappers/coverage.mjs",
+      "qa:dependencies": "node tooling/qa/security/dependency-age.mjs",
       "qa:licenses":
         "node tooling/release/dependency-legal/audit-full-lock.mjs",
       "qa:preflight": "node tooling/qa/wrappers/preflight.mjs",
@@ -143,7 +144,7 @@ describe("architecture guardrails", () => {
       "test:coverage":
         "vitest run --coverage --config tooling/configs/qa/vitest.ts",
       "test:smoke": "node tooling/test/smoke/run.mjs",
-      typecheck: "tsc --noEmit",
+      typecheck: "node node_modules/@typescript/native/bin/tsc --noEmit",
     });
   });
 
@@ -203,7 +204,7 @@ describe("architecture guardrails", () => {
   it("keeps release build stages in their required order", () => {
     expectSourceOrder(read("tooling/build/run.mjs"), [
       'await rm("dist"',
-      'await execa("npx", ["tsc", "-p", "tooling/configs/typescript/sdk.json"]);',
+      '"node_modules/@typescript/native/bin/tsc"',
       'await writeDeclarationManifest("dist");',
       '"tooling/configs/vite/viewer.ts"',
       '"tooling/configs/vite/sandbox.ts"',
