@@ -209,17 +209,20 @@ describe("viewer canvas transform math", () => {
     expect(normalizeCanvasAngleDelta(-358)).toBe(2);
   });
 
-  it.each(["linear", "in", "out", "inOut", "hold", "bezier"])(
+  it.each(["linear", "in", "out", "inOut", "hold", "bezier"] as const)(
     "samples %s tracks with the renderer easing contract",
     (easing) => {
       const from = {
+        id: "from",
         easing,
         handles: { x1: 0.25, y1: 0.1, x2: 0.25, y2: 1 },
         time: 0,
         value: 0,
       };
       const track = {
-        keyframes: [from, { time: 1, value: 100 }],
+        id: "position",
+        property: "x",
+        keyframes: [from, { id: "to", time: 1, value: 100 }],
       };
       const expectedProgress = {
         bezier: 0.8024,
@@ -231,7 +234,7 @@ describe("viewer canvas transform math", () => {
       }[easing];
 
       expect(
-        resolveNumericTrack({ deps: { clamp } } as any, track, 0.5, 0),
+        resolveNumericTrack({ deps: { clamp } }, track, 0.5, 0),
       ).toBeCloseTo(expectedProgress * 100, easing === "bezier" ? 1 : 6);
     },
   );
@@ -242,20 +245,27 @@ describe("viewer canvas transform math", () => {
       scenes: [{ enabled: true, id: "main" }],
     };
     const track = {
+      id: "position",
+      property: "x",
       keyframes: [
-        { phaseId: "disabled-phase", time: 0, value: 90 },
-        { time: 0, value: 10 },
-        { enabled: false, time: 0.5, value: 80 },
-        { time: 1, value: 30 },
+        {
+          id: "disabled-phase-key",
+          phaseId: "disabled-phase",
+          time: 0,
+          value: 90,
+        },
+        { id: "start", time: 0, value: 10 },
+        { id: "disabled-key", enabled: false, time: 0.5, value: 80 },
+        { id: "end", time: 1, value: 30 },
       ],
     };
 
     expect(
-      resolveNumericTrack({ deps: { clamp } } as any, track, 0.5, 5, timeline),
+      resolveNumericTrack({ deps: { clamp } }, track, 0.5, 5, timeline),
     ).toBe(20);
     expect(
       resolveNumericTrack(
-        { deps: { clamp } } as any,
+        { deps: { clamp } },
         { ...track, phaseId: "disabled-phase" },
         0.5,
         5,
@@ -311,7 +321,7 @@ describe("viewer canvas transform math", () => {
 
     expect(
       resolveNumericTrack(
-        { deps: { clamp } } as any,
+        { deps: { clamp } },
         timeline.tracks[0],
         0.5,
         0,
@@ -320,7 +330,7 @@ describe("viewer canvas transform math", () => {
     ).toBe(87.5);
     expect(
       resolveNumericTrack(
-        { deps: { clamp } } as any,
+        { deps: { clamp } },
         timeline.tracks[1],
         0.5,
         0,

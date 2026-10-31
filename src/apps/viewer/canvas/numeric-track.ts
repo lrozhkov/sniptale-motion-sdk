@@ -1,13 +1,16 @@
+import type { TimelineKeyframe, EffectScene } from "../../../sdk/types.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { CanvasMotionPathTimeline } from "./motion-path-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolveTimelineEase } from "../../../sdk/timeline/easing.js";
 import { resolveViewerMotionPathTrackValue } from "./motion-path-resolver.js";
 
 export function resolveNumericTrack(
-  ctx: ViewerAppContext,
-  track,
-  time,
-  fallback,
-  timeline = null,
+  ctx: { deps: Pick<ViewerAppContext["deps"], "clamp"> },
+  track: MotionPathTrack | null | undefined,
+  time: number,
+  fallback: number,
+  timeline: CanvasMotionPathTimeline | null = null,
 ) {
   if (
     track?.enabled === false ||
@@ -23,28 +26,31 @@ export function resolveNumericTrack(
   if (motionPathValue !== null) {
     return motionPathValue;
   }
-  const keyframes = Array.isArray(track?.keyframes)
-    ? track.keyframes.filter(
-        (item) =>
-          item.enabled !== false &&
-          typeof item.value === "number" &&
-          isTimelineOwnerEnabled(timeline, item.sceneId, item.phaseId),
-      )
-    : [];
+  const keyframes = (track?.keyframes ?? []).filter(
+    (item): item is TimelineKeyframe<number> =>
+      item.enabled !== false &&
+      typeof item.value === "number" &&
+      Number.isFinite(item.value) &&
+      Number.isFinite(item.time) &&
+      isTimelineOwnerEnabled(timeline, item.sceneId, item.phaseId),
+  );
   if (keyframes.length === 0) {
     return fallback;
   }
   const sorted = [...keyframes].sort((a, b) => a.time - b.time);
-  if (time <= sorted[0].time) {
-    return sorted[0].value;
+  const first = sorted[0];
+  const last = sorted.at(-1);
+  if (!first || !last) return fallback;
+  if (time <= first.time) {
+    return first.value;
   }
-  const last = sorted[sorted.length - 1];
   if (time >= last.time) {
     return last.value;
   }
   for (let index = 0; index < sorted.length - 1; index += 1) {
     const from = sorted[index];
     const to = sorted[index + 1];
+    if (!from || !to) continue;
     if (time >= from.time && time <= to.time) {
       const t = ctx.deps.clamp(
         (time - from.time) / Math.max(0.001, to.time - from.time),
@@ -58,7 +64,11 @@ export function resolveNumericTrack(
   return fallback;
 }
 
-function isTimelineOwnerEnabled(timeline, sceneId, phaseId) {
+function isTimelineOwnerEnabled(
+  timeline: CanvasMotionPathTimeline | null,
+  sceneId: string | null | undefined,
+  phaseId: string | null | undefined,
+) {
   if (!timeline) {
     return true;
   }
@@ -76,7 +86,10 @@ function isTimelineOwnerEnabled(timeline, sceneId, phaseId) {
   );
 }
 
-function isSceneEnabled(scenes: any[] = [], sceneId = null) {
+function isSceneEnabled(
+  scenes: readonly Pick<EffectScene, "id" | "enabled">[] = [],
+  sceneId: string | null | undefined = null,
+) {
   if (!sceneId) {
     return true;
   }
@@ -88,14 +101,11 @@ export function getDefaultLayerProperty(
   layer: Record<string, unknown>,
   property: string,
 ): number {
-  if (
-    property === "opacity" ||
+  const value = layer[property];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return property === "opacity" ||
     property === "scaleX" ||
     property === "scaleY"
-  ) {
-    return Number.isFinite(Number(layer[property]))
-      ? Number(layer[property])
-      : 1;
-  }
-  return Number.isFinite(Number(layer[property])) ? Number(layer[property]) : 0;
+    ? 1
+    : 0;
 }

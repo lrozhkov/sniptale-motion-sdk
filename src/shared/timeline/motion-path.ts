@@ -76,7 +76,7 @@ export function normalizeMotionPaths(value: unknown): TimelineMotionPath[] {
 
 export function createMotionPathGeometry(
   timeline:
-    | { motionPaths?: unknown; tracks?: MotionPathTrack[] }
+    | { motionPaths?: unknown; tracks?: readonly MotionPathTrack[] }
     | null
     | undefined,
   layerId: string,
@@ -254,7 +254,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function findMotionPathTrack(
-  timeline: { tracks?: MotionPathTrack[] } | null | undefined,
+  timeline: { tracks?: readonly MotionPathTrack[] } | null | undefined,
   layerId: string,
   property: "x" | "y",
 ) {

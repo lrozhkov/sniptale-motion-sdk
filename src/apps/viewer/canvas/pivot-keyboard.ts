@@ -9,6 +9,7 @@ function rotateSelectedCanvasLayer(ctx: ViewerAppContext, delta) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||
@@ -48,6 +49,7 @@ function moveSelectedCanvasAnchor(ctx: ViewerAppContext, delta) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||

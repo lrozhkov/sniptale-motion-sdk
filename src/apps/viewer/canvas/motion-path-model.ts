@@ -1,3 +1,19 @@
+import type {
+  EffectLayer,
+  TimelineKeyframe,
+  TimelinePhase,
+  EffectScene,
+  TimelineMotionPath,
+} from "../../../sdk/types.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { KeyframeSelectionRef } from "../timeline/model/selection-model.js";
+
+export type CanvasMotionPathTimeline = {
+  tracks?: readonly MotionPathTrack[];
+  phases?: readonly Pick<TimelinePhase, "id" | "enabled" | "sceneId">[];
+  scenes?: readonly Pick<EffectScene, "id" | "enabled">[];
+  motionPaths?: readonly TimelineMotionPath[];
+};
 import {
   createMotionPathGeometry,
   getMotionPathLayerProperty,
@@ -14,10 +30,10 @@ export type CanvasMotionPathPoint = {
   outTangent: MotionPathTangent;
   time: number;
   x: number;
-  xKeyframe: any;
+  xKeyframe: TimelineKeyframe<unknown>;
   xKeyframeId: string;
   y: number;
-  yKeyframe: any;
+  yKeyframe: TimelineKeyframe<unknown>;
   yKeyframeId: string;
 };
 
@@ -27,8 +43,8 @@ export type CanvasMotionPathModel =
       ok: true;
       points: CanvasMotionPathPoint[];
       source: "legacy" | "spatial";
-      xTrack: any;
-      yTrack: any;
+      xTrack: MotionPathTrack;
+      yTrack: MotionPathTrack;
     }
   | {
       layerId: string;
@@ -45,7 +61,7 @@ export type CanvasMotionPathModel =
     };
 
 export function createCanvasMotionPathModel(
-  timeline,
+  timeline: CanvasMotionPathTimeline | null | undefined,
   layerId: string,
 ): CanvasMotionPathModel {
   const configured = (timeline?.motionPaths ?? []).some(
@@ -91,11 +107,11 @@ export function getCanvasMotionPathPointRefs(
 
 export function isCanvasMotionPathPointSelected(
   point: CanvasMotionPathPoint,
-  refs,
+  refs: readonly KeyframeSelectionRef[],
   xTrackId: string,
   yTrackId: string,
 ): boolean {
-  return (Array.isArray(refs) ? refs : []).some(
+  return refs.some(
     (ref) =>
       (ref.trackId === xTrackId && ref.keyframeId === point.xKeyframeId) ||
       (ref.trackId === yTrackId && ref.keyframeId === point.yKeyframeId),
@@ -117,7 +133,7 @@ export function findCanvasMotionPathPoint(
 }
 
 function createLegacyMotionPathModel(
-  timeline,
+  timeline: CanvasMotionPathTimeline | null | undefined,
   layerId: string,
 ): CanvasMotionPathModel {
   const xTrack = findLayerPropertyTrack(timeline, layerId, "x");
@@ -139,6 +155,8 @@ function createLegacyMotionPathModel(
   for (let index = 0; index < xKeyframes.length; index += 1) {
     const xKeyframe = xKeyframes[index];
     const yKeyframe = yKeyframes[index];
+    if (!xKeyframe || !yKeyframe)
+      return { layerId, ok: false, reason: "unpaired-keyframes" };
     if (
       Math.abs(Number(xKeyframe.time) - Number(yKeyframe.time)) >
       KEYFRAME_TIME_EPSILON
@@ -173,19 +191,24 @@ function createLegacyMotionPathModel(
   };
 }
 
-function findLayerPropertyTrack(timeline, layerId, property) {
+function findLayerPropertyTrack(
+  timeline: CanvasMotionPathTimeline | null | undefined,
+  layerId: string,
+  property: "x" | "y",
+) {
   return (timeline?.tracks ?? []).find((track) => {
     const owner = getMotionPathLayerProperty(track);
     return owner?.layerId === layerId && owner.property === property;
   });
 }
 
-function sortNumericKeyframes(track) {
+function sortNumericKeyframes(track: MotionPathTrack) {
   const keyframes = (track?.keyframes ?? []).filter(
-    (keyframe) =>
-      keyframe?.id &&
-      Number.isFinite(Number(keyframe.time)) &&
-      Number.isFinite(Number(keyframe.value)),
+    (keyframe): keyframe is TimelineKeyframe<number> =>
+      Boolean(keyframe.id) &&
+      Number.isFinite(keyframe.time) &&
+      typeof keyframe.value === "number" &&
+      Number.isFinite(keyframe.value),
   );
   if (keyframes.length !== (track?.keyframes ?? []).length) {
     return [];
@@ -193,30 +216,43 @@ function sortNumericKeyframes(track) {
   return [...keyframes].sort((left, right) => left.time - right.time);
 }
 
-function hasDuplicateTimes(keyframes): boolean {
-  return keyframes.some(
-    (keyframe, index) =>
-      index > 0 &&
-      Math.abs(Number(keyframe.time) - Number(keyframes[index - 1].time)) <
-        KEYFRAME_TIME_EPSILON,
-  );
+function hasDuplicateTimes(
+  keyframes: readonly TimelineKeyframe<number>[],
+): boolean {
+  return keyframes.some((keyframe, index) => {
+    const previous = keyframes[index - 1];
+    return (
+      previous !== undefined &&
+      Math.abs(keyframe.time - previous.time) < KEYFRAME_TIME_EPSILON
+    );
+  });
 }
 
-function isTimelineTrackEnabled(timeline, track): boolean {
+function isTimelineTrackEnabled(
+  timeline: CanvasMotionPathTimeline | null | undefined,
+  track: MotionPathTrack,
+): boolean {
   return (
     track?.enabled !== false &&
     isTimelineOwnerEnabled(timeline, track?.sceneId, track?.phaseId)
   );
 }
 
-function isTimelineKeyframeEnabled(timeline, keyframe): boolean {
+function isTimelineKeyframeEnabled(
+  timeline: CanvasMotionPathTimeline | null | undefined,
+  keyframe: TimelineKeyframe<unknown>,
+): boolean {
   return (
     keyframe?.enabled !== false &&
     isTimelineOwnerEnabled(timeline, keyframe?.sceneId, keyframe?.phaseId)
   );
 }
 
-function isTimelineOwnerEnabled(timeline, sceneId, phaseId): boolean {
+function isTimelineOwnerEnabled(
+  timeline: CanvasMotionPathTimeline | null | undefined,
+  sceneId: string | null | undefined,
+  phaseId: string | null | undefined,
+): boolean {
   const scene = sceneId
     ? timeline?.scenes?.find((entry) => entry.id === sceneId)
     : null;
@@ -232,3 +268,15 @@ function isTimelineOwnerEnabled(timeline, sceneId, phaseId): boolean {
     phaseScene?.enabled !== false
   );
 }
+
+export type CanvasMotionPathSelection = {
+  layer: EffectLayer;
+  model: Extract<CanvasMotionPathModel, { ok: true }>;
+  point: CanvasMotionPathPoint;
+};
+
+export type CanvasMotionPathEditBlockReason =
+  | "disabled"
+  | "inactive"
+  | "locked"
+  | "unsupported";

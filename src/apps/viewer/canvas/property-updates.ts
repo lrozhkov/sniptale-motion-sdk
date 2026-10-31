@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+import type {
+  CanvasPropertyActions,
+  CanvasUpdateOptions,
+  CanvasPropertyResolution,
+} from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { prepareCanvasGesture } from "./gesture.js";
 import {
@@ -9,10 +17,10 @@ import { updateLayerPropertyBatchAtTime as updateLayerPropertyBatchAtTimeOwner }
 
 function updatePathPoint(
   ctx: ViewerAppContext,
-  layerId,
-  pointIndex,
-  point,
-  options: any = {},
+  layerId: string,
+  pointIndex: number,
+  point: { x: number; y: number },
+  options: CanvasUpdateOptions = {},
 ) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
@@ -45,10 +53,10 @@ function updatePathPoint(
 
 function updateLayerPosition(
   ctx: ViewerAppContext,
-  layerId,
-  x,
-  y,
-  options: any = {},
+  layerId: string,
+  x: number,
+  y: number,
+  options: CanvasUpdateOptions = {},
 ) {
   ctx.updateLayerPropertiesAtTime(
     layerId,
@@ -60,20 +68,20 @@ function updateLayerPosition(
 
 function updateLayerPositionAtTime(
   ctx: ViewerAppContext,
-  layerId,
-  time,
-  x,
-  y,
-  options: any = {},
+  layerId: string,
+  time: number,
+  x: number,
+  y: number,
+  options: CanvasUpdateOptions = {},
 ) {
   ctx.updateLayerPropertiesAtTime(layerId, time, { x, y }, options);
 }
 
 function updateLayerDefinitionProperty(
   ctx: ViewerAppContext,
-  layerId,
-  property,
-  value,
+  layerId: string,
+  property: string,
+  value: unknown,
 ) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
@@ -92,9 +100,9 @@ function updateLayerDefinitionProperty(
 
 function updateLayerClipProperty(
   ctx: ViewerAppContext,
-  layerId,
-  property,
-  value,
+  layerId: string,
+  property: "start" | "duration" | "offset",
+  value: number | string,
 ) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
@@ -139,10 +147,10 @@ function updateLayerClipProperty(
 
 function updateLayerProperty(
   ctx: ViewerAppContext,
-  layerId,
-  property,
-  value,
-  options: any = {},
+  layerId: string,
+  property: string,
+  value: unknown,
+  options: CanvasUpdateOptions = {},
 ) {
   ctx.updateLayerPropertyAtTime(
     layerId,
@@ -155,11 +163,11 @@ function updateLayerProperty(
 
 function updateLayerPropertyAtTime(
   ctx: ViewerAppContext,
-  layerId,
-  property,
-  time,
-  value,
-  options: any = {},
+  layerId: string,
+  property: string,
+  time: number,
+  value: unknown,
+  options: CanvasUpdateOptions = {},
 ) {
   ctx.updateLayerPropertiesAtTime(
     layerId,
@@ -169,7 +177,7 @@ function updateLayerPropertyAtTime(
   );
 }
 
-function nudgeSelectedLayer(ctx: ViewerAppContext, dx, dy) {
+function nudgeSelectedLayer(ctx: ViewerAppContext, dx: number, dy: number) {
   const selectionTarget = ctx.getCanvasSelectionTarget?.(
     ctx.getEffectiveTemplate(ctx.state.currentTemplate),
   );
@@ -202,7 +210,7 @@ function nudgeSelectedLayer(ctx: ViewerAppContext, dx, dy) {
     coalesceKey: `nudge-layer:${layerId}`,
   });
   ctx.updateLayerPositionAtTime(
-    layerId,
+    layer.id,
     time,
     ctx.getResolvedLayerProperty(layer, "x", resolution) + dx,
     ctx.getResolvedLayerProperty(layer, "y", resolution) + dy,
@@ -211,10 +219,10 @@ function nudgeSelectedLayer(ctx: ViewerAppContext, dx, dy) {
 
 function upsertTrackKeyframe(
   ctx: ViewerAppContext,
-  timeline,
-  layerId,
-  property,
-  value,
+  timeline: EditorTimeline,
+  layerId: string,
+  property: string,
+  value: unknown,
   atTime = ctx.snapTime(Number(ctx.refs.timeSlider.value) || 0),
 ) {
   const trackId = `${layerId}.${property}`;
@@ -260,9 +268,9 @@ function upsertTrackKeyframe(
 
 function getResolvedLayerProperty(
   ctx: ViewerAppContext,
-  layer,
-  property,
-  resolution: any = {},
+  layer: EffectLayer,
+  property: string,
+  resolution: CanvasPropertyResolution = {},
 ) {
   const template = ctx.state.currentTemplate;
   const timeline = resolution.timeline ?? ctx.getEffectiveTimeline(template);
@@ -277,34 +285,44 @@ function getResolvedLayerProperty(
   );
 }
 
-export function installCanvasPropertyUpdatesOwner(ctx: ViewerAppContext): void {
-  ctx.updatePathPoint = updatePathPoint.bind(undefined, ctx);
-  ctx.updateLayerPosition = updateLayerPosition.bind(undefined, ctx);
-  ctx.updateLayerPositionAtTime = updateLayerPositionAtTime.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateLayerPropertiesAtTime = updateLayerPropertiesAtTimeOwner.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateLayerPropertyBatchAtTime = updateLayerPropertyBatchAtTimeOwner.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateLayerDefinitionProperty = updateLayerDefinitionProperty.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateLayerClipProperty = updateLayerClipProperty.bind(undefined, ctx);
-  ctx.updateLayerProperty = updateLayerProperty.bind(undefined, ctx);
-  ctx.updateLayerPropertyAtTime = updateLayerPropertyAtTime.bind(
-    undefined,
-    ctx,
-  );
-  ctx.nudgeSelectedLayer = nudgeSelectedLayer.bind(undefined, ctx);
-  ctx.upsertTrackKeyframe = upsertTrackKeyframe.bind(undefined, ctx);
-  ctx.getResolvedLayerProperty = getResolvedLayerProperty.bind(undefined, ctx);
-  ctx.getDefaultLayerProperty = getDefaultLayerProperty.bind(undefined);
-  ctx.resolveNumericTrack = resolveNumericTrackOwner.bind(undefined, ctx);
+export function createCanvasPropertyActions(
+  getContext: () => ViewerAppContext,
+): CanvasPropertyActions {
+  return {
+    updatePathPoint: bindViewerAction(updatePathPoint, getContext),
+    updateLayerPosition: bindViewerAction(updateLayerPosition, getContext),
+    updateLayerPositionAtTime: bindViewerAction(
+      updateLayerPositionAtTime,
+      getContext,
+    ),
+    updateLayerDefinitionProperty: bindViewerAction(
+      updateLayerDefinitionProperty,
+      getContext,
+    ),
+    updateLayerClipProperty: bindViewerAction(
+      updateLayerClipProperty,
+      getContext,
+    ),
+    updateLayerProperty: bindViewerAction(updateLayerProperty, getContext),
+    updateLayerPropertyAtTime: bindViewerAction(
+      updateLayerPropertyAtTime,
+      getContext,
+    ),
+    upsertTrackKeyframe: bindViewerAction(upsertTrackKeyframe, getContext),
+    getResolvedLayerProperty: bindViewerAction(
+      getResolvedLayerProperty,
+      getContext,
+    ),
+    nudgeSelectedLayer: bindViewerAction(nudgeSelectedLayer, getContext),
+    updateLayerPropertiesAtTime: bindViewerAction(
+      updateLayerPropertiesAtTimeOwner,
+      getContext,
+    ),
+    updateLayerPropertyBatchAtTime: bindViewerAction(
+      updateLayerPropertyBatchAtTimeOwner,
+      getContext,
+    ),
+    getDefaultLayerProperty,
+    resolveNumericTrack: bindViewerAction(resolveNumericTrackOwner, getContext),
+  };
 }

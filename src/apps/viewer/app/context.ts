@@ -1,3 +1,9 @@
+import type { InspectorMotionPathActions } from "../inspector/contract.js";
+import type {
+  CanvasMotionPathUpdateActions,
+  CanvasPropertyActions,
+  CanvasMotionPathSelectionActions,
+} from "../canvas/contract.js";
 import type {
   TimelineLayerGestureActions,
   TimelineSelectionGestureActions,
@@ -37,6 +43,10 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    CanvasMotionPathUpdateActions,
+    InspectorMotionPathActions,
+    CanvasPropertyActions,
+    CanvasMotionPathSelectionActions,
     Mp4ExportActions,
     KeyframeEditActions,
     GraphEditorActions,

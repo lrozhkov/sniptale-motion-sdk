@@ -5,7 +5,7 @@ import { prepareCanvasGesture } from "./gesture.js";
 function beginCanvasLayerDrag(
   ctx: ViewerAppContext,
   event,
-  explicitLayerId = null,
+  explicitLayerId: string | null = null,
 ) {
   if (
     explicitLayerId === null &&
@@ -19,6 +19,7 @@ function beginCanvasLayerDrag(
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId =
     explicitLayerId ?? ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||

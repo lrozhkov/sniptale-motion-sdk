@@ -1,3 +1,9 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  CanvasMotionPathUpdateActions,
+  CanvasMotionPathPositionUpdate,
+  CanvasMotionPathUpdateOptions,
+} from "./contract.js";
 import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
@@ -10,22 +16,10 @@ import {
   reportCanvasMotionPathEditFailure,
 } from "./motion-path-updates.js";
 
-export type CanvasMotionPathPointPositionUpdate = {
-  layerId: string;
-  position: { x: number; y: number };
-  xKeyframeId: string;
-  yKeyframeId: string;
-};
-
 export function updateCanvasMotionPathPointPositions(
   ctx: ViewerAppContext,
-  sourceUpdates: CanvasMotionPathPointPositionUpdate[],
-  options: {
-    inspector?: boolean;
-    render?: boolean;
-    selection?: boolean;
-    timeline?: boolean;
-  } = {},
+  sourceUpdates: readonly CanvasMotionPathPositionUpdate[],
+  options: CanvasMotionPathUpdateOptions = {},
 ): boolean {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -110,18 +104,22 @@ export function updateCanvasMotionPathPointPositions(
 }
 
 function dedupePositionUpdates(
-  updates: CanvasMotionPathPointPositionUpdate[],
-): CanvasMotionPathPointPositionUpdate[] {
-  const byPoint = new Map<string, CanvasMotionPathPointPositionUpdate>();
+  updates: readonly CanvasMotionPathPositionUpdate[],
+): readonly CanvasMotionPathPositionUpdate[] {
+  const byPoint = new Map<string, CanvasMotionPathPositionUpdate>();
   for (const update of updates) {
     byPoint.set(motionPathPointKey(update), update);
   }
   return [...byPoint.values()];
 }
 
-export function installCanvasMotionPathBatchUpdatesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.updateCanvasMotionPathPointPositions =
-    updateCanvasMotionPathPointPositions.bind(undefined, ctx);
+export function createCanvasMotionPathBatchActions(
+  getContext: () => ViewerAppContext,
+): Pick<CanvasMotionPathUpdateActions, "updateCanvasMotionPathPointPositions"> {
+  return {
+    updateCanvasMotionPathPointPositions: bindViewerAction(
+      updateCanvasMotionPathPointPositions,
+      getContext,
+    ),
+  };
 }

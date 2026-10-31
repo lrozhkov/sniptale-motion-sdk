@@ -1,3 +1,9 @@
+import { createInspectorMotionPathActions } from "../inspector/motion-path-point.js";
+import { createCanvasMotionPathUpdateActions } from "../canvas/motion-path-updates.js";
+import { createCanvasMotionPathBatchActions } from "../canvas/motion-path-batch-updates.js";
+import { createCanvasMotionPathKindActions } from "../canvas/motion-path-kind-updates.js";
+import { createCanvasPropertyActions } from "../canvas/property-updates.js";
+import { createCanvasMotionPathSelectionActions } from "../canvas/motion-path-selection.js";
 import { createTimelineLayerReparentActions } from "../timeline/interaction/layer-reparent.js";
 import { createTimelineMarqueeActions } from "../timeline/interaction/marquee.js";
 import { createTimelinePlaybackRangeActions } from "../timeline/interaction/playback-range.js";
@@ -54,6 +60,12 @@ export function createViewerContext(): ViewerAppContext {
   const ctx: ViewerAppContext = {
     ...createLazyExportFeatures(() => ctx),
     ...createTimelineActions(() => ctx),
+    ...createCanvasMotionPathUpdateActions(() => ctx),
+    ...createCanvasMotionPathBatchActions(() => ctx),
+    ...createCanvasMotionPathKindActions(() => ctx),
+    ...createInspectorMotionPathActions(() => ctx),
+    ...createCanvasPropertyActions(() => ctx),
+    ...createCanvasMotionPathSelectionActions(() => ctx),
     ...createTimelinePointerActions(() => ctx),
     ...createTimelineLayerReparentActions(() => ({
       ...ctx,

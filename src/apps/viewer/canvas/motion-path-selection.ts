@@ -1,3 +1,7 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { CanvasMotionPathSelection } from "./motion-path-model.js";
+import type { CanvasMotionPathSelectionActions } from "./contract.js";
 import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getMotionPathLayerProperty } from "../../../shared/timeline/motion-path.js";
@@ -10,7 +14,7 @@ import {
 
 function getCanvasMotionPathModel(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null | undefined,
   layerId: string,
 ) {
   return createCanvasMotionPathModel(
@@ -66,7 +70,7 @@ function selectCanvasMotionPathPoint(
 
 function isCanvasMotionPathSelectionForLayer(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null | undefined,
   layerId: string,
 ): boolean {
   const model = getCanvasMotionPathModel(ctx, template, layerId);
@@ -92,7 +96,7 @@ function isCanvasMotionPathSelectionForLayer(
 
 function getSelectedCanvasMotionPathPoints(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {
@@ -114,7 +118,7 @@ function getSelectedCanvasMotionPathPoints(
   const layersById = new Map(
     (effectiveTemplate.layers ?? []).map((layer) => [layer.id, layer]),
   );
-  const result: any[] = [];
+  const result: CanvasMotionPathSelection[] = [];
   for (const layerId of candidateLayerIds) {
     const layer = layersById.get(layerId);
     if (!layer) {
@@ -142,7 +146,7 @@ function getSelectedCanvasMotionPathPoints(
 
 function getFullySelectedCanvasMotionPathPoints(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   const selected = ctx.getSelectedKeyframeRefs();
   const selectedKeys = new Set(selected.map(keyframeRefKey));
@@ -162,7 +166,7 @@ function getFullySelectedCanvasMotionPathPoints(
 
 function updateMotionPathContextLayerIds(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null | undefined,
   layerId: string,
   additive: boolean,
 ): void {
@@ -179,18 +183,29 @@ function updateMotionPathContextLayerIds(
   ];
 }
 
-export function installCanvasMotionPathSelectionOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.getCanvasMotionPathModel = getCanvasMotionPathModel.bind(undefined, ctx);
-  ctx.selectCanvasMotionPathPoint = selectCanvasMotionPathPoint.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isCanvasMotionPathSelectionForLayer =
-    isCanvasMotionPathSelectionForLayer.bind(undefined, ctx);
-  ctx.getSelectedCanvasMotionPathPoints =
-    getSelectedCanvasMotionPathPoints.bind(undefined, ctx);
-  ctx.getFullySelectedCanvasMotionPathPoints =
-    getFullySelectedCanvasMotionPathPoints.bind(undefined, ctx);
+export function createCanvasMotionPathSelectionActions(
+  getContext: () => ViewerAppContext,
+): CanvasMotionPathSelectionActions {
+  return {
+    getCanvasMotionPathModel: bindViewerAction(
+      getCanvasMotionPathModel,
+      getContext,
+    ),
+    selectCanvasMotionPathPoint: bindViewerAction(
+      selectCanvasMotionPathPoint,
+      getContext,
+    ),
+    isCanvasMotionPathSelectionForLayer: bindViewerAction(
+      isCanvasMotionPathSelectionForLayer,
+      getContext,
+    ),
+    getSelectedCanvasMotionPathPoints: bindViewerAction(
+      getSelectedCanvasMotionPathPoints,
+      getContext,
+    ),
+    getFullySelectedCanvasMotionPathPoints: bindViewerAction(
+      getFullySelectedCanvasMotionPathPoints,
+      getContext,
+    ),
+  };
 }

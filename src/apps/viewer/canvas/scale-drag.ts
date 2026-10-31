@@ -17,6 +17,7 @@ function beginCanvasScaleDrag(ctx: ViewerAppContext, event, handle) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   const capabilities = layer ? ctx.getLayerEditorCapabilities(layer) : null;
   if (
@@ -137,6 +138,7 @@ function resizeSelectedCanvasLayer(
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   const capabilities = layer ? ctx.getLayerEditorCapabilities(layer) : null;
   if (

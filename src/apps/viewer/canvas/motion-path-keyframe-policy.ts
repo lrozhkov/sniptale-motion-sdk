@@ -1,7 +1,10 @@
-import type { TimelineMotionPath } from "../../../shared/timeline/motion-path.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { TimelineMotionPathPoint } from "../../../sdk/types.js";
+import type { TimelineMotionPath } from "../../../sdk/types.js";
 
 export function getTimelineMotionPath(
-  timeline,
+  timeline: EditorTimeline,
   layerId: string,
 ): TimelineMotionPath | null {
   return (
@@ -11,10 +14,10 @@ export function getTimelineMotionPath(
 }
 
 export function syncMotionPathPositionKeyframes(
-  timeline,
+  timeline: EditorTimeline,
   path: TimelineMotionPath,
-  xKeyframe,
-  yKeyframe,
+  xKeyframe: TimelineKeyframe<unknown> | null | undefined,
+  yKeyframe: TimelineKeyframe<unknown> | null | undefined,
 ): void {
   if (!xKeyframe || !yKeyframe) {
     return;
@@ -46,7 +49,10 @@ export function syncMotionPathPositionKeyframes(
   );
 }
 
-function synchronizeTemporalSettings(xKeyframe, yKeyframe): void {
+function synchronizeTemporalSettings(
+  xKeyframe: TimelineKeyframe<unknown>,
+  yKeyframe: TimelineKeyframe<unknown>,
+): void {
   yKeyframe.easing = xKeyframe.easing ?? "linear";
   if (xKeyframe.handles) {
     yKeyframe.handles = structuredClone(xKeyframe.handles);
@@ -55,7 +61,11 @@ function synchronizeTemporalSettings(xKeyframe, yKeyframe): void {
   }
 }
 
-function getPointTime(timeline, layerId: string, point): number {
+function getPointTime(
+  timeline: EditorTimeline,
+  layerId: string,
+  point: TimelineMotionPathPoint,
+): number {
   const xTrack = (timeline.tracks ?? []).find(
     (track) =>
       (track.layerId ?? track.target) === layerId &&

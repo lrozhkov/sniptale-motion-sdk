@@ -1,3 +1,8 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { CanvasMotionPathSelection } from "../canvas/motion-path-model.js";
+import type { InspectorMotionPathActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import type { MotionPathPointKind } from "../../../shared/timeline/motion-path.js";
 
@@ -5,7 +10,7 @@ const POINT_KINDS: MotionPathPointKind[] = ["linear", "smooth", "corner"];
 
 function appendMotionPathPointInspector(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null | undefined,
 ): boolean {
   const selections = ctx.getFullySelectedCanvasMotionPathPoints(template);
   if (selections.length === 0) {
@@ -27,7 +32,10 @@ function appendMotionPathPointInspector(
   return true;
 }
 
-function appendMotionPathSummary(ctx, selections): void {
+function appendMotionPathSummary(
+  ctx: ViewerAppContext,
+  selections: readonly CanvasMotionPathSelection[],
+): void {
   const single = selections.length === 1 ? selections[0] : null;
   ctx.appendInspectorRows(
     ctx.deps.t("viewer.inspector.motionPath.title", "Spatial motion points"),
@@ -57,9 +65,9 @@ function appendMotionPathSummary(ctx, selections): void {
 }
 
 function appendMotionPathPointControls(
-  ctx,
-  selections,
-  effectiveTemplate,
+  ctx: ViewerAppContext,
+  selections: readonly CanvasMotionPathSelection[],
+  effectiveTemplate: EditorTemplate | null,
 ): void {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
@@ -78,7 +86,8 @@ function appendMotionPathPointControls(
   typeRow.append(typeLabel, typeSelect);
   ctx.appendInspectorNode(heading, typeRow);
   if (selections.length === 1) {
-    appendSinglePointFields(ctx, selections[0], effectiveTemplate);
+    const selection = selections[0];
+    if (selection) appendSinglePointFields(ctx, selection, effectiveTemplate);
   } else {
     const note = document.createElement("p");
     note.className = "inspector-capability-note";
@@ -92,7 +101,11 @@ function appendMotionPathPointControls(
   }
 }
 
-function createPointKindSelect(ctx, selections, effectiveTemplate) {
+function createPointKindSelect(
+  ctx: ViewerAppContext,
+  selections: readonly CanvasMotionPathSelection[],
+  effectiveTemplate: EditorTemplate | null,
+) {
   const select = document.createElement("select");
   select.dataset.motionPathPointKind = "true";
   select.disabled = selections.some(
@@ -117,9 +130,10 @@ function createPointKindSelect(ctx, selections, effectiveTemplate) {
     option.textContent = getPointKindLabel(ctx, kind);
     select.append(option);
   }
-  select.value = kinds.size === 1 ? [...kinds][0] : "";
+  select.value = kinds.size === 1 ? ([...kinds][0] ?? "") : "";
   select.addEventListener("change", () => {
-    if (!select.value) {
+    const kind = POINT_KINDS.find((candidate) => candidate === select.value);
+    if (!kind) {
       return;
     }
     ctx.updateCanvasMotionPathPointKinds(
@@ -128,13 +142,17 @@ function createPointKindSelect(ctx, selections, effectiveTemplate) {
         xKeyframeId: point.xKeyframeId,
         yKeyframeId: point.yKeyframeId,
       })),
-      select.value,
+      kind,
     );
   });
   return select;
 }
 
-function appendSinglePointFields(ctx, selection, effectiveTemplate): void {
+function appendSinglePointFields(
+  ctx: ViewerAppContext,
+  selection: CanvasMotionPathSelection,
+  effectiveTemplate: EditorTemplate | null,
+): void {
   const { layer, point } = selection;
   const editable = ctx.canEditCanvasMotionPathPoint(
     layer,
@@ -144,7 +162,7 @@ function appendSinglePointFields(ctx, selection, effectiveTemplate): void {
   for (const [property, label, value] of [
     ["x", "X", point.x],
     ["y", "Y", point.y],
-  ]) {
+  ] as const) {
     appendNumberField(
       ctx,
       label,
@@ -210,10 +228,10 @@ function appendSinglePointFields(ctx, selection, effectiveTemplate): void {
 }
 
 function appendNumberField(
-  ctx,
-  label,
-  value,
-  onChange,
+  ctx: ViewerAppContext,
+  label: string,
+  value: number,
+  onChange: (value: number) => void,
   disabled = false,
 ): void {
   const row = document.createElement("label");
@@ -230,7 +248,10 @@ function appendNumberField(
   ctx.appendInspectorNode(row);
 }
 
-function appendMotionPathOwnership(ctx, selections): void {
+function appendMotionPathOwnership(
+  ctx: ViewerAppContext,
+  selections: readonly CanvasMotionPathSelection[],
+): void {
   ctx.appendInspectorRows(
     ctx.deps.t("viewer.inspector.ownership", "Ownership"),
     [
@@ -252,35 +273,45 @@ function appendMotionPathOwnership(ctx, selections): void {
   );
 }
 
-function getPointKindLabel(ctx, kind: MotionPathPointKind): string {
+function getPointKindLabel(
+  ctx: ViewerAppContext,
+  kind: MotionPathPointKind,
+): string {
   return ctx.deps.t(
     `viewer.inspector.motionPath.types.${kind}`,
     kind === "linear" ? "Linear" : kind === "smooth" ? "Smooth" : "Corner",
   );
 }
 
-function formatSelectionLayers(ctx, selections): string {
+function formatSelectionLayers(
+  ctx: ViewerAppContext,
+  selections: readonly CanvasMotionPathSelection[],
+): string {
   const names = [
     ...new Set<string>(
-      selections.map(({ layer }) => String(layer.name ?? layer.id)),
+      selections.map(({ layer }) =>
+        typeof layer.name === "string" ? layer.name : layer.id,
+      ),
     ),
   ];
   return names.length === 1
-    ? names[0]
+    ? (names[0] ?? "")
     : ctx.deps
         .t("viewer.inspector.keyframeSelection.mixedCount", "{count} values")
         .replace("{count}", String(names.length));
 }
 
-function formatNumber(value): string {
+function formatNumber(value: number): string {
   return (Math.round(Number(value) * 1000) / 1000).toString();
 }
 
-export function installInspectorMotionPathPointOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendMotionPathPointInspector = appendMotionPathPointInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorMotionPathActions(
+  getContext: () => ViewerAppContext,
+): InspectorMotionPathActions {
+  return {
+    appendMotionPathPointInspector: bindViewerAction(
+      appendMotionPathPointInspector,
+      getContext,
+    ),
+  };
 }

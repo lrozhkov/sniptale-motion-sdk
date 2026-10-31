@@ -1,3 +1,14 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+import type {
+  CanvasMotionPathPoint,
+  CanvasMotionPathEditBlockReason,
+} from "./motion-path-model.js";
+import type {
+  CanvasMotionPathUpdateActions,
+  CanvasMotionPathUpdateOptions,
+} from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   motionPathTemporalKeyframesMatch,
@@ -15,7 +26,7 @@ function updateCanvasMotionPathPointPosition(
   xKeyframeId: string,
   yKeyframeId: string,
   position: { x: number; y: number },
-  options: any = {},
+  options: CanvasMotionPathUpdateOptions = {},
 ): boolean {
   return ctx.updateCanvasMotionPathPointPositions(
     [{ layerId, position, xKeyframeId, yKeyframeId }],
@@ -30,7 +41,7 @@ function updateCanvasMotionPathTangent(
   yKeyframeId: string,
   side: "in" | "out",
   tangent: MotionPathTangent,
-  options: any = {},
+  options: CanvasMotionPathUpdateOptions = {},
 ): boolean {
   return mutateCanvasMotionPathTimeline(
     ctx,
@@ -69,8 +80,12 @@ function mutateCanvasMotionPathTimeline(
   layerId: string,
   xKeyframeId: string,
   yKeyframeId: string,
-  mutate: (model: any, point: any, timeline: any) => boolean,
-  options: any = {},
+  mutate: (
+    model: Extract<CanvasMotionPathModel, { ok: true }>,
+    point: CanvasMotionPathPoint,
+    timeline: EditorTimeline,
+  ) => boolean,
+  options: CanvasMotionPathUpdateOptions = {},
 ): boolean {
   const template = ctx.state.currentTemplate;
   if (!template) {
@@ -117,14 +132,26 @@ function mutateCanvasMotionPathTimeline(
 }
 
 export function ensureSpatialMotionPath(
-  timeline,
+  timeline: EditorTimeline,
   model: Extract<CanvasMotionPathModel, { ok: true }>,
 ) {
   const current = (timeline.motionPaths ?? []).find(
     (path) => path.layerId === model.layerId,
   );
   if (current) {
-    return current;
+    const normalized = {
+      ...current,
+      points: current.points.map((point) => ({
+        ...point,
+        kind: point.kind ?? "linear",
+        inTangent: point.inTangent ?? { x: 0, y: 0 },
+        outTangent: point.outTangent ?? { x: 0, y: 0 },
+      })),
+    };
+    timeline.motionPaths = (timeline.motionPaths ?? []).map((path) =>
+      path === current ? normalized : path,
+    );
+    return normalized;
   }
   const path = {
     layerId: model.layerId,
@@ -185,18 +212,12 @@ export function reportSpatialMotionPathFailure(ctx: ViewerAppContext): void {
   );
 }
 
-export type CanvasMotionPathPointEditBlockReason =
-  | "disabled"
-  | "inactive"
-  | "locked"
-  | "unsupported";
-
 export function getCanvasMotionPathPointEditBlockReason(
   ctx: ViewerAppContext,
-  layer,
-  point,
+  layer: EffectLayer,
+  point: CanvasMotionPathPoint,
   template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
-): CanvasMotionPathPointEditBlockReason | null {
+): CanvasMotionPathEditBlockReason | null {
   if (layer?.locked) {
     return "locked";
   }
@@ -217,8 +238,8 @@ export function getCanvasMotionPathPointEditBlockReason(
 
 function canEditCanvasMotionPathPoint(
   ctx: ViewerAppContext,
-  layer,
-  point,
+  layer: EffectLayer,
+  point: CanvasMotionPathPoint,
   template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
 ): boolean {
   return !getCanvasMotionPathPointEditBlockReason(ctx, layer, point, template);
@@ -226,8 +247,8 @@ function canEditCanvasMotionPathPoint(
 
 export function reportCanvasMotionPathEditFailure(
   ctx: ViewerAppContext,
-  layer,
-  point,
+  layer: EffectLayer,
+  point: CanvasMotionPathPoint,
   template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
   reason = getCanvasMotionPathPointEditBlockReason(ctx, layer, point, template),
 ): void {
@@ -254,21 +275,36 @@ export function reportCanvasMotionPathEditFailure(
   ctx.logDiagnostic(ctx.deps.t(key, fallback), "error");
 }
 
-export function installCanvasMotionPathUpdatesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.updateCanvasMotionPathPointPosition =
-    updateCanvasMotionPathPointPosition.bind(undefined, ctx);
-  ctx.updateCanvasMotionPathTangent = updateCanvasMotionPathTangent.bind(
-    undefined,
-    ctx,
-  );
-  ctx.canEditCanvasMotionPathPoint = canEditCanvasMotionPathPoint.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getCanvasMotionPathPointEditBlockReason =
-    getCanvasMotionPathPointEditBlockReason.bind(undefined, ctx);
-  ctx.reportCanvasMotionPathEditFailure =
-    reportCanvasMotionPathEditFailure.bind(undefined, ctx);
+export function createCanvasMotionPathUpdateActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasMotionPathUpdateActions,
+  | "updateCanvasMotionPathPointPosition"
+  | "updateCanvasMotionPathTangent"
+  | "canEditCanvasMotionPathPoint"
+  | "getCanvasMotionPathPointEditBlockReason"
+  | "reportCanvasMotionPathEditFailure"
+> {
+  return {
+    updateCanvasMotionPathPointPosition: bindViewerAction(
+      updateCanvasMotionPathPointPosition,
+      getContext,
+    ),
+    updateCanvasMotionPathTangent: bindViewerAction(
+      updateCanvasMotionPathTangent,
+      getContext,
+    ),
+    canEditCanvasMotionPathPoint: bindViewerAction(
+      canEditCanvasMotionPathPoint,
+      getContext,
+    ),
+    getCanvasMotionPathPointEditBlockReason: bindViewerAction(
+      getCanvasMotionPathPointEditBlockReason,
+      getContext,
+    ),
+    reportCanvasMotionPathEditFailure: bindViewerAction(
+      reportCanvasMotionPathEditFailure,
+      getContext,
+    ),
+  };
 }

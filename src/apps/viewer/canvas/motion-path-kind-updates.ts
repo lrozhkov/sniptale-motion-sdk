@@ -1,3 +1,10 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { MotionPathPointRef } from "./motion-path-reference.js";
+import type {
+  CanvasMotionPathModel,
+  CanvasMotionPathPoint,
+} from "./motion-path-model.js";
+import type { CanvasMotionPathUpdateActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import type {
   MotionPathPointKind,
@@ -29,7 +36,7 @@ function updateCanvasMotionPathPointKind(
 
 function updateCanvasMotionPathPointKinds(
   ctx: ViewerAppContext,
-  selections,
+  selections: readonly MotionPathPointRef[],
   kind: MotionPathPointKind,
 ): boolean {
   const template = ctx.state.currentTemplate;
@@ -37,7 +44,10 @@ function updateCanvasMotionPathPointKinds(
     return false;
   }
   const timeline = ctx.getEffectiveTimeline(template);
-  const resolved: any[] = [];
+  const resolved: {
+    model: Extract<CanvasMotionPathModel, { ok: true }>;
+    point: CanvasMotionPathPoint;
+  }[] = [];
   for (const selection of selections) {
     const model = createCanvasMotionPathModel(timeline, selection.layerId);
     const point = findCanvasMotionPathPoint(
@@ -102,7 +112,10 @@ function updateCanvasMotionPathPointKinds(
   return true;
 }
 
-function createDefaultPointTangents(model, point) {
+function createDefaultPointTangents(
+  model: Extract<CanvasMotionPathModel, { ok: true }>,
+  point: CanvasMotionPathPoint,
+) {
   const index = model.points.indexOf(point);
   const previous = index > 0 ? model.points[index - 1] : null;
   const next =
@@ -141,19 +154,24 @@ function tangentLength(tangent: MotionPathTangent): number {
   return Math.hypot(Number(tangent?.x) || 0, Number(tangent?.y) || 0);
 }
 
-function distance(left, right): number {
+function distance(left: MotionPathTangent, right: MotionPathTangent): number {
   return Math.hypot(left.x - right.x, left.y - right.y);
 }
 
-export function installCanvasMotionPathKindUpdatesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.updateCanvasMotionPathPointKind = updateCanvasMotionPathPointKind.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateCanvasMotionPathPointKinds = updateCanvasMotionPathPointKinds.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasMotionPathKindActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasMotionPathUpdateActions,
+  "updateCanvasMotionPathPointKind" | "updateCanvasMotionPathPointKinds"
+> {
+  return {
+    updateCanvasMotionPathPointKind: bindViewerAction(
+      updateCanvasMotionPathPointKind,
+      getContext,
+    ),
+    updateCanvasMotionPathPointKinds: bindViewerAction(
+      updateCanvasMotionPathPointKinds,
+      getContext,
+    ),
+  };
 }

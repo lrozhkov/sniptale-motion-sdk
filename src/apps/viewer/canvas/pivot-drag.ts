@@ -15,6 +15,7 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||
@@ -130,6 +131,7 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||

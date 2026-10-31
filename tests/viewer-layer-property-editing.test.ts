@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { installCanvasPropertyUpdatesOwner } from "../src/apps/viewer/canvas/property-updates";
+import { createCanvasPropertyActions } from "../src/apps/viewer/canvas/property-updates";
 
 describe("viewer layer property editing", () => {
   it("writes inspector edits into an existing animation track at the playhead", () => {
@@ -18,7 +18,10 @@ describe("viewer layer property editing", () => {
         },
       ],
     });
-    installCanvasPropertyUpdatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createCanvasPropertyActions(() => ctx),
+    );
 
     ctx.updateLayerProperty("box", "opacity", 0.8, {
       render: false,
@@ -37,7 +40,10 @@ describe("viewer layer property editing", () => {
 
   it("keeps a base edit as a base edit when the property has no track", () => {
     const ctx = createPropertyContext({ tracks: [] });
-    installCanvasPropertyUpdatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createCanvasPropertyActions(() => ctx),
+    );
 
     ctx.updateLayerProperty("box", "opacity", 0.65, {
       render: false,
@@ -70,7 +76,10 @@ describe("viewer layer property editing", () => {
         { id: "title", opacity: 1, type: "text", y: 0 },
       ],
     );
-    installCanvasPropertyUpdatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createCanvasPropertyActions(() => ctx),
+    );
 
     ctx.updateLayerPropertyBatchAtTime(
       1,
@@ -119,7 +128,10 @@ describe("viewer layer property editing", () => {
     });
     ctx.state.playing = true;
     ctx.state.selectedItem = { layerId: "box", type: "layer" };
-    installCanvasPropertyUpdatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createCanvasPropertyActions(() => ctx),
+    );
 
     ctx.nudgeSelectedLayer(3, -2);
 

@@ -1,3 +1,6 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+import type { CanvasPropertyUpdates, CanvasUpdateOptions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getTimelineMotionPath,
@@ -6,19 +9,19 @@ import {
 
 export function updateLayerPropertiesAtTime(
   ctx: ViewerAppContext,
-  layerId,
-  time,
-  properties,
-  options: any = {},
+  layerId: string,
+  time: number,
+  properties: CanvasPropertyUpdates,
+  options: CanvasUpdateOptions = {},
 ) {
   updateLayerPropertyBatchAtTime(ctx, time, { [layerId]: properties }, options);
 }
 
 export function updateLayerPropertyBatchAtTime(
   ctx: ViewerAppContext,
-  time,
-  updates,
-  options: any = {},
+  time: number,
+  updates: Readonly<Record<string, CanvasPropertyUpdates>>,
+  options: CanvasUpdateOptions = {},
 ) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -77,8 +80,8 @@ export function updateLayerPropertyBatchAtTime(
     );
   }
   if (options.inspector !== false) {
-    if (changedLayerIds.length === 1) {
-      const layerId = changedLayerIds[0];
+    const layerId = changedLayerIds[0];
+    if (changedLayerIds.length === 1 && layerId !== undefined) {
       ctx.syncInspectorLayerPropertyState?.(
         layerId,
         updatesByLayerId.get(layerId),
@@ -106,11 +109,11 @@ export function updateLayerPropertyBatchAtTime(
 
 function updateSpatialPositionAtTime(
   ctx: ViewerAppContext,
-  timeline,
-  layer,
-  time,
-  properties,
-  options,
+  timeline: EditorTimeline,
+  layer: EffectLayer,
+  time: number,
+  properties: CanvasPropertyUpdates,
+  options: CanvasUpdateOptions,
 ): Set<string> {
   const path = getTimelineMotionPath(timeline, layer.id);
   const changesPosition =

@@ -1,3 +1,6 @@
+import type { CanvasMotionPathTimeline } from "./motion-path-model.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe, EffectScene } from "../../../sdk/types.js";
 import {
   createMotionPathGeometry,
   evaluateMotionPathGeometry,
@@ -11,9 +14,9 @@ const geometryCache = new WeakMap<
 >();
 
 export function resolveViewerMotionPathTrackValue(
-  track,
-  time,
-  timeline,
+  track: MotionPathTrack | null | undefined,
+  time: number,
+  timeline: CanvasMotionPathTimeline | null | undefined,
 ): number | null {
   const owner = getMotionPathLayerProperty(track);
   if (!owner || !timeline?.motionPaths) {
@@ -43,21 +46,31 @@ export function resolveViewerMotionPathTrackValue(
   return position ? position[owner.property] : null;
 }
 
-function isViewerTrackEnabled(timeline, track): boolean {
+function isViewerTrackEnabled(
+  timeline: CanvasMotionPathTimeline,
+  track: MotionPathTrack,
+): boolean {
   return (
     track?.enabled !== false &&
     isViewerOwnerEnabled(timeline, track?.sceneId, track?.phaseId)
   );
 }
 
-function isViewerKeyframeEnabled(timeline, keyframe): boolean {
+function isViewerKeyframeEnabled(
+  timeline: CanvasMotionPathTimeline,
+  keyframe: TimelineKeyframe<unknown>,
+): boolean {
   return (
     keyframe?.enabled !== false &&
     isViewerOwnerEnabled(timeline, keyframe?.sceneId, keyframe?.phaseId)
   );
 }
 
-function isViewerOwnerEnabled(timeline, sceneId, phaseId): boolean {
+function isViewerOwnerEnabled(
+  timeline: CanvasMotionPathTimeline,
+  sceneId: string | null | undefined,
+  phaseId: string | null | undefined,
+): boolean {
   if (!isViewerSceneEnabled(timeline?.scenes, sceneId)) {
     return false;
   }
@@ -72,7 +85,10 @@ function isViewerOwnerEnabled(timeline, sceneId, phaseId): boolean {
   );
 }
 
-function isViewerSceneEnabled(scenes, sceneId): boolean {
+function isViewerSceneEnabled(
+  scenes: readonly Pick<EffectScene, "id" | "enabled">[] | undefined,
+  sceneId: string | null | undefined,
+): boolean {
   if (!sceneId) {
     return true;
   }
