@@ -1,3 +1,6 @@
+import { createInspectorHealthActions } from "../inspector/health-panels.js";
+import { createInspectorRendererBindingActions } from "../inspector/renderer-bindings.js";
+import { createRendererContractCoverageActions } from "../rendering/contract-coverage.js";
 import { createLayerGroupingActions } from "../layers/grouping.js";
 import { createInspectorSvgPartActions } from "../inspector/svg-part-fields.js";
 import { createInspectorOverviewActions } from "../inspector/overview.js";
@@ -102,6 +105,9 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createInspectorHealthActions(() => ctx),
+    ...createInspectorRendererBindingActions(() => ctx),
+    ...createRendererContractCoverageActions(() => ctx),
     ...createLayerGroupingActions(() => ctx),
     ...createInspectorSvgPartActions(() => ctx),
     ...createInspectorOverviewActions(() => ctx),

@@ -1,8 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorHealthActions } from "./health-contract.js";
+import type { EditorValidationIssue } from "../validation/types.js";
+import type { EditorTemplateSource } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function renderValidationPanel(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTemplateSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.validationPanel.innerHTML = "";
   ctx.refs.validationPanel.setAttribute("aria-busy", "false");
@@ -17,7 +21,8 @@ function renderValidationPanel(
   }
   const contractPending = ctx.isRendererContractCoveragePending(template);
   ctx.refs.validationPanel.setAttribute("aria-busy", String(contractPending));
-  const issues = ctx.collectEditorValidationIssues(effectiveTemplate);
+  const issues: EditorValidationIssue[] =
+    ctx.collectEditorValidationIssues(effectiveTemplate);
   if (contractPending) {
     const pending = document.createElement("div");
     pending.className = "validation-summary pending";
@@ -90,7 +95,10 @@ function renderValidationPanel(
   ctx.syncHealthState();
 }
 
-function localizeValidationIssueMessage(ctx: ViewerAppContext, issue) {
+function localizeValidationIssueMessage(
+  ctx: ViewerAppContext,
+  issue: EditorValidationIssue,
+) {
   let localized = issue.messageKey
     ? ctx.deps.t(
         `viewer.validation.messages.${issue.messageKey}`,
@@ -116,7 +124,10 @@ function localizeValidationIssueMessage(ctx: ViewerAppContext, issue) {
   return localized;
 }
 
-function groupValidationIssues(ctx: ViewerAppContext, issues) {
+function groupValidationIssues(
+  ctx: ViewerAppContext,
+  issues: readonly EditorValidationIssue[],
+) {
   const priority = [
     "Contract",
     "Timing",
@@ -126,20 +137,22 @@ function groupValidationIssues(ctx: ViewerAppContext, issues) {
     "Security",
     "Schema",
   ];
-  const groups = new Map(priority.map((category) => [category, []]));
+  const groups = new Map<string, EditorValidationIssue[]>(
+    priority.map((category) => [category, []]),
+  );
   for (const issue of issues) {
     const category = issue.category ?? ctx.categorizeValidationIssue(issue);
     if (!groups.has(category)) {
       groups.set(category, []);
     }
-    groups.get(category).push(issue);
+    groups.get(category)?.push(issue);
   }
   return [...groups.entries()].filter(
     ([, groupIssues]) => groupIssues.length > 0,
   );
 }
 
-function issueTargetLabel(ctx: ViewerAppContext, issue) {
+function issueTargetLabel(ctx: ViewerAppContext, issue: EditorValidationIssue) {
   const id = issue.keyframeId || issue.targetId || issue.trackId || "effect";
   const type = ctx.deps.t(
     `viewer.selection.types.${issue.targetType}`,
@@ -148,7 +161,10 @@ function issueTargetLabel(ctx: ViewerAppContext, issue) {
   return `${type}: ${id}`;
 }
 
-function focusValidationIssue(ctx: ViewerAppContext, issue) {
+function focusValidationIssue(
+  ctx: ViewerAppContext,
+  issue: EditorValidationIssue,
+) {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -217,18 +233,29 @@ function focusValidationIssue(ctx: ViewerAppContext, issue) {
   ctx.renderTimelineEditor(ctx.state.currentTemplate);
 }
 
-function scrollTimelineTargetIntoView(ctx: ViewerAppContext, selector) {
+function scrollTimelineTargetIntoView(ctx: ViewerAppContext, selector: string) {
   const element = ctx.refs.timelineTracks.querySelector(selector);
   element?.scrollIntoView({ block: "center", inline: "center" });
 }
 
-export function installInspectorHealthPanelsOwner(ctx: ViewerAppContext): void {
-  ctx.renderValidationPanel = renderValidationPanel.bind(undefined, ctx);
-  ctx.groupValidationIssues = groupValidationIssues.bind(undefined, ctx);
-  ctx.issueTargetLabel = issueTargetLabel.bind(undefined, ctx);
-  ctx.focusValidationIssue = focusValidationIssue.bind(undefined, ctx);
-  ctx.scrollTimelineTargetIntoView = scrollTimelineTargetIntoView.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorHealthActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorHealthActions,
+  | "renderValidationPanel"
+  | "groupValidationIssues"
+  | "issueTargetLabel"
+  | "focusValidationIssue"
+  | "scrollTimelineTargetIntoView"
+> {
+  return {
+    renderValidationPanel: bindViewerAction(renderValidationPanel, getContext),
+    groupValidationIssues: bindViewerAction(groupValidationIssues, getContext),
+    issueTargetLabel: bindViewerAction(issueTargetLabel, getContext),
+    focusValidationIssue: bindViewerAction(focusValidationIssue, getContext),
+    scrollTimelineTargetIntoView: bindViewerAction(
+      scrollTimelineTargetIntoView,
+      getContext,
+    ),
+  };
 }

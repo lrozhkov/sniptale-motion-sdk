@@ -1,6 +1,10 @@
+import type { RendererBindingReads } from "../app/binding-reads.js";
 import type { SerializedSvgVectorSource } from "../../../shared/svg-vector-source.js";
 import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
-import type { EditorTemplate } from "../templates/model.js";
+import type {
+  EditorTemplate,
+  EditorTemplateSource,
+} from "../templates/model.js";
 
 export type RenderOptions = {
   allowColdStart?: boolean;
@@ -43,8 +47,8 @@ export type ViewerRenderingState = {
   renderIdleWaiters: (() => void)[];
   renderTemplateSnapshot: RenderTemplateSnapshot | null;
   queuedRenderOptions: RenderOptions | null;
-  rendererContractRefreshPromise: Promise<unknown> | null;
-  rendererContractRefreshTemplateId: string | null;
+  rendererContractRefreshPromise: Promise<RendererBindingReads> | null;
+  rendererContractRefreshTemplate: EditorTemplateSource | null;
   rendererContractTemplateId: string | null;
   sandboxRenderModelId: string | null;
   sandboxRenderAssetsId: string | null;
@@ -61,7 +65,7 @@ export function createViewerRenderingState(): ViewerRenderingState {
     renderTemplateSnapshot: null,
     queuedRenderOptions: null,
     rendererContractRefreshPromise: null,
-    rendererContractRefreshTemplateId: null,
+    rendererContractRefreshTemplate: null,
     rendererContractTemplateId: null,
     sandboxRenderModelId: null,
     sandboxRenderAssetsId: null,

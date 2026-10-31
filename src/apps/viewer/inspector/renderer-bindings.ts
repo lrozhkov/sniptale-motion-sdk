@@ -1,8 +1,18 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  InspectorHealthActions,
+  RendererBindingItem,
+  RendererBindingCoverage,
+} from "./health-contract.js";
+import type {
+  EditorTemplate,
+  EditorTemplateSource,
+} from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function renderRendererBindingsPanel(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTemplateSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.rendererBindingsPanel.innerHTML = "";
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -61,31 +71,34 @@ function renderRendererBindingsPanel(
   ctx.syncHealthState();
 }
 
-function buildRendererBindingCoverage(ctx: ViewerAppContext, template) {
+function buildRendererBindingCoverage(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+): RendererBindingCoverage {
   const reads = ctx.deps.normalizeBindingReads(ctx.state.lastBindingReads);
-  const items = [
-    ...(template.layers ?? []).map((layer) => ({
+  const items: RendererBindingItem[] = [
+    ...(template.layers ?? []).map((layer): RendererBindingItem => ({
       bound: reads.layerGateReads.includes(layer.id),
       id: layer.id,
       label: layer.name || layer.id,
       sceneId: null,
       type: "layer",
     })),
-    ...(template.clips ?? []).map((clip) => ({
+    ...(template.clips ?? []).map((clip): RendererBindingItem => ({
       bound: reads.layerGateReads.includes(clip.layerId),
       id: clip.layerId,
       label: clip.layerId,
       sceneId: clip.sceneId ?? null,
       type: "clip",
     })),
-    ...(template.timeline?.phases ?? []).map((phase) => ({
+    ...(template.timeline?.phases ?? []).map((phase): RendererBindingItem => ({
       bound: reads.phases.includes(phase.id),
       id: phase.id,
-      label: phase.label || phase.id,
+      label: ctx.deps.translateText(phase.label, phase.id),
       sceneId: phase.sceneId ?? null,
       type: "phase",
     })),
-    ...(template.timeline?.tracks ?? []).map((track) => ({
+    ...(template.timeline?.tracks ?? []).map((track): RendererBindingItem => ({
       bound: reads.tracks.includes(track.id),
       id: track.id,
       label: ctx.getTimelineTrackDisplayLabel(track),
@@ -107,7 +120,10 @@ function buildRendererBindingCoverage(ctx: ViewerAppContext, template) {
   };
 }
 
-function focusRendererBindingItem(ctx: ViewerAppContext, item) {
+function focusRendererBindingItem(
+  ctx: ViewerAppContext,
+  item: RendererBindingItem,
+) {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -149,7 +165,10 @@ function focusRendererBindingItem(ctx: ViewerAppContext, item) {
   }
 }
 
-function findRendererBindingSceneId(ctx: ViewerAppContext, template, item) {
+function findRendererBindingSceneId(
+  template: EditorTemplate | null,
+  item: RendererBindingItem,
+) {
   if (!template) {
     return null;
   }
@@ -171,20 +190,28 @@ function findRendererBindingSceneId(ctx: ViewerAppContext, template, item) {
   return keyframeScene ?? null;
 }
 
-export function installInspectorRendererBindingsOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderRendererBindingsPanel = renderRendererBindingsPanel.bind(
-    undefined,
-    ctx,
-  );
-  ctx.buildRendererBindingCoverage = buildRendererBindingCoverage.bind(
-    undefined,
-    ctx,
-  );
-  ctx.focusRendererBindingItem = focusRendererBindingItem.bind(undefined, ctx);
-  ctx.findRendererBindingSceneId = findRendererBindingSceneId.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorRendererBindingActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorHealthActions,
+  | "renderRendererBindingsPanel"
+  | "buildRendererBindingCoverage"
+  | "focusRendererBindingItem"
+  | "findRendererBindingSceneId"
+> {
+  return {
+    renderRendererBindingsPanel: bindViewerAction(
+      renderRendererBindingsPanel,
+      getContext,
+    ),
+    buildRendererBindingCoverage: bindViewerAction(
+      buildRendererBindingCoverage,
+      getContext,
+    ),
+    focusRendererBindingItem: bindViewerAction(
+      focusRendererBindingItem,
+      getContext,
+    ),
+    findRendererBindingSceneId,
+  };
 }

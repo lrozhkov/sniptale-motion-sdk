@@ -1,3 +1,10 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { RendererContractCoverageActions } from "./coverage-contract.js";
+import type {
+  EditorTemplate,
+  EditorTemplateSource,
+} from "../templates/model.js";
+import type { RendererBindingReads } from "../app/binding-reads.js";
 import { BINDING_READ_LIST_FIELDS } from "../app/binding-reads.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { mergePrimitiveBounds } from "./contract-bounds.js";
@@ -32,7 +39,7 @@ function mergeRendererContractReads(
 
 function createRendererContractSampleTimes(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTemplateSource | null = ctx.state.currentTemplate,
 ) {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {
@@ -65,8 +72,8 @@ function createRendererContractSampleTimes(
 
 async function refreshRendererContractCoverage(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
+  template: EditorTemplateSource | null = ctx.state.currentTemplate,
+): Promise<RendererBindingReads> {
   if (
     !template ||
     !ctx.state.sandboxReady ||
@@ -75,18 +82,15 @@ async function refreshRendererContractCoverage(
     return ctx.state.rendererContractReads;
   }
   if (ctx.state.rendererContractRefreshing) {
-    const activeTemplateId = ctx.state.rendererContractRefreshTemplateId;
+    const activeTemplate = ctx.state.rendererContractRefreshTemplate;
     await ctx.state.rendererContractRefreshPromise;
-    if (
-      activeTemplateId !== template.id &&
-      ctx.state.currentTemplate?.id === template.id
-    ) {
+    if (activeTemplate !== template && ctx.state.currentTemplate === template) {
       return refreshRendererContractCoverage(ctx, template);
     }
     return ctx.state.rendererContractReads;
   }
   ctx.state.rendererContractRefreshing = true;
-  ctx.state.rendererContractRefreshTemplateId = template.id;
+  ctx.state.rendererContractRefreshTemplate = template;
   const refreshPromise = runRendererContractCoverageRefresh(ctx, template);
   ctx.state.rendererContractRefreshPromise = refreshPromise;
   try {
@@ -94,7 +98,7 @@ async function refreshRendererContractCoverage(
   } finally {
     if (ctx.state.rendererContractRefreshPromise === refreshPromise) {
       ctx.state.rendererContractRefreshPromise = null;
-      ctx.state.rendererContractRefreshTemplateId = null;
+      ctx.state.rendererContractRefreshTemplate = null;
       ctx.state.rendererContractRefreshing = false;
     }
   }
@@ -102,14 +106,14 @@ async function refreshRendererContractCoverage(
 
 async function runRendererContractCoverageRefresh(
   ctx: ViewerAppContext,
-  template,
-) {
+  template: EditorTemplateSource,
+): Promise<RendererBindingReads> {
   const runtimeGeneration = ctx.state.sandboxRuntimeGeneration;
   if (ctx.state.renderInFlight || ctx.state.renderQueued) {
     await ctx.waitForRenderIdle();
   }
   if (
-    ctx.state.currentTemplate?.id !== template.id ||
+    ctx.state.currentTemplate !== template ||
     ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
   ) {
     return ctx.state.rendererContractReads;
@@ -120,8 +124,8 @@ async function runRendererContractCoverageRefresh(
   ctx.renderValidationPanel(template);
   ctx.updateExportAvailability();
   ctx.mergeRendererContractReads(template.id, ctx.state.lastBindingReads);
-  if (!ctx.state.loadedModules.has(template.moduleId)) {
-    if (!(await ctx.ensureModuleLoaded(template.moduleId))) {
+  if (!ctx.state.loadedModules.has(template.moduleId ?? "")) {
+    if (!(await ctx.ensureModuleLoaded(template.moduleId ?? ""))) {
       return ctx.state.rendererContractReads;
     }
   }
@@ -146,17 +150,24 @@ async function runRendererContractCoverageRefresh(
     ) {
       return ctx.state.rendererContractReads;
     }
-    await renderContractSample(ctx, template, effectiveTemplate, {
-      duration,
-      fps,
-      height: sampleSize.height,
-      outputHeight: height,
-      outputWidth: width,
-      time,
-      width: sampleSize.width,
-    });
+    await renderContractSample(
+      ctx,
+      template,
+      effectiveTemplate,
+      runtimeGeneration,
+      {
+        duration,
+        fps,
+        height: sampleSize.height,
+        outputHeight: height,
+        outputWidth: width,
+        time,
+        width: sampleSize.width,
+      },
+    );
     if (
-      ctx.state.currentTemplate?.id !== template.id ||
+      ctx.getRenderTemplateSnapshot(template) !== effectiveTemplate ||
+      ctx.state.currentTemplate !== template ||
       ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
     ) {
       return ctx.state.rendererContractReads;
@@ -168,7 +179,8 @@ async function runRendererContractCoverageRefresh(
     }
   }
   if (
-    ctx.state.currentTemplate?.id !== template.id ||
+    ctx.getRenderTemplateSnapshot(template) !== effectiveTemplate ||
+    ctx.state.currentTemplate !== template ||
     ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
   ) {
     return ctx.state.rendererContractReads;
@@ -182,9 +194,26 @@ async function runRendererContractCoverageRefresh(
 
 async function renderContractSample(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  { duration, fps, height, outputHeight, outputWidth, time, width },
+  template: EditorTemplateSource,
+  effectiveTemplate: EditorTemplate,
+  runtimeGeneration: number,
+  {
+    duration,
+    fps,
+    height,
+    outputHeight,
+    outputWidth,
+    time,
+    width,
+  }: {
+    duration: number;
+    fps: number;
+    height: number;
+    outputHeight: number;
+    outputWidth: number;
+    time: number;
+    width: number;
+  },
 ) {
   const progress = duration > 0 ? time / duration : 0;
   const renderInput = await ctx.createRenderInputFrames(
@@ -221,21 +250,29 @@ async function renderContractSample(
     resolveViewerRenderTimeoutMs(false, false),
     [...renderInput.transfer, ...renderAssets.transfer],
   );
-  if (result.ok && ctx.state.currentTemplate?.id === template.id) {
-    ctx.commitRenderAssetTransfers(renderAssets);
-    ctx.commitRenderModelEnvelope(renderModel);
-    ctx.mergeRendererContractReads(
-      template.id,
-      ctx.normalizePreviewBindingReads(result.bindingReads),
-    );
+  try {
+    if (
+      result.ok &&
+      ctx.getRenderTemplateSnapshot(template) === effectiveTemplate &&
+      ctx.state.currentTemplate === template &&
+      ctx.state.sandboxRuntimeGeneration === runtimeGeneration
+    ) {
+      ctx.commitRenderAssetTransfers(renderAssets);
+      ctx.commitRenderModelEnvelope(renderModel);
+      ctx.mergeRendererContractReads(
+        template.id,
+        ctx.normalizePreviewBindingReads(result.bindingReads),
+      );
+    }
+  } finally {
+    result.bitmap?.close?.();
   }
-  result.bitmap?.close?.();
 }
 
 export async function waitForContractSampleSlot(
   ctx: ViewerAppContext,
-  templateId,
-  runtimeGeneration,
+  templateId: string,
+  runtimeGeneration: number,
 ) {
   while (
     ctx.state.currentTemplate?.id === templateId &&
@@ -271,7 +308,11 @@ function yieldToEditor() {
   });
 }
 
-function addRangeSamples(times: Set<number>, rawStart, rawDuration) {
+function addRangeSamples(
+  times: Set<number>,
+  rawStart: number,
+  rawDuration: number,
+) {
   const start = Number(rawStart) || 0;
   const end = start + (Number(rawDuration) || 0);
   times.add(start);
@@ -279,17 +320,21 @@ function addRangeSamples(times: Set<number>, rawStart, rawDuration) {
   times.add(start + (end - start) * 0.5);
 }
 
-export function installRenderingContractCoverageOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.mergeRendererContractReads = mergeRendererContractReads.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createRendererContractSampleTimes =
-    createRendererContractSampleTimes.bind(undefined, ctx);
-  ctx.refreshRendererContractCoverage = refreshRendererContractCoverage.bind(
-    undefined,
-    ctx,
-  );
+export function createRendererContractCoverageActions(
+  getContext: () => ViewerAppContext,
+): RendererContractCoverageActions {
+  return {
+    mergeRendererContractReads: bindViewerAction(
+      mergeRendererContractReads,
+      getContext,
+    ),
+    createRendererContractSampleTimes: bindViewerAction(
+      createRendererContractSampleTimes,
+      getContext,
+    ),
+    refreshRendererContractCoverage: bindViewerAction(
+      refreshRendererContractCoverage,
+      getContext,
+    ),
+  };
 }

@@ -1,3 +1,5 @@
+import type { InspectorHealthActions } from "../inspector/health-contract.js";
+import type { RendererContractCoverageActions } from "../rendering/coverage-contract.js";
 import type { InspectorOverviewActions } from "../inspector/overview-contract.js";
 import type { LayerGroupingActions } from "../layers/grouping-contract.js";
 import type { InspectorFieldActions } from "../inspector/fields-contract.js";
@@ -58,6 +60,8 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    InspectorHealthActions,
+    RendererContractCoverageActions,
     InspectorOverviewActions,
     LayerGroupingActions,
     InspectorFieldActions,
