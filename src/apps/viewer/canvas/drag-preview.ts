@@ -1,3 +1,8 @@
+import type { CanvasTransformState } from "./transform-state.js";
+import type { RenderOptions } from "../rendering/state.js";
+import type { CanvasTransformValues } from "./transform-state.js";
+import type { CanvasBox } from "./primitive-geometry.js";
+import type { EffectLayer } from "../../../sdk/types.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 const DEFERRED_INTERACTIVE_RENDER_DELAY_MS = 120;
@@ -20,12 +25,20 @@ export function activateCanvasDrag(
 }
 
 type CanvasTransformPreviewOptions = {
-  box: any;
-  layer: any;
+  box: CanvasBox;
+  layer: EffectLayer;
   layerId: string;
 };
 
-export function projectCanvasTransformPreviewBox({ box, next, original }) {
+export function projectCanvasTransformPreviewBox({
+  box,
+  next,
+  original,
+}: {
+  box: CanvasBox;
+  next: Partial<CanvasTransformValues>;
+  original: CanvasTransformValues;
+}): CanvasBox {
   const resolved = { ...original, ...next };
   const originalScaleX = Math.max(0.05, Number(original.scaleX) || 1);
   const originalScaleY = Math.max(0.05, Number(original.scaleY) || 1);
@@ -56,8 +69,23 @@ export function projectCanvasTransformPreviewBox({ box, next, original }) {
   };
 }
 
+type CanvasDragContext = {
+  state: CanvasTransformState & {
+    currentTemplate?: { id: string } | null;
+    dragMoved?: boolean;
+    previewCacheEnabled?: boolean;
+  };
+  refs: { canvasSelectionBox: Pick<HTMLElement, "dataset"> };
+  renderCurrentFrame(options?: RenderOptions): Promise<void>;
+  getResolvedLayerAnchor?: (layer: EffectLayer) => { x: number; y: number };
+  getResolvedLayerProperty?: (
+    layer: EffectLayer,
+    property: keyof CanvasTransformValues,
+  ) => number;
+};
+
 export function createCanvasDragPreview(
-  ctx: ViewerAppContext,
+  ctx: CanvasDragContext,
   options: CanvasTransformPreviewOptions | null = null,
 ) {
   let frame = 0;
@@ -65,6 +93,8 @@ export function createCanvasDragPreview(
   let pendingUpdate: (() => void) | null = null;
   ctx.state.canvasTransformDragActive = true;
   if (options) {
+    if (!ctx.getResolvedLayerAnchor || !ctx.getResolvedLayerProperty)
+      throw new Error("Canvas preview geometry is unavailable.");
     const anchor = ctx.getResolvedLayerAnchor(options.layer);
     ctx.state.canvasTransformPreview = {
       awaitingFullRender: false,
@@ -83,6 +113,13 @@ export function createCanvasDragPreview(
       templateId: ctx.state.currentTemplate?.id ?? null,
     };
   }
+  const ownedPreview = ctx.state.canvasTransformPreview;
+  const ownedTemplate = ctx.state.currentTemplate;
+  let finalized = false;
+  const isCurrentPreview = () =>
+    !finalized &&
+    ctx.state.canvasTransformPreview === ownedPreview &&
+    ctx.state.currentTemplate === ownedTemplate;
   ctx.refs.canvasSelectionBox.dataset.transforming = "true";
   return {
     finalize(finalUpdate: (() => void) | null = null) {
@@ -96,20 +133,24 @@ export function createCanvasDragPreview(
       }
       pendingUpdate = null;
       try {
-        finalUpdate?.();
+        if (isCurrentPreview()) finalUpdate?.();
       } finally {
-        ctx.state.canvasTransformDragActive = false;
-        if (ctx.state.canvasTransformPreview) {
-          if (ctx.state.dragMoved) {
-            ctx.state.canvasTransformPreview.awaitingFullRender = true;
-          } else {
-            ctx.state.canvasTransformPreview = null;
+        if (isCurrentPreview()) {
+          ctx.state.canvasTransformDragActive = false;
+          if (ctx.state.canvasTransformPreview) {
+            if (ctx.state.dragMoved) {
+              ctx.state.canvasTransformPreview.awaitingFullRender = true;
+            } else {
+              ctx.state.canvasTransformPreview = null;
+            }
           }
+          delete ctx.refs.canvasSelectionBox.dataset.transforming;
         }
-        delete ctx.refs.canvasSelectionBox.dataset.transforming;
+        finalized = true;
       }
     },
     scheduleUpdate(update: () => void) {
+      if (!isCurrentPreview()) return;
       pendingUpdate = update;
       if (frame) {
         return;
@@ -118,7 +159,9 @@ export function createCanvasDragPreview(
         frame = 0;
         const applyUpdate = pendingUpdate;
         pendingUpdate = null;
+        if (!isCurrentPreview()) return;
         applyUpdate?.();
+        if (!isCurrentPreview()) return;
         if (ctx.state.previewCacheEnabled === false) {
           void ctx.renderCurrentFrame({ interactive: true });
           return;
@@ -128,13 +171,20 @@ export function createCanvasDragPreview(
         }
         deferredRender = globalThis.setTimeout(() => {
           deferredRender = null;
-          void ctx.renderCurrentFrame({ interactive: true });
+          if (isCurrentPreview())
+            void ctx.renderCurrentFrame({ interactive: true });
         }, DEFERRED_INTERACTIVE_RENDER_DELAY_MS);
       });
     },
-    updateTransform(next) {
+    updateTransform(next: Partial<CanvasTransformValues>) {
       const preview = ctx.state.canvasTransformPreview;
-      if (!preview || preview.layerId !== options?.layerId) {
+      if (
+        !isCurrentPreview() ||
+        !options ||
+        !preview ||
+        preview.layerId === undefined ||
+        preview.layerId !== options.layerId
+      ) {
         return;
       }
       preview.box = projectCanvasTransformPreviewBox({

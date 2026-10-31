@@ -1,13 +1,11 @@
+import type { KeyframeClipboardEntry } from "../state.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type { KeyframeSelectionRef } from "../model/selection-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
   duplicateInsertedMotionPathPoints,
   removeDeletedMotionPathPoints,
 } from "../model/motion-path-mutations.js";
-
-type ClipboardEntry = {
-  keyframe: any;
-  trackId: string;
-};
 
 function copySelectedKeyframes(ctx: ViewerAppContext): boolean {
   const template = ctx.state.currentTemplate;
@@ -16,17 +14,17 @@ function copySelectedKeyframes(ctx: ViewerAppContext): boolean {
   if (!template || refs.length === 0) {
     return false;
   }
-  const clipboard = refs.map((ref) => {
+  const clipboard: KeyframeClipboardEntry[] = [];
+  for (const ref of refs) {
     const track = timeline.tracks.find((item) => item.id === ref.trackId);
     const keyframe = track?.keyframes.find(
       (item) => item.id === ref.keyframeId,
     );
-    return track && keyframe
-      ? { keyframe: ctx.deps.deepClone(keyframe), trackId: track.id }
-      : null;
-  });
-  if (clipboard.some((entry) => !entry)) {
-    return false;
+    if (!track || !keyframe) return false;
+    clipboard.push({
+      keyframe: ctx.deps.deepClone(keyframe),
+      trackId: track.id,
+    });
   }
   ctx.state.keyframeClipboard = clipboard;
   return true;
@@ -47,17 +45,17 @@ function duplicateSelectedKeyframes(ctx: ViewerAppContext): boolean {
   if (!template || refs.length === 0) {
     return false;
   }
-  const clipboard = refs.map((ref) => {
+  const clipboard: KeyframeClipboardEntry[] = [];
+  for (const ref of refs) {
     const track = timeline.tracks.find((item) => item.id === ref.trackId);
     const keyframe = track?.keyframes.find(
       (item) => item.id === ref.keyframeId,
     );
-    return track && keyframe
-      ? { keyframe: ctx.deps.deepClone(keyframe), trackId: track.id }
-      : null;
-  });
-  if (clipboard.some((entry) => !entry)) {
-    return false;
+    if (!track || !keyframe) return false;
+    clipboard.push({
+      keyframe: ctx.deps.deepClone(keyframe),
+      trackId: track.id,
+    });
   }
   const firstTime = Math.min(...clipboard.map((entry) => entry.keyframe.time));
   const frameDuration = getFrameDuration(ctx);
@@ -104,7 +102,7 @@ function deleteSelectedKeyframes(ctx: ViewerAppContext): boolean {
 
 function insertKeyframeClipboard(
   ctx: ViewerAppContext,
-  clipboard: ClipboardEntry[],
+  clipboard: KeyframeClipboardEntry[],
   options: { mode: "duplicate" | "paste"; requestedStart: number },
 ): boolean {
   const template = ctx.state.currentTemplate;
@@ -141,8 +139,12 @@ function insertKeyframeClipboard(
     type:
       options.mode === "duplicate" ? "duplicateKeyframes" : "pasteKeyframes",
   });
-  const inserted = [];
-  const insertedMappings = [];
+  const inserted: KeyframeSelectionRef[] = [];
+  const insertedMappings: {
+    fromKeyframeId: string;
+    toKeyframeId: string;
+    trackId: string;
+  }[] = [];
   for (const entry of clipboard) {
     const track = timeline.tracks.find((item) => item.id === entry.trackId);
     if (!track) return reportKeyframePlacementFailure(ctx);
@@ -174,15 +176,30 @@ function insertKeyframeClipboard(
   return true;
 }
 
+type PlacementEntry = { trackId: string; keyframe: { time: number } };
+type PlacementTimeline = {
+  tracks: readonly { id: string; keyframes: readonly { time: number }[] }[];
+};
+
 export function findCollisionFreeKeyframeOffset(
-  timeline,
-  clipboard: ClipboardEntry[],
+  timeline: PlacementTimeline,
+  clipboard: readonly PlacementEntry[],
   preferredOffset: number,
   duration: number,
   frameDuration: number,
 ): number | null {
+  if (
+    !Number.isFinite(preferredOffset) ||
+    !Number.isFinite(duration) ||
+    duration < 0 ||
+    !Number.isFinite(frameDuration) ||
+    frameDuration <= 0 ||
+    clipboard.some((entry) => !Number.isFinite(entry.keyframe.time))
+  )
+    return null;
   const step = Math.max(0.001, Number(frameDuration) || 1 / 30);
   const attempts = Math.ceil(Math.max(1, duration) / step);
+  if (!Number.isFinite(attempts)) return null;
   for (let index = 0; index <= attempts; index += 1) {
     for (const direction of index === 0 ? [0] : [1, -1]) {
       const offset = preferredOffset + index * step * direction;
@@ -195,11 +212,11 @@ export function findCollisionFreeKeyframeOffset(
 }
 
 function canPlaceKeyframes(
-  timeline,
-  clipboard,
-  offset,
-  duration,
-  frameDuration,
+  timeline: PlacementTimeline,
+  clipboard: readonly PlacementEntry[],
+  offset: number,
+  duration: number,
+  frameDuration: number,
 ): boolean {
   const epsilon = Math.min(0.0001, frameDuration * 0.1);
   const plannedByTrack = new Map<string, number[]>();
@@ -216,6 +233,7 @@ function canPlaceKeyframes(
     plannedByTrack.set(entry.trackId, planned);
     const track = timeline.tracks.find((item) => item.id === entry.trackId);
     if (
+      !track ||
       track.keyframes.some(
         (keyframe) => Math.abs(Number(keyframe.time) - time) <= epsilon,
       )
@@ -226,7 +244,12 @@ function canPlaceKeyframes(
   return true;
 }
 
-function commitKeyframeTimeline(ctx, template, timeline, refs): void {
+function commitKeyframeTimeline(
+  ctx: ViewerAppContext,
+  template: { id: string },
+  timeline: EditorTimeline,
+  refs: KeyframeSelectionRef[],
+): void {
   ctx.state.timelineOverrides.set(
     template.id,
     ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
@@ -239,11 +262,11 @@ function commitKeyframeTimeline(ctx, template, timeline, refs): void {
   void ctx.renderCurrentFrame();
 }
 
-function getFrameDuration(ctx): number {
+function getFrameDuration(ctx: ViewerAppContext): number {
   return 1 / Math.max(1, Number(ctx.refs.fpsInput.value) || 30);
 }
 
-function reportKeyframePlacementFailure(ctx): false {
+function reportKeyframePlacementFailure(ctx: ViewerAppContext): false {
   ctx.logDiagnostic(
     ctx.deps.t(
       "viewer.timeline.keyframePlacementUnavailable",

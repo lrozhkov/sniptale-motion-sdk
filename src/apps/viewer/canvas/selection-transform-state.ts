@@ -1,3 +1,4 @@
+import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { createCanvasDragPreview } from "./drag-preview.js";
 import { prepareCanvasGesture } from "./gesture.js";
@@ -17,7 +18,7 @@ export type CanvasSelectionGestureSnapshot = {
   entries: CanvasSelectionTransformEntry[];
   layerIds: string[];
   operation: CanvasSelectionTransformOperation;
-  template: any;
+  template: EditorTemplate;
   time: number;
 };
 
@@ -151,7 +152,7 @@ export function applyCanvasSelectionTransform(
   result: CanvasSelectionTransformResult,
   options: any = {},
 ): void {
-  if (ctx.state.canvasTransformPreview) {
+  if (ctx.state.canvasTransformPreview?.boxes) {
     ctx.state.canvasTransformPreview.boxes = result.boxes;
   }
   const properties = new Set(OPERATION_PROPERTIES[snapshot.operation]);

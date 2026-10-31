@@ -29,6 +29,64 @@ describe("viewer keyframe clipboard", () => {
     ).toBeCloseTo(1 / 30);
   });
 
+  it("rejects stale tracks and non-finite placement values", () => {
+    const timeline = { tracks: [{ id: "track", keyframes: [] }] };
+    expect(
+      findCollisionFreeKeyframeOffset(
+        timeline,
+        [{ trackId: "missing", keyframe: { time: 1 } }],
+        0,
+        1,
+        1 / 30,
+      ),
+    ).toBeNull();
+    expect(
+      findCollisionFreeKeyframeOffset(
+        timeline,
+        [{ trackId: "track", keyframe: { time: NaN } }],
+        0,
+        1,
+        1 / 30,
+      ),
+    ).toBeNull();
+    expect(
+      findCollisionFreeKeyframeOffset(timeline, [], Infinity, 1, 1 / 30),
+    ).toBeNull();
+    expect(
+      findCollisionFreeKeyframeOffset(timeline, [], 0, Infinity, 1 / 30),
+    ).toBeNull();
+    expect(findCollisionFreeKeyframeOffset(timeline, [], 0, 1, 0)).toBeNull();
+  });
+
+  it("copies opaque keyframe values without sharing the source payload", () => {
+    const ctx = createContext();
+    installInteractionKeyframeClipboardOwner(ctx);
+    const value = { nested: [true, ""], zero: 0 };
+    ctx.state.timelineOverrides.set("template", {
+      duration: 4,
+      phases: [],
+      tracks: [{ id: "opacity", keyframes: [{ id: "a", time: 1, value }] }],
+    });
+    expect(ctx.copySelectedKeyframes()).toBe(true);
+    const copied: unknown = ctx.state.keyframeClipboard[0].keyframe.value;
+    expect(copied).toEqual(value);
+    expect(copied).not.toBe(value);
+  });
+
+  it("keeps an existing clipboard when part of the selected source is missing", () => {
+    const ctx = createContext();
+    installInteractionKeyframeClipboardOwner(ctx);
+    expect(ctx.copySelectedKeyframes()).toBe(true);
+    const previous = ctx.state.keyframeClipboard;
+    ctx.state.selectedKeyframes.push({
+      trackId: "opacity",
+      keyframeId: "missing",
+    });
+    expect(ctx.copySelectedKeyframes()).toBe(false);
+    expect(ctx.state.keyframeClipboard).toBe(previous);
+    expect(ctx.beginEditorCommand).not.toHaveBeenCalled();
+  });
+
   it("duplicates and deletes the whole selection with one command each", () => {
     const ctx = createContext();
     installInteractionKeyframeClipboardOwner(ctx);

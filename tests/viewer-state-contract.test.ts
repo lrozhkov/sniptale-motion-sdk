@@ -1,3 +1,5 @@
+import type { CanvasTransformPreview } from "../src/apps/viewer/canvas/transform-state.js";
+import type { KeyframeClipboardEntry } from "../src/apps/viewer/timeline/state.js";
 import type { RendererBindingReads } from "../src/apps/viewer/app/binding-reads.js";
 import type { ViewerRenderProfile } from "../src/apps/viewer/rendering/state.js";
 import type { PreviewAudioState } from "../src/apps/viewer/playback/audio-state.js";
@@ -35,6 +37,12 @@ describe("viewer state contracts", () => {
       state.currentTemplate,
     ).toEqualTypeOf<EditorTemplateSource | null>();
     expectTypeOf(state.selectedLayers).toEqualTypeOf<string[]>();
+    expectTypeOf(
+      state.canvasTransformPreview,
+    ).toEqualTypeOf<CanvasTransformPreview | null>();
+    expectTypeOf(state.keyframeClipboard).toEqualTypeOf<
+      KeyframeClipboardEntry[] | null
+    >();
     expectTypeOf(state.lastBindingReads).toEqualTypeOf<RendererBindingReads>();
     expectTypeOf(
       state.rendererContractReads,

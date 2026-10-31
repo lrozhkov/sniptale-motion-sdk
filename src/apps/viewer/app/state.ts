@@ -1,3 +1,4 @@
+import { createCanvasTransformState } from "../canvas/transform-state.js";
 import { createPreviewAudioState } from "../playback/audio-state.js";
 import { createViewerTransportState } from "../transport/state.js";
 import { createVideoExportState } from "../video-export/state.js";
@@ -20,6 +21,7 @@ import {
 
 export function createViewerState() {
   return {
+    ...createCanvasTransformState(),
     ...createPreviewAudioState(),
     ...createViewerTransportState(),
     ...createVideoExportState(),
@@ -46,8 +48,6 @@ export function createViewerState() {
     averagePreviewLatencyMs: 0,
     averagePlaybackTickMs: 0,
     averageRenderMs: 0,
-    canvasTransformDragActive: false,
-    canvasTransformPreview: null,
     compositionIds: new Set<string>(),
     collapsedLayerPanelGroupIds: new Set<string>(),
     droppedFrames: 0,
@@ -61,7 +61,6 @@ export function createViewerState() {
     frameSequence: 0,
     inspectorAppendSection: "summary",
     interactivePreviewScale: 1,
-    keyframeClipboard: null,
     lastBindingReads: createEmptyBindingReads(),
     lastCanvasSelectionPlaybackTs: 0,
     lastEstimatedFullRenderMs: 0,

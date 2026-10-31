@@ -1,3 +1,4 @@
+import type { CanvasBox } from "./primitive-geometry.js";
 import { getAxisAlignedCanvasBox } from "./selection-bounds.js";
 import { rotateCanvasVector } from "./transform-math.js";
 
@@ -29,7 +30,7 @@ export type CanvasSelectionTransformResult = {
     x: number;
     y: number;
   };
-  boxes: Record<string, any>;
+  boxes: Record<string, CanvasBox>;
   updates: Record<string, Record<string, number>>;
 };
 
@@ -45,9 +46,9 @@ export function transformCanvasSelection(
   const rotation = Number(options.rotation) || 0;
   const scale = Math.max(0.05, Number(options.scale) || 1);
   const translation = options.translation ?? { x: 0, y: 0 };
-  const boxes: Record<string, any> = {};
+  const boxes: Record<string, CanvasBox> = {};
   const updates: Record<string, Record<string, number>> = {};
-  const axisAlignedBoxes = [];
+  const axisAlignedBoxes: Omit<CanvasBox, "rotation">[] = [];
   for (const entry of entries) {
     const pivotOffset = rotateCanvasVector(
       {

@@ -19,7 +19,7 @@ import { beginDirectLiveRenderProfile } from "./direct-live-policy.js";
 export async function renderCurrentFrame(
   ctx: ViewerAppContext,
   options: RenderOptions = {},
-) {
+): Promise<void> {
   if (ctx.state.currentTemplate?.domMotion) {
     await ctx.renderDomMotionFrame();
     return;

@@ -1,3 +1,5 @@
+import { renderCurrentFrame } from "../rendering/service.js";
+import { getSelectedKeyframeRefs } from "../timeline/interaction/keyframes.js";
 import { resolveRenderTemplateSnapshot } from "../rendering/model-cache.js";
 import { createViewerRefs } from "./refs.js";
 import { createViewerState } from "./state.js";
@@ -27,6 +29,12 @@ export function createViewerContext(): ViewerAppContext {
     lastPlaybackRenderTs: 0,
     lastPlaybackTs: 0,
     lastPlaybackUiTs: 0,
+    renderCurrentFrame(options) {
+      return renderCurrentFrame(ctx, options);
+    },
+    getSelectedKeyframeRefs() {
+      return getSelectedKeyframeRefs(ctx);
+    },
     getEditorOverride(template) {
       return getEditorOverride(ctx, template);
     },

@@ -5,7 +5,7 @@ import { fitOrientedBoxToPrimitiveBounds } from "./primitive-geometry.js";
 
 export function getLayerCanvasHitBox(
   ctx: ViewerAppContext,
-  layerId,
+  layerId: string,
   layer,
   resolution: any = {},
 ) {
@@ -17,7 +17,8 @@ export function getLayerCanvasHitBox(
     return { ...transformPreview.boxes[layerId] };
   }
   if (
-    transformPreview?.layerId === layerId &&
+    transformPreview?.layerId !== undefined &&
+    transformPreview.layerId === layerId &&
     transformPreview.templateId === ctx.state.currentTemplate?.id
   ) {
     return { ...transformPreview.box };

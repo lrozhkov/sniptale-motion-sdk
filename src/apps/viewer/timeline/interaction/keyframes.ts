@@ -1,3 +1,4 @@
+import type { KeyframeSelectionRef } from "../model/selection-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { getPairedMotionPathKeyframeRef } from "../model/motion-path-mutations.js";
 
@@ -179,9 +180,11 @@ function resolveTrackValueForNewKeyframe(
     .sort((a, b) => Math.abs(a.time - time) - Math.abs(b.time - time))[0];
   return ctx.deps.deepClone(nearest?.value ?? 0);
 }
-function getSelectedKeyframeRefs(ctx: ViewerAppContext) {
+export function getSelectedKeyframeRefs(
+  ctx: ViewerAppContext,
+): KeyframeSelectionRef[] {
   const refs = ctx.state.selectedKeyframes;
-  const unique = new Map();
+  const unique = new Map<string, KeyframeSelectionRef>();
   for (const ref of refs) {
     unique.set(`${ref.trackId}:${ref.keyframeId}`, ref);
   }

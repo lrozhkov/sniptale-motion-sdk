@@ -1,3 +1,5 @@
+import type { RenderOptions } from "../rendering/state.js";
+import type { KeyframeSelectionRef } from "../timeline/model/selection-model.js";
 import type { createViewerRefs } from "./refs.js";
 import type { createViewerState } from "./state.js";
 import type { ViewerAppDependencies } from "./dependencies.js";
@@ -16,6 +18,8 @@ export interface ViewerAppContext {
   previewContext: CanvasRenderingContext2D;
   refs: ReturnType<typeof createViewerRefs>;
   state: ReturnType<typeof createViewerState>;
+  renderCurrentFrame(options?: RenderOptions): Promise<void>;
+  getSelectedKeyframeRefs(): KeyframeSelectionRef[];
   getEditorOverride(template?: unknown): Record<string, unknown>;
   setEditorOverride(patch: unknown): void;
   getEffectiveDuration(template?: unknown): number;
