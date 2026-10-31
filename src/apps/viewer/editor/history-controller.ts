@@ -1,3 +1,6 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorHistoryActions, HistoryCommitOptions } from "./contract.js";
+import type { EditorSnapshot } from "./history.js";
 import { readViewerAsset, type ViewerAsset } from "../assets/state.js";
 import { invalidateCanvasDragPreview } from "../canvas/drag-preview.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -5,7 +8,7 @@ import type { ViewerAppContext } from "../app/context.js";
 function commitHistory(
   ctx: ViewerAppContext,
   label = "edit",
-  options: { coalesceKey?: string; coalesceWindowMs?: number } = {},
+  options: HistoryCommitOptions = {},
 ) {
   if (!ctx.state.currentTemplate) {
     return false;
@@ -60,10 +63,10 @@ function captureEditorSnapshot(ctx: ViewerAppContext, label = "edit") {
   );
 }
 
-async function restoreEditorSnapshot(ctx: ViewerAppContext, snapshot) {
-  if (!restoreEditorSnapshotData(ctx, snapshot)) {
-    return false;
-  }
+async function presentEditorSnapshot(
+  ctx: ViewerAppContext,
+  snapshot: EditorSnapshot,
+): Promise<void> {
   ctx.refs.timeSlider.value = String(
     ctx.deps.clamp(
       Number(snapshot.time) || 0,
@@ -77,10 +80,12 @@ async function restoreEditorSnapshot(ctx: ViewerAppContext, snapshot) {
   ctx.renderTimelineEditor(ctx.state.currentTemplate);
   ctx.renderControls(ctx.state.currentTemplate);
   await ctx.renderCurrentFrame();
-  return true;
 }
 
-function restoreEditorSnapshotData(ctx: ViewerAppContext, snapshot): boolean {
+function restoreEditorSnapshotData(
+  ctx: ViewerAppContext,
+  snapshot: EditorSnapshot,
+): boolean {
   if (
     !snapshot?.templateId ||
     ctx.state.currentTemplate?.id !== snapshot.templateId
@@ -105,52 +110,45 @@ function restoreEditorSnapshotData(ctx: ViewerAppContext, snapshot): boolean {
   return true;
 }
 
-async function undoEditorEdit(ctx: ViewerAppContext) {
+async function moveEditorHistory(
+  ctx: ViewerAppContext,
+  direction: "undo" | "redo",
+): Promise<boolean> {
   if (ctx.state.editorHistoryBusy) return false;
   ctx.state.pointerDragCleanup?.();
-  if (ctx.state.historyPast.length === 0) return false;
-  const current = ctx.captureEditorSnapshot("redo-base");
-  const snapshot = ctx.state.historyPast.pop();
+  const source =
+    direction === "undo" ? ctx.state.historyPast : ctx.state.historyFuture;
+  const snapshot = source.at(-1);
+  if (!snapshot) return false;
+  const current = ctx.captureEditorSnapshot(
+    direction === "undo" ? "redo-base" : "undo-base",
+  );
   ctx.state.editorHistoryBusy = true;
-  ctx.syncEditorWorkflowUi?.();
   try {
-    if (!(await ctx.restoreEditorSnapshot(snapshot))) {
-      ctx.state.historyPast.push(snapshot);
-      return false;
-    }
-    ctx.state.historyFuture.push(current);
-    ctx.state.historyFuture = ctx.state.historyFuture.slice(-80);
+    if (!restoreEditorSnapshotData(ctx, snapshot)) return false;
+    source.pop();
+    if (direction === "undo")
+      ctx.state.historyFuture = [...ctx.state.historyFuture, current].slice(
+        -80,
+      );
+    else ctx.state.historyPast = [...ctx.state.historyPast, current].slice(-80);
     ctx.state.historyCoalescing = null;
-    ctx.markEditorChanged?.("undo", { immediate: true });
+    ctx.markEditorChanged(direction, { immediate: true });
+    ctx.syncEditorWorkflowUi();
+    await presentEditorSnapshot(ctx, snapshot);
     return true;
   } finally {
     ctx.state.editorHistoryBusy = false;
-    ctx.syncEditorWorkflowUi?.();
+    ctx.syncEditorWorkflowUi();
   }
 }
 
-async function redoEditorEdit(ctx: ViewerAppContext) {
-  if (ctx.state.editorHistoryBusy) return false;
-  ctx.state.pointerDragCleanup?.();
-  if (ctx.state.historyFuture.length === 0) return false;
-  const current = ctx.captureEditorSnapshot("undo-base");
-  const snapshot = ctx.state.historyFuture.pop();
-  ctx.state.editorHistoryBusy = true;
-  ctx.syncEditorWorkflowUi?.();
-  try {
-    if (!(await ctx.restoreEditorSnapshot(snapshot))) {
-      ctx.state.historyFuture.push(snapshot);
-      return false;
-    }
-    ctx.state.historyPast.push(current);
-    ctx.state.historyPast = ctx.state.historyPast.slice(-80);
-    ctx.state.historyCoalescing = null;
-    ctx.markEditorChanged?.("redo", { immediate: true });
-    return true;
-  } finally {
-    ctx.state.editorHistoryBusy = false;
-    ctx.syncEditorWorkflowUi?.();
-  }
+function undoEditorEdit(ctx: ViewerAppContext): Promise<boolean> {
+  return moveEditorHistory(ctx, "undo");
+}
+
+function redoEditorEdit(ctx: ViewerAppContext): Promise<boolean> {
+  return moveEditorHistory(ctx, "redo");
 }
 
 function getEditorAssetScopeIds(ctx: ViewerAppContext): string[] {
@@ -189,7 +187,7 @@ function readSnapshotAssets(value: unknown): Map<string, ViewerAsset> | null {
 
 function restoreEditorSnapshotAssets(
   ctx: ViewerAppContext,
-  snapshot,
+  snapshot: EditorSnapshot,
   previousAssetScopeIds: string[],
   snapshotEntries: ReadonlyMap<string, ViewerAsset>,
 ): void {
@@ -210,17 +208,21 @@ function restoreEditorSnapshotAssets(
   }
 }
 
-export function installEditorHistoryControllerOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.commitHistory = commitHistory.bind(undefined, ctx);
-  ctx.captureEditorSnapshot = captureEditorSnapshot.bind(undefined, ctx);
-  ctx.getEditorAssetScopeIds = getEditorAssetScopeIds.bind(undefined, ctx);
-  ctx.restoreEditorSnapshot = restoreEditorSnapshot.bind(undefined, ctx);
-  ctx.restoreEditorSnapshotData = restoreEditorSnapshotData.bind(
-    undefined,
-    ctx,
-  );
-  ctx.undoEditorEdit = undoEditorEdit.bind(undefined, ctx);
-  ctx.redoEditorEdit = redoEditorEdit.bind(undefined, ctx);
+export function createEditorHistoryActions(
+  getContext: () => ViewerAppContext,
+): EditorHistoryActions {
+  return {
+    commitHistory: bindViewerAction(commitHistory, getContext),
+    captureEditorSnapshot: bindViewerAction(captureEditorSnapshot, getContext),
+    getEditorAssetScopeIds: bindViewerAction(
+      getEditorAssetScopeIds,
+      getContext,
+    ),
+    restoreEditorSnapshotData: bindViewerAction(
+      restoreEditorSnapshotData,
+      getContext,
+    ),
+    undoEditorEdit: bindViewerAction(undoEditorEdit, getContext),
+    redoEditorEdit: bindViewerAction(redoEditorEdit, getContext),
+  };
 }

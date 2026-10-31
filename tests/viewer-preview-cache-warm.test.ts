@@ -12,6 +12,10 @@ function createState(overrides: Record<string, unknown> = {}) {
   return {
     playing: false,
     previewCacheWarmActive: false,
+    previewCacheWarmAverageFrameMs: 0,
+    previewCacheWarmElapsedMs: 0,
+    previewCacheWarmSampleCount: 0,
+    previewCacheWarmScale: 0,
     previewCacheWarmCapacityLimited: false,
     previewCacheWarmPrepared: false,
     previewCacheWarmPublicTime: 0,

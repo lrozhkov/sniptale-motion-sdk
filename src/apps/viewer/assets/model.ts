@@ -1,3 +1,5 @@
+import type { ViewerAsset } from "./state.js";
+import type { AssetLayerPlacement, CreatedAssetLayer } from "./contract.js";
 import { createSvgDataUrl } from "../../../shared/svg-data-url.js";
 import { isSafeSvgText } from "../../../sdk/svg-safety.js";
 import { SUPPORTED_AUTHOR_ASSET_TYPES } from "../app/constants.js";
@@ -6,7 +8,7 @@ export function normalizeAuthorAssetMimeType(file: {
   name?: string;
   type?: string;
 }): string {
-  if (SUPPORTED_AUTHOR_ASSET_TYPES.has(file.type)) {
+  if (file.type !== undefined && SUPPORTED_AUTHOR_ASSET_TYPES.has(file.type)) {
     return file.type;
   }
   const name = String(file.name ?? "").toLowerCase();
@@ -30,22 +32,28 @@ export function isSafeSvgAssetText(svgText: unknown): boolean {
   return isSafeSvgText(svgText);
 }
 
-export function getAssetUsageCount(template: any, assetId: string): number {
+export function getAssetUsageCount(
+  template: { layers?: readonly Record<string, unknown>[] } | null | undefined,
+  assetId: string,
+): number {
   return getAssetUsageLayers(template, assetId).length;
 }
 
-export function getAssetUsageLayers(template: any, assetId: string): any[] {
+export function getAssetUsageLayers<Layer extends Record<string, unknown>>(
+  template: { layers?: readonly Layer[] } | null | undefined,
+  assetId: string,
+): Layer[] {
   return (template?.layers ?? []).filter((layer) => layer.assetId === assetId);
 }
 
-export function getAssetPreviewUrl(asset: any): string | null {
+export function getAssetPreviewUrl(asset: ViewerAsset): string | null {
   if (asset.mimeType === "image/svg+xml" && asset.svgText) {
     return createSvgDataUrl(asset.svgText);
   }
   return asset.dataUrl || null;
 }
 
-export function formatAssetMeta(asset: any): string {
+export function formatAssetMeta(asset: ViewerAsset): string {
   const size =
     asset.width && asset.height
       ? `${Math.round(asset.width)} x ${Math.round(asset.height)}`
@@ -55,7 +63,11 @@ export function formatAssetMeta(asset: any): string {
   }`;
 }
 
-export function createAssetLayer(asset: any, template: any, options: any = {}) {
+export function createAssetLayer(
+  asset: ViewerAsset,
+  template: { layers?: readonly { id: string; type?: string }[] },
+  options: AssetLayerPlacement = {},
+): CreatedAssetLayer {
   const kind = asset.mimeType === "image/svg+xml" ? "svgAsset" : "imageAsset";
   const id = createUniqueLayerId(
     kind === "svgAsset" ? "svg-asset" : "image-asset",
@@ -107,16 +119,18 @@ export function createAssetLayer(asset: any, template: any, options: any = {}) {
   };
 }
 
-export function withAssetLayerTypeDefaults(layer: any, type: string): any {
+export function withAssetLayerTypeDefaults<
+  Layer extends Record<string, unknown>,
+>(layer: Layer, type: string) {
   if (type !== "svgAsset") {
     const {
-      partBlur,
-      partOrder,
-      partReveal,
-      partSpread,
-      partStagger,
-      svgPartIds,
-      svgPartMode,
+      partBlur: _partBlur,
+      partOrder: _partOrder,
+      partReveal: _partReveal,
+      partSpread: _partSpread,
+      partStagger: _partStagger,
+      svgPartIds: _svgPartIds,
+      svgPartMode: _svgPartMode,
       ...rest
     } = layer;
     return rest;
@@ -137,7 +151,7 @@ export function createUniqueAssetId(
   sourceName: unknown,
   existingAssetIds: Iterable<string>,
 ): string {
-  const baseName = String(sourceName || "asset").replace(/\.[^.]+$/, "");
+  const baseName = primitiveText(sourceName, "asset").replace(/\.[^.]+$/, "");
   const base = `asset-${sanitizeIdentifier(baseName)}`;
   const ids = new Set(existingAssetIds);
   let candidate = base;
@@ -149,7 +163,10 @@ export function createUniqueAssetId(
   return candidate;
 }
 
-function createUniqueLayerId(kind: string, layers: any[]): string {
+function createUniqueLayerId(
+  kind: string,
+  layers: readonly { id: string }[],
+): string {
   const ids = new Set(layers.map((layer) => layer.id));
   let index = 1;
   let id = `${kind}-${index}`;
@@ -162,9 +179,18 @@ function createUniqueLayerId(kind: string, layers: any[]): string {
 
 function sanitizeIdentifier(value: unknown): string {
   return (
-    String(value)
+    primitiveText(value, "")
       .trim()
       .replace(/[^a-zA-Z0-9._-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "asset"
   );
+}
+
+function primitiveText(value: unknown, fallback: string): string {
+  return value &&
+    (typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean")
+    ? String(value)
+    : fallback;
 }

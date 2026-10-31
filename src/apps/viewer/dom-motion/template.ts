@@ -1,3 +1,4 @@
+import { parseDomMotionDocument } from "../../../sdk/dom-motion/index.js";
 import { translateText } from "../../../shared/i18n/index.js";
 import type { EffectDefinition } from "../../../sdk/types.js";
 import type { DomMotionDocument } from "../../../sdk/dom-motion/model.js";
@@ -46,13 +47,16 @@ export function createDomMotionTemplate(
     timeline: document.timeline,
   };
 }
-export function isDomMotionTemplate(
+/** Parse the embedded document without asserting unrelated template fields. */
+export function readDomMotionTemplateDocument(
   template: unknown,
-): template is EffectDefinition & { domMotion: DomMotionDocument } {
-  return (
-    !!template &&
-    typeof template === "object" &&
-    "domMotion" in template &&
-    !!template.domMotion
-  );
+): DomMotionDocument | null {
+  if (
+    !template ||
+    typeof template !== "object" ||
+    !("domMotion" in template) ||
+    template.domMotion === undefined
+  )
+    return null;
+  return parseDomMotionDocument(template.domMotion);
 }

@@ -1,4 +1,4 @@
-import type { EditorTemplateSource } from "../templates/model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type {
   EditorValidationIssue,
   EditorValidationOptions,
@@ -24,7 +24,7 @@ export interface EditorValidationActions {
     options?: EditorValidationContextOptions,
   ): EditorValidationOptions;
   isRendererContractCoveragePending(
-    template?: EditorTemplateSource | null,
+    template?: EditorTimelineSource | null,
   ): boolean;
   createValidationIssue(
     message: string,

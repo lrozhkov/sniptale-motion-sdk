@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PlaybackVideoCacheActions } from "./contract.js";
 import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import type { PlaybackVideoCacheMode } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -149,7 +151,10 @@ async function preparePlaybackVideoCache(
     rangeStartFrame: range.startFrame,
     rangeStartTime: range.startTime,
     restoredSegmentCount: 0,
-    segmentBlobs: Array(segmentPlan.length).fill(null),
+    segmentBlobs: Array.from(
+      { length: segmentPlan.length },
+      (): Blob | null => null,
+    ),
     segmentPlan,
     storageKey,
     width: rasterSize.width,
@@ -220,7 +225,10 @@ async function preparePlaybackVideoCache(
           segment,
         ),
       }));
-      cache.segmentBlobs = Array(cache.segmentPlan.length).fill(null);
+      cache.segmentBlobs = Array.from(
+        { length: cache.segmentPlan.length },
+        (): Blob | null => null,
+      );
     }
     const pendingSegmentIndexes =
       encoder.segmented && restored.mode === "partial"
@@ -246,27 +254,43 @@ async function preparePlaybackVideoCache(
   }
 }
 
-export function installPlaybackVideoCacheOwner(ctx: ViewerAppContext): void {
-  ctx.beginPlaybackVideoCache = beginPlaybackVideoCache.bind(undefined, ctx);
-  ctx.capturePlaybackVideoCacheFrame = capturePlaybackVideoCacheFrame.bind(
-    undefined,
-    ctx,
-  );
-  ctx.hidePlaybackVideoCacheSurface = hidePlaybackVideoCacheSurface.bind(
-    undefined,
-    ctx,
-  );
-  ctx.invalidatePlaybackVideoCache = invalidatePlaybackVideoCache.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isPlaybackVideoCacheCurrent = () => isPlaybackVideoCacheCurrent(ctx);
-  ctx.shouldPreferPlaybackVideoCache = shouldPreferPlaybackVideoCache.bind(
-    undefined,
-    ctx,
-  );
-  ctx.stopPlaybackVideoCache = stopPlaybackVideoCache.bind(undefined, ctx);
-  ctx.syncPlaybackVideoCache = syncPlaybackVideoCache.bind(undefined, ctx);
+export function createPlaybackVideoCacheActions(
+  getContext: () => ViewerAppContext,
+): PlaybackVideoCacheActions {
+  return {
+    beginPlaybackVideoCache: bindViewerAction(
+      beginPlaybackVideoCache,
+      getContext,
+    ),
+    capturePlaybackVideoCacheFrame: bindViewerAction(
+      capturePlaybackVideoCacheFrame,
+      getContext,
+    ),
+    hidePlaybackVideoCacheSurface: bindViewerAction(
+      hidePlaybackVideoCacheSurface,
+      getContext,
+    ),
+    invalidatePlaybackVideoCache: bindViewerAction(
+      invalidatePlaybackVideoCache,
+      getContext,
+    ),
+    isPlaybackVideoCacheCurrent: bindViewerAction(
+      isPlaybackVideoCacheCurrent,
+      getContext,
+    ),
+    shouldPreferPlaybackVideoCache: bindViewerAction(
+      shouldPreferPlaybackVideoCache,
+      getContext,
+    ),
+    stopPlaybackVideoCache: bindViewerAction(
+      stopPlaybackVideoCache,
+      getContext,
+    ),
+    syncPlaybackVideoCache: bindViewerAction(
+      syncPlaybackVideoCache,
+      getContext,
+    ),
+  };
 }
 
 function isPreviewCacheEnabled(ctx: ViewerAppContext): boolean {

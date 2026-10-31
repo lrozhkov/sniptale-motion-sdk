@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PreviewAudioActions } from "./contract.js";
 import { collectTimelineAudioClips as collectTimelinePreviewAudioClips } from "../timeline/model/audio-clips.js";
 export { collectTimelineAudioClips as collectTimelinePreviewAudioClips } from "../timeline/model/audio-clips.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -116,7 +118,11 @@ export function syncPreviewAudio(
   }
 }
 
-export function installPlaybackPreviewAudioOwner(ctx: ViewerAppContext): void {
-  ctx.stopPreviewAudio = stopPreviewAudio.bind(undefined, ctx);
-  ctx.syncPreviewAudio = syncPreviewAudio.bind(undefined, ctx);
+export function createPreviewAudioActions(
+  getContext: () => ViewerAppContext,
+): PreviewAudioActions {
+  return {
+    stopPreviewAudio: bindViewerAction(stopPreviewAudio, getContext),
+    syncPreviewAudio: bindViewerAction(syncPreviewAudio, getContext),
+  };
 }

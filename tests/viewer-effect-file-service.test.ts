@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { installEffectFileServiceOwner } from "../src/apps/viewer/effect-file/service";
+import { createEffectExportReadinessActions } from "../src/apps/viewer/effect-file/service";
 
 describe("viewer effect-file export readiness", () => {
   it("blocks export neutrally until renderer contract coverage is ready", () => {
     let pending = true;
     const ctx = createContext(() => pending);
-    installEffectFileServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createEffectExportReadinessActions(() => ctx),
+    );
 
     ctx.updateExportAvailability();
 
@@ -35,7 +38,10 @@ describe("viewer effect-file export readiness", () => {
 
   it("keeps validation failures distinct from the pending state", () => {
     const ctx = createContext(() => false, ["Track is not renderer-bound"]);
-    installEffectFileServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createEffectExportReadinessActions(() => ctx),
+    );
 
     ctx.updateExportAvailability();
 

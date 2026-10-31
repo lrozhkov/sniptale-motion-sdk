@@ -18,7 +18,7 @@ export function isRendererBound(
   type: string,
   id: unknown,
 ): boolean {
-  const value = String(id ?? "");
+  const value = typeof id === "string" ? id : "";
   if (!value) {
     return false;
   }

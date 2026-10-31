@@ -1,3 +1,5 @@
+import type { EditorTemplateSource } from "../templates/model.js";
+import type { ViewerAsset } from "../assets/state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { fingerprintEditorValue } from "./draft-model.js";
 
@@ -25,7 +27,7 @@ export function getEditorContentFingerprint(ctx: ViewerAppContext): string {
 
 export function getEditorSourceFingerprint(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTemplateSource,
 ): string {
   const assetIds = Array.isArray(template?.assets) ? template.assets : [];
   return fingerprintEditorValue({
@@ -55,7 +57,7 @@ export function ensureDraftRevisionTracksCurrentContent(
   }
 }
 
-function serializeDraftAsset(assetId: string, asset) {
+function serializeDraftAsset(assetId: string, asset: ViewerAsset | undefined) {
   return asset
     ? {
         dataUrl: asset.dataUrl ?? null,

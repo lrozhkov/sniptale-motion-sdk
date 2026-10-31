@@ -1,14 +1,24 @@
+import type {
+  EditorTemplateSource,
+  EditorTemplate,
+} from "../templates/model.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
 import type { PlaybackVideoCacheRange } from "./video-cache-model.js";
 export type { PlaybackVideoCacheRange } from "./video-cache-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolvePreviewCacheFrameRange } from "./cache-range.js";
+
+type CacheTemplate = Pick<
+  EditorTemplateSource,
+  "id" | "moduleId" | "effectId" | "kind"
+>;
 
 const FULL_HD_PIXELS = 1920 * 1080;
 const PLAYBACK_VIDEO_CACHE_KEY_VERSION = 3;
 
 export function isPlaybackVideoCacheEligible(
   ctx: ViewerAppContext,
-  template,
+  template: CacheTemplate | null,
 ): boolean {
   const directKind =
     template?.kind === "sceneEffect" ||
@@ -16,6 +26,7 @@ export function isPlaybackVideoCacheEligible(
     template?.kind === "composition";
   return Boolean(
     directKind &&
+    typeof template?.effectId === "string" &&
     ctx.state.directRenderEffectIds.has(template.effectId) &&
     ctx.state.directRenderResponsePort?.presentationSurfaceAttached,
   );
@@ -23,7 +34,7 @@ export function isPlaybackVideoCacheEligible(
 
 export function shouldPreferPlaybackVideoCache(
   ctx: ViewerAppContext,
-  template,
+  template: CacheTemplate | null,
 ): boolean {
   if (template?.kind !== "composition") {
     return false;
@@ -37,7 +48,7 @@ export function shouldPreferPlaybackVideoCache(
 
 export function createPlaybackVideoCacheKey(
   ctx: ViewerAppContext,
-  template,
+  template: CacheTemplate | null,
   fps: number,
   duration: number,
 ): string {
@@ -55,7 +66,7 @@ export function createPlaybackVideoCacheKey(
 
 export function createPlaybackVideoCacheStorageKey(
   ctx: ViewerAppContext,
-  template,
+  template: CacheTemplate | null,
   fps: number,
   duration: number,
 ): string {
@@ -76,7 +87,7 @@ export function createPlaybackVideoCacheStorageKey(
 
 export function createPlaybackVideoCacheSegmentFingerprint(
   ctx: ViewerAppContext,
-  template,
+  template: CacheTemplate | null,
   fps: number,
   duration: number,
   segment: { endTime: number; startTime: number },
@@ -104,7 +115,7 @@ export function createPlaybackVideoCacheSegmentFingerprint(
 
 function createPlaybackVideoCacheDescriptor(
   ctx: ViewerAppContext,
-  template,
+  template: CacheTemplate | null,
   fps: number,
   duration: number,
   range: PlaybackVideoCacheRange,
@@ -114,25 +125,30 @@ function createPlaybackVideoCacheDescriptor(
     ctx.getRenderTemplateSnapshot(template),
     duration,
   );
-  const assetIds = Array.isArray(renderTemplate?.assets)
-    ? renderTemplate.assets.map(String)
-    : [];
+  const assetIds = renderTemplate?.assets ?? [];
   const assets = assetIds
-    .map((assetId) => ctx.state.assets.get(assetId))
-    .map((asset: any, index) => ({
-      content: fingerprintCacheText(
-        String(asset?.dataUrl ?? asset?.svgText ?? ""),
-      ),
-      height: asset?.height ?? null,
-      id: asset?.id ?? assetIds[index],
-      mimeType: asset?.mimeType ?? null,
-      name: asset?.name ?? null,
-      path: asset?.path ?? null,
-      size: asset?.blob?.size ?? 0,
-      width: asset?.width ?? null,
-    }))
-    .sort((left, right) => String(left.id).localeCompare(String(right.id)));
-  const module = ctx.state.modules?.get?.(template?.moduleId);
+    .map((assetId) => {
+      const asset = ctx.state.assets.get(assetId);
+      return {
+        content: fingerprintCacheText(
+          String(asset?.dataUrl ?? asset?.svgText ?? ""),
+        ),
+        height: asset?.height ?? null,
+        id: asset?.id ?? assetId,
+        mimeType: asset?.mimeType ?? null,
+        name:
+          asset && "name" in asset && typeof asset.name === "string"
+            ? asset.name
+            : null,
+        path: asset?.path ?? null,
+        size: asset?.blob?.size ?? 0,
+        width: asset?.width ?? null,
+      };
+    })
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const module = template?.moduleId
+    ? ctx.state.modules.get(template.moduleId)
+    : undefined;
   return {
     assets,
     controls: ctx.state.controls,
@@ -160,9 +176,9 @@ function createPlaybackVideoCacheDescriptor(
 
 function createCanonicalRenderTemplate(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTemplate | null,
   duration: number,
-) {
+): EditorTemplate | null {
   if (
     !template ||
     typeof template !== "object" ||
@@ -212,7 +228,7 @@ function createPackIdentity(ctx: ViewerAppContext) {
 }
 
 function createSegmentTemplateSnapshot(
-  template,
+  template: EditorTemplate | null,
   startTime: number,
   endTime: number,
 ) {
@@ -233,7 +249,7 @@ function createSegmentTemplateSnapshot(
 }
 
 function selectSegmentKeyframes(
-  value: unknown,
+  value: TimelineKeyframe<unknown>[],
   startTime: number,
   endTime: number,
 ) {
@@ -244,8 +260,8 @@ function selectSegmentKeyframes(
   let nextIndex = -1;
   const selected = new Set<number>();
   for (let index = 0; index < value.length; index += 1) {
-    const time = Number(value[index]?.time);
-    if (!Number.isFinite(time)) {
+    const time = value[index]?.time;
+    if (typeof time !== "number" || !Number.isFinite(time)) {
       return value;
     }
     if (time < startTime) {

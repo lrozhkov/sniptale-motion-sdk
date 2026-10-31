@@ -1,41 +1,61 @@
-export function recordPreviewFrameCacheResult(state: any, result: any): void {
+import type { ViewerAppContext } from "../app/context.js";
+export function recordPreviewFrameCacheResult(
+  state: Pick<
+    ViewerAppContext["state"],
+    | "previewFrameCacheBytes"
+    | "previewFrameCacheComplete"
+    | "previewFrameCacheEntries"
+    | "previewFrameCacheEvictions"
+    | "previewFrameCacheFrames"
+    | "previewFrameCacheHits"
+    | "previewFrameCacheMisses"
+    | "previewFrameCacheRawBytes"
+    | "previewFrameCacheStorage"
+    | "previewFrameCacheStoreMs"
+    | "previewFrameCacheTotalFrames"
+  >,
+  result: PreviewFrameCacheMetrics,
+): void {
   if (result.previewCacheHit === true) {
     state.previewFrameCacheHits += 1;
   } else if (result.previewCacheHit === false) {
     state.previewFrameCacheMisses += 1;
   }
-  if (Number.isFinite(result.previewCacheBytes)) {
-    state.previewFrameCacheBytes = Math.max(
-      0,
-      Number(result.previewCacheBytes),
-    );
+  if (
+    typeof result.previewCacheBytes === "number" &&
+    Number.isFinite(result.previewCacheBytes)
+  ) {
+    state.previewFrameCacheBytes = Math.max(0, result.previewCacheBytes);
   }
   if (typeof result.previewCacheComplete === "boolean") {
     state.previewFrameCacheComplete = result.previewCacheComplete;
   }
-  if (Number.isFinite(result.previewCacheEntries)) {
-    state.previewFrameCacheEntries = Math.max(
-      0,
-      Number(result.previewCacheEntries),
-    );
+  if (
+    typeof result.previewCacheEntries === "number" &&
+    Number.isFinite(result.previewCacheEntries)
+  ) {
+    state.previewFrameCacheEntries = Math.max(0, result.previewCacheEntries);
   }
-  if (Number.isFinite(result.previewCacheEvictions)) {
+  if (
+    typeof result.previewCacheEvictions === "number" &&
+    Number.isFinite(result.previewCacheEvictions)
+  ) {
     state.previewFrameCacheEvictions = Math.max(
       0,
-      Number(result.previewCacheEvictions),
+      result.previewCacheEvictions,
     );
   }
-  if (Number.isFinite(result.previewCacheFrames)) {
-    state.previewFrameCacheFrames = Math.max(
-      0,
-      Number(result.previewCacheFrames),
-    );
+  if (
+    typeof result.previewCacheFrames === "number" &&
+    Number.isFinite(result.previewCacheFrames)
+  ) {
+    state.previewFrameCacheFrames = Math.max(0, result.previewCacheFrames);
   }
-  if (Number.isFinite(result.previewCacheRawBytes)) {
-    state.previewFrameCacheRawBytes = Math.max(
-      0,
-      Number(result.previewCacheRawBytes),
-    );
+  if (
+    typeof result.previewCacheRawBytes === "number" &&
+    Number.isFinite(result.previewCacheRawBytes)
+  ) {
+    state.previewFrameCacheRawBytes = Math.max(0, result.previewCacheRawBytes);
   }
   if (
     result.previewCacheStorage === "bitmap" ||
@@ -45,16 +65,32 @@ export function recordPreviewFrameCacheResult(state: any, result: any): void {
   ) {
     state.previewFrameCacheStorage = result.previewCacheStorage;
   }
-  if (Number.isFinite(result.previewCacheStoreMs)) {
-    state.previewFrameCacheStoreMs = Math.max(
-      0,
-      Number(result.previewCacheStoreMs),
-    );
+  if (
+    typeof result.previewCacheStoreMs === "number" &&
+    Number.isFinite(result.previewCacheStoreMs)
+  ) {
+    state.previewFrameCacheStoreMs = Math.max(0, result.previewCacheStoreMs);
   }
-  if (Number.isFinite(result.previewCacheTotalFrames)) {
+  if (
+    typeof result.previewCacheTotalFrames === "number" &&
+    Number.isFinite(result.previewCacheTotalFrames)
+  ) {
     state.previewFrameCacheTotalFrames = Math.max(
       0,
-      Number(result.previewCacheTotalFrames),
+      result.previewCacheTotalFrames,
     );
   }
 }
+
+type PreviewFrameCacheMetrics = {
+  previewCacheHit?: unknown;
+  previewCacheBytes?: unknown;
+  previewCacheComplete?: unknown;
+  previewCacheEntries?: unknown;
+  previewCacheEvictions?: unknown;
+  previewCacheFrames?: unknown;
+  previewCacheRawBytes?: unknown;
+  previewCacheStorage?: unknown;
+  previewCacheStoreMs?: unknown;
+  previewCacheTotalFrames?: unknown;
+};

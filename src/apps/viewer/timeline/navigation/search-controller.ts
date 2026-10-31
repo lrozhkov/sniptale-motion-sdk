@@ -1,3 +1,9 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type {
+  TimelineNavigationActions,
+  TimelineLayerSearchResult,
+} from "./contract.js";
+import { getCachedTimelineLayerSearchIndex } from "./search-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function wireTimelineLayerSearch(ctx: ViewerAppContext): void {
@@ -34,9 +40,17 @@ function wireTimelineLayerSearch(ctx: ViewerAppContext): void {
 function openTimelineLayerSearch(ctx: ViewerAppContext): void {
   ctx.state.timelineLayerSearchOpen = true;
   ctx.state.timelineLayerSearchActiveIndex = 0;
-  rebuildTimelineLayerSearchIndex(ctx);
+  ctx.timelineLayerSearchIndexCache = null;
   renderTimelineLayerSearch(ctx);
+  const source = ctx.state.currentTemplate;
+  const generation = ctx.state.templateSelectionGeneration;
   requestAnimationFrame(() => {
+    if (
+      !ctx.state.timelineLayerSearchOpen ||
+      ctx.state.currentTemplate !== source ||
+      ctx.state.templateSelectionGeneration !== generation
+    )
+      return;
     ctx.refs.timelineLayerSearchInput.focus();
     ctx.refs.timelineLayerSearchInput.select();
   });
@@ -61,12 +75,9 @@ function closeTimelineLayerSearch(
 function renderTimelineLayerSearch(ctx: ViewerAppContext): void {
   const open = Boolean(ctx.state.timelineLayerSearchOpen);
   const query = String(ctx.state.timelineLayerSearchQuery ?? "");
-  ensureTimelineLayerSearchIndex(ctx);
+  const index = open ? getCachedTimelineLayerSearchIndex(ctx) : [];
   const results = open
-    ? ctx.filterTimelineLayerSearchResults(
-        ctx.timelineLayerSearchIndexCache ?? [],
-        query,
-      )
+    ? ctx.filterTimelineLayerSearchResults(index, query)
     : [];
   ctx.timelineLayerSearchResultsCache = results;
   const activeIndex =
@@ -105,11 +116,15 @@ function renderTimelineLayerSearch(ctx: ViewerAppContext): void {
       "aria-activedescendant",
       activeOption,
     );
-    requestAnimationFrame(() =>
-      document
-        .getElementById(activeOption)
-        ?.scrollIntoView({ block: "nearest" }),
-    );
+    requestAnimationFrame(() => {
+      if (
+        ctx.state.timelineLayerSearchOpen &&
+        ctx.timelineLayerSearchResultsCache === results
+      )
+        document
+          .getElementById(activeOption)
+          ?.scrollIntoView({ block: "nearest" });
+    });
   } else {
     ctx.refs.timelineLayerSearchInput.removeAttribute("aria-activedescendant");
   }
@@ -122,33 +137,9 @@ function renderTimelineLayerSearch(ctx: ViewerAppContext): void {
       );
 }
 
-function ensureTimelineLayerSearchIndex(ctx: ViewerAppContext): void {
-  if (!ctx.state.timelineLayerSearchOpen) {
-    return;
-  }
-  const templateId = ctx.state.currentTemplate?.id ?? null;
-  const locale = ctx.deps.getLocale();
-  if (
-    !ctx.timelineLayerSearchIndexCache ||
-    ctx.timelineLayerSearchIndexTemplateId !== templateId ||
-    ctx.timelineLayerSearchIndexLocale !== locale
-  ) {
-    rebuildTimelineLayerSearchIndex(ctx);
-  }
-}
-
-function rebuildTimelineLayerSearchIndex(ctx: ViewerAppContext): void {
-  ctx.timelineLayerSearchIndexCache = ctx.createTimelineLayerSearchIndex(
-    ctx.state.currentTemplate,
-  );
-  ctx.timelineLayerSearchIndexTemplateId =
-    ctx.state.currentTemplate?.id ?? null;
-  ctx.timelineLayerSearchIndexLocale = ctx.deps.getLocale();
-}
-
 function createTimelineLayerSearchOption(
   ctx: ViewerAppContext,
-  result,
+  result: TimelineLayerSearchResult,
   index: number,
   active: boolean,
 ): HTMLElement {
@@ -203,7 +194,10 @@ function createSearchBadge(label: string): HTMLElement {
   return badge;
 }
 
-function handleTimelineLayerSearchKeydown(ctx: ViewerAppContext, event): void {
+function handleTimelineLayerSearchKeydown(
+  ctx: ViewerAppContext,
+  event: KeyboardEvent,
+): void {
   const results = ctx.timelineLayerSearchResultsCache ?? [];
   if (event.code === "Escape") {
     event.preventDefault();
@@ -230,19 +224,38 @@ function handleTimelineLayerSearchKeydown(ctx: ViewerAppContext, event): void {
       0,
       results.length - 1,
     );
-    if (ctx.revealTimelineLayer(results[index])) {
+    const result = results[index];
+    if (result && ctx.revealTimelineLayer(result)) {
       closeTimelineLayerSearch(ctx, { clear: true });
     }
   }
 }
 
-export function installTimelineLayerSearchController(
-  ctx: ViewerAppContext,
-): void {
-  Object.assign(ctx, {
-    closeTimelineLayerSearch: closeTimelineLayerSearch.bind(undefined, ctx),
-    openTimelineLayerSearch: openTimelineLayerSearch.bind(undefined, ctx),
-    renderTimelineLayerSearch: renderTimelineLayerSearch.bind(undefined, ctx),
-    wireTimelineLayerSearch: wireTimelineLayerSearch.bind(undefined, ctx),
-  });
+export function createTimelineLayerSearchActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  TimelineNavigationActions,
+  | "closeTimelineLayerSearch"
+  | "openTimelineLayerSearch"
+  | "renderTimelineLayerSearch"
+  | "wireTimelineLayerSearch"
+> {
+  return {
+    closeTimelineLayerSearch: bindViewerAction(
+      closeTimelineLayerSearch,
+      getContext,
+    ),
+    openTimelineLayerSearch: bindViewerAction(
+      openTimelineLayerSearch,
+      getContext,
+    ),
+    renderTimelineLayerSearch: bindViewerAction(
+      renderTimelineLayerSearch,
+      getContext,
+    ),
+    wireTimelineLayerSearch: bindViewerAction(
+      wireTimelineLayerSearch,
+      getContext,
+    ),
+  };
 }

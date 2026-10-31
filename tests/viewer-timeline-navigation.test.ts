@@ -1,11 +1,69 @@
+import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
+import type { TimelineSearchIndexContext } from "../src/apps/viewer/timeline/navigation/search-model.js";
+import type { TimelineLayerSearchResult } from "../src/apps/viewer/timeline/navigation/contract.js";
 import { describe, expect, it, vi } from "vitest";
 import { revealTimelineLayer } from "../src/apps/viewer/timeline/navigation/reveal";
 import {
   getTimelineLayerSearchResults,
+  getCachedTimelineLayerSearchIndex,
   normalizeTimelineLayerSearch,
 } from "../src/apps/viewer/timeline/navigation/search-model";
 
 describe("timeline layer navigation", () => {
+  it("refreshes cached results after editing and reuses them only for the same source inputs", () => {
+    const source = readEditorTemplateSource({ id: "source", duration: 1 });
+    let name = "Original";
+    let locale = "ru";
+    const build = vi.fn<
+      (template: { id: string } | null) => TimelineLayerSearchResult[]
+    >((template) =>
+      template
+        ? [
+            {
+              depth: 0,
+              expansionIds: [],
+              globalScope: true,
+              hidden: false,
+              key: "global:card",
+              layerId: "card",
+              locked: false,
+              name,
+              path: [name],
+              sceneId: null,
+              sceneLabel: "Global",
+              typeLabel: "Rectangle",
+            },
+          ]
+        : [],
+    );
+    const editorOverrides = new Map<string, unknown>();
+    const timelineOverrides = new Map<string, unknown>();
+    const ctx: TimelineSearchIndexContext = {
+      state: { currentTemplate: source, editorOverrides, timelineOverrides },
+      deps: { getLocale: () => locale },
+      timelineLayerSearchIndexCache: null,
+      createTimelineLayerSearchIndex: build,
+    };
+    const initial = getCachedTimelineLayerSearchIndex(ctx);
+    expect(getCachedTimelineLayerSearchIndex(ctx)).toBe(initial);
+    expect(build).toHaveBeenCalledOnce();
+    name = "Renamed";
+    editorOverrides.set(source.id, { label: name });
+    const renamed = getCachedTimelineLayerSearchIndex(ctx);
+    expect(renamed[0]?.name).toBe("Renamed");
+    expect(renamed).not.toBe(initial);
+    expect(getCachedTimelineLayerSearchIndex(ctx)).toBe(renamed);
+    timelineOverrides.set(source.id, { tracks: [] });
+    expect(getCachedTimelineLayerSearchIndex(ctx)).not.toBe(renamed);
+    locale = "en";
+    const localized = getCachedTimelineLayerSearchIndex(ctx);
+    ctx.state.currentTemplate = { ...source };
+    expect(getCachedTimelineLayerSearchIndex(ctx)).not.toBe(localized);
+    ctx.state.currentTemplate = null;
+    expect(getCachedTimelineLayerSearchIndex(ctx)).toEqual([]);
+    expect(build).toHaveBeenCalledTimes(6);
+  });
+
   it("searches translated names, ids, types, and nested group paths", () => {
     const ctx = createSearchContext();
 

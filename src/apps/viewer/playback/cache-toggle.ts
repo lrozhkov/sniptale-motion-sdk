@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PlaybackCachePreferenceActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolvePreviewCacheWarmProgress } from "./cache-warm.js";
 import { beginPlaybackRun } from "./run.js";
@@ -120,11 +122,23 @@ export function syncPlaybackCacheButton(ctx: ViewerAppContext): void {
   ctx.refs.previewLiveModeButton.title = liveLabel;
 }
 
-export function installPlaybackCacheToggleOwner(ctx: ViewerAppContext): void {
-  ctx.initializePlaybackCachePreference = () =>
-    initializePlaybackCachePreference(ctx);
-  ctx.setPlaybackCacheEnabled = setPlaybackCacheEnabled.bind(undefined, ctx);
-  ctx.syncPlaybackCacheButton = () => syncPlaybackCacheButton(ctx);
+export function createPlaybackCachePreferenceActions(
+  getContext: () => ViewerAppContext,
+): PlaybackCachePreferenceActions {
+  return {
+    initializePlaybackCachePreference: bindViewerAction(
+      initializePlaybackCachePreference,
+      getContext,
+    ),
+    setPlaybackCacheEnabled: bindViewerAction(
+      setPlaybackCacheEnabled,
+      getContext,
+    ),
+    syncPlaybackCacheButton: bindViewerAction(
+      syncPlaybackCacheButton,
+      getContext,
+    ),
+  };
 }
 
 function readPlaybackCachePreference(): boolean | null {

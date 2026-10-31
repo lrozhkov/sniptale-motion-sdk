@@ -6,7 +6,7 @@ import { translateText } from "../../../shared/i18n/index.js";
 import { normalizeMotionPaths } from "../../../shared/timeline/motion-path.js";
 
 export function deepClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
+  return structuredClone(value);
 }
 
 export function createUniquePresetId(

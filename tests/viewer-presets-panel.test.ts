@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { installPanelsPresetsOwner } from "../src/apps/viewer/panels/presets";
+import { createPresetPanelActions } from "../src/apps/viewer/panels/presets";
 
 describe("viewer preset actions", () => {
   it("rejects save and duplicate actions when a template has no controls", () => {
@@ -75,7 +75,10 @@ function createPresetContext({ controls, presets, selectedPresetId }) {
     },
     updateExportAvailability: vi.fn(),
   };
-  installPanelsPresetsOwner(ctx);
+  Object.assign(
+    ctx,
+    createPresetPanelActions(() => ctx),
+  );
   ctx.renderPresetsPanel = vi.fn();
   ctx.setPresets = vi.fn((nextPresets) => {
     currentPresets = nextPresets;

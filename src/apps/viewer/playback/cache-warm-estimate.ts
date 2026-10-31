@@ -1,20 +1,36 @@
+import type { CacheWarmHostState } from "./cache-warm-state.js";
 const MAX_PREVIEW_CACHE_ESTIMATE_SAMPLES = 30;
 const MIN_PREVIEW_CACHE_ESTIMATE_PROGRESS = 0.15;
 const MIN_PREVIEW_CACHE_ESTIMATE_SAMPLES = 5;
 const PREVIEW_CACHE_RECENT_SAMPLE_WEIGHT = 0.25;
 const PREVIEW_CACHE_ESTIMATE_HEADROOM = 1.15;
 
-export function resetPreviewCacheWarmEstimate(state: any): void {
+export function resetPreviewCacheWarmEstimate(
+  state: Partial<
+    Pick<
+      CacheWarmHostState,
+      | "previewCacheWarmAverageFrameMs"
+      | "previewCacheWarmElapsedMs"
+      | "previewCacheWarmSampleCount"
+    >
+  >,
+): void {
   state.previewCacheWarmAverageFrameMs = 0;
   state.previewCacheWarmElapsedMs = 0;
   state.previewCacheWarmSampleCount = 0;
 }
 
 export function recordPreviewCacheWarmSample(
-  state: any,
+  state: Pick<
+    CacheWarmHostState,
+    | "previewCacheWarmActive"
+    | "previewCacheWarmAverageFrameMs"
+    | "previewCacheWarmElapsedMs"
+    | "previewCacheWarmSampleCount"
+  >,
   frameLatencyMs: unknown,
 ): void {
-  const sample = Number(frameLatencyMs);
+  const sample = typeof frameLatencyMs === "number" ? frameLatencyMs : NaN;
   if (
     !state.previewCacheWarmActive ||
     !Number.isFinite(sample) ||
@@ -40,7 +56,16 @@ export function recordPreviewCacheWarmSample(
   state.previewCacheWarmSampleCount = sampleCount + 1;
 }
 
-export function resolvePreviewCacheWarmRemainingMs(state: any): number | null {
+export function resolvePreviewCacheWarmRemainingMs(
+  state: Pick<
+    CacheWarmHostState,
+    | "previewCacheWarmAverageFrameMs"
+    | "previewCacheWarmElapsedMs"
+    | "previewCacheWarmSampleCount"
+    | "previewCacheWarmTargetFrames"
+    | "previewCacheWarmVisitedFrames"
+  >,
+): number | null {
   const sampleCount = Math.max(
     0,
     Number(state.previewCacheWarmSampleCount) || 0,

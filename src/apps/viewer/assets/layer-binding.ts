@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { AssetBindingActions } from "./contract.js";
 import { readViewerAsset, type ViewerAsset } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 
@@ -177,7 +179,8 @@ async function verifyMediaBlob(blob: Blob): Promise<void> {
         window.clearTimeout(timeout);
         element.removeEventListener("loadedmetadata", onReady);
         element.removeEventListener("error", onError);
-        ok ? resolve() : reject(new Error("Media decode failed."));
+        if (ok) resolve();
+        else reject(new Error("Media decode failed."));
       };
       const onReady = () => finish(true);
       const onError = () => finish(false);
@@ -192,9 +195,13 @@ async function verifyMediaBlob(blob: Blob): Promise<void> {
   }
 }
 
-export function installAssetsLayerBindingOwner(ctx: ViewerAppContext): void {
-  ctx.addAssetLayer = addAssetLayer.bind(undefined, ctx);
-  ctx.replaceAsset = replaceAsset.bind(undefined, ctx);
-  ctx.prepareImportedAssets = prepareImportedAssets.bind(undefined, ctx);
-  ctx.verifyImportedAssets = verifyImportedAssets.bind(undefined, ctx);
+export function createAssetBindingActions(
+  getContext: () => ViewerAppContext,
+): AssetBindingActions {
+  return {
+    addAssetLayer: bindViewerAction(addAssetLayer, getContext),
+    replaceAsset: bindViewerAction(replaceAsset, getContext),
+    prepareImportedAssets: bindViewerAction(prepareImportedAssets, getContext),
+    verifyImportedAssets: bindViewerAction(verifyImportedAssets, getContext),
+  };
 }

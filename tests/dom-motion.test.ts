@@ -1,3 +1,4 @@
+import { readDomMotionTemplateDocument } from "../src/apps/viewer/dom-motion/template.js";
 import { describe, expect, it } from "vitest";
 import {
   parseDomMotionDocument,
@@ -42,6 +43,18 @@ function source() {
   };
 }
 describe("DOM motion document boundary", () => {
+  it("parses the embedded viewer document without asserting the surrounding template", () => {
+    expect(readDomMotionTemplateDocument(null)).toBeNull();
+    expect(readDomMotionTemplateDocument({ id: "plain" })).toBeNull();
+    expect(() => readDomMotionTemplateDocument({ domMotion: true })).toThrow();
+    expect(() =>
+      readDomMotionTemplateDocument({ domMotion: { id: "fake" } }),
+    ).toThrow();
+    const input = source();
+    const embedded = readDomMotionTemplateDocument({ domMotion: input });
+    expect(embedded?.id).toBe("retreat");
+    expect(embedded).not.toBe(input);
+  });
   it("parses a separate HTML contract without accepting executable renderers", () => {
     const input = {
       ...source(),

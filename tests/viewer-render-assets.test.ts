@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   calculateSvgRasterSize,
   createRenderAssets,
-  installRenderingAssetsOwner,
+  createRenderAssetActions,
 } from "../src/apps/viewer/rendering/assets";
 
 describe("viewer render asset raster sizing", () => {
@@ -78,7 +78,10 @@ describe("viewer render asset transport", () => {
           sandboxRenderAssetsId: null,
         },
       };
-      installRenderingAssetsOwner(ctx);
+      Object.assign(
+        ctx,
+        createRenderAssetActions(() => ctx),
+      );
       ctx.createAssetBitmap = vi.fn(async () => bitmap);
 
       const result = await ctx.createRenderAssets({
@@ -121,7 +124,10 @@ describe("viewer render asset transport", () => {
         sandboxRenderAssetsId: null,
       },
     };
-    installRenderingAssetsOwner(ctx);
+    Object.assign(
+      ctx,
+      createRenderAssetActions(() => ctx),
+    );
     ctx.createAssetBitmap = vi.fn(async () => bitmap);
     const template = { assets: ["logo"], id: "template" };
 

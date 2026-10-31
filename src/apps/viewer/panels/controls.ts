@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { ControlPanelActions } from "./contract.js";
+import type {
+  EditorControl,
+  EditorTemplateSource,
+} from "../templates/model.js";
+
+type ControlField = { element: HTMLElement; readValue(): string };
 import type { ViewerAppContext } from "../app/context.js";
 import {
   renderControlPresetSelector,
@@ -5,8 +13,12 @@ import {
 } from "./control-presets.js";
 import { createCssColorField } from "../controls/css-color-field.js";
 
-function renderControls(ctx: ViewerAppContext, template) {
+function renderControls(
+  ctx: ViewerAppContext,
+  template: EditorTemplateSource | null,
+): void {
   ctx.refs.controlsPanel.innerHTML = "";
+  if (!template) return;
   renderControlPresetSelector(ctx, template);
   const controls = [...(template.controls ?? [])].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
@@ -27,16 +39,18 @@ function renderControls(ctx: ViewerAppContext, template) {
     const label = document.createElement("span");
     label.className = "control-row-label";
     label.textContent = ctx.deps.translateText(control.label, control.id);
-    const input = ctx.createControlInput(
+    const field = createControlInput(
+      ctx,
       control,
       ctx.state.controls[control.id] ?? control.defaultValue,
     );
+    const input = field.element;
     nameControlInputs(ctx, input, label.textContent);
     row.dataset.controlId = control.id;
     input.dataset.controlId = control.id;
     let editSessionActive = false;
     const updateControl = () => {
-      const value = ctx.readInputValue(input, control);
+      const value = readInputValue(field, control);
       if (Object.is(ctx.state.controls[control.id], value)) {
         return;
       }
@@ -72,10 +86,16 @@ function renderControls(ctx: ViewerAppContext, template) {
   }
 }
 
-function nameControlInputs(ctx: ViewerAppContext, root, label: string) {
-  const inputs = root.matches?.("input, select, textarea")
+function nameControlInputs(
+  ctx: ViewerAppContext,
+  root: HTMLElement,
+  label: string,
+): void {
+  const inputs = isValueInput(root)
     ? [root]
-    : Array.from(root.querySelectorAll?.("input, select, textarea") ?? []);
+    : Array.from(root.querySelectorAll("input, select, textarea")).filter(
+        isValueInput,
+      );
   for (const input of inputs) {
     const key =
       input.type === "range"
@@ -95,19 +115,20 @@ function nameControlInputs(ctx: ViewerAppContext, root, label: string) {
 }
 function createControlInput(
   ctx: ViewerAppContext,
-  control,
-  currentValue = control.defaultValue,
-) {
+  control: EditorControl,
+  currentValue: unknown = control.defaultValue,
+): ControlField {
   if (control.kind === "color") {
-    return createCssColorField({
+    const element = createCssColorField({
       invalidMessage: ctx.deps.t(
         "viewer.controls.invalidColor",
         "Enter a CSS color or none.",
       ),
       pickerLabel: ctx.deps.t("viewer.controls.colorPicker", "Color picker"),
-      value: currentValue ?? control.defaultValue,
+      value: controlValueText(currentValue ?? control.defaultValue),
       valueLabel: ctx.deps.t("viewer.controls.colorValue", "CSS color value"),
     });
+    return { element, readValue: () => element.value };
   }
   if (Array.isArray(control.options) && control.options.length > 0) {
     const select = document.createElement("select");
@@ -120,14 +141,14 @@ function createControlInput(
       );
       select.append(item);
     }
-    select.value = String(currentValue ?? control.defaultValue);
-    return select;
+    select.value = controlValueText(currentValue ?? control.defaultValue);
+    return { element: select, readValue: () => select.value };
   }
   if (control.kind === "text") {
     const input = document.createElement("input");
     input.type = "text";
-    input.value = String(currentValue ?? control.defaultValue);
-    return input;
+    input.value = controlValueText(currentValue ?? control.defaultValue);
+    return { element: input, readValue: () => input.value };
   }
   const wrap = document.createElement("div");
   wrap.className = "control-inline";
@@ -136,7 +157,7 @@ function createControlInput(
   range.min = String(control.min ?? 0);
   range.max = String(control.max ?? 1);
   range.step = String(control.step ?? 0.01);
-  range.value = String(currentValue ?? control.defaultValue);
+  range.value = controlValueText(currentValue ?? control.defaultValue);
   const value = document.createElement("input");
   value.type = "number";
   value.min = range.min;
@@ -150,22 +171,36 @@ function createControlInput(
     range.value = value.value;
   });
   wrap.append(range, value);
-  Object.defineProperty(wrap, "value", {
-    get() {
-      return range.value;
-    },
-  });
-  return wrap;
+  return { element: wrap, readValue: () => range.value };
 }
-function readInputValue(ctx: ViewerAppContext, input, control) {
-  if (control.kind === "number") {
-    return Number(input.value);
-  }
-  return input.value;
+function readInputValue(
+  field: ControlField,
+  control: EditorControl,
+): string | number {
+  const value = field.readValue();
+  return control.kind === "number" ? Number(value) : value;
 }
 
-export function installPanelsControlsOwner(ctx: ViewerAppContext): void {
-  ctx.renderControls = renderControls.bind(undefined, ctx);
-  ctx.createControlInput = createControlInput.bind(undefined, ctx);
-  ctx.readInputValue = readInputValue.bind(undefined, ctx);
+function isValueInput(
+  element: Element,
+): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
+  return (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement
+  );
+}
+
+function controlValueText(value: unknown): string {
+  return typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+    ? String(value)
+    : "";
+}
+
+export function createControlPanelActions(
+  getContext: () => ViewerAppContext,
+): ControlPanelActions {
+  return { renderControls: bindViewerAction(renderControls, getContext) };
 }

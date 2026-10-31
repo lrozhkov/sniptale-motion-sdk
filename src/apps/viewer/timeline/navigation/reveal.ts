@@ -1,5 +1,7 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { TimelineNavigationActions } from "./contract.js";
 import type { ViewerAppContext } from "../../app/context.js";
-import type { TimelineLayerSearchResult } from "./search-model.js";
+import type { TimelineLayerSearchResult } from "./contract.js";
 
 export function revealTimelineLayer(
   ctx: ViewerAppContext,
@@ -25,7 +27,14 @@ export function revealTimelineLayer(
   ctx.renderTimelineStructure(template);
   ctx.syncTimelineSelection(template);
   if (options.focus !== false) {
-    requestAnimationFrame(() => focusRevealedTimelineLayer(ctx, result));
+    const generation = ctx.state.templateSelectionGeneration;
+    requestAnimationFrame(() => {
+      if (
+        ctx.state.currentTemplate === template &&
+        ctx.state.templateSelectionGeneration === generation
+      )
+        focusRevealedTimelineLayer(ctx, result);
+    });
   }
   return true;
 }
@@ -48,7 +57,7 @@ export function revealTimelineLayerById(
     occurrences.find((candidate) => candidate.sceneId === playheadSceneId) ??
     occurrences.find((candidate) => candidate.globalScope) ??
     occurrences[0];
-  return revealTimelineLayer(ctx, result, options);
+  return result ? revealTimelineLayer(ctx, result, options) : false;
 }
 
 function expandTimelineLayerPath(
@@ -71,7 +80,7 @@ function focusRevealedTimelineLayer(
   const selector = `.layer-lane[data-layer-id="${ctx.cssEscape(result.layerId)}"]`;
   const candidates = Array.from(
     ctx.refs.timelineTracks.querySelectorAll(selector),
-  ) as HTMLElement[];
+  ).filter((element): element is HTMLElement => element instanceof HTMLElement);
   const row =
     candidates.find((candidate) =>
       result.globalScope
@@ -89,15 +98,25 @@ function focusRevealedTimelineLayer(
     containerRect.top -
     Math.max(0, (containerRect.height - rowRect.height) / 2);
   row.classList.add("search-revealed");
-  const label = row.querySelector(".timeline-lane-label") as HTMLElement | null;
-  if (label) {
+  const label = row.querySelector(".timeline-lane-label");
+  if (label instanceof HTMLElement) {
     label.tabIndex = -1;
     label.focus({ preventScroll: true });
   }
   window.setTimeout(() => row.classList.remove("search-revealed"), 900);
 }
 
-export function installTimelineLayerRevealOwner(ctx: ViewerAppContext): void {
-  ctx.revealTimelineLayer = revealTimelineLayer.bind(undefined, ctx);
-  ctx.revealTimelineLayerById = revealTimelineLayerById.bind(undefined, ctx);
+export function createTimelineLayerRevealActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  TimelineNavigationActions,
+  "revealTimelineLayer" | "revealTimelineLayerById"
+> {
+  return {
+    revealTimelineLayer: bindViewerAction(revealTimelineLayer, getContext),
+    revealTimelineLayerById: bindViewerAction(
+      revealTimelineLayerById,
+      getContext,
+    ),
+  };
 }

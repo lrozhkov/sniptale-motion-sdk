@@ -18,6 +18,35 @@ export type EditorDraftRecord = {
   updatedAt: number;
 };
 
+export function getEditorDraftCleanupKeys(
+  value: unknown,
+  now: number,
+): string[] {
+  const values: unknown[] = Array.isArray(value) ? value : [];
+  const records = values.filter(
+    (item): item is Record<string, unknown> & { key: string } =>
+      isRecord(item) && typeof item.key === "string",
+  );
+  const keep = records
+    .filter(
+      (
+        record,
+      ): record is Record<string, unknown> & {
+        key: string;
+        updatedAt: number;
+      } =>
+        typeof record.updatedAt === "number" &&
+        Number.isFinite(record.updatedAt) &&
+        now - record.updatedAt <= EDITOR_DRAFT_MAX_AGE_MS,
+    )
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .slice(0, EDITOR_DRAFT_MAX_RECORDS);
+  const keepKeys = new Set(keep.map((record) => record.key));
+  return records
+    .map((record) => record.key)
+    .filter((key) => !keepKeys.has(key));
+}
+
 export function createEditorDraftKey(
   packId: string,
   templateId: string,
@@ -51,6 +80,7 @@ export function normalizeEditorDraftRecord(
     value.sourceFingerprint !== expected.sourceFingerprint ||
     value.templateId !== expected.templateId ||
     typeof value.sessionId !== "string" ||
+    typeof value.updatedAt !== "number" ||
     !Number.isFinite(value.updatedAt)
   ) {
     return null;
@@ -69,7 +99,7 @@ export function normalizeEditorDraftRecord(
     sessionId: value.sessionId,
     sourceFingerprint: expected.sourceFingerprint,
     templateId: expected.templateId,
-    updatedAt: Number(value.updatedAt),
+    updatedAt: value.updatedAt,
   };
 }
 
@@ -121,7 +151,8 @@ function normalizeEditorSnapshot(
     !isRecord(value) ||
     value.templateId !== templateId ||
     typeof value.label !== "string" ||
-    !Number.isFinite(Number(value.time)) ||
+    typeof value.time !== "number" ||
+    !Number.isFinite(value.time) ||
     !isNullableRecord(editorOverride) ||
     !isNullableRecord(timelineOverride) ||
     !isRecord(controls) ||
@@ -155,16 +186,16 @@ function normalizeEditorSnapshot(
         : null,
     selectedScenes: normalizeJsonArray(value.selectedScenes),
     templateId,
-    time: Number(value.time),
+    time: value.time,
     timelineOverride,
   };
 }
 
-function normalizeAssetEntries(value: unknown): [string, any][] {
+function normalizeAssetEntries(value: unknown): [string, unknown][] {
   if (!Array.isArray(value)) {
     return [];
   }
-  const entries: [string, any][] = [];
+  const entries: [string, unknown][] = [];
   const seen = new Set<string>();
   for (const entry of value) {
     if (
@@ -182,7 +213,7 @@ function normalizeAssetEntries(value: unknown): [string, any][] {
   return entries;
 }
 
-function normalizeJsonArray(value: unknown): any[] {
+function normalizeJsonArray(value: unknown): unknown[] {
   const clone = cloneJsonValue(value);
   return Array.isArray(clone) ? clone : [];
 }
@@ -201,11 +232,11 @@ function isNullableRecord(value: unknown): boolean {
   return value === null || isRecord(value);
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function cloneJsonValue(value: unknown): unknown | undefined {
+function cloneJsonValue(value: unknown): unknown {
   try {
     const serialized = JSON.stringify(value);
     return serialized === undefined ? undefined : JSON.parse(serialized);

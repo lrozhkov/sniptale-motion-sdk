@@ -1,7 +1,9 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EffectExportReadinessActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isEffectV1ExportableTemplate } from "./builder.js";
 
-function sanitizeIdentifier(ctx: ViewerAppContext, value) {
+function sanitizeIdentifier(value: string): string {
   return (
     String(value)
       .trim()
@@ -9,11 +11,17 @@ function sanitizeIdentifier(ctx: ViewerAppContext, value) {
       .replace(/^-+|-+$/g, "") || "imported-effect"
   );
 }
-function appendImportedLabel(ctx: ViewerAppContext, label) {
+function appendImportedLabel(label: unknown): Record<string, string> {
   // Import provenance belongs to UI state, not portable display metadata.
-  return label && typeof label === "object" ? { ...label } : {};
+  return label !== null && typeof label === "object" && !Array.isArray(label)
+    ? Object.fromEntries(
+        Object.entries(label).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      )
+    : {};
 }
-function assertExportable(ctx: ViewerAppContext, prefix) {
+function assertExportable(ctx: ViewerAppContext, prefix: string): boolean {
   if (
     ctx.isRendererContractCoveragePending?.(ctx.state.currentTemplate) === true
   ) {
@@ -39,8 +47,8 @@ function assertExportable(ctx: ViewerAppContext, prefix) {
 }
 function updateExportAvailability(
   ctx: ViewerAppContext,
-  existingErrors = null,
-  options: any = {},
+  existingErrors: readonly string[] | null = null,
+  options: { preserveStatus?: boolean } = {},
 ) {
   if (!ctx.state.currentTemplate) {
     ctx.refs.exportJsonButton.disabled = true;
@@ -116,9 +124,16 @@ function updateExportAvailability(
   }
 }
 
-export function installEffectFileServiceOwner(ctx: ViewerAppContext): void {
-  ctx.sanitizeIdentifier = sanitizeIdentifier.bind(undefined, ctx);
-  ctx.appendImportedLabel = appendImportedLabel.bind(undefined, ctx);
-  ctx.assertExportable = assertExportable.bind(undefined, ctx);
-  ctx.updateExportAvailability = updateExportAvailability.bind(undefined, ctx);
+export function createEffectExportReadinessActions(
+  getContext: () => ViewerAppContext,
+): EffectExportReadinessActions {
+  return {
+    sanitizeIdentifier,
+    appendImportedLabel,
+    assertExportable: bindViewerAction(assertExportable, getContext),
+    updateExportAvailability: bindViewerAction(
+      updateExportAvailability,
+      getContext,
+    ),
+  };
 }

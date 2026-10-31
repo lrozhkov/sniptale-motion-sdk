@@ -1,12 +1,12 @@
 import { bindViewerAction } from "../app/bind-action.js";
 import type { InspectorHealthActions } from "./health-contract.js";
 import type { EditorValidationIssue } from "../validation/types.js";
-import type { EditorTemplateSource } from "../templates/model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function renderValidationPanel(
   ctx: ViewerAppContext,
-  template: EditorTemplateSource | null = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.validationPanel.innerHTML = "";
   ctx.refs.validationPanel.setAttribute("aria-busy", "false");

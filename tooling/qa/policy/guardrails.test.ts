@@ -52,18 +52,21 @@ function walk(dir: string): string[] {
 }
 
 describe("architecture guardrails", () => {
-  it("keeps public SDK declarations fully strict", () => {
-    expect(
-      JSON.parse(read("tooling/configs/typescript/sdk.json")).compilerOptions,
-    ).toMatchObject({
-      strict: true,
-      noImplicitAny: true,
-      strictNullChecks: true,
-      exactOptionalPropertyTypes: true,
-      noUncheckedIndexedAccess: true,
-      noUnusedLocals: true,
-      noUnusedParameters: true,
-    });
+  it("keeps product source and public SDK declarations fully strict", () => {
+    for (const file of [
+      "tooling/configs/typescript/sdk.json",
+      "tooling/configs/typescript/product.json",
+    ]) {
+      expect(JSON.parse(read(file)).compilerOptions).toMatchObject({
+        strict: true,
+        noImplicitAny: true,
+        strictNullChecks: true,
+        exactOptionalPropertyTypes: true,
+        noUncheckedIndexedAccess: true,
+        noUnusedLocals: true,
+        noUnusedParameters: true,
+      });
+    }
   });
   it("keeps repository documentation, storage, and policy state deterministic", () => {
     expect(inspectRepositoryHygiene(process.cwd())).toEqual([]);
@@ -160,7 +163,11 @@ describe("architecture guardrails", () => {
         "vitest run --coverage --config tooling/configs/qa/vitest.ts",
       "test:npm": "node tooling/release/npm/accept.mjs",
       "test:smoke": "node tooling/test/smoke/run.mjs",
-      typecheck: "node node_modules/@typescript/native/bin/tsc --noEmit",
+      typecheck: "npm run typecheck:workspace && npm run typecheck:product",
+      "typecheck:workspace":
+        "node node_modules/@typescript/native/bin/tsc --noEmit",
+      "typecheck:product":
+        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/product.json",
     });
   });
 

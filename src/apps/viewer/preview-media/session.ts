@@ -1,3 +1,6 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PreviewMediaActions } from "./contract.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   PREVIEW_MEDIA_SLOTS,
@@ -32,7 +35,7 @@ function wirePreviewMediaSession(ctx: ViewerAppContext): void {
 
 function syncPreviewMediaUi(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): void {
   const slots = resolvePreviewMediaSlots(template);
   const visibleSlots = new Set(slots);
@@ -61,7 +64,7 @@ function syncPreviewMediaUi(
     status.title = error ?? entry?.fileName ?? "";
     status.dataset.state = loading ? "loading" : error ? "error" : "ready";
     status
-      .closest<HTMLElement>("[data-preview-media-slot]")
+      .closest("[data-preview-media-slot]")
       ?.setAttribute("aria-busy", String(loading));
   }
   for (const button of ctx.refs.previewMediaClearButtons) {
@@ -87,8 +90,10 @@ async function importPreviewMedia(
   ctx: ViewerAppContext,
   input: HTMLInputElement,
 ): Promise<void> {
-  const row = input.closest<HTMLElement>("[data-preview-media-slot]");
-  const slot = parsePreviewMediaSlot(row?.dataset.previewMediaSlot);
+  const row = input.closest("[data-preview-media-slot]");
+  const slot = parsePreviewMediaSlot(
+    row instanceof HTMLElement ? row.dataset.previewMediaSlot : undefined,
+  );
   const file = input.files?.[0];
   input.value = "";
   if (!slot || !file) return;
@@ -233,8 +238,18 @@ function isCurrentPreviewMediaGeneration(
   return ctx.state.previewMediaLoadGeneration.get(slot) === generation;
 }
 
-export function installPreviewMediaSessionOwner(ctx: ViewerAppContext): void {
-  ctx.createPreviewMediaFrame = createPreviewMediaFrame.bind(undefined, ctx);
-  ctx.syncPreviewMediaUi = syncPreviewMediaUi.bind(undefined, ctx);
-  ctx.wirePreviewMediaSession = wirePreviewMediaSession.bind(undefined, ctx);
+export function createPreviewMediaActions(
+  getContext: () => ViewerAppContext,
+): PreviewMediaActions {
+  return {
+    createPreviewMediaFrame: bindViewerAction(
+      createPreviewMediaFrame,
+      getContext,
+    ),
+    syncPreviewMediaUi: bindViewerAction(syncPreviewMediaUi, getContext),
+    wirePreviewMediaSession: bindViewerAction(
+      wirePreviewMediaSession,
+      getContext,
+    ),
+  };
 }

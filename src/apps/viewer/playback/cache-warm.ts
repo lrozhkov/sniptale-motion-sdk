@@ -1,3 +1,5 @@
+import type { PreviewFrameCacheResult } from "./contract.js";
+import type { CacheWarmHostState } from "./cache-warm-state.js";
 import { resetPreviewCacheWarmEstimate } from "./cache-warm-estimate.js";
 import {
   resolvePreviewCacheFrameRange,
@@ -11,14 +13,31 @@ type CacheWarmOptions = {
   range?: PreviewCachePlaybackRange;
 };
 
-export type PreviewCacheWarmStep = {
-  finished: boolean;
-  prepared: boolean;
-  time: number;
-};
+export type { PreviewCacheWarmStep } from "./cache-warm-state.js";
+import type { PreviewCacheWarmStep } from "./cache-warm-state.js";
 
 export function beginPreviewCacheWarm(
-  state: any,
+  state: Partial<
+    Pick<
+      CacheWarmHostState,
+      | "previewCacheWarmActive"
+      | "previewCacheWarmAverageFrameMs"
+      | "previewCacheWarmCapacityLimited"
+      | "previewCacheWarmElapsedMs"
+      | "previewCacheWarmPrepared"
+      | "previewCacheWarmPublicTime"
+      | "previewCacheWarmRangeEndFrame"
+      | "previewCacheWarmRangeStartFrame"
+      | "previewCacheWarmRenderTime"
+      | "previewCacheWarmSampleCount"
+      | "previewCacheWarmScale"
+      | "previewCacheWarmStartTime"
+      | "previewCacheWarmTargetFrames"
+      | "previewCacheWarmUnsupportedResults"
+      | "previewCacheWarmVisitedFrames"
+      | "previewFrameCacheComplete"
+    >
+  >,
   options: CacheWarmOptions,
   force = false,
 ): boolean {
@@ -55,8 +74,20 @@ export function beginPreviewCacheWarm(
 }
 
 export function advancePreviewCacheWarm(
-  state: any,
-  result: any,
+  state: Pick<
+    CacheWarmHostState,
+    | "previewCacheWarmActive"
+    | "previewCacheWarmCapacityLimited"
+    | "previewCacheWarmPrepared"
+    | "previewCacheWarmRangeEndFrame"
+    | "previewCacheWarmRangeStartFrame"
+    | "previewCacheWarmRenderTime"
+    | "previewCacheWarmStartTime"
+    | "previewCacheWarmTargetFrames"
+    | "previewCacheWarmUnsupportedResults"
+    | "previewCacheWarmVisitedFrames"
+  >,
+  result: PreviewFrameCacheResult,
   options: CacheWarmOptions,
 ): PreviewCacheWarmStep | null {
   if (!state.previewCacheWarmActive) {
@@ -136,7 +167,23 @@ export function advancePreviewCacheWarm(
   };
 }
 
-export function cancelPreviewCacheWarm(state: any): void {
+export function cancelPreviewCacheWarm(
+  state: Partial<
+    Pick<
+      CacheWarmHostState,
+      | "previewCacheWarmActive"
+      | "previewCacheWarmAverageFrameMs"
+      | "previewCacheWarmCapacityLimited"
+      | "previewCacheWarmElapsedMs"
+      | "previewCacheWarmPublicTime"
+      | "previewCacheWarmRenderTime"
+      | "previewCacheWarmSampleCount"
+      | "previewCacheWarmScale"
+      | "previewCacheWarmUnsupportedResults"
+      | "previewCacheWarmVisitedFrames"
+    >
+  >,
+): void {
   resetPreviewCacheWarmEstimate(state);
   state.previewCacheWarmActive = false;
   state.previewCacheWarmCapacityLimited = false;
@@ -148,7 +195,10 @@ export function cancelPreviewCacheWarm(state: any): void {
 }
 
 export function resolvePreviewCacheRenderTime(
-  state: any,
+  state: Pick<
+    CacheWarmHostState,
+    "playing" | "previewCacheWarmActive" | "previewCacheWarmRenderTime"
+  >,
   fallbackTime: number,
 ): number {
   const renderTime = Number(state.previewCacheWarmRenderTime);
@@ -160,7 +210,16 @@ export function resolvePreviewCacheRenderTime(
     : fallbackTime;
 }
 
-export function resolvePreviewCacheWarmProgress(state: any): number {
+export function resolvePreviewCacheWarmProgress(
+  state: Pick<
+    CacheWarmHostState,
+    | "previewCacheWarmActive"
+    | "previewCacheWarmPrepared"
+    | "previewCacheWarmTargetFrames"
+    | "previewCacheWarmVisitedFrames"
+    | "previewFrameCacheComplete"
+  >,
+): number {
   if (!state.previewCacheWarmActive) {
     return state.previewCacheWarmPrepared || state.previewFrameCacheComplete
       ? 1

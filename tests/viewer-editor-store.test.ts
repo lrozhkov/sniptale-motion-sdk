@@ -1,12 +1,12 @@
 import { createCanvasDragPreview } from "../src/apps/viewer/canvas/drag-preview.js";
-import { installPanelsPresetsOwner } from "../src/apps/viewer/panels/presets.js";
+import { createPresetPanelActions } from "../src/apps/viewer/panels/presets.js";
 import { normalizePresets } from "../src/apps/viewer/editor/model.js";
 import { createStarterDocument } from "../src/apps/cli/starter.js";
 import {
   normalizeEffectV1ToTemplate,
   validateEffectV1Document,
 } from "../src/sdk/effect-v1/index.js";
-import { installTemplatesControllerOwner } from "../src/apps/viewer/templates/controller.js";
+import { createTemplateModelActions } from "../src/apps/viewer/templates/controller.js";
 import { buildEffectFilePayload } from "../src/apps/viewer/effect-file/builder.js";
 import { normalizeScenes } from "../src/apps/viewer/editor/model.js";
 import { describe, expect, it, vi } from "vitest";
@@ -17,14 +17,157 @@ import {
   restoreEditorSnapshotState,
 } from "../src/apps/viewer/editor/history";
 import { deepClone } from "../src/apps/viewer/editor/model";
-import { installEditorStoreOwner } from "../src/apps/viewer/editor/store";
-import { installEditorHistoryControllerOwner } from "../src/apps/viewer/editor/history-controller";
+import { createEditorStoreActions } from "../src/apps/viewer/editor/store";
+import { createEditorHistoryActions } from "../src/apps/viewer/editor/history-controller";
 
 describe("viewer editor history transactions", () => {
+  it("rejects non-numeric duration data without invoking conversion hooks", () => {
+    const ctx = createStoreContext();
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    const calls: string[] = [];
+    const foreign = {
+      valueOf() {
+        calls.push("duration");
+        return 4;
+      },
+    };
+    for (const duration of ["4", foreign, Infinity]) {
+      ctx.setEditorOverride({ duration });
+      expect(() => ctx.getEffectiveDuration()).toThrow(
+        /Invalid editor template duration/,
+      );
+    }
+    expect(calls).toEqual([]);
+    expect(ctx.state.currentTemplate.duration).toBe(4);
+  });
+
+  for (const direction of ["undo", "redo"] as const) {
+    it(`keeps ${direction} history consistent when presentation fails after restoration`, async () => {
+      const ctx = createHistoryTransitionContext();
+      ctx.state.controls = { value: "target" };
+      const target = ctx.captureEditorSnapshot("target");
+      ctx.state.controls = { value: "current" };
+      const sourceStack =
+        direction === "undo" ? "historyPast" : "historyFuture";
+      const destinationStack =
+        direction === "undo" ? "historyFuture" : "historyPast";
+      ctx.state[sourceStack] = [target];
+      ctx.renderCurrentFrame = vi.fn(async () => {
+        throw new Error("presentation failed");
+      });
+      await expect(
+        direction === "undo" ? ctx.undoEditorEdit() : ctx.redoEditorEdit(),
+      ).rejects.toThrow("presentation failed");
+      expect(ctx.state.controls).toEqual({ value: "target" });
+      expect(ctx.state[sourceStack]).toEqual([]);
+      expect(ctx.state[destinationStack]).toHaveLength(1);
+      expect(ctx.state[destinationStack][0].controls).toEqual({
+        value: "current",
+      });
+      expect(ctx.state.editorHistoryBusy).toBe(false);
+      expect(ctx.markEditorChanged).toHaveBeenCalledWith(direction, {
+        immediate: true,
+      });
+    });
+
+    it(`rejects an invalid ${direction} snapshot without consuming history`, async () => {
+      const ctx = createHistoryTransitionContext();
+      const target = ctx.captureEditorSnapshot("invalid");
+      target.assetEntries = [["image", { id: "other" }]];
+      const sourceStack =
+        direction === "undo" ? "historyPast" : "historyFuture";
+      const destinationStack =
+        direction === "undo" ? "historyFuture" : "historyPast";
+      ctx.state[sourceStack] = [target];
+      expect(
+        await (direction === "undo"
+          ? ctx.undoEditorEdit()
+          : ctx.redoEditorEdit()),
+      ).toBe(false);
+      expect(ctx.state[sourceStack]).toEqual([target]);
+      expect(ctx.state[destinationStack]).toEqual([]);
+      expect(ctx.renderCurrentFrame).not.toHaveBeenCalled();
+      expect(ctx.state.editorHistoryBusy).toBe(false);
+    });
+  }
+
+  it("commits history before presentation and does not write to a replacement template after await", async () => {
+    const ctx = createHistoryTransitionContext();
+    ctx.state.historyPast = [ctx.captureEditorSnapshot("target")];
+    const rendered = Promise.withResolvers<void>();
+    ctx.renderCurrentFrame = vi.fn(() => rendered.promise);
+    const pending = ctx.undoEditorEdit();
+    expect(ctx.state.historyFuture).toHaveLength(1);
+    expect(ctx.state.editorHistoryBusy).toBe(true);
+    expect(await ctx.redoEditorEdit()).toBe(false);
+    ctx.state.currentTemplate = {
+      ...ctx.state.currentTemplate,
+      id: "replacement",
+    };
+    ctx.state.historyPast = [];
+    ctx.state.historyFuture = [];
+    rendered.resolve();
+    expect(await pending).toBe(true);
+    expect(ctx.state.historyPast).toEqual([]);
+    expect(ctx.state.historyFuture).toEqual([]);
+  });
+
+  it("keeps source identity when refreshing timeline and health surfaces", () => {
+    const ctx = createStoreContext();
+    const source = ctx.state.currentTemplate;
+    source.timeline = { phases: [], tracks: [] };
+    ctx.state.timelineFullEditorRenderCount = 0;
+    Object.assign(ctx.refs, {
+      timelineTracks: { scrollLeft: 12, scrollTop: 34 },
+      durationInput: { value: "" },
+    });
+    for (const name of [
+      "reconcileTimelineSelection",
+      "renderLayersPanel",
+      "renderAssetsPanel",
+      "renderPresetsPanel",
+      "updateTemplateContext",
+      "renderTimelineRuler",
+      "renderTimelineTracks",
+      "renderCurveEditor",
+      "renderSelectionCrumb",
+      "updateTimelinePlayhead",
+      "renderInspector",
+      "renderValidationPanel",
+      "renderRendererBindingsPanel",
+      "updateCanvasSelectionBox",
+      "updateExportAvailability",
+    ])
+      ctx[name] = vi.fn();
+    ctx.getEffectiveTemplate = vi.fn(() => ({ ...source }));
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    ctx.renderTimelineEditor(source);
+    expect(ctx.renderTimelineTracks.mock.calls[0]?.[0]).toBe(source);
+    expect(ctx.renderValidationPanel.mock.calls[0]?.[0]).toBe(source);
+    expect(ctx.renderRendererBindingsPanel.mock.calls[0]?.[0]).toBe(source);
+    expect(ctx.getEffectiveTemplate).not.toHaveBeenCalled();
+    expect(ctx.refs.timelineTracks).toMatchObject({
+      scrollLeft: 12,
+      scrollTop: 34,
+    });
+  });
+
   it("coalesces repeated keyboard edits without merging unrelated actions", () => {
     const ctx = createStoreContext();
-    installEditorStoreOwner(ctx);
-    installEditorHistoryControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createEditorHistoryActions(() => ctx),
+    );
 
     ctx.commitHistory("nudge-layer:box", {
       coalesceKey: "nudge-layer:box",
@@ -46,7 +189,10 @@ describe("viewer editor history transactions", () => {
 
   it("validates opaque overrides without changing source or accepting a partial write", () => {
     const ctx = createStoreContext();
-    installEditorStoreOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
     expect(ctx.getEffectiveDuration()).toBe(4);
     ctx.setEditorOverride({ duration: 0.02, extension: { keep: true } });
     expect(ctx.getEffectiveDuration()).toBe(0.02);
@@ -88,8 +234,14 @@ describe("viewer editor history transactions", () => {
     const ctx = createStoreContext();
     const template = normalizeEffectV1ToTemplate(document);
     ctx.state.currentTemplate = template;
-    installEditorStoreOwner(ctx);
-    installTemplatesControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createTemplateModelActions(() => ctx),
+    );
     const effective = ctx.getEffectiveTemplate();
     expect(effective.scenes).toEqual(document.scenes);
     expect(template.scenes).toEqual(document.scenes);
@@ -114,9 +266,18 @@ describe("viewer editor history transactions", () => {
       t: (_key: string, fallback: string) => fallback,
       translateText: (_label: unknown, fallback: string) => fallback,
     });
-    installEditorStoreOwner(ctx);
-    installTemplatesControllerOwner(ctx);
-    installPanelsPresetsOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createTemplateModelActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createPresetPanelActions(() => ctx),
+    );
     ctx.applyEditorCommand = vi.fn((_command: unknown, mutate: () => void) =>
       mutate(),
     );
@@ -192,8 +353,14 @@ describe("viewer editor history transactions", () => {
     const ctx = createStoreContext();
     ctx.refs.canvasSelectionBox = { dataset: {} };
     ctx.renderCurrentFrame = vi.fn(async () => undefined);
-    installEditorStoreOwner(ctx);
-    installEditorHistoryControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createEditorHistoryActions(() => ctx),
+    );
     const snapshot = ctx.captureEditorSnapshot("before");
     const preview = createCanvasDragPreview(ctx);
     expect(preview.isCurrent()).toBe(true);
@@ -211,8 +378,14 @@ describe("viewer editor history transactions", () => {
     ctx.state.currentTemplate.assets = ["image"];
     ctx.state.assets.set("image", baseAsset);
     ctx.state.baseAssets.set("image", baseAsset);
-    installEditorStoreOwner(ctx);
-    installEditorHistoryControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createEditorHistoryActions(() => ctx),
+    );
 
     const baseSnapshot = ctx.captureEditorSnapshot("base");
     expect(baseSnapshot.assetEntries).toEqual([]);
@@ -229,8 +402,14 @@ describe("viewer editor history transactions", () => {
 
   it("rejects malformed asset history before changing editor state", () => {
     const ctx = createStoreContext();
-    installEditorStoreOwner(ctx);
-    installEditorHistoryControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createEditorHistoryActions(() => ctx),
+    );
     const snapshot = ctx.captureEditorSnapshot("invalid assets");
     snapshot.assetEntries = [["image", { id: "image", blob: {} }]];
     const override = ctx.state.editorOverrides.get("template");
@@ -242,8 +421,14 @@ describe("viewer editor history transactions", () => {
 
   it("restores structural groups and canonical multi-selection together", () => {
     const ctx = createStoreContext();
-    installEditorStoreOwner(ctx);
-    installEditorHistoryControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorStoreActions(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createEditorHistoryActions(() => ctx),
+    );
     ctx.state.editorOverrides.set("template", {
       layers: [
         { id: "group-1", type: "group" },
@@ -323,4 +508,19 @@ function createStoreContext(): any {
     state,
     syncEditorWorkflowUi: vi.fn(),
   };
+}
+
+function createHistoryTransitionContext() {
+  const ctx = createStoreContext();
+  Object.assign(
+    ctx,
+    createEditorStoreActions(() => ctx),
+    createEditorHistoryActions(() => ctx),
+  );
+  ctx.formatSeconds = String;
+  ctx.refs.timeOutput = { textContent: "" };
+  ctx.renderTimelineEditor = vi.fn();
+  ctx.renderControls = vi.fn();
+  ctx.renderCurrentFrame = vi.fn(async () => undefined);
+  return ctx;
 }

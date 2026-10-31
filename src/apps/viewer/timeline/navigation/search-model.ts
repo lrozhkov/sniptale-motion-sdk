@@ -1,24 +1,19 @@
+import type {
+  TimelineLayerSearchResult,
+  TimelineLayerSearchIndex,
+} from "./contract.js";
+import type { EditorTemplateSource } from "../../templates/model.js";
+import type { EditorTimelineSource } from "../../editor/timeline-source.js";
+import type {
+  TimelineLayerRow,
+  TimelineScene,
+} from "../model/row-tree-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
-
-export type TimelineLayerSearchResult = {
-  depth: number;
-  expansionIds: string[];
-  globalScope: boolean;
-  hidden: boolean;
-  key: string;
-  layerId: string;
-  locked: boolean;
-  name: string;
-  path: string[];
-  sceneId: string | null;
-  sceneLabel: string;
-  typeLabel: string;
-};
 
 export function getTimelineLayerSearchResults(
   ctx: ViewerAppContext,
-  template,
-  query,
+  template: EditorTimelineSource | null,
+  query: unknown,
   limit = 40,
 ): TimelineLayerSearchResult[] {
   return filterTimelineLayerSearchResults(
@@ -31,15 +26,15 @@ export function getTimelineLayerSearchResults(
 
 export function createTimelineLayerSearchIndex(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null,
 ): TimelineLayerSearchResult[] {
   return collectTimelineLayerSearchResults(ctx, template);
 }
 
 export function filterTimelineLayerSearchResults(
   ctx: ViewerAppContext,
-  index: TimelineLayerSearchResult[],
-  query,
+  index: readonly TimelineLayerSearchResult[],
+  query: unknown,
   limit = 40,
 ): TimelineLayerSearchResult[] {
   const normalizedQuery = normalizeTimelineLayerSearch(query);
@@ -65,7 +60,7 @@ export function filterTimelineLayerSearchResults(
 
 export function getTimelineLayerOccurrences(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null,
   layerId: string,
 ): TimelineLayerSearchResult[] {
   return createTimelineLayerSearchIndex(ctx, template).filter(
@@ -73,8 +68,10 @@ export function getTimelineLayerOccurrences(
   );
 }
 
-export function normalizeTimelineLayerSearch(value): string {
-  return String(value ?? "")
+export function normalizeTimelineLayerSearch(value: unknown): string {
+  return String(
+    typeof value === "string" || typeof value === "number" ? value : "",
+  )
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLocaleLowerCase()
@@ -84,7 +81,7 @@ export function normalizeTimelineLayerSearch(value): string {
 
 function collectTimelineLayerSearchResults(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTimelineSource | null,
 ): TimelineLayerSearchResult[] {
   if (!template) {
     return [];
@@ -98,8 +95,8 @@ function collectTimelineLayerSearchResults(
   return results;
 
   function appendRows(
-    rows,
-    scene,
+    rows: readonly TimelineLayerRow[],
+    scene: TimelineScene | null,
     ancestorNames: string[],
     expansionIds: string[],
     globalScope: boolean,
@@ -163,4 +160,48 @@ function getSearchScore(
   if (layerId.startsWith(phrase)) return 3;
   if (path.includes(phrase)) return 4;
   return 5;
+}
+
+export type TimelineSearchIndexContext = {
+  state: {
+    currentTemplate: EditorTemplateSource | null;
+    editorOverrides: ReadonlyMap<string, unknown>;
+    timelineOverrides: ReadonlyMap<string, unknown>;
+  };
+  deps: { getLocale(): string };
+  timelineLayerSearchIndexCache: TimelineLayerSearchIndex | null;
+  createTimelineLayerSearchIndex(
+    template: EditorTimelineSource | null,
+  ): TimelineLayerSearchResult[];
+};
+
+export function getCachedTimelineLayerSearchIndex(
+  ctx: TimelineSearchIndexContext,
+): readonly TimelineLayerSearchResult[] {
+  const source = ctx.state.currentTemplate;
+  const locale = ctx.deps.getLocale();
+  const editorOverride = source
+    ? ctx.state.editorOverrides.get(source.id)
+    : undefined;
+  const timelineOverride = source
+    ? ctx.state.timelineOverrides.get(source.id)
+    : undefined;
+  let cache = ctx.timelineLayerSearchIndexCache;
+  if (
+    !cache ||
+    cache.source !== source ||
+    cache.locale !== locale ||
+    cache.editorOverride !== editorOverride ||
+    cache.timelineOverride !== timelineOverride
+  ) {
+    cache = {
+      source,
+      locale,
+      editorOverride,
+      timelineOverride,
+      results: ctx.createTimelineLayerSearchIndex(source),
+    };
+    ctx.timelineLayerSearchIndexCache = cache;
+  }
+  return cache.results;
 }

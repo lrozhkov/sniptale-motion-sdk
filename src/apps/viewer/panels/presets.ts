@@ -1,3 +1,7 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PresetPanelActions } from "./contract.js";
+import type { EditorPreset, EditorTemplate } from "../templates/model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import { readEditorTimeline } from "../editor/timeline-source.js";
 import { readEditorTemplate } from "../templates/source.js";
 import { readEditorPresets } from "../templates/source.js";
@@ -6,7 +10,7 @@ import { createPresetRow } from "./preset-row.js";
 
 function renderPresetsPanel(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.presetsPanel.innerHTML = "";
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -65,11 +69,16 @@ function renderPresetsPanel(
   }
 }
 
-function hasPresetParameters(template) {
+function hasPresetParameters(
+  template: Pick<EditorTemplate, "controls"> | null,
+) {
   return Array.isArray(template?.controls) && template.controls.length > 0;
 }
 
-function updatePresetActionState(ctx: ViewerAppContext, template) {
+function updatePresetActionState(
+  ctx: ViewerAppContext,
+  template: EditorTemplate | null,
+) {
   const enabled = hasPresetParameters(template);
   const presets = readEditorPresets(template?.presets);
   const selected = presets.some(
@@ -93,7 +102,12 @@ function updatePresetActionState(ctx: ViewerAppContext, template) {
       : selectToDuplicate;
 }
 
-function formatPresetStatus(ctx: ViewerAppContext, key, fallback, preset) {
+function formatPresetStatus(
+  ctx: ViewerAppContext,
+  key: string,
+  fallback: string,
+  preset: EditorPreset,
+): string {
   return ctx.deps
     .t(key, fallback)
     .replace("{preset}", ctx.deps.translateText(preset.label, preset.id));
@@ -138,7 +152,10 @@ function duplicateSelectedPreset(ctx: ViewerAppContext) {
   }
   return ctx.duplicatePreset(presetId);
 }
-function duplicatePreset(ctx: ViewerAppContext, presetId) {
+function duplicatePreset(
+  ctx: ViewerAppContext,
+  presetId: string,
+): EditorPreset | null {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const presets = readEditorPresets(template?.presets);
   const source = presets.find((preset) => preset.id === presetId);
@@ -173,7 +190,7 @@ function duplicatePreset(ctx: ViewerAppContext, presetId) {
   );
   return duplicate;
 }
-function deletePreset(ctx: ViewerAppContext, presetId) {
+function deletePreset(ctx: ViewerAppContext, presetId: string): boolean {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const presets = readEditorPresets(template?.presets);
   const preset = presets.find((item) => item.id === presetId);
@@ -202,7 +219,10 @@ function deletePreset(ctx: ViewerAppContext, presetId) {
   );
   return true;
 }
-async function applyPreset(ctx: ViewerAppContext, presetId) {
+async function applyPreset(
+  ctx: ViewerAppContext,
+  presetId: string,
+): Promise<boolean> {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const preset = readEditorPresets(effectiveTemplate?.presets).find(
@@ -272,16 +292,23 @@ async function applyPreset(ctx: ViewerAppContext, presetId) {
   await ctx.renderCurrentFrame();
   return true;
 }
-function setPresets(ctx: ViewerAppContext, presets) {
+function setPresets(ctx: ViewerAppContext, presets: unknown): void {
   ctx.setEditorOverride({ presets: ctx.deps.normalizePresets(presets) });
 }
 
-export function installPanelsPresetsOwner(ctx: ViewerAppContext): void {
-  ctx.renderPresetsPanel = renderPresetsPanel.bind(undefined, ctx);
-  ctx.saveCurrentAsPreset = saveCurrentAsPreset.bind(undefined, ctx);
-  ctx.duplicateSelectedPreset = duplicateSelectedPreset.bind(undefined, ctx);
-  ctx.duplicatePreset = duplicatePreset.bind(undefined, ctx);
-  ctx.deletePreset = deletePreset.bind(undefined, ctx);
-  ctx.applyPreset = applyPreset.bind(undefined, ctx);
-  ctx.setPresets = setPresets.bind(undefined, ctx);
+export function createPresetPanelActions(
+  getContext: () => ViewerAppContext,
+): PresetPanelActions {
+  return {
+    renderPresetsPanel: bindViewerAction(renderPresetsPanel, getContext),
+    saveCurrentAsPreset: bindViewerAction(saveCurrentAsPreset, getContext),
+    duplicateSelectedPreset: bindViewerAction(
+      duplicateSelectedPreset,
+      getContext,
+    ),
+    duplicatePreset: bindViewerAction(duplicatePreset, getContext),
+    deletePreset: bindViewerAction(deletePreset, getContext),
+    applyPreset: bindViewerAction(applyPreset, getContext),
+    setPresets: bindViewerAction(setPresets, getContext),
+  };
 }

@@ -188,7 +188,7 @@ export async function renderCurrentFrame(
       frameIndex: Math.round(time * fps),
       height,
       inputFrames: renderInput.frames,
-      kind: "renderFrame",
+      kind: "renderFrame" as const,
       outputHeight,
       outputWidth,
       progress,
@@ -303,7 +303,7 @@ export async function renderCurrentFrame(
         renderProfile?.mark("postProcessMs");
         renderProfile?.finish(ctx, {
           height,
-          sandbox: result.renderProfile,
+          ...(result.renderProfile ? { sandbox: result.renderProfile } : {}),
           templateId: template.id,
           time,
           width,

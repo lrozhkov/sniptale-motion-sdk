@@ -1,3 +1,5 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { AppEditingActions } from "./shell-contract.js";
 import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { ViewerAppContext } from "./context.js";
 
@@ -43,17 +45,6 @@ export function findPhaseIdAtTime(
       .sort((a, b) => (Number(b.start) || 0) - (Number(a.start) || 0))[0]?.id ??
     null
   );
-}
-function setAllSceneRowsExpanded(ctx: ViewerAppContext, expanded) {
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  if (!template) {
-    return;
-  }
-  const scenes = ctx.normalizeScenes(template.scenes ?? [], template.duration);
-  ctx.state.expandedSceneIds = expanded
-    ? new Set(scenes.map((scene) => scene.id))
-    : new Set();
-  ctx.renderTimelineEditor(ctx.state.currentTemplate);
 }
 function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
   const template = ctx.state.currentTemplate;
@@ -151,9 +142,9 @@ function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
 }
 function timelineDeltaFromPixels(
   ctx: ViewerAppContext,
-  deltaX,
-  rect,
-  template = ctx.state.currentTemplate,
+  deltaX: number,
+  rect: { width: number },
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   const duration = ctx.getEffectiveDuration(template);
   const viewport = ctx.deps.calculateTimelineViewport(
@@ -163,18 +154,24 @@ function timelineDeltaFromPixels(
   );
   return (deltaX / Math.max(1, rect.width)) * viewport.span;
 }
-function cssEscape(_ctx: ViewerAppContext, value) {
+function cssEscape(value: string) {
   return window.CSS?.escape
-    ? window.CSS.escape(String(value))
-    : String(value).replace(/["\\]/g, "\\$&");
+    ? window.CSS.escape(value)
+    : value.replace(/["\\]/g, "\\$&");
 }
 
-export function installAppMiscOwner(ctx: ViewerAppContext): void {
-  ctx.setAllSceneRowsExpanded = setAllSceneRowsExpanded.bind(undefined, ctx);
-  ctx.deleteSelectedTimelineItem = deleteSelectedTimelineItem.bind(
-    undefined,
-    ctx,
-  );
-  ctx.timelineDeltaFromPixels = timelineDeltaFromPixels.bind(undefined, ctx);
-  ctx.cssEscape = cssEscape.bind(undefined, ctx);
+export function createAppEditingActions(
+  getContext: () => ViewerAppContext,
+): AppEditingActions {
+  return {
+    deleteSelectedTimelineItem: bindViewerAction(
+      deleteSelectedTimelineItem,
+      getContext,
+    ),
+    timelineDeltaFromPixels: bindViewerAction(
+      timelineDeltaFromPixels,
+      getContext,
+    ),
+    cssEscape,
+  };
 }

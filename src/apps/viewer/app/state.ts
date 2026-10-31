@@ -1,3 +1,4 @@
+import { createPreviewCacheWarmState } from "../playback/cache-warm-state.js";
 import { createViewerStudioState } from "../studio/state.js";
 import { createViewerAssetState } from "../assets/state.js";
 import { createCanvasTransformState } from "../canvas/transform-state.js";
@@ -88,21 +89,7 @@ export function createViewerState() {
     previewFrameCacheStorage: "none",
     previewFrameCacheStoreMs: 0,
     previewFrameCacheTotalFrames: 0,
-    previewCacheWarmActive: false,
-    previewCacheWarmAverageFrameMs: 0,
-    previewCacheWarmCapacityLimited: false,
-    previewCacheWarmElapsedMs: 0,
-    previewCacheWarmPrepared: false,
-    previewCacheWarmPublicTime: 0,
-    previewCacheWarmRangeEndFrame: 0,
-    previewCacheWarmRangeStartFrame: 0,
-    previewCacheWarmRenderTime: 0,
-    previewCacheWarmSampleCount: 0,
-    previewCacheWarmScale: 0,
-    previewCacheWarmStartTime: 0,
-    previewCacheWarmTargetFrames: 0,
-    previewCacheWarmUnsupportedResults: 0,
-    previewCacheWarmVisitedFrames: 0,
+    ...createPreviewCacheWarmState(),
     previewSnap: false,
     previewZoom: "fit",
     renderCount: 0,

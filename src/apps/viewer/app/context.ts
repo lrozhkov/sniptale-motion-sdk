@@ -1,3 +1,64 @@
+import type {
+  TransportRuntimeActions,
+  TransportControllerActions,
+} from "../transport/contract.js";
+import type { DomMotionActions } from "../dom-motion/contract.js";
+import type {
+  RenderModelActions,
+  RenderAssetActions,
+  RenderServiceActions,
+  PreviewRasterActions,
+} from "../rendering/model-contract.js";
+import type {
+  PlaybackCachePreferenceActions,
+  PlaybackActions,
+  PreviewAudioActions,
+  PlaybackVideoCacheActions,
+} from "../playback/contract.js";
+import type { PreviewMediaActions } from "../preview-media/contract.js";
+import type {
+  TimelineNavigationActions,
+  TimelineLayerSearchIndex,
+  TimelineLayerSearchResult,
+} from "../timeline/navigation/contract.js";
+import type { createIconActions } from "./icons.js";
+import type {
+  ShellLayoutActions,
+  ShellActions,
+  ShellPanelActions,
+  ThemeActions,
+  KeyboardActions,
+  AppEditingActions,
+  DiagnosticActions,
+} from "./shell-contract.js";
+import type { WorkspaceViewActions } from "../templates/contract.js";
+import type {
+  AssetPanelActions,
+  AssetBindingActions,
+  AssetFileImportActions,
+} from "../assets/contract.js";
+import type {
+  PresetPanelActions,
+  ControlPanelActions,
+  LayerPanelActions,
+} from "../panels/contract.js";
+import type {
+  TemplateModelActions,
+  TemplateSelectionActions,
+  TemplateComboboxActions,
+  TemplateFallbackActions,
+} from "../templates/contract.js";
+import type {
+  EffectExportReadinessActions,
+  JsonBindingActions,
+  EffectFileActions,
+} from "../effect-file/contract.js";
+import type { TimeFormatActions } from "./time-contract.js";
+import type {
+  EditorStoreActions,
+  EditorHistoryActions,
+  EditorDraftActions,
+} from "../editor/contract.js";
 import type { LayerOperationActions } from "../layers/actions-contract.js";
 import type { FramePresentationActions } from "../rendering/presentation-contract.js";
 import type { ViewerRenderOutputActions } from "../rendering/output-contract.js";
@@ -64,6 +125,45 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    TransportRuntimeActions,
+    TransportControllerActions,
+    RenderModelActions,
+    RenderAssetActions,
+    RenderServiceActions,
+    PreviewRasterActions,
+    PlaybackCachePreferenceActions,
+    PlaybackActions,
+    PreviewAudioActions,
+    PlaybackVideoCacheActions,
+    PreviewMediaActions,
+    TimelineNavigationActions,
+    ReturnType<typeof createIconActions>,
+    ShellLayoutActions,
+    ShellActions,
+    ShellPanelActions,
+    ThemeActions,
+    KeyboardActions,
+    AppEditingActions,
+    DiagnosticActions,
+    WorkspaceViewActions,
+    AssetPanelActions,
+    AssetBindingActions,
+    AssetFileImportActions,
+    ControlPanelActions,
+    PresetPanelActions,
+    LayerPanelActions,
+    TemplateModelActions,
+    TemplateSelectionActions,
+    TemplateComboboxActions,
+    TemplateFallbackActions,
+    EffectExportReadinessActions,
+    JsonBindingActions,
+    EffectFileActions,
+    DomMotionActions,
+    TimeFormatActions,
+    EditorStoreActions,
+    EditorHistoryActions,
+    EditorDraftActions,
     LayerOperationActions,
     FramePresentationActions,
     ViewerRenderOutputActions,
@@ -103,6 +203,10 @@ export interface ViewerAppContext
     TimelineVirtualizationActions,
     TimelineViewportActions,
     TimelineTimingActions {
+  timelineLayerSearchIndexCache: TimelineLayerSearchIndex | null;
+  timelineLayerSearchResultsCache: TimelineLayerSearchResult[];
+  timelineOverlaySyncFrame: number;
+  diagnosticsCopyResetTimer: number | undefined;
   deps: ViewerAppDependencies;
   canvasSelectionPlaybackFrame: number;
   lastPlaybackAudioTs: number;
@@ -152,5 +256,4 @@ export interface ViewerAppContext
     template?: { id: string } | null,
   ): EditorTemplate | null;
   getEffectiveTimeline(template?: EditorTimelineSource | null): EditorTimeline;
-  [viewerAction: string]: any;
 }

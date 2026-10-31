@@ -18,7 +18,7 @@ import {
 import { fallBackToExactFrameCache } from "../src/apps/viewer/playback/video-cache-fallback";
 
 function createContext() {
-  const bitmap = { height: 720, width: 1280 };
+  const bitmap = { close() {}, height: 720, width: 1280 };
   const video = {
     addEventListener: vi.fn(),
     currentTime: 0,

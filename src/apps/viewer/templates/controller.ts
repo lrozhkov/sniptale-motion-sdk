@@ -1,12 +1,15 @@
+import type { ViewerDrawingContext } from "../rendering/output-contract.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CapturedEditorPreset, TemplateModelActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
-import type { EditorTemplate } from "./model.js";
+import type { EditorTemplate, EditorTemplateSource } from "./model.js";
 import { readEditorTemplate, readTemplateSource } from "./source.js";
 
 function createPresetFromTemplate(
   ctx: ViewerAppContext,
   template: EditorTemplate,
   id: string,
-) {
+): CapturedEditorPreset {
   const presetNumber = String(id).match(/^preset(?:-(\d+))?$/)?.[1];
   const suffix = presetNumber ? ` ${presetNumber}` : "";
   return {
@@ -20,17 +23,15 @@ function createPresetFromTemplate(
         : { en: ctx.toTitleLabel(id), ru: ctx.toTitleLabel(id) },
     layers: ctx.deps.deepClone(template.layers ?? []),
     scenes: ctx.deps.deepClone(template.scenes),
-    timeline: ctx.deps.deepClone(
-      template.timeline ?? { phases: [], tracks: [] },
-    ),
+    timeline: ctx.deps.deepClone(template.timeline),
   };
 }
 
 function drawBaseForTemplate(
   ctx: ViewerAppContext,
-  context,
-  template,
-  progress,
+  context: ViewerDrawingContext,
+  template: EditorTemplateSource,
+  progress: number,
 ) {
   const width = context.canvas.width;
   const height = context.canvas.height;
@@ -80,8 +81,15 @@ export function getEffectiveTemplate(
   );
 }
 
-export function installTemplatesControllerOwner(ctx: ViewerAppContext): void {
-  ctx.createPresetFromTemplate = createPresetFromTemplate.bind(undefined, ctx);
-  ctx.drawBaseForTemplate = drawBaseForTemplate.bind(undefined, ctx);
-  ctx.getEffectiveTemplate = getEffectiveTemplate.bind(undefined, ctx);
+export function createTemplateModelActions(
+  getContext: () => ViewerAppContext,
+): Omit<TemplateModelActions, "updateTemplateContext"> {
+  return {
+    getEffectiveTemplate: bindViewerAction(getEffectiveTemplate, getContext),
+    createPresetFromTemplate: bindViewerAction(
+      createPresetFromTemplate,
+      getContext,
+    ),
+    drawBaseForTemplate: bindViewerAction(drawBaseForTemplate, getContext),
+  };
 }

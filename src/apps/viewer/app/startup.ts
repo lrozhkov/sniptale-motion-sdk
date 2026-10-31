@@ -135,9 +135,9 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
   });
   ctx.refs.appActionsButton
     ?.closest(".app-actions")
-    ?.addEventListener("keydown", (event) =>
-      ctx.handleActionsMenuKeydown(event),
-    );
+    ?.addEventListener("keydown", (event) => {
+      if (event instanceof KeyboardEvent) ctx.handleActionsMenuKeydown(event);
+    });
   ctx.refs.localeMenuOptions.forEach((button) => {
     button.addEventListener("click", () =>
       ctx.selectLocaleMenuOption(button.dataset.localeOption),
@@ -246,12 +246,20 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
   ctx.refs.sidebarWidthResizer.addEventListener("dblclick", () =>
     ctx.setSidebarWidth(ctx.deps.DEFAULT_SIDEBAR_WIDTH),
   );
-  ctx.refs.timelineRuler.addEventListener("wheel", ctx.handleTimelineWheel, {
-    passive: false,
-  });
-  ctx.refs.timelineTracks.addEventListener("wheel", ctx.handleTimelineWheel, {
-    passive: false,
-  });
+  ctx.refs.timelineRuler.addEventListener(
+    "wheel",
+    (event) => ctx.handleTimelineWheel(event),
+    {
+      passive: false,
+    },
+  );
+  ctx.refs.timelineTracks.addEventListener(
+    "wheel",
+    (event) => ctx.handleTimelineWheel(event),
+    {
+      passive: false,
+    },
+  );
   ctx.refs.timelineTracks.addEventListener("scroll", () =>
     ctx.handleTimelineTracksScroll(),
   );
@@ -294,8 +302,4 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
     ctx.beginMotionPathPointHitDrag(event),
   );
   void ctx.bootstrap();
-}
-
-export function installAppStartupOwner(ctx: ViewerAppContext): void {
-  ctx.wireViewerStartup = wireViewerStartup.bind(undefined, ctx);
 }

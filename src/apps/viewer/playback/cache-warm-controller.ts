@@ -1,3 +1,8 @@
+import type {
+  PreviewFrameCacheResult,
+  CacheWarmResultOptions,
+} from "./contract.js";
+import type { PreviewCacheWarmStep } from "./cache-warm.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   advancePreviewCacheWarm,
@@ -30,15 +35,9 @@ export function beginPlaybackCacheWarm(
 
 export function advancePlaybackCacheWarmResult(
   ctx: ViewerAppContext,
-  result: any,
-  options: {
-    currentTime: number;
-    duration: number;
-    frameLatencyMs?: number;
-    fps: number;
-    previousCacheFrames?: number;
-  },
-) {
+  result: PreviewFrameCacheResult,
+  options: CacheWarmResultOptions,
+): PreviewCacheWarmStep | null {
   if (ctx.state.previewCacheEnabled === false) {
     if (ctx.state.previewCacheWarmActive) {
       cancelPreviewCacheWarm(ctx.state);
@@ -64,7 +63,8 @@ export function advancePlaybackCacheWarmResult(
     ctx.state.previewCacheWarmActive &&
     ctx.state.previewCacheWarmVisitedFrames > 0 &&
     result.previewCacheHit === false &&
-    Number(result.previewCacheFrames) <
+    typeof result.previewCacheFrames === "number" &&
+    result.previewCacheFrames <
       Math.max(0, Number(options.previousCacheFrames) || 0)
   ) {
     cancelAndRestartPreviewCacheWarm(ctx);

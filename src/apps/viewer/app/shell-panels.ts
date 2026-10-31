@@ -1,9 +1,14 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { ShellPanelActions } from "./shell-contract.js";
 import type { ViewerSelection } from "../timeline/model/selection-model.js";
 import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { ViewerAppContext } from "./context.js";
 import { syncTablistButtons } from "./tablist.js";
 
-const INSPECTOR_TABS_BY_TYPE = {
+const INSPECTOR_TABS_BY_TYPE: Record<
+  ViewerSelection["type"],
+  readonly string[]
+> = {
   asset: ["summary", "ownership"],
   clip: ["summary", "timing", "ownership"],
   effect: ["summary"],
@@ -14,7 +19,7 @@ const INSPECTOR_TABS_BY_TYPE = {
   track: ["summary", "timing", "ownership"],
 };
 
-const DEFAULT_INSPECTOR_TAB_BY_TYPE = {
+const DEFAULT_INSPECTOR_TAB_BY_TYPE: Record<ViewerSelection["type"], string> = {
   asset: "summary",
   clip: "timing",
   effect: "summary",
@@ -49,22 +54,25 @@ function getInspectorSelectionKey(
 }
 
 function syncSidebarHeading(ctx: ViewerAppContext) {
-  const labels = {
+  const labels: Record<string, readonly [string, string]> = {
     health: ["viewer.sidebar.review", "Review"],
     inspect: ["viewer.sidebar.inspector", "Inspector"],
     tune: ["viewer.sidebar.effect", "Effect"],
   };
-  const [key, fallback] =
-    labels[ctx.state.activeSidebarGroup] ?? labels.inspect;
+  const [key, fallback] = labels[ctx.state.activeSidebarGroup] ?? [
+    "viewer.sidebar.inspector",
+    "Inspector",
+  ];
   if (ctx.refs.sidebarTitle) {
     ctx.refs.sidebarTitle.textContent = ctx.deps.t(key, fallback);
   }
 }
 
-function setSidebarGroup(ctx: ViewerAppContext, group) {
-  const nextGroup = ["tune", "inspect", "health"].includes(group)
-    ? group
-    : "inspect";
+function setSidebarGroup(ctx: ViewerAppContext, group: unknown) {
+  const nextGroup =
+    group === "tune" || group === "inspect" || group === "health"
+      ? group
+      : "inspect";
   ctx.state.activeSidebarGroup = nextGroup;
   ctx.refs.sidebar.dataset.activeSidebar = nextGroup;
   syncTablistButtons(ctx.refs.sidebarTabs, nextGroup, "sidebarTab");
@@ -83,7 +91,7 @@ function setSidebarGroup(ctx: ViewerAppContext, group) {
   }
 }
 
-function setActionsMenuOpen(ctx: ViewerAppContext, open) {
+function setActionsMenuOpen(ctx: ViewerAppContext, open: boolean) {
   ctx.state.actionsMenuOpen = Boolean(open);
   if (ctx.state.actionsMenuOpen) {
     syncLocaleMenuOptions(ctx);
@@ -106,10 +114,10 @@ function syncLocaleMenuOptions(ctx: ViewerAppContext): void {
 }
 
 function selectLocaleMenuOption(ctx: ViewerAppContext, locale: unknown): void {
-  if (!ctx.refs.localeSelect || !["ru", "en"].includes(String(locale))) {
+  if (!ctx.refs.localeSelect || (locale !== "ru" && locale !== "en")) {
     return;
   }
-  ctx.refs.localeSelect.value = String(locale);
+  ctx.refs.localeSelect.value = locale;
   ctx.refs.localeSelect.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
@@ -117,14 +125,17 @@ function toggleActionsMenu(ctx: ViewerAppContext) {
   ctx.setActionsMenuOpen(!ctx.state.actionsMenuOpen);
 }
 
-function handleActionsMenuKeydown(ctx: ViewerAppContext, event) {
+function handleActionsMenuKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
   const trigger = ctx.refs.appActionsButton;
   const menu = ctx.refs.appActionsMenu;
   const items = Array.from(
     menu?.querySelectorAll("button:not(:disabled)") ?? [],
-  ) as HTMLButtonElement[];
-  const activeIndex = items.indexOf(
-    document.activeElement as HTMLButtonElement,
+  ).filter(
+    (element): element is HTMLButtonElement =>
+      element instanceof HTMLButtonElement,
+  );
+  const activeIndex = items.findIndex(
+    (element) => element === document.activeElement,
   );
   if (
     !ctx.state.actionsMenuOpen &&
@@ -168,10 +179,14 @@ function handleActionsMenuKeydown(ctx: ViewerAppContext, event) {
   }
 }
 
-function setInspectorTab(ctx: ViewerAppContext, tab) {
-  const nextTab = ["summary", "timing", "transform", "ownership"].includes(tab)
-    ? tab
-    : "summary";
+function setInspectorTab(ctx: ViewerAppContext, tab: unknown) {
+  const nextTab =
+    tab === "summary" ||
+    tab === "timing" ||
+    tab === "transform" ||
+    tab === "ownership"
+      ? tab
+      : "summary";
   ctx.state.activeInspectorTab = nextTab;
   syncTablistButtons(ctx.refs.inspectorTabs, nextTab, "inspectorTab");
   if (ctx.refs.inspectorPanel) {
@@ -188,7 +203,7 @@ function setInspectorTab(ctx: ViewerAppContext, tab) {
 
 function syncInspectorTabs(
   ctx: ViewerAppContext,
-  item = ctx.state.selectedItem ?? { type: "effect" },
+  item: ViewerSelection = ctx.state.selectedItem ?? { type: "effect" },
 ) {
   const type = item?.type ?? "effect";
   const available = new Set(
@@ -226,7 +241,7 @@ function syncInspectorTabs(
   }
   ctx.refs.inspectorTabs.forEach((button) => {
     const tab = button.dataset.inspectorTab;
-    const visible = available.has(tab);
+    const visible = typeof tab === "string" && available.has(tab);
     button.hidden = !visible;
   });
   syncTablistButtons(
@@ -240,10 +255,11 @@ function syncInspectorTabs(
   }
 }
 
-function setHealthTab(ctx: ViewerAppContext, tab) {
-  const nextTab = ["validation", "renderer", "diagnostics"].includes(tab)
-    ? tab
-    : "validation";
+function setHealthTab(ctx: ViewerAppContext, tab: unknown) {
+  const nextTab =
+    tab === "validation" || tab === "renderer" || tab === "diagnostics"
+      ? tab
+      : "validation";
   ctx.state.activeHealthTab = nextTab;
   syncTablistButtons(ctx.refs.healthTabs, nextTab, "healthTab");
   ctx.refs.sidebar.querySelectorAll("[data-health-panel]").forEach((panel) => {
@@ -271,16 +287,26 @@ function syncHealthState(ctx: ViewerAppContext) {
   });
 }
 
-export function installAppShellPanelsOwner(ctx: ViewerAppContext): void {
-  ctx.syncSidebarHeading = syncSidebarHeading.bind(undefined, ctx);
-  ctx.setSidebarGroup = setSidebarGroup.bind(undefined, ctx);
-  ctx.setActionsMenuOpen = setActionsMenuOpen.bind(undefined, ctx);
-  ctx.toggleActionsMenu = toggleActionsMenu.bind(undefined, ctx);
-  ctx.handleActionsMenuKeydown = handleActionsMenuKeydown.bind(undefined, ctx);
-  ctx.syncLocaleMenuOptions = syncLocaleMenuOptions.bind(undefined, ctx);
-  ctx.selectLocaleMenuOption = selectLocaleMenuOption.bind(undefined, ctx);
-  ctx.setInspectorTab = setInspectorTab.bind(undefined, ctx);
-  ctx.syncInspectorTabs = syncInspectorTabs.bind(undefined, ctx);
-  ctx.setHealthTab = setHealthTab.bind(undefined, ctx);
-  ctx.syncHealthState = syncHealthState.bind(undefined, ctx);
+export function createShellPanelActions(
+  getContext: () => ViewerAppContext,
+): ShellPanelActions {
+  return {
+    syncSidebarHeading: bindViewerAction(syncSidebarHeading, getContext),
+    setSidebarGroup: bindViewerAction(setSidebarGroup, getContext),
+    setActionsMenuOpen: bindViewerAction(setActionsMenuOpen, getContext),
+    toggleActionsMenu: bindViewerAction(toggleActionsMenu, getContext),
+    handleActionsMenuKeydown: bindViewerAction(
+      handleActionsMenuKeydown,
+      getContext,
+    ),
+    syncLocaleMenuOptions: bindViewerAction(syncLocaleMenuOptions, getContext),
+    selectLocaleMenuOption: bindViewerAction(
+      selectLocaleMenuOption,
+      getContext,
+    ),
+    setInspectorTab: bindViewerAction(setInspectorTab, getContext),
+    syncInspectorTabs: bindViewerAction(syncInspectorTabs, getContext),
+    setHealthTab: bindViewerAction(setHealthTab, getContext),
+    syncHealthState: bindViewerAction(syncHealthState, getContext),
+  };
 }

@@ -1,26 +1,29 @@
-import type { EffectScene, TimelinePhase } from "../../../sdk/types.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { TemplateFallbackActions } from "./contract.js";
+import { readEditorTimeline } from "../editor/timeline-source.js";
+import type {
+  EffectLayer,
+  EffectScene,
+  TimelinePhase,
+} from "../../../sdk/types.js";
 import type { EditorTimeline } from "../editor/model-types.js";
-
-type FallbackTemplate = {
-  duration?: number;
-  timeline?: {
-    tracks?: readonly { target?: unknown }[];
-    phases?: readonly TimelinePhase[];
-  };
-  scenes?: unknown;
-  kind?: string;
-  domMotion?: unknown;
-};
 
 import type { ViewerAppContext } from "../app/context.js";
 
 export function createFallbackLayers(
   ctx: ViewerAppContext,
-  template: FallbackTemplate,
-) {
+  template: unknown,
+): EffectLayer[] {
   const ids = new Set<string>();
-  for (const track of template.timeline?.tracks ?? []) {
-    if (typeof track.target === "string" && track.target) {
+  const timeline =
+    isRecord(template) && isRecord(template.timeline)
+      ? template.timeline
+      : null;
+  const tracks: unknown[] = Array.isArray(timeline?.tracks)
+    ? timeline.tracks
+    : [];
+  for (const track of tracks) {
+    if (isRecord(track) && typeof track.target === "string" && track.target) {
       ids.add(track.target);
     }
   }
@@ -44,10 +47,7 @@ export function createFallbackLayers(
   }));
 }
 
-export function createFallbackClips(
-  ctx: ViewerAppContext,
-  template: FallbackTemplate,
-) {
+export function createFallbackClips(ctx: ViewerAppContext, template: unknown) {
   const duration = Number(ctx.getEffectiveDuration(template));
   return createFallbackLayers(ctx, template).map((layer) => ({
     duration,
@@ -60,7 +60,7 @@ export function createFallbackClips(
 
 export function createFallbackTimeline(
   ctx: ViewerAppContext,
-  template: FallbackTemplate,
+  template: unknown,
 ): EditorTimeline {
   const duration = Number(ctx.getEffectiveDuration(template));
   return {
@@ -72,7 +72,7 @@ export function createFallbackTimeline(
 
 export function createFallbackScenes(
   ctx: ViewerAppContext,
-  template: FallbackTemplate,
+  template: unknown,
 ): EffectScene[] {
   const duration = Number(ctx.getEffectiveDuration(template));
   return [{ duration, id: "main", label: "Main", start: 0, locked: false }];
@@ -88,7 +88,7 @@ export function normalizeScenes(
 
 export function findTemplateScene(
   ctx: ViewerAppContext,
-  template: FallbackTemplate | null | undefined,
+  template: unknown,
   sceneId: string | null | undefined,
 ) {
   if (!sceneId) {
@@ -97,44 +97,59 @@ export function findTemplateScene(
   return (
     normalizeScenes(
       ctx,
-      template?.scenes ?? [],
-      template?.duration ?? ctx.getEffectiveDuration(),
+      isRecord(template) ? (template.scenes ?? []) : [],
+      isRecord(template) && typeof template.duration === "number"
+        ? template.duration
+        : ctx.getEffectiveDuration(),
     ).find((scene) => scene.id === sceneId) ?? null
   );
 }
 
 export function findTemplatePhase(
   ctx: ViewerAppContext,
-  template: FallbackTemplate | null | undefined,
+  template: unknown,
   phaseId: string | null | undefined,
-) {
+): TimelinePhase | null {
   if (!phaseId) {
     return null;
   }
-  return (
-    (template?.timeline?.phases ?? []).find((phase) => phase.id === phaseId) ??
-    null
+  if (!isRecord(template) || template.timeline == null) return null;
+  const timeline = readEditorTimeline(
+    template.timeline,
+    ctx.getEffectiveDuration(template),
   );
+  return timeline.phases.find((phase) => phase.id === phaseId) ?? null;
 }
 
 export function getRendererType(
-  ctx: ViewerAppContext,
-  template: FallbackTemplate | null | undefined,
+  _ctx: ViewerAppContext,
+  template: unknown,
 ): "dom" | "composition" | "effect" {
-  return template?.domMotion
+  return isRecord(template) && template.domMotion
     ? "dom"
-    : template?.kind === "composition"
+    : isRecord(template) && template.kind === "composition"
       ? "composition"
       : "effect";
 }
 
-export function installTemplatesFallbacksOwner(ctx: ViewerAppContext): void {
-  ctx.createFallbackLayers = createFallbackLayers.bind(null, ctx);
-  ctx.createFallbackClips = createFallbackClips.bind(null, ctx);
-  ctx.createFallbackTimeline = createFallbackTimeline.bind(null, ctx);
-  ctx.createFallbackScenes = createFallbackScenes.bind(null, ctx);
-  ctx.normalizeScenes = normalizeScenes.bind(null, ctx);
-  ctx.findTemplateScene = findTemplateScene.bind(null, ctx);
-  ctx.findTemplatePhase = findTemplatePhase.bind(null, ctx);
-  ctx.getRendererType = getRendererType.bind(null, ctx);
+export function createTemplateFallbackActions(
+  getContext: () => ViewerAppContext,
+): TemplateFallbackActions {
+  return {
+    createFallbackLayers: bindViewerAction(createFallbackLayers, getContext),
+    createFallbackClips: bindViewerAction(createFallbackClips, getContext),
+    createFallbackTimeline: bindViewerAction(
+      createFallbackTimeline,
+      getContext,
+    ),
+    createFallbackScenes: bindViewerAction(createFallbackScenes, getContext),
+    normalizeScenes: bindViewerAction(normalizeScenes, getContext),
+    findTemplateScene: bindViewerAction(findTemplateScene, getContext),
+    findTemplatePhase: bindViewerAction(findTemplatePhase, getContext),
+    getRendererType: bindViewerAction(getRendererType, getContext),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

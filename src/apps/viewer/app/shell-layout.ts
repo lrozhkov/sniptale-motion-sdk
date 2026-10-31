@@ -1,6 +1,8 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { ShellLayoutActions } from "./shell-contract.js";
 import type { ViewerAppContext } from "./context.js";
 
-function setSidebarCollapsed(ctx: ViewerAppContext, collapsed) {
+function setSidebarCollapsed(ctx: ViewerAppContext, collapsed: boolean) {
   const focusWasInside = ctx.refs.sidebar.contains(document.activeElement);
   ctx.state.sidebarCollapsed = Boolean(collapsed);
   ctx.refs.appShell.classList.toggle(
@@ -34,12 +36,12 @@ function setSidebarCollapsed(ctx: ViewerAppContext, collapsed) {
   ctx.updateCanvasSelectionBox();
 }
 
-function setSidebarWidth(ctx: ViewerAppContext, width) {
+function setSidebarWidth(ctx: ViewerAppContext, width: number) {
   const shellWidth =
     ctx.refs.appShell.getBoundingClientRect().width || window.innerWidth;
   const maxWidth = Math.max(320, Math.min(560, shellWidth - 760));
   const nextWidth = ctx.deps.clamp(
-    Number(width) || ctx.deps.DEFAULT_SIDEBAR_WIDTH,
+    width || ctx.deps.DEFAULT_SIDEBAR_WIDTH,
     280,
     maxWidth,
   );
@@ -60,12 +62,12 @@ function setSidebarWidth(ctx: ViewerAppContext, width) {
   ctx.updateCanvasSelectionBox();
 }
 
-function setTimelineEditorHeight(ctx: ViewerAppContext, height) {
+function setTimelineEditorHeight(ctx: ViewerAppContext, height: number) {
   const shellHeight =
     ctx.refs.stageWrap.closest(".viewer")?.getBoundingClientRect().height ??
     window.innerHeight;
   const maxHeight = Math.max(240, Math.min(560, shellHeight - 260));
-  const nextHeight = ctx.deps.clamp(Number(height) || 330, 220, maxHeight);
+  const nextHeight = ctx.deps.clamp(height || 330, 220, maxHeight);
   ctx.state.timelineEditorHeight = nextHeight;
   ctx.state.timelineTrackOverlayHeight = null;
   document.documentElement.style.setProperty(
@@ -97,8 +99,8 @@ function scheduleTimelineOverlaySync(ctx: ViewerAppContext) {
   });
 }
 
-function setPreviewZoom(ctx: ViewerAppContext, zoom) {
-  const nextZoom = ["fit", "75", "100"].includes(zoom) ? zoom : "fit";
+function setPreviewZoom(ctx: ViewerAppContext, zoom: unknown) {
+  const nextZoom = zoom === "75" || zoom === "100" ? zoom : "fit";
   ctx.state.previewZoom = nextZoom;
   ctx.refs.stageFrame.dataset.previewZoom = nextZoom;
   ctx.refs.stageWrap.classList.toggle("preview-scroll", nextZoom !== "fit");
@@ -118,7 +120,7 @@ function setPreviewZoom(ctx: ViewerAppContext, zoom) {
   ctx.updateCanvasSelectionBox();
 }
 
-function setPreviewGuides(ctx: ViewerAppContext, enabled) {
+function setPreviewGuides(ctx: ViewerAppContext, enabled: boolean) {
   ctx.state.previewGuides = Boolean(enabled);
   ctx.refs.previewGuides.hidden = !ctx.state.previewGuides;
   ctx.refs.previewGuidesButton.classList.toggle(
@@ -131,7 +133,7 @@ function setPreviewGuides(ctx: ViewerAppContext, enabled) {
   );
 }
 
-function setPreviewSnap(ctx: ViewerAppContext, enabled) {
+function setPreviewSnap(ctx: ViewerAppContext, enabled: boolean) {
   ctx.state.previewSnap = Boolean(enabled);
   if (!ctx.state.previewSnap) {
     ctx.state.canvasSnapStatus = null;
@@ -146,22 +148,31 @@ function setPreviewSnap(ctx: ViewerAppContext, enabled) {
   }
 }
 
-function beginSidebarWidthResize(ctx: ViewerAppContext, event) {
+function beginSidebarWidthResize(ctx: ViewerAppContext, event: MouseEvent) {
   if (event.button !== 0 || ctx.state.sidebarCollapsed) {
     return;
   }
   event.preventDefault();
   const startX = event.clientX;
   const startWidth = ctx.state.sidebarWidth;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     ctx.state.dragMoved =
       ctx.state.dragMoved || Math.abs(moveEvent.clientX - startX) > 2;
     ctx.setSidebarWidth(startWidth - (moveEvent.clientX - startX));
   };
-  ctx.bindPointerDrag(event.pointerId, ctx.refs.sidebarWidthResizer, onMove);
+  ctx.bindPointerDrag(
+    "pointerId" in event && typeof event.pointerId === "number"
+      ? event.pointerId
+      : undefined,
+    ctx.refs.sidebarWidthResizer,
+    onMove,
+  );
 }
 
-function handleSidebarWidthResizerKeydown(ctx: ViewerAppContext, event) {
+function handleSidebarWidthResizerKeydown(
+  ctx: ViewerAppContext,
+  event: KeyboardEvent,
+) {
   if (event.code !== "ArrowLeft" && event.code !== "ArrowRight") {
     return;
   }
@@ -172,23 +183,32 @@ function handleSidebarWidthResizerKeydown(ctx: ViewerAppContext, event) {
   );
 }
 
-function beginLayoutResize(ctx: ViewerAppContext, event) {
+function beginLayoutResize(ctx: ViewerAppContext, event: MouseEvent) {
   if (event.button !== 0) {
     return;
   }
   event.preventDefault();
   const startY = event.clientY;
   const startHeight = ctx.state.timelineEditorHeight;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     ctx.state.dragMoved =
       ctx.state.dragMoved || Math.abs(moveEvent.clientY - startY) > 2;
     ctx.setTimelineEditorHeight(startHeight - (moveEvent.clientY - startY));
     ctx.updateCanvasSelectionBox();
   };
-  ctx.bindPointerDrag(event.pointerId, ctx.refs.layoutResizer, onMove);
+  ctx.bindPointerDrag(
+    "pointerId" in event && typeof event.pointerId === "number"
+      ? event.pointerId
+      : undefined,
+    ctx.refs.layoutResizer,
+    onMove,
+  );
 }
 
-function handleLayoutResizerKeydown(ctx: ViewerAppContext, event) {
+function handleLayoutResizerKeydown(
+  ctx: ViewerAppContext,
+  event: KeyboardEvent,
+) {
   if (event.code !== "ArrowUp" && event.code !== "ArrowDown") {
     return;
   }
@@ -240,24 +260,40 @@ export function isPreviewFullscreenActive(ctx: ViewerAppContext): boolean {
   );
 }
 
-export function installAppShellLayoutOwner(ctx: ViewerAppContext): void {
-  ctx.setSidebarCollapsed = setSidebarCollapsed.bind(undefined, ctx);
-  ctx.setSidebarWidth = setSidebarWidth.bind(undefined, ctx);
-  ctx.setTimelineEditorHeight = setTimelineEditorHeight.bind(undefined, ctx);
-  ctx.setPreviewZoom = setPreviewZoom.bind(undefined, ctx);
-  ctx.setPreviewGuides = setPreviewGuides.bind(undefined, ctx);
-  ctx.setPreviewSnap = setPreviewSnap.bind(undefined, ctx);
-  ctx.beginSidebarWidthResize = beginSidebarWidthResize.bind(undefined, ctx);
-  ctx.handleSidebarWidthResizerKeydown = handleSidebarWidthResizerKeydown.bind(
-    undefined,
-    ctx,
-  );
-  ctx.beginLayoutResize = beginLayoutResize.bind(undefined, ctx);
-  ctx.handleLayoutResizerKeydown = handleLayoutResizerKeydown.bind(
-    undefined,
-    ctx,
-  );
-  ctx.togglePreviewFullscreen = togglePreviewFullscreen.bind(undefined, ctx);
-  ctx.syncFullscreenButton = syncFullscreenButton.bind(undefined, ctx);
-  ctx.isPreviewFullscreenActive = () => isPreviewFullscreenActive(ctx);
+export function createShellLayoutActions(
+  getContext: () => ViewerAppContext,
+): ShellLayoutActions {
+  return {
+    setSidebarCollapsed: bindViewerAction(setSidebarCollapsed, getContext),
+    setSidebarWidth: bindViewerAction(setSidebarWidth, getContext),
+    setTimelineEditorHeight: bindViewerAction(
+      setTimelineEditorHeight,
+      getContext,
+    ),
+    setPreviewZoom: bindViewerAction(setPreviewZoom, getContext),
+    setPreviewGuides: bindViewerAction(setPreviewGuides, getContext),
+    setPreviewSnap: bindViewerAction(setPreviewSnap, getContext),
+    beginSidebarWidthResize: bindViewerAction(
+      beginSidebarWidthResize,
+      getContext,
+    ),
+    handleSidebarWidthResizerKeydown: bindViewerAction(
+      handleSidebarWidthResizerKeydown,
+      getContext,
+    ),
+    beginLayoutResize: bindViewerAction(beginLayoutResize, getContext),
+    handleLayoutResizerKeydown: bindViewerAction(
+      handleLayoutResizerKeydown,
+      getContext,
+    ),
+    togglePreviewFullscreen: bindViewerAction(
+      togglePreviewFullscreen,
+      getContext,
+    ),
+    syncFullscreenButton: bindViewerAction(syncFullscreenButton, getContext),
+    isPreviewFullscreenActive: bindViewerAction(
+      isPreviewFullscreenActive,
+      getContext,
+    ),
+  };
 }

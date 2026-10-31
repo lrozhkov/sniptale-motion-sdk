@@ -1,9 +1,15 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import { createViewerIcon, setIconButton } from "../app/icons.js";
+import type { LayerPanelActions } from "./contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { LayerHierarchyIndex } from "../layers/hierarchy.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerLeafIds, isLayerGroup } from "../layers/hierarchy.js";
 
 function renderLayersPanel(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.layersPanel.innerHTML = "";
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -27,7 +33,7 @@ function renderLayersPanel(
       ...(hierarchy.childrenByParentId.get(parentId) ?? []),
     ].reverse()) {
       ctx.refs.layersPanel.append(
-        createLayerPanelRow(ctx, effectiveTemplate, hierarchy, layer, depth),
+        createLayerPanelRow(ctx, hierarchy, layer, depth),
       );
       if (
         isLayerGroup(layer) &&
@@ -40,11 +46,18 @@ function renderLayersPanel(
   renderRows(null, 0);
 }
 
-function createLayerPanelRow(ctx, template, hierarchy, layer, depth) {
+function createLayerPanelRow(
+  ctx: ViewerAppContext,
+  hierarchy: LayerHierarchyIndex<EffectLayer>,
+  layer: EffectLayer,
+  depth: number,
+): HTMLElement {
   const leafIds = isLayerGroup(layer)
     ? getLayerLeafIds(hierarchy, [layer.id])
     : [layer.id];
-  const leaves = leafIds.map((id) => hierarchy.byId.get(id)).filter(Boolean);
+  const leaves = leafIds
+    .map((id) => hierarchy.byId.get(id))
+    .filter((entry): entry is EffectLayer => entry !== undefined);
   const visible =
     leaves.length > 0 && leaves.every((entry) => entry.visible !== false);
   const locked =
@@ -59,7 +72,7 @@ function createLayerPanelRow(ctx, template, hierarchy, layer, depth) {
   const visibility = document.createElement("button");
   visibility.type = "button";
   visibility.className = "layer-icon-button";
-  ctx.setIconButton(
+  setIconButton(
     visibility,
     visible ? "eye" : "eyeOff",
     visible
@@ -74,7 +87,7 @@ function createLayerPanelRow(ctx, template, hierarchy, layer, depth) {
   const lock = document.createElement("button");
   lock.type = "button";
   lock.className = "layer-icon-button";
-  ctx.setIconButton(
+  setIconButton(
     lock,
     locked ? "lock" : "unlock",
     locked
@@ -94,7 +107,7 @@ function createLayerPanelRow(ctx, template, hierarchy, layer, depth) {
   if (isLayerGroup(layer)) {
     const toggle = document.createElement("span");
     toggle.className = "layer-group-chevron";
-    toggle.append(ctx.createViewerIcon("chevronRight"));
+    toggle.append(createViewerIcon("chevronRight"));
     toggle.classList.toggle(
       "expanded",
       !ctx.state.collapsedLayerPanelGroupIds.has(layer.id),
@@ -137,7 +150,10 @@ function createLayerPanelRow(ctx, template, hierarchy, layer, depth) {
   return row;
 }
 
-function toggleLayerPanelGroup(ctx, groupId): boolean {
+function toggleLayerPanelGroup(
+  ctx: ViewerAppContext,
+  groupId: string,
+): boolean {
   if (ctx.state.collapsedLayerPanelGroupIds.has(groupId)) {
     ctx.state.collapsedLayerPanelGroupIds.delete(groupId);
   } else {
@@ -147,7 +163,11 @@ function toggleLayerPanelGroup(ctx, groupId): boolean {
   return true;
 }
 
-export function installPanelsLayersOwner(ctx: ViewerAppContext): void {
-  ctx.renderLayersPanel = renderLayersPanel.bind(undefined, ctx);
-  ctx.toggleLayerPanelGroup = toggleLayerPanelGroup.bind(undefined, ctx);
+export function createLayerPanelActions(
+  getContext: () => ViewerAppContext,
+): LayerPanelActions {
+  return {
+    renderLayersPanel: bindViewerAction(renderLayersPanel, getContext),
+    toggleLayerPanelGroup: bindViewerAction(toggleLayerPanelGroup, getContext),
+  };
 }

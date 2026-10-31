@@ -34,6 +34,34 @@ function pathAsset(path = "assets/logo.svg") {
 }
 
 describe("Effect v1 import materialization", () => {
+  it("rejects non-text sources before JSON coercion can run", async () => {
+    let conversions = 0;
+    await expect(
+      verifyMaterializedEffectImportSource({
+        toString() {
+          conversions += 1;
+          return "{}";
+        },
+      }),
+    ).rejects.toThrow("must be JSON text");
+    expect(conversions).toBe(0);
+  });
+
+  it("rejects string byte lengths instead of coercing integrity metadata", async () => {
+    await expect(
+      verifyMaterializedEffectImportSource(
+        JSON.stringify({
+          assets: [
+            {
+              ...pathAsset(),
+              svgText: SVG,
+              byteLength: String(new TextEncoder().encode(SVG).byteLength),
+            },
+          ],
+        }),
+      ),
+    ).rejects.toThrow("byteLength does not match");
+  });
   it("materializes every referenced path and records verified integrity", async () => {
     const result = await materializeEffectImportFiles([
       documentFile([pathAsset()]),

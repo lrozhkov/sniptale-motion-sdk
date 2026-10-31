@@ -17,9 +17,9 @@ export function remapImportedAssetIdentity(
   }
   if (remap.size === 0) return clone;
   for (const layer of clone.layers) {
-    if (typeof layer.assetId === "string" && remap.has(layer.assetId)) {
-      layer.assetId = remap.get(layer.assetId)!;
-    }
+    const next =
+      typeof layer.assetId === "string" ? remap.get(layer.assetId) : undefined;
+    if (next !== undefined) layer.assetId = next;
   }
   remapAssetReferences(clone.program.commands, remap);
   return clone;
@@ -46,13 +46,19 @@ function remapAssetReferences(
   commands: unknown[],
   remap: Map<string, string>,
 ): void {
-  for (const command of commands as Array<Record<string, any>>) {
-    if (!command || typeof command !== "object") continue;
-    if (typeof command.assetId === "string" && remap.has(command.assetId)) {
-      command.assetId = remap.get(command.assetId);
-    }
+  for (const command of commands) {
+    if (!isRecord(command)) continue;
+    const next =
+      typeof command.assetId === "string"
+        ? remap.get(command.assetId)
+        : undefined;
+    if (next !== undefined) command.assetId = next;
     if (Array.isArray(command.commands)) {
       remapAssetReferences(command.commands, remap);
     }
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

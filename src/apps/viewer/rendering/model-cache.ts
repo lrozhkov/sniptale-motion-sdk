@@ -1,14 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  RenderModelActions,
+  RenderModelSource,
+} from "./model-contract.js";
 import type { ViewerRenderingState } from "./state.js";
 import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-type RenderModelSource = {
-  clips?: unknown;
-  duration?: unknown;
-  layers?: unknown;
-  scenes?: unknown;
-  timeline?: unknown;
-};
 type RenderModelState = Pick<ViewerRenderingState, "sandboxRenderModelId">;
 
 const renderModelIds = new WeakMap<object, string>();
@@ -82,14 +80,18 @@ export function resetRenderModelCache(state: RenderModelState): void {
   state.sandboxRenderModelId = null;
 }
 
-export function installRenderingModelCacheOwner(ctx: ViewerAppContext): void {
-  ctx.getRenderTemplateSnapshot = resolveRenderTemplateSnapshot.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createRenderModelEnvelope = (effectiveTemplate: RenderModelSource) =>
-    createRenderModelEnvelope(ctx.state, effectiveTemplate);
-  ctx.commitRenderModelEnvelope = (envelope: Record<string, unknown>) =>
-    commitRenderModelEnvelope(ctx.state, envelope);
-  ctx.resetRenderModelCache = () => resetRenderModelCache(ctx.state);
+export function createRenderModelActions(
+  getContext: () => ViewerAppContext,
+): RenderModelActions {
+  return {
+    getRenderTemplateSnapshot: bindViewerAction(
+      resolveRenderTemplateSnapshot,
+      getContext,
+    ),
+    createRenderModelEnvelope: (template) =>
+      createRenderModelEnvelope(getContext().state, template),
+    commitRenderModelEnvelope: (envelope) =>
+      commitRenderModelEnvelope(getContext().state, envelope),
+    resetRenderModelCache: () => resetRenderModelCache(getContext().state),
+  };
 }

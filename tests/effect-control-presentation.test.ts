@@ -353,8 +353,11 @@ it.each(["My edited title", "", "Title"])(
     expect(exported.controls[0].localizedDefaultValue).toEqual(
       localizedText.localizedDefaultValue,
     );
-    expect(validateEffectV1Document(exported).ok).toBe(true);
-    const restored = normalizeEffectV1ToTemplate(exported);
+    const validation = validateEffectV1Document(exported);
+    expect(validation.ok).toBe(true);
+    if (!validation.document)
+      throw new Error("Exported control document is invalid.");
+    const restored = normalizeEffectV1ToTemplate(validation.document);
     expect(buildControlsWithDefaults(restored)).toEqual(controls);
     expect(localizedText.defaultValue).toBe("Original");
   },

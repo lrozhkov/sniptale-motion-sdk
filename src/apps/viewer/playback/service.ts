@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PlaybackActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { calculateTimelinePlaybackStep } from "../timeline/viewport.js";
 import {
@@ -8,7 +10,6 @@ import {
   resolvePlaybackRenderIntervalForContext,
   resolvePlaybackUiIntervalMs,
 } from "./cadence.js";
-import { cancelPreviewCacheWarm } from "./cache-warm.js";
 import {
   advancePlaybackCacheWarmResult,
   beginPlaybackCacheWarm,
@@ -40,7 +41,7 @@ export function schedulePlaybackTick(ctx: ViewerAppContext): void {
   });
 }
 
-function playbackTick(ctx: ViewerAppContext, now) {
+function playbackTick(ctx: ViewerAppContext, now: number) {
   if (!ctx.state.playing || !ctx.state.currentTemplate) {
     clearPlaybackRenderContinuation(ctx);
     ctx.lastPlaybackTs = 0;
@@ -217,28 +218,33 @@ function schedulePlaybackRenderContinuation(ctx: ViewerAppContext): boolean {
   return true;
 }
 
-export function installPlaybackServiceOwner(ctx: ViewerAppContext): void {
-  ctx.schedulePlaybackTick = () => schedulePlaybackTick(ctx);
-  ctx.playbackTick = playbackTick.bind(undefined, ctx);
-  ctx.toggleLoopPlayback = toggleLoopPlayback.bind(undefined, ctx);
-  ctx.togglePlayback = togglePlayback.bind(undefined, ctx);
-  ctx.pausePlayback = pausePlayback.bind(undefined, ctx);
-  ctx.startPlayback = startPlayback.bind(undefined, ctx);
-  ctx.beginPlaybackCacheWarm = beginPlaybackCacheWarm.bind(undefined, ctx);
-  ctx.advancePlaybackCacheWarmResult = advancePlaybackCacheWarmResult.bind(
-    undefined,
-    ctx,
-  );
-  ctx.continuePlaybackRendering = continuePlaybackRendering.bind(
-    undefined,
-    ctx,
-  );
-  ctx.schedulePlaybackRenderContinuation =
-    schedulePlaybackRenderContinuation.bind(undefined, ctx);
-  ctx.stopPlaybackForRuntimeRecovery = stopPlaybackForRuntimeRecovery.bind(
-    undefined,
-    ctx,
-  );
+export function createPlaybackActions(
+  getContext: () => ViewerAppContext,
+): PlaybackActions {
+  return {
+    schedulePlaybackTick: bindViewerAction(schedulePlaybackTick, getContext),
+    playbackTick: bindViewerAction(playbackTick, getContext),
+    toggleLoopPlayback: bindViewerAction(toggleLoopPlayback, getContext),
+    togglePlayback: bindViewerAction(togglePlayback, getContext),
+    pausePlayback: bindViewerAction(pausePlayback, getContext),
+    startPlayback: bindViewerAction(startPlayback, getContext),
+    beginPlaybackCacheWarm: bindViewerAction(
+      beginPlaybackCacheWarm,
+      getContext,
+    ),
+    advancePlaybackCacheWarmResult: bindViewerAction(
+      advancePlaybackCacheWarmResult,
+      getContext,
+    ),
+    schedulePlaybackRenderContinuation: bindViewerAction(
+      schedulePlaybackRenderContinuation,
+      getContext,
+    ),
+    stopPlaybackForRuntimeRecovery: bindViewerAction(
+      stopPlaybackForRuntimeRecovery,
+      getContext,
+    ),
+  };
 }
 
 function getTimelineTrackCount(value: unknown): number {

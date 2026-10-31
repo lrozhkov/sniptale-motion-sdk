@@ -1,3 +1,4 @@
+import { discardSandboxMessageBitmap } from "./message-boundary.js";
 import type { ViewerTransportState, SandboxRequest } from "./state.js";
 export class SandboxRequestTimeoutError extends Error {
   recoveryStarted = false;
@@ -176,9 +177,13 @@ export function completeRender(
   message: unknown,
 ): void {
   const requestId = readRequestId(message);
-  if (requestId === null) return;
+  if (requestId === null) {
+    discardSandboxMessageBitmap(message);
+    return;
+  }
   const pending = state.pending.get(requestId);
   if (!pending) {
+    discardSandboxMessageBitmap(message);
     state.staleResponses += 1;
     return;
   }

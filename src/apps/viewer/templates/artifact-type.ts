@@ -1,12 +1,19 @@
 import type { EffectArtifactType } from "../../../sdk/types.js";
 
-export function resolveTemplateArtifactType(template: any): EffectArtifactType {
-  return template?.kind === "transitionEffect" ? "transition" : "animation";
+export function resolveTemplateArtifactType(
+  template: unknown,
+): EffectArtifactType {
+  return template !== null &&
+    typeof template === "object" &&
+    "kind" in template &&
+    template.kind === "transitionEffect"
+    ? "transition"
+    : "animation";
 }
 
 export function getTemplateArtifactTypeLabel(
   translate: (key: string, fallback: string) => string,
-  template: any,
+  template: unknown,
 ): string {
   const type = resolveTemplateArtifactType(template);
   return translate(
@@ -27,7 +34,7 @@ export function getTemplateArtifactTypeGroupLabel(
 
 export function getTemplateArtifactTypeDescription(
   translate: (key: string, fallback: string) => string,
-  template: any,
+  template: unknown,
 ): string {
   const type = resolveTemplateArtifactType(template);
   return translate(

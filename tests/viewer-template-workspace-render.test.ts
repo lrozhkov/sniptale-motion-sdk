@@ -4,7 +4,7 @@ import { renderTemplateWorkspace } from "../src/apps/viewer/templates/workspace-
 
 describe("viewer template workspace render", () => {
   it("delegates each adopted surface to one workspace render path", () => {
-    const template = { id: "composition-a" };
+    const template = { id: "composition-a", duration: 1 };
     const ctx = {
       renderControls: vi.fn(),
       renderTimelineEditor: vi.fn(),

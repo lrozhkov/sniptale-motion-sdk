@@ -1,3 +1,7 @@
+import { isViewerIconName } from "./icons.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import { bindViewerAction } from "./bind-action.js";
+import type { ShellActions } from "./shell-contract.js";
 import type { ViewerAppContext } from "./context.js";
 import {
   isPlaybackPreparationPhase,
@@ -5,7 +9,8 @@ import {
 } from "../playback/run-state.js";
 
 function localizeShellNodes(ctx: ViewerAppContext) {
-  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    if (!(element instanceof HTMLElement)) return;
     const key = element.dataset.i18n;
     if (!key || element.dataset.shellIcon) {
       return;
@@ -16,11 +21,12 @@ function localizeShellNodes(ctx: ViewerAppContext) {
     );
   });
   document
-    .querySelectorAll<HTMLButtonElement>("[data-shell-icon][data-i18n]")
+    .querySelectorAll("[data-shell-icon][data-i18n]")
     .forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) return;
       const key = button.dataset.i18n;
       const icon = button.dataset.shellIcon;
-      if (!key || !icon) {
+      if (!key || !isViewerIconName(icon)) {
         return;
       }
       ctx.setIconButton(
@@ -34,16 +40,17 @@ function localizeShellNodes(ctx: ViewerAppContext) {
     ["aria-label", "i18nAriaLabel"],
     ["placeholder", "i18nPlaceholder"],
     ["title", "i18nTitle"],
-  ];
+  ] as const;
   for (const [attribute, datasetKey] of localizedAttributes) {
     document
-      .querySelectorAll<HTMLElement>(
+      .querySelectorAll(
         `[data-${datasetKey.replace(
           /[A-Z]/g,
           (letter) => `-${letter.toLowerCase()}`,
         )}]`,
       )
       .forEach((element) => {
+        if (!(element instanceof HTMLElement)) return;
         const key = element.dataset[datasetKey];
         if (!key) {
           return;
@@ -180,7 +187,7 @@ function syncPlaybackButtons(ctx: ViewerAppContext) {
   for (const button of [
     ctx.refs.playButton,
     ctx.refs.fullscreenPlayButton,
-  ].filter(Boolean)) {
+  ].filter((button): button is HTMLButtonElement => button !== null)) {
     button.setAttribute?.(
       "aria-busy",
       String(recovering || phase === "starting"),
@@ -189,7 +196,7 @@ function syncPlaybackButtons(ctx: ViewerAppContext) {
   ctx.setIconButton(ctx.refs.playButton, icon, label);
   ctx.setIconButton(ctx.refs.fullscreenPlayButton, icon, label);
 }
-function setMoveLinkedKeys(ctx: ViewerAppContext, enabled) {
+function setMoveLinkedKeys(ctx: ViewerAppContext, enabled: boolean) {
   ctx.state.moveLinkedKeys = Boolean(enabled);
   if (ctx.state.currentTemplate) {
     ctx.renderSelectionCrumb(ctx.state.currentTemplate);
@@ -198,11 +205,11 @@ function setMoveLinkedKeys(ctx: ViewerAppContext, enabled) {
 }
 function createExpandedSceneIdSet(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {
-    return new Set();
+    return new Set<string>();
   }
   return new Set(
     ctx
@@ -214,9 +221,16 @@ function createExpandedSceneIdSet(
   );
 }
 
-export function installAppShellOwner(ctx: ViewerAppContext): void {
-  ctx.renderLocalizedShell = renderLocalizedShell.bind(undefined, ctx);
-  ctx.syncPlaybackButtons = syncPlaybackButtons.bind(undefined, ctx);
-  ctx.setMoveLinkedKeys = setMoveLinkedKeys.bind(undefined, ctx);
-  ctx.createExpandedSceneIdSet = createExpandedSceneIdSet.bind(undefined, ctx);
+export function createShellActions(
+  getContext: () => ViewerAppContext,
+): ShellActions {
+  return {
+    renderLocalizedShell: bindViewerAction(renderLocalizedShell, getContext),
+    syncPlaybackButtons: bindViewerAction(syncPlaybackButtons, getContext),
+    setMoveLinkedKeys: bindViewerAction(setMoveLinkedKeys, getContext),
+    createExpandedSceneIdSet: bindViewerAction(
+      createExpandedSceneIdSet,
+      getContext,
+    ),
+  };
 }

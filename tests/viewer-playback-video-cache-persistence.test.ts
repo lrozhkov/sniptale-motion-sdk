@@ -4,9 +4,28 @@ import {
   PLAYBACK_VIDEO_CACHE_SCHEMA_VERSION,
   normalizePlaybackVideoCacheRecord,
 } from "../src/apps/viewer/playback/video-cache-model";
-import { createPlaybackVideoCacheStorage } from "../src/apps/viewer/playback/video-cache-storage";
+import {
+  createPlaybackVideoCacheStorage,
+  readPlaybackVideoCacheMetadata,
+} from "../src/apps/viewer/playback/video-cache-storage";
 
 describe("viewer persistent playback video cache", () => {
+  it("reads cleanup metadata as unknown and measures actual Blob sizes", () => {
+    const blob = new Blob(["video"]);
+    expect(
+      readPlaybackVideoCacheMetadata(
+        { key: "wrong", accessedAt: 20, bytes: 999, segments: [{ blob }] },
+        "actual",
+      ),
+    ).toEqual({ key: "actual", accessedAt: 20, bytes: blob.size });
+    expect(
+      readPlaybackVideoCacheMetadata(
+        { key: "fallback", accessedAt: "20", segments: [null] },
+        null,
+      ),
+    ).toEqual({ key: "fallback", accessedAt: 0, bytes: Infinity });
+    expect(readPlaybackVideoCacheMetadata(null, null)).toBeNull();
+  });
   it("validates persisted browser records at the storage boundary", () => {
     const blob = new Blob(["video"], { type: "video/mp4" });
     const record = normalizePlaybackVideoCacheRecord(

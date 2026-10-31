@@ -1,13 +1,15 @@
 import type { ViewerAppContext } from "../app/context.js";
-import type { EffectDefinition } from "../../../sdk/types.js";
-import type { EffectV1Document } from "../../../sdk/effect-v1/types.js";
+import type { EditorTemplateSource } from "../templates/model.js";
+import { readControlPresetOptions } from "./control-preset-model.js";
+import { validateEffectV1Document } from "../../../sdk/effect-v1/validation.js";
 import { applyEffectV1ControlPreset } from "../../../sdk/effect-v1/control-presets.js";
 
 export function renderControlPresetSelector(
   ctx: ViewerAppContext,
-  template: EffectDefinition,
+  template: EditorTemplateSource,
 ): void {
-  if (!template.controlPresets?.length || !template.effectV1) return;
+  const presets = readControlPresetOptions(template.controlPresets);
+  if (!presets.length || !template.effectV1) return;
   const row = document.createElement("label");
   row.className = "control-row";
   const label = document.createElement("span");
@@ -20,7 +22,7 @@ export function renderControlPresetSelector(
   custom.value = "";
   custom.textContent = ctx.deps.t("viewer.controls.customVisualPreset");
   select.append(custom);
-  for (const preset of template.controlPresets) {
+  for (const preset of presets) {
     const option = document.createElement("option");
     option.value = preset.id;
     option.textContent = `${ctx.deps.translateText(preset.theme.label, preset.theme.id)} · ${ctx.deps.translateText(preset.label, preset.id)}`;
@@ -28,8 +30,18 @@ export function renderControlPresetSelector(
   }
   select.addEventListener("change", () => {
     if (!select.value) return;
+    const validated = validateEffectV1Document(template.effectV1);
+    if (!validated.ok || !validated.document) {
+      ctx.logDiagnostic(
+        validated.diagnostics
+          .map((issue) => `${issue.code}: ${issue.path}`)
+          .join("\n"),
+        "error",
+      );
+      return;
+    }
     const next = applyEffectV1ControlPreset(
-      template.effectV1 as EffectV1Document,
+      validated.document,
       ctx.state.controls,
       select.value,
     );
@@ -49,12 +61,12 @@ export function renderControlPresetSelector(
 
 export function syncControlPresetSelection(
   ctx: ViewerAppContext,
-  template: EffectDefinition,
+  template: EditorTemplateSource,
 ): void {
   const select = ctx.refs.controlsPanel.querySelector("[data-visual-preset]");
   if (select instanceof HTMLSelectElement)
     select.value =
-      template.controlPresets?.find((preset) =>
+      readControlPresetOptions(template.controlPresets).find((preset) =>
         Object.entries(preset.values).every(([id, value]) =>
           Object.is(ctx.state.controls[id], value),
         ),

@@ -6,7 +6,9 @@ export type TemplateComboboxEntry = {
 };
 
 export function normalizeTemplateSearch(value: unknown): string {
-  return String(value ?? "")
+  return String(
+    typeof value === "string" || typeof value === "number" ? value : "",
+  )
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase()

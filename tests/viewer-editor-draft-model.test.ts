@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   EDITOR_DRAFT_HISTORY_LIMIT,
+  EDITOR_DRAFT_MAX_AGE_MS,
+  EDITOR_DRAFT_MAX_RECORDS,
+  getEditorDraftCleanupKeys,
   EDITOR_DRAFT_SCHEMA_VERSION,
   createEditorDraftKey,
   fingerprintEditorValue,
@@ -12,6 +15,71 @@ import { createEditorDraftStorage } from "../src/apps/viewer/editor/draft-storag
 import type { EditorSnapshot } from "../src/apps/viewer/editor/history";
 
 describe("viewer editor draft model", () => {
+  it("accepts finite snapshot times without coercing external draft fields", () => {
+    const expected = {
+      key: "draft",
+      packId: "pack",
+      templateId: "template",
+      sourceFingerprint: "source",
+    };
+    const calls: string[] = [];
+    const foreign = {
+      valueOf() {
+        calls.push("time");
+        return 0;
+      },
+    };
+    const record = {
+      ...expected,
+      schemaVersion: EDITOR_DRAFT_SCHEMA_VERSION,
+      sessionId: "session",
+      updatedAt: 1,
+      historyPast: [],
+      historyFuture: [],
+      current: snapshot("template"),
+    };
+    for (const time of ["0", foreign, NaN, Infinity])
+      expect(
+        normalizeEditorDraftRecord(
+          { ...record, current: { ...record.current, time } },
+          expected,
+        ),
+      ).toBeNull();
+    expect(
+      normalizeEditorDraftRecord({ ...record, updatedAt: foreign }, expected),
+    ).toBeNull();
+    expect(normalizeEditorDraftRecord(record, expected)?.current.time).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
+  it("validates stored cleanup metadata and retains the newest eligible records", () => {
+    const now = EDITOR_DRAFT_MAX_AGE_MS + 1000;
+    const latest = Array.from(
+      { length: EDITOR_DRAFT_MAX_RECORDS },
+      (_, index) => ({ key: `keep-${index}`, updatedAt: now - index }),
+    );
+    const records: unknown[] = [
+      ...latest,
+      null,
+      [],
+      { key: 7, updatedAt: now },
+      { key: "missing-time" },
+      { key: "string-time", updatedAt: String(now) },
+      { key: "not-finite", updatedAt: Infinity },
+      { key: "old", updatedAt: 0 },
+      { key: "overflow", updatedAt: now - 100 },
+    ];
+    expect(getEditorDraftCleanupKeys(records, now)).toEqual([
+      "missing-time",
+      "string-time",
+      "not-finite",
+      "old",
+      "overflow",
+    ]);
+    expect(getEditorDraftCleanupKeys({ records: latest }, now)).toEqual([]);
+    expect(records.slice(0, latest.length)).toEqual(latest);
+  });
+
   it("creates stable source fingerprints and scoped storage keys", () => {
     expect(fingerprintEditorValue({ a: 1, b: [2, 3] })).toBe(
       fingerprintEditorValue({ b: [2, 3], a: 1 }),

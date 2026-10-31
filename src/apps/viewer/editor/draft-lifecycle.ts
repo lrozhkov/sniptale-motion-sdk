@@ -5,14 +5,19 @@ const ACTIVE_TEMPLATE_STORAGE_KEY = "sniptale.viewer.active-template.v1";
 
 export function getPreferredDraftTemplateId(
   ctx: ViewerAppContext,
-  templates,
+  templates: readonly { id: string }[],
 ): string | null {
   try {
-    const value = JSON.parse(
+    const value: unknown = JSON.parse(
       window.localStorage?.getItem(ACTIVE_TEMPLATE_STORAGE_KEY) ?? "null",
     );
     if (
-      value?.packId === getDraftPackId(ctx) &&
+      value !== null &&
+      typeof value === "object" &&
+      "packId" in value &&
+      value.packId === getDraftPackId(ctx) &&
+      "templateId" in value &&
+      typeof value.templateId === "string" &&
       templates.some((template) => template.id === value.templateId)
     ) {
       return value.templateId;

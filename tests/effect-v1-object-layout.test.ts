@@ -55,6 +55,12 @@ describe("standalone object layout", () => {
     const exported = buildEffectFilePayload({ template, assets: new Map() });
     expect(exported.objectLayout).toEqual(layout);
     expect(validateEffectV1Document(exported).ok).toBe(true);
+    if (
+      exported.objectLayout === null ||
+      typeof exported.objectLayout !== "object" ||
+      !("width" in exported.objectLayout)
+    )
+      throw new Error("Exported object layout is absent.");
     exported.objectLayout.width = 17;
     expect(original.objectLayout?.width).toBe(400);
     delete original.objectLayout;

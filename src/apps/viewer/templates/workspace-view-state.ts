@@ -1,3 +1,6 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { WorkspaceViewActions } from "./contract.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { CompositionWorkspaceView } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isLayerGroup } from "../layers/hierarchy.js";
@@ -25,7 +28,7 @@ export function captureCompositionWorkspaceView(ctx: ViewerAppContext): void {
 
 export function restoreCompositionWorkspaceView(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): boolean {
   if (!template) {
     return false;
@@ -49,7 +52,15 @@ export function restoreCompositionWorkspaceView(
   );
   ctx.refs.timelineZoomInput.value = String(view.timelineZoom);
   ctx.setPreviewZoom(view.previewZoom);
+  const source = ctx.state.currentTemplate;
+  const generation = ctx.state.templateSelectionGeneration;
   requestAnimationFrame(() => {
+    if (
+      ctx.state.currentTemplate !== source ||
+      ctx.state.templateSelectionGeneration !== generation ||
+      ctx.state.compositionWorkspaceViews.get(template.id) !== view
+    )
+      return;
     ctx.refs.timelineTracks.scrollTop = view.timelineScrollTop;
     if (view.previewZoom !== "fit") {
       ctx.refs.stageWrap.scrollLeft = view.previewScrollLeft;
@@ -77,28 +88,17 @@ function resolveStoredIsolationId(
   return isLayerGroup(layer) ? layer.id : null;
 }
 
-function clearCompositionWorkspaceView(
-  ctx: ViewerAppContext,
-  templateId = ctx.state.currentTemplate?.id,
-): void {
-  if (templateId) {
-    ctx.state.compositionWorkspaceViews.delete(templateId);
-  }
-}
-
-export function installCompositionWorkspaceViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.captureCompositionWorkspaceView = captureCompositionWorkspaceView.bind(
-    undefined,
-    ctx,
-  );
-  ctx.clearCompositionWorkspaceView = clearCompositionWorkspaceView.bind(
-    undefined,
-    ctx,
-  );
-  ctx.restoreCompositionWorkspaceView = restoreCompositionWorkspaceView.bind(
-    undefined,
-    ctx,
-  );
+export function createWorkspaceViewActions(
+  getContext: () => ViewerAppContext,
+): WorkspaceViewActions {
+  return {
+    captureCompositionWorkspaceView: bindViewerAction(
+      captureCompositionWorkspaceView,
+      getContext,
+    ),
+    restoreCompositionWorkspaceView: bindViewerAction(
+      restoreCompositionWorkspaceView,
+      getContext,
+    ),
+  };
 }

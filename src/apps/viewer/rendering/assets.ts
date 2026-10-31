@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { RenderAssetActions } from "./model-contract.js";
 import type { ViewerAsset, RenderAssetSelection } from "../assets/state.js";
 import type { RenderAssetTransfer, TransferredAsset } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -298,21 +300,16 @@ function positiveDimension(
   return Number.isFinite(natural) && natural > 0 ? natural : 512;
 }
 
-function getSvgRasterSize(
-  _ctx: ViewerAppContext,
-  asset: ViewerAsset,
-  image: HTMLImageElement,
-) {
-  return calculateSvgRasterSize(asset, image);
-}
-
-export function installRenderingAssetsOwner(ctx: ViewerAppContext): void {
-  ctx.createRenderAssets = createRenderAssets.bind(undefined, ctx);
-  ctx.createAssetBitmap = createAssetBitmap.bind(undefined, ctx);
-  ctx.commitRenderAssetTransfers = commitRenderAssetTransfers.bind(
-    undefined,
-    ctx,
-  );
-  ctx.resetRenderAssetCache = resetRenderAssetCache.bind(undefined, ctx);
-  ctx.getSvgRasterSize = getSvgRasterSize.bind(undefined, ctx);
+export function createRenderAssetActions(
+  getContext: () => ViewerAppContext,
+): RenderAssetActions {
+  return {
+    createRenderAssets: bindViewerAction(createRenderAssets, getContext),
+    createAssetBitmap: bindViewerAction(createAssetBitmap, getContext),
+    commitRenderAssetTransfers: bindViewerAction(
+      commitRenderAssetTransfers,
+      getContext,
+    ),
+    resetRenderAssetCache: bindViewerAction(resetRenderAssetCache, getContext),
+  };
 }

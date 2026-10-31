@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { PreviewRasterActions } from "./model-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   COMPOSITION_DESIGN_HEIGHT,
@@ -8,7 +10,8 @@ export function parseRasterSize(
   value: unknown,
   fallback: { height: number; width: number },
 ): { height: number; width: number } {
-  const [rawWidth, rawHeight] = String(value ?? "").split("x");
+  if (typeof value !== "string") return fallback;
+  const [rawWidth, rawHeight] = value.split("x");
   const width = Number(rawWidth);
   const height = Number(rawHeight);
   return Number.isFinite(width) &&
@@ -56,8 +59,18 @@ function applyPreviewRasterSize(ctx: ViewerAppContext) {
   ctx.updateCanvasSelectionBox();
 }
 
-export function installRenderingRasterSizeOwner(ctx: ViewerAppContext): void {
-  ctx.getCompositionDesignSize = getCompositionDesignSize.bind(undefined, ctx);
-  ctx.getPreviewRasterSize = getPreviewRasterSize.bind(undefined, ctx);
-  ctx.applyPreviewRasterSize = applyPreviewRasterSize.bind(undefined, ctx);
+export function createPreviewRasterActions(
+  getContext: () => ViewerAppContext,
+): PreviewRasterActions {
+  return {
+    getCompositionDesignSize: bindViewerAction(
+      getCompositionDesignSize,
+      getContext,
+    ),
+    getPreviewRasterSize: bindViewerAction(getPreviewRasterSize, getContext),
+    applyPreviewRasterSize: bindViewerAction(
+      applyPreviewRasterSize,
+      getContext,
+    ),
+  };
 }

@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { TemplateComboboxActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   filterTemplateComboboxEntries,
@@ -5,7 +7,7 @@ import {
 } from "./combobox-model.js";
 
 function getSourceOptions(ctx: ViewerAppContext): HTMLOptionElement[] {
-  return Array.from(ctx.refs.templateSelect.options as HTMLOptionsCollection);
+  return Array.from(ctx.refs.templateSelect.options);
 }
 
 function readEntries(ctx: ViewerAppContext): TemplateComboboxEntry[] {
@@ -23,10 +25,10 @@ function readEntries(ctx: ViewerAppContext): TemplateComboboxEntry[] {
 }
 
 function getRenderedOptions(ctx: ViewerAppContext): HTMLElement[] {
-  const listbox = ctx.refs.templateComboboxListbox as HTMLElement;
+  const listbox = ctx.refs.templateComboboxListbox;
   return Array.from(
-    listbox.querySelectorAll<HTMLElement>(".template-combobox-option"),
-  );
+    listbox.querySelectorAll(".template-combobox-option"),
+  ).filter((element): element is HTMLElement => element instanceof HTMLElement);
 }
 
 function setActiveValue(
@@ -167,7 +169,7 @@ function moveActiveOption(ctx: ViewerAppContext, direction: number): void {
         ? 0
         : options.length - 1
       : (activeIndex + direction + options.length) % options.length;
-  setActiveValue(ctx, options[nextIndex].dataset.value ?? null, true);
+  setActiveValue(ctx, options[nextIndex]?.dataset.value ?? null, true);
 }
 
 function handleSearchKeydown(
@@ -197,7 +199,7 @@ function handleSearchKeydown(
 
 function wireTemplateCombobox(ctx: ViewerAppContext): void {
   ctx.refs.templateComboboxButton.addEventListener("click", () =>
-    ctx.setTemplateComboboxOpen(ctx.refs.templateComboboxPopup.hidden),
+    ctx.setTemplateComboboxOpen(Boolean(ctx.refs.templateComboboxPopup.hidden)),
   );
   ctx.refs.templateComboboxButton.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown" || event.key === "Enter") {
@@ -222,8 +224,15 @@ function wireTemplateCombobox(ctx: ViewerAppContext): void {
   });
 }
 
-export function installTemplatesComboboxOwner(ctx: ViewerAppContext): void {
-  ctx.setTemplateComboboxOpen = setTemplateComboboxOpen.bind(undefined, ctx);
-  ctx.syncTemplateCombobox = syncTemplateCombobox.bind(undefined, ctx);
-  ctx.wireTemplateCombobox = wireTemplateCombobox.bind(undefined, ctx);
+export function createTemplateComboboxActions(
+  getContext: () => ViewerAppContext,
+): TemplateComboboxActions {
+  return {
+    setTemplateComboboxOpen: bindViewerAction(
+      setTemplateComboboxOpen,
+      getContext,
+    ),
+    syncTemplateCombobox: bindViewerAction(syncTemplateCombobox, getContext),
+    wireTemplateCombobox: bindViewerAction(wireTemplateCombobox, getContext),
+  };
 }

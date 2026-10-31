@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { parseLocalEffectCatalog } from "../src/apps/viewer/effect-file/local-catalog";
-import { installLocalEffectStartupOwner } from "../src/apps/viewer/effect-file/local-startup";
+import { createLocalEffectStartupActions } from "../src/apps/viewer/effect-file/local-startup";
 
 describe("viewer local effect startup", () => {
   it("parses the dev endpoint as an unknown boundary", () => {
@@ -70,7 +70,10 @@ describe("viewer local effect startup", () => {
         templates: [],
       },
     };
-    installLocalEffectStartupOwner(ctx);
+    Object.assign(
+      ctx,
+      createLocalEffectStartupActions(() => ctx),
+    );
 
     await expect(ctx.bootstrapLocalEffects()).resolves.toBe(true);
 

@@ -8,7 +8,7 @@ import type {
   KnownValidationAssets,
   EditorValidationOptions,
 } from "../validation/types.js";
-import type { EditorTemplateSource } from "../templates/model.js";
+import type { EditorTimelineSource } from "./timeline-source.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function collectEditorValidationErrors(
@@ -65,7 +65,7 @@ function createEditorValidationOptions(
 
 export function isRendererContractCoveragePending(
   ctx: ViewerAppContext,
-  template: EditorTemplateSource | null = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): boolean {
   return Boolean(
     template &&

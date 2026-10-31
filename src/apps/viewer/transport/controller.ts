@@ -1,6 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { TransportControllerActions } from "./contract.js";
 import { STUDIO_SANDBOX_PARAMETER } from "../../../shared/studio/protocol.js";
 import type { ViewerAppContext } from "../app/context.js";
-import { parseViewerSandboxMessage } from "./message-boundary.js";
+import {
+  parseViewerSandboxMessage,
+  discardSandboxMessageBitmap,
+} from "./message-boundary.js";
 import {
   connectDirectRenderResponseChannel,
   prepareDirectPresentationCanvas,
@@ -10,6 +15,7 @@ import { shouldReportSandboxRequestFailure } from "./sandbox-client.js";
 function handleSandboxMessage(ctx: ViewerAppContext, value: unknown) {
   const message = parseViewerSandboxMessage(value);
   if (!message) {
+    discardSandboxMessageBitmap(value);
     return;
   }
   if (message.kind === "runtimeReady") {
@@ -95,7 +101,11 @@ async function restoreCurrentTemplateAfterSandboxRestart(
     await ctx.renderCurrentFrame({ allowColdStart: true, interactive: true });
   }
 }
-async function ensureModuleLoaded(ctx: ViewerAppContext, moduleId) {
+async function ensureModuleLoaded(
+  ctx: ViewerAppContext,
+  moduleId: string | undefined,
+): Promise<boolean> {
+  if (!moduleId) return false;
   if (ctx.state.loadedModules.has(moduleId)) {
     return true;
   }
@@ -114,7 +124,7 @@ async function ensureModuleLoaded(ctx: ViewerAppContext, moduleId) {
   const message = {
     ...(module.revision === undefined ? {} : { revision: module.revision }),
     document: module.document,
-    kind: "loadEffectDocument",
+    kind: "loadEffectDocument" as const,
     moduleId,
     requestId: ctx.deps.createRequestId("load"),
   };
@@ -158,7 +168,7 @@ async function ensureModuleLoaded(ctx: ViewerAppContext, moduleId) {
   }
   return result.ok;
 }
-function createUniqueModuleId(ctx: ViewerAppContext, baseId) {
+function createUniqueModuleId(ctx: ViewerAppContext, baseId: string) {
   const safeBase = ctx.sanitizeIdentifier(baseId || "imported-module");
   let candidate = `${safeBase}-import`;
   let suffix = 2;
@@ -227,9 +237,13 @@ export function resolveSandboxPort(
   return normalize(requestedPort) ?? normalize(fallbackPort) ?? "4178";
 }
 
-export function installTransportControllerOwner(ctx: ViewerAppContext): void {
-  ctx.handleSandboxMessage = handleSandboxMessage.bind(undefined, ctx);
-  ctx.ensureModuleLoaded = ensureModuleLoaded.bind(undefined, ctx);
-  ctx.createUniqueModuleId = createUniqueModuleId.bind(undefined, ctx);
-  ctx.createSandboxUrl = createSandboxUrl.bind(undefined, ctx);
+export function createTransportControllerActions(
+  getContext: () => ViewerAppContext,
+): TransportControllerActions {
+  return {
+    handleSandboxMessage: bindViewerAction(handleSandboxMessage, getContext),
+    ensureModuleLoaded: bindViewerAction(ensureModuleLoaded, getContext),
+    createUniqueModuleId: bindViewerAction(createUniqueModuleId, getContext),
+    createSandboxUrl: bindViewerAction(createSandboxUrl, getContext),
+  };
 }

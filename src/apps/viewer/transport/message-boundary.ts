@@ -1,3 +1,4 @@
+import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
 import { MessageKind } from "../../../sdk/protocol.js";
 import { parseSandboxRenderProfile } from "../../../sdk/render-profile.js";
 
@@ -28,6 +29,16 @@ export type ViewerSandboxMessage =
     }
   | {
       [key: string]: unknown;
+      presented?: unknown;
+      presentedAtMs?: unknown;
+      presentedAtEpochMs?: unknown;
+      previewWidth?: unknown;
+      previewHeight?: unknown;
+      previewCacheHit?: unknown;
+      previewCacheComplete?: unknown;
+      previewCacheFrames?: unknown;
+      bitmap?: ImageBitmap | undefined;
+      renderProfile?: SandboxRenderProfile | undefined;
       durationMs: number;
       errorCode?: string;
       error?: string;
@@ -40,10 +51,10 @@ export type ViewerSandboxMessage =
 export function parseViewerSandboxMessage(
   value: unknown,
 ): ViewerSandboxMessage | null {
-  if (!value || typeof value !== "object") {
+  if (!isRecord(value)) {
     return null;
   }
-  const message = value as Record<string, unknown>;
+  const message = value;
   if (message.kind === MessageKind.RUNTIME_READY) {
     return { kind: "runtimeReady" };
   }
@@ -109,11 +120,19 @@ export function parseViewerSandboxMessage(
     };
   }
   if (message.kind === MessageKind.RENDER_FRAME_RESULT) {
+    const bitmap =
+      message.bitmap == null
+        ? undefined
+        : typeof ImageBitmap !== "undefined" &&
+            message.bitmap instanceof ImageBitmap
+          ? message.bitmap
+          : null;
     const renderProfile =
       message.renderProfile === undefined
         ? undefined
         : parseSandboxRenderProfile(message.renderProfile);
     if (
+      bitmap === null ||
       typeof message.ok !== "boolean" ||
       typeof message.requestId !== "string" ||
       typeof message.durationMs !== "number" ||
@@ -133,21 +152,24 @@ export function parseViewerSandboxMessage(
       !isOptionalNonNegativeFiniteNumber(message.previewCacheTotalFrames) ||
       !isOptionalPreviewCacheStorage(message.previewCacheStorage) ||
       (message.renderProfile !== undefined && !renderProfile) ||
-      (message.ok &&
-        (!message.bitmap || typeof message.bitmap !== "object") &&
-        !isValidPresentedFrame(message))
+      (message.ok && !bitmap && !isValidPresentedFrame(message))
     ) {
       return null;
     }
     return {
       ...message,
+      bitmap,
       durationMs: message.durationMs,
+      ...(message.error === undefined ? {} : { error: message.error }),
+      ...(message.errorCode === undefined
+        ? {}
+        : { errorCode: message.errorCode }),
       kind: "renderFrameResult",
       ok: message.ok,
       requestId: message.requestId,
-      ...(renderProfile ? { renderProfile } : {}),
+      renderProfile: renderProfile ?? undefined,
       sequenceId: message.sequenceId,
-    } as ViewerSandboxMessage;
+    };
   }
   return null;
 }
@@ -217,4 +239,18 @@ function isOptionalPreviewCacheStorage(
     value === "none" ||
     value === "png"
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Rejected browser messages must release transferred native resources. */
+export function discardSandboxMessageBitmap(value: unknown): void {
+  if (
+    isRecord(value) &&
+    typeof ImageBitmap !== "undefined" &&
+    value.bitmap instanceof ImageBitmap
+  )
+    value.bitmap.close();
 }

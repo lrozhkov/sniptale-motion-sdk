@@ -1,18 +1,16 @@
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type {
   InspectorHealthActions,
   RendererBindingItem,
   RendererBindingCoverage,
 } from "./health-contract.js";
-import type {
-  EditorTemplate,
-  EditorTemplateSource,
-} from "../templates/model.js";
+import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function renderRendererBindingsPanel(
   ctx: ViewerAppContext,
-  template: EditorTemplateSource | null = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.rendererBindingsPanel.innerHTML = "";
   const effectiveTemplate = ctx.getEffectiveTemplate(template);

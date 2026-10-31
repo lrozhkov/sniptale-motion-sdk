@@ -64,7 +64,7 @@ export async function confirmResetEditorDraft(
 
 function getDraftStatusPresentation(ctx: ViewerAppContext): string {
   const status = ctx.state.editorDraft.status;
-  const values = {
+  const presentations: Record<typeof status, readonly [string, string]> = {
     clean: ["viewer.editor.status.clean", "No temporary changes"],
     conflict: [
       "viewer.editor.status.conflict",
@@ -75,6 +75,7 @@ function getDraftStatusPresentation(ctx: ViewerAppContext): string {
     restored: ["viewer.editor.status.restored", "Draft restored"],
     saved: ["viewer.editor.status.saved", "Draft saved"],
     saving: ["viewer.editor.status.saving", "Saving draft…"],
-  }[status] ?? ["viewer.editor.status.clean", "No temporary changes"];
-  return ctx.deps.t(values[0], values[1]);
+  };
+  const [key, fallback] = presentations[status];
+  return ctx.deps.t(key, fallback);
 }

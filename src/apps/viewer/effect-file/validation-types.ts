@@ -1,3 +1,4 @@
+import type { EffectV1Document } from "../../../sdk/effect-v1/index.js";
 export type NormalizeEffectFileOptions = {
   normalizePresets?: (presets: unknown) => unknown[];
   normalizeScenes?: (scenes: unknown, duration: number) => unknown[];
@@ -5,7 +6,7 @@ export type NormalizeEffectFileOptions = {
 
 export type ValidateEffectFileOptions = NormalizeEffectFileOptions & {
   collectTemplateErrors?: (
-    template: any,
+    template: unknown,
     knownAssetIds: Set<string>,
   ) => string[];
   existingAssetIds?: Iterable<string>;
@@ -15,5 +16,5 @@ export type ValidateEffectFileOptions = NormalizeEffectFileOptions & {
 export type EffectFileValidationResult = {
   errors: string[];
   ok: boolean;
-  payload?: any;
+  payload?: EffectV1Document | undefined;
 };

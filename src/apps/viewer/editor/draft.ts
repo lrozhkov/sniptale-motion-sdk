@@ -1,3 +1,6 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorDraftActions } from "./contract.js";
+import type { EditorTemplateSource } from "../templates/model.js";
 import { beginEditorDraftSession } from "./draft-session.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
@@ -34,7 +37,7 @@ const draftStorage = editorDraftStorage;
 
 async function prepareEditorDraftForTemplate(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTemplateSource,
 ): Promise<boolean> {
   const { packId, sourceFingerprint, key, draft } = beginEditorDraftSession(
     ctx,
@@ -256,34 +259,53 @@ function syncSnapshotTime(ctx: ViewerAppContext, time: unknown): void {
   }
 }
 
-export function installEditorDraftOwner(ctx: ViewerAppContext): void {
-  ctx.prepareEditorDraftForTemplate = prepareEditorDraftForTemplate.bind(
-    undefined,
-    ctx,
-  );
-  ctx.markEditorChanged = markEditorChanged.bind(undefined, ctx);
-  ctx.saveEditorDraftNow = saveEditorDraftNow.bind(undefined, ctx);
-  ctx.flushEditorDraft = flushEditorDraft.bind(undefined, ctx);
-  ctx.resetEditorToSource = resetEditorToSource.bind(undefined, ctx);
-  ctx.deleteActiveEditorDraft = deleteActiveEditorDraft.bind(undefined, ctx);
-  ctx.hasEditorContentChanges = hasEditorContentChanges.bind(undefined, ctx);
-  ctx.getEditorContentFingerprint = getEditorContentFingerprint.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getEditorSourceFingerprint = getEditorSourceFingerprint.bind(
-    undefined,
-    ctx,
-  );
-  ctx.syncEditorWorkflowUi = syncEditorWorkflowUi.bind(undefined, ctx);
-  ctx.getPreferredDraftTemplateId = getPreferredDraftTemplateId.bind(
-    undefined,
-    ctx,
-  );
-  ctx.handleEditorPageHide = handleEditorPageHide.bind(undefined, ctx);
-  ctx.handleEditorBeforeUnload = handleEditorBeforeUnload.bind(undefined, ctx);
-  ctx.openResetDraftDialog = openResetDraftDialog.bind(undefined, ctx);
-  ctx.closeResetDraftDialog = closeResetDraftDialog.bind(undefined, ctx);
-  ctx.confirmResetEditorDraft = confirmResetEditorDraft.bind(undefined, ctx);
+export function createEditorDraftActions(
+  getContext: () => ViewerAppContext,
+): EditorDraftActions {
+  return {
+    prepareEditorDraftForTemplate: bindViewerAction(
+      prepareEditorDraftForTemplate,
+      getContext,
+    ),
+    markEditorChanged: bindViewerAction(markEditorChanged, getContext),
+    saveEditorDraftNow: bindViewerAction(saveEditorDraftNow, getContext),
+    flushEditorDraft: bindViewerAction(flushEditorDraft, getContext),
+    resetEditorToSource: bindViewerAction(resetEditorToSource, getContext),
+    deleteActiveEditorDraft: bindViewerAction(
+      deleteActiveEditorDraft,
+      getContext,
+    ),
+    hasEditorContentChanges: bindViewerAction(
+      hasEditorContentChanges,
+      getContext,
+    ),
+    getEditorContentFingerprint: bindViewerAction(
+      getEditorContentFingerprint,
+      getContext,
+    ),
+    getEditorSourceFingerprint: bindViewerAction(
+      getEditorSourceFingerprint,
+      getContext,
+    ),
+    syncEditorWorkflowUi: bindViewerAction(syncEditorWorkflowUi, getContext),
+    getPreferredDraftTemplateId: bindViewerAction(
+      getPreferredDraftTemplateId,
+      getContext,
+    ),
+    handleEditorPageHide: bindViewerAction(handleEditorPageHide, getContext),
+    handleEditorBeforeUnload: bindViewerAction(
+      handleEditorBeforeUnload,
+      getContext,
+    ),
+    openResetDraftDialog: bindViewerAction(openResetDraftDialog, getContext),
+    closeResetDraftDialog: bindViewerAction(closeResetDraftDialog, getContext),
+    confirmResetEditorDraft: bindViewerAction(
+      confirmResetEditorDraft,
+      getContext,
+    ),
+  };
+}
+
+export function initializeEditorDraftStorage(): void {
   void draftStorage.cleanup().catch(() => {});
 }

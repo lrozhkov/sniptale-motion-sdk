@@ -1,3 +1,15 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  TransportRuntimeActions,
+  SandboxResponse,
+  SandboxRenderResponse,
+  SandboxLoadResponse,
+  SandboxValidationResponse,
+} from "./contract.js";
+import {
+  parseViewerSandboxMessage,
+  discardSandboxMessageBitmap,
+} from "./message-boundary.js";
 import type { SandboxRequest } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
@@ -7,20 +19,32 @@ import {
 
 const MAX_CONSECUTIVE_RECOVERIES = 1;
 
-async function requestSandbox(
+async function sendSandboxRequest(
   ctx: ViewerAppContext,
   message: SandboxRequest,
   timeoutMs: number,
   transfer: Transferable[] = [],
-) {
+): Promise<SandboxResponse> {
   try {
-    return await ctx.deps.postToSandboxWithTimeout(
+    const value: unknown = await ctx.deps.postToSandboxWithTimeout(
       ctx.state,
       ctx.refs.sandboxFrame,
       message,
       timeoutMs,
       transfer,
     );
+    const response = parseViewerSandboxMessage(value);
+    if (
+      !response ||
+      !("requestId" in response) ||
+      response.kind === "renderFrameProgress" ||
+      response.requestId !== message.requestId ||
+      response.kind !== `${message.kind}Result`
+    ) {
+      discardSandboxMessageBitmap(value);
+      throw new Error("Invalid sandbox response for request.");
+    }
+    return response;
   } catch (error) {
     if (
       isSandboxRequestTimeoutError(error) &&
@@ -94,10 +118,45 @@ function markSandboxRenderHealthy(
   ctx.state.sandboxRecoveryPending = false;
 }
 
-export function installTransportRuntimeRecoveryOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.requestSandbox = requestSandbox.bind(undefined, ctx);
-  ctx.markSandboxRuntimeReady = markSandboxRuntimeReady.bind(undefined, ctx);
-  ctx.markSandboxRenderHealthy = markSandboxRenderHealthy.bind(undefined, ctx);
+export function createTransportRuntimeActions(
+  getContext: () => ViewerAppContext,
+): TransportRuntimeActions {
+  function requestSandbox(
+    message: SandboxRequest & { kind: "renderFrame" },
+    timeoutMs: number,
+    transfer?: Transferable[],
+  ): Promise<SandboxRenderResponse>;
+  function requestSandbox(
+    message: SandboxRequest & { kind: "loadEffectDocument" },
+    timeoutMs: number,
+    transfer?: Transferable[],
+  ): Promise<SandboxLoadResponse>;
+  function requestSandbox(
+    message: SandboxRequest & { kind: "validateEffectDocument" },
+    timeoutMs: number,
+    transfer?: Transferable[],
+  ): Promise<SandboxValidationResponse>;
+  function requestSandbox(
+    message: SandboxRequest,
+    timeoutMs: number,
+    transfer?: Transferable[],
+  ): Promise<SandboxResponse>;
+  function requestSandbox(
+    message: SandboxRequest,
+    timeoutMs: number,
+    transfer: Transferable[] = [],
+  ): Promise<SandboxResponse> {
+    return sendSandboxRequest(getContext(), message, timeoutMs, transfer);
+  }
+  return {
+    requestSandbox,
+    markSandboxRuntimeReady: bindViewerAction(
+      markSandboxRuntimeReady,
+      getContext,
+    ),
+    markSandboxRenderHealthy: bindViewerAction(
+      markSandboxRenderHealthy,
+      getContext,
+    ),
+  };
 }

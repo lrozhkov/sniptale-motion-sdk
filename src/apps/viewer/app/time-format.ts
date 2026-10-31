@@ -1,3 +1,5 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { TimeFormatActions } from "./time-contract.js";
 import type { ViewerAppContext } from "./context.js";
 
 function normalizePrecision(value: unknown): number {
@@ -35,7 +37,11 @@ function formatSecondsRange(
   )}${getSecondsUnit(ctx)}`;
 }
 
-export function installAppTimeFormatOwner(ctx: ViewerAppContext): void {
-  ctx.formatSeconds = formatSeconds.bind(undefined, ctx);
-  ctx.formatSecondsRange = formatSecondsRange.bind(undefined, ctx);
+export function createTimeFormatActions(
+  getContext: () => ViewerAppContext,
+): TimeFormatActions {
+  return {
+    formatSeconds: bindViewerAction(formatSeconds, getContext),
+    formatSecondsRange: bindViewerAction(formatSecondsRange, getContext),
+  };
 }

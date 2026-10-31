@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { completeRender } from "../src/apps/viewer/transport/sandbox-client.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parseViewerSandboxMessage } from "../src/apps/viewer/transport/message-boundary";
+import {
+  parseViewerSandboxMessage,
+  discardSandboxMessageBitmap,
+} from "../src/apps/viewer/transport/message-boundary";
 import { SANDBOX_RENDER_PROFILE_FIELDS } from "../src/sdk/render-profile";
 
 const renderProfile = Object.fromEntries(
@@ -135,7 +139,11 @@ describe("viewer sandbox message boundary", () => {
   });
 
   it("preserves a valid render result payload", () => {
-    const bitmap = {};
+    class Bitmap {
+      close() {}
+    }
+    vi.stubGlobal("ImageBitmap", Bitmap);
+    const bitmap = new Bitmap();
     const result = parseViewerSandboxMessage({
       bindingReads: { tracks: ["title.x"] },
       bitmap,
@@ -271,4 +279,31 @@ describe("viewer sandbox message boundary", () => {
       }),
     ).toBeNull();
   });
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+it("releases only native bitmaps when a browser message is rejected", () => {
+  class Bitmap {
+    close = vi.fn();
+  }
+  vi.stubGlobal("ImageBitmap", Bitmap);
+  const bitmap = new Bitmap();
+  discardSandboxMessageBitmap({ bitmap });
+  expect(bitmap.close).toHaveBeenCalledOnce();
+  const fake = { close: vi.fn() };
+  discardSandboxMessageBitmap({ bitmap: fake });
+  expect(fake.close).not.toHaveBeenCalled();
+});
+
+it("releases a late native render bitmap when its request is no longer pending", () => {
+  class Bitmap {
+    close = vi.fn();
+  }
+  vi.stubGlobal("ImageBitmap", Bitmap);
+  const bitmap = new Bitmap();
+  const state = { pending: new Map(), staleResponses: 0 };
+  completeRender(state, { requestId: "expired", bitmap });
+  expect(state.staleResponses).toBe(1);
+  expect(bitmap.close).toHaveBeenCalledOnce();
 });

@@ -1,3 +1,5 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { DiagnosticActions } from "./shell-contract.js";
 import type { ViewerAppContext } from "./context.js";
 
 function setPackStatus(ctx: ViewerAppContext, text: string, variant: string) {
@@ -97,8 +99,11 @@ function showCopyDiagnosticsState(ctx: ViewerAppContext, label: string): void {
   }, 1600);
 }
 
-export function installAppDiagnosticsOwner(ctx: ViewerAppContext): void {
-  ctx.setPackStatus = setPackStatus.bind(null, ctx);
-  ctx.logDiagnostic = logDiagnostic.bind(null, ctx);
-  ctx.copyDiagnostics = copyDiagnostics.bind(null, ctx);
+export function createDiagnosticActions(
+  getContext: () => ViewerAppContext,
+): DiagnosticActions {
+  return {
+    setPackStatus: bindViewerAction(setPackStatus, getContext),
+    copyDiagnostics: bindViewerAction(copyDiagnostics, getContext),
+  };
 }

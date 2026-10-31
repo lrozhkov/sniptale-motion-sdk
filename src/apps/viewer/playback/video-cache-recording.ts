@@ -1,3 +1,7 @@
+import type {
+  PlaybackVideoCacheCaptureResult,
+  PlaybackVideoCacheFrame,
+} from "./contract.js";
 import type { PreviewCacheWarmStep } from "./cache-warm.js";
 import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -14,8 +18,12 @@ import { advancePlaybackVideoSegmentWarm } from "./video-cache-warm.js";
 
 export async function capturePlaybackVideoCacheFrame(
   ctx: ViewerAppContext,
-  options: { fps: number; result: any; time: number },
-) {
+  options: {
+    fps: number;
+    result: PlaybackVideoCacheFrame;
+    time: number;
+  },
+): Promise<PlaybackVideoCacheCaptureResult | null> {
   const cache = ctx.state.previewVideoCache;
   const encoder = cache.encoder;
   if (!cache.recording || !encoder) {
@@ -26,7 +34,7 @@ export async function capturePlaybackVideoCacheFrame(
   const frameIndex = Math.max(0, Math.round(options.time * fps));
   const segment = resolveActiveSegment(cache, frameIndex, fps);
   const relativeFrameIndex = Math.max(0, frameIndex - segment.startFrame);
-  const bitmap = options.result?.bitmap as CanvasImageSource | undefined;
+  const bitmap = options.result.bitmap;
   if (!bitmap) {
     return { deferred: true };
   }

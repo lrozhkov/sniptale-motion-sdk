@@ -1,12 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  installRenderingRasterSizeOwner,
+  createPreviewRasterActions,
   parseRasterSize,
 } from "../src/apps/viewer/rendering/raster-size";
 import { MAX_RENDER_PIXELS } from "../src/sdk/protocol";
 
 describe("viewer preview raster size", () => {
+  it("does not coerce external size values", () => {
+    const calls: string[] = [];
+    const value = {
+      toString() {
+        calls.push("size");
+        return "1920x1080";
+      },
+    };
+    const fallback = { height: 720, width: 1280 };
+    expect(parseRasterSize(value, fallback)).toBe(fallback);
+    expect(calls).toEqual([]);
+  });
+
   it("allows every resolution exposed by the preview selector", () => {
     expect(MAX_RENDER_PIXELS).toBeGreaterThanOrEqual(3840 * 2160);
   });
@@ -37,7 +50,10 @@ describe("viewer preview raster size", () => {
       },
       updateCanvasSelectionBox: vi.fn(),
     } as any;
-    installRenderingRasterSizeOwner(ctx);
+    Object.assign(
+      ctx,
+      createPreviewRasterActions(() => ctx),
+    );
 
     ctx.applyPreviewRasterSize();
 

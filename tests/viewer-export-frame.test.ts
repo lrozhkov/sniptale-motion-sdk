@@ -240,11 +240,14 @@ describe("viewer export frame coordinates", () => {
   );
 });
 
-import { installTemplatesControllerOwner } from "../src/apps/viewer/templates/controller";
+import { createTemplateModelActions } from "../src/apps/viewer/templates/controller";
 it("does not paint a sample scene behind an imported targetEffect", () => {
   const sample = vi.fn();
   const ctx = { deps: { drawSampleScene: sample } } as any;
-  installTemplatesControllerOwner(ctx);
+  Object.assign(
+    ctx,
+    createTemplateModelActions(() => ctx),
+  );
   const context = { canvas: { width: 128, height: 72 }, clearRect: vi.fn() };
   ctx.drawBaseForTemplate(
     context,

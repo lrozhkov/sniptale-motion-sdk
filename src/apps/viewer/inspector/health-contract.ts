@@ -1,7 +1,5 @@
-import type {
-  EditorTemplate,
-  EditorTemplateSource,
-} from "../templates/model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { EditorTemplate } from "../templates/model.js";
 import type { EditorValidationIssue } from "../validation/types.js";
 
 export type RendererBindingItem = {
@@ -18,14 +16,14 @@ export type RendererBindingCoverage = {
   unboundCount: number;
 };
 export interface InspectorHealthActions {
-  renderValidationPanel(template?: EditorTemplateSource | null): void;
+  renderValidationPanel(template?: EditorTimelineSource | null): void;
   groupValidationIssues(
     issues: readonly EditorValidationIssue[],
   ): [string, EditorValidationIssue[]][];
   issueTargetLabel(issue: EditorValidationIssue): string;
   focusValidationIssue(issue: EditorValidationIssue): void;
   scrollTimelineTargetIntoView(selector: string): void;
-  renderRendererBindingsPanel(template?: EditorTemplateSource | null): void;
+  renderRendererBindingsPanel(template?: EditorTimelineSource | null): void;
   buildRendererBindingCoverage(
     template: EditorTemplate,
   ): RendererBindingCoverage;

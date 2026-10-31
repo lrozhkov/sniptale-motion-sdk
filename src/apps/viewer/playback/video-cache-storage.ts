@@ -12,7 +12,7 @@ const STORE_NAME = "video-previews";
 export type PlaybackVideoCacheStorage = {
   cleanup(now?: number): Promise<void>;
   delete(key: string): Promise<void>;
-  get(key: string): Promise<unknown | null>;
+  get(key: string): Promise<unknown>;
   put(record: PlaybackVideoCacheRecord): Promise<void>;
 };
 
@@ -119,29 +119,9 @@ function readRecordMetadata(
         resolve(records);
         return;
       }
-      const value = cursor.value;
-      const key =
-        typeof cursor.primaryKey === "string"
-          ? cursor.primaryKey
-          : typeof value?.key === "string"
-            ? value.key
-            : null;
-      if (key) {
-        records.push({
-          accessedAt: Number.isFinite(value?.accessedAt)
-            ? Number(value.accessedAt)
-            : 0,
-          bytes:
-            Array.isArray(value?.segments) &&
-            value.segments.every((segment) => segment?.blob instanceof Blob)
-              ? value.segments.reduce(
-                  (total, segment) => total + segment.blob.size,
-                  0,
-                )
-              : Number.POSITIVE_INFINITY,
-          key,
-        });
-      }
+      const value: unknown = cursor.value;
+      const metadata = readPlaybackVideoCacheMetadata(value, cursor.primaryKey);
+      if (metadata) records.push(metadata);
       cursor.continue();
     };
     request.onerror = () =>
@@ -149,7 +129,7 @@ function readRecordMetadata(
   });
 }
 
-function requestResult<T = unknown>(request: IDBRequest<T>): Promise<T> {
+function requestResult(request: IDBRequest<unknown>): Promise<unknown> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>
@@ -165,4 +145,43 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
     transaction.onabort = () =>
       reject(transaction.error ?? new Error("IndexedDB transaction aborted"));
   });
+}
+
+/** Read only cleanup metadata; restoration validates the complete record. */
+export function readPlaybackVideoCacheMetadata(
+  value: unknown,
+  primaryKey: unknown,
+) {
+  const entry = isRecord(value) ? value : null;
+  const key =
+    typeof primaryKey === "string"
+      ? primaryKey
+      : typeof entry?.key === "string"
+        ? entry.key
+        : null;
+  if (!key) return null;
+  const segments: unknown[] | null = Array.isArray(entry?.segments)
+    ? entry.segments
+    : null;
+  let bytes = 0;
+  if (!segments) bytes = Number.POSITIVE_INFINITY;
+  else
+    for (const segment of segments) {
+      if (!isRecord(segment) || !(segment.blob instanceof Blob)) {
+        bytes = Number.POSITIVE_INFINITY;
+        break;
+      }
+      bytes += segment.blob.size;
+    }
+  return {
+    key,
+    bytes,
+    accessedAt:
+      typeof entry?.accessedAt === "number" && Number.isFinite(entry.accessedAt)
+        ? entry.accessedAt
+        : 0,
+  };
+}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

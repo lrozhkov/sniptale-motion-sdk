@@ -1,3 +1,4 @@
+import type { JsonFilePickerOptions } from "../effect-file/file-system.js";
 import type { EffectsViewerTestApi } from "../test-api.js";
 
 declare global {
@@ -6,7 +7,7 @@ declare global {
 
   interface Window {
     effectsViewer: EffectsViewerTestApi;
-    showOpenFilePicker?: any;
+    showOpenFilePicker?: (options: JsonFilePickerOptions) => Promise<unknown>;
   }
 }
 

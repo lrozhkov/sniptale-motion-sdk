@@ -7,14 +7,21 @@ export const TEMPLATE_BUNDLE_KINDS = [
 
 export type TemplateBundleKind = (typeof TEMPLATE_BUNDLE_KINDS)[number];
 
-export function resolveTemplateBundleKind(template: any): TemplateBundleKind {
-  const kind = template?.domMotion ? "dom" : template?.effectV1?.kind;
-  return TEMPLATE_BUNDLE_KINDS.includes(kind) ? kind : "standalone";
+export function resolveTemplateBundleKind(
+  template: unknown,
+): TemplateBundleKind {
+  if (!isRecord(template)) return "standalone";
+  const kind: unknown = template.domMotion
+    ? "dom"
+    : isRecord(template.effectV1)
+      ? template.effectV1.kind
+      : undefined;
+  return TEMPLATE_BUNDLE_KINDS.find((value) => value === kind) ?? "standalone";
 }
 
 export function getTemplateBundleKindLabel(
   translate: (key: string, fallback: string) => string,
-  template: any,
+  template: unknown,
 ): string {
   const kind = resolveTemplateBundleKind(template);
   return translate(
@@ -35,7 +42,7 @@ export function getTemplateBundleKindGroupLabel(
 
 export function getTemplateBundleKindDescription(
   translate: (key: string, fallback: string) => string,
-  template: any,
+  template: unknown,
 ): string {
   const kind = resolveTemplateBundleKind(template);
   return translate(
@@ -69,3 +76,7 @@ const BUNDLE_KIND_FALLBACKS: Record<
     label: "Transition",
   },
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}

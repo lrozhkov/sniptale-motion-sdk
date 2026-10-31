@@ -1,6 +1,5 @@
 import {
-  EDITOR_DRAFT_MAX_AGE_MS,
-  EDITOR_DRAFT_MAX_RECORDS,
+  getEditorDraftCleanupKeys,
   type EditorDraftRecord,
 } from "./draft-model.js";
 
@@ -11,7 +10,7 @@ const STORE_NAME = "editor-drafts";
 export type EditorDraftStorage = {
   cleanup(now?: number): Promise<void>;
   delete(key: string): Promise<void>;
-  get(key: string): Promise<unknown | null>;
+  get(key: string): Promise<unknown>;
   put(record: EditorDraftRecord): Promise<void>;
 };
 
@@ -29,21 +28,10 @@ export function createEditorDraftStorage(
   return {
     async cleanup(now = Date.now()) {
       const db = await database();
-      const records = await requestResult<EditorDraftRecord[]>(
+      const stored = await requestResult(
         db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).getAll(),
       );
-      const keep = records
-        .filter(
-          (record) =>
-            Number.isFinite(record?.updatedAt) &&
-            now - record.updatedAt <= EDITOR_DRAFT_MAX_AGE_MS,
-        )
-        .sort((left, right) => right.updatedAt - left.updatedAt)
-        .slice(0, EDITOR_DRAFT_MAX_RECORDS);
-      const keepKeys = new Set(keep.map((record) => record.key));
-      const staleKeys = records
-        .map((record) => record?.key)
-        .filter((key): key is string => Boolean(key) && !keepKeys.has(key));
+      const staleKeys = getEditorDraftCleanupKeys(stored, now);
       if (staleKeys.length === 0) {
         return;
       }
@@ -96,7 +84,7 @@ function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
   });
 }
 
-function requestResult<T = unknown>(request: IDBRequest<T>): Promise<T> {
+function requestResult<Result>(request: IDBRequest<Result>): Promise<unknown> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>

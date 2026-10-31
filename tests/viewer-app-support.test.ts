@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import { isSafeLocalAssetPath } from "../src/apps/viewer/app/constants.js";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 vi.mock("../src/apps/viewer/app/dom-refs.js", () => ({
   requireHtml: (selector: string) => document.querySelector(selector),
@@ -13,10 +15,10 @@ import {
   normalizeBindingReads,
 } from "../src/apps/viewer/app/binding-reads";
 import { formatDiagnosticsText } from "../src/apps/viewer/app/diagnostics";
-import { installAppKeyboardOwner } from "../src/apps/viewer/app/keyboard";
+import { createKeyboardActions } from "../src/apps/viewer/app/keyboard";
 import { createViewerRefs } from "../src/apps/viewer/app/refs";
 import { createViewerState } from "../src/apps/viewer/app/state";
-import { installAppShellOwner } from "../src/apps/viewer/app/shell";
+import { createShellActions } from "../src/apps/viewer/app/shell";
 import {
   createEditorValidationActions,
   isRendererContractCoveragePending,
@@ -34,6 +36,23 @@ import {
 } from "../src/apps/viewer/transport/sandbox-client";
 
 describe("viewer app support owners", () => {
+  it("validates optional local paths without coercing foreign values", () => {
+    const calls: string[] = [];
+    const path = {
+      toString() {
+        calls.push("path");
+        return "asset.png";
+      },
+    };
+    expect(isSafeLocalAssetPath(path)).toBe(false);
+    expect(isSafeLocalAssetPath(42)).toBe(false);
+    expect(isSafeLocalAssetPath("images/asset.png")).toBe(true);
+    expect(isSafeLocalAssetPath("../asset.png")).toBe(false);
+    expect(isSafeLocalAssetPath("https://example.com/asset.png")).toBe(false);
+    expect(isSafeLocalAssetPath(null)).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -98,7 +117,10 @@ describe("viewer app support owners", () => {
       copySelectedKeyframes,
       isEditingFormControl: () => false,
     } as any;
-    installAppKeyboardOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyboardActions(() => ctx),
+    );
 
     ctx.handleGlobalKeydown({
       code: "KeyC",
@@ -122,7 +144,10 @@ describe("viewer app support owners", () => {
       copySelectedKeyframes: vi.fn(() => true),
       isEditingFormControl: () => false,
     } as any;
-    installAppKeyboardOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyboardActions(() => ctx),
+    );
 
     ctx.handleGlobalKeydown({
       code: "KeyC",
@@ -208,7 +233,10 @@ describe("viewer app support owners", () => {
         previewVideoCache: { recording: true },
       },
     } as any;
-    installAppShellOwner(ctx);
+    Object.assign(
+      ctx,
+      createShellActions(() => ctx),
+    );
 
     ctx.syncPlaybackButtons();
     expect(setIconButton).toHaveBeenCalledWith(
@@ -445,4 +473,13 @@ describe("viewer app support owners", () => {
     await timeoutExpectation;
     expect(state.pending.has("r3")).toBe(false);
   });
+});
+
+it("rejects arbitrary viewer actions at the compiler boundary", () => {
+  expectTypeOf<
+    string extends keyof ViewerAppContext ? true : false
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    "unregisteredViewerAction" extends keyof ViewerAppContext ? true : false
+  >().toEqualTypeOf<false>();
 });

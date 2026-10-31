@@ -1,3 +1,5 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { KeyboardActions } from "./shell-contract.js";
 import type { ViewerAppContext } from "./context.js";
 
 const TEXT_ENTRY_INPUT_TYPES = new Set([
@@ -24,7 +26,7 @@ function handleGlobalSpaceKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
     ctx.togglePlayback();
   }
 }
-function hasOpenDropdownMenu(ctx: ViewerAppContext) {
+function hasOpenDropdownMenu() {
   let nativeSelectOpen = false;
   try {
     nativeSelectOpen = Boolean(document.querySelector("select:open"));
@@ -223,10 +225,7 @@ export function hasNativeCopySelection(
 ): boolean {
   return Boolean(selection && !selection.isCollapsed && selection.toString());
 }
-function isEditingFormControl(
-  ctx: ViewerAppContext,
-  target: EventTarget | null,
-) {
+function isEditingFormControl(target: EventTarget | null) {
   const element = target instanceof Element ? target : null;
   if (!element) {
     return false;
@@ -235,7 +234,7 @@ function isEditingFormControl(
     element.closest('input, textarea, select, [contenteditable="true"]'),
   );
 }
-function isTextEntryControl(ctx: ViewerAppContext, target: EventTarget | null) {
+function isTextEntryControl(target: EventTarget | null) {
   const element = target instanceof Element ? target : null;
   const editable = element?.closest("input, textarea, [contenteditable]");
   if (editable instanceof HTMLInputElement) {
@@ -246,10 +245,7 @@ function isTextEntryControl(ctx: ViewerAppContext, target: EventTarget | null) {
   }
   return editable instanceof HTMLElement && editable.isContentEditable;
 }
-function isButtonLikeControl(
-  ctx: ViewerAppContext,
-  target: EventTarget | null,
-) {
+function isButtonLikeControl(target: EventTarget | null) {
   const element = target instanceof Element ? target : null;
   return Boolean(element?.closest("button, a, summary"));
 }
@@ -264,15 +260,22 @@ function shouldFocusInspectorFromEnter(
   );
 }
 
-export function installAppKeyboardOwner(ctx: ViewerAppContext): void {
-  ctx.handleGlobalSpaceKeydown = handleGlobalSpaceKeydown.bind(null, ctx);
-  ctx.handleGlobalKeydown = handleGlobalKeydown.bind(null, ctx);
-  ctx.hasOpenDropdownMenu = hasOpenDropdownMenu.bind(null, ctx);
-  ctx.isEditingFormControl = isEditingFormControl.bind(null, ctx);
-  ctx.isTextEntryControl = isTextEntryControl.bind(null, ctx);
-  ctx.isButtonLikeControl = isButtonLikeControl.bind(null, ctx);
-  ctx.shouldFocusInspectorFromEnter = shouldFocusInspectorFromEnter.bind(
-    null,
-    ctx,
-  );
+export function createKeyboardActions(
+  getContext: () => ViewerAppContext,
+): KeyboardActions {
+  return {
+    handleGlobalSpaceKeydown: bindViewerAction(
+      handleGlobalSpaceKeydown,
+      getContext,
+    ),
+    handleGlobalKeydown: bindViewerAction(handleGlobalKeydown, getContext),
+    shouldFocusInspectorFromEnter: bindViewerAction(
+      shouldFocusInspectorFromEnter,
+      getContext,
+    ),
+    hasOpenDropdownMenu,
+    isEditingFormControl,
+    isTextEntryControl,
+    isButtonLikeControl,
+  };
 }

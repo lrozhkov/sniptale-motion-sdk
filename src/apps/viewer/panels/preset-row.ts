@@ -1,8 +1,20 @@
+import type { EditorPreset, EditorTemplate } from "../templates/model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 export function createPresetRow(
   ctx: ViewerAppContext,
-  { enabled, effectiveTemplate, preset, template },
+  {
+    enabled,
+    effectiveTemplate,
+    preset,
+    template,
+  }: {
+    enabled: boolean;
+    effectiveTemplate: EditorTemplate;
+    preset: EditorPreset;
+    template: EditorTimelineSource;
+  },
 ): HTMLElement {
   const selected = preset.id === ctx.state.selectedPresetId;
   const row = document.createElement("div");
@@ -20,9 +32,12 @@ export function createPresetRow(
     .t("viewer.presets.meta", "{duration}s · {tracks} tracks")
     .replace(
       "{duration}",
-      Number(preset.duration ?? effectiveTemplate.duration).toFixed(1),
+      (typeof preset.duration === "number" && Number.isFinite(preset.duration)
+        ? preset.duration
+        : effectiveTemplate.duration
+      ).toFixed(1),
     )
-    .replace("{tracks}", String((preset.timeline?.tracks ?? []).length));
+    .replace("{tracks}", String(presetTrackCount(preset.timeline)));
   summary.append(title, meta);
   summary.title = `${title.textContent}\n${meta.textContent}`;
   summary.setAttribute(
@@ -58,4 +73,10 @@ export function createPresetRow(
   });
   row.append(summary, applyButton, duplicateButton, deleteButton);
   return row;
+}
+
+function presetTrackCount(value: unknown): number {
+  if (value === null || typeof value !== "object" || !("tracks" in value))
+    return 0;
+  return Array.isArray(value.tracks) ? value.tracks.length : 0;
 }

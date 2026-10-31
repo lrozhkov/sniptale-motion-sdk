@@ -10,7 +10,7 @@ import {
   resolvePlaybackUiIntervalMs,
 } from "../src/apps/viewer/playback/cadence";
 import {
-  installPlaybackServiceOwner,
+  createPlaybackActions,
   schedulePlaybackTick,
 } from "../src/apps/viewer/playback/service";
 
@@ -220,7 +220,10 @@ describe("viewer playback render cadence", () => {
       syncPreviewAudio,
       updateTimelinePlayhead: vi.fn(),
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
 
     ctx.playbackTick(1100);
 
@@ -253,7 +256,10 @@ describe("viewer playback render cadence", () => {
       stopPreviewAudio: vi.fn(),
       syncPlaybackButtons: vi.fn(),
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
     try {
       ctx.togglePlayback();
       await Promise.resolve();
@@ -285,7 +291,10 @@ describe("viewer playback render cadence", () => {
       syncPlaybackButtons: vi.fn(),
       syncPreviewAudio: vi.fn(),
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
     try {
       ctx.startPlayback();
 
@@ -317,7 +326,10 @@ describe("viewer playback render cadence", () => {
       },
       syncPlaybackButtons: vi.fn(),
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
 
     ctx.startPlayback();
 
@@ -345,7 +357,10 @@ describe("viewer playback render cadence", () => {
       },
       syncPlaybackButtons: vi.fn(),
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
 
     ctx.startPlayback();
 
@@ -380,7 +395,10 @@ describe("viewer playback render cadence", () => {
       syncPlaybackButtons: vi.fn(),
       syncPreviewQualityBadge,
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
 
     ctx.togglePlayback();
 
@@ -413,7 +431,10 @@ describe("viewer playback render cadence", () => {
       stopPreviewAudio: vi.fn(),
       syncPlaybackButtons: vi.fn(),
     } as any;
-    installPlaybackServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createPlaybackActions(() => ctx),
+    );
 
     expect(
       ctx.pausePlayback({

@@ -1,14 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { TemplateSelectionActions } from "./contract.js";
+import type { EditorTemplateSource } from "./model.js";
 import { beginEditorDraftSession } from "../editor/draft-session.js";
 import { readEditorTemplateSource } from "./source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { shouldReportSandboxRequestFailure } from "../transport/sandbox-client.js";
+import { resolveTemplateArtifactType } from "./artifact-type.js";
 import {
-  getTemplateArtifactTypeDescription,
-  getTemplateArtifactTypeLabel,
-  resolveTemplateArtifactType,
-} from "./artifact-type.js";
-import {
-  getTemplateBundleKindDescription,
   getTemplateBundleKindGroupLabel,
   getTemplateBundleKindLabel,
   resolveTemplateBundleKind,
@@ -17,12 +15,18 @@ import {
 import { resetTemplateSelectionState } from "./selection-state.js";
 import { renderTemplateWorkspace } from "./workspace-render.js";
 
-export function getInitialTemplateId(templates: any[]): string | null {
+export function getInitialTemplateId(
+  templates: readonly { id: string; default?: boolean; effectV1?: unknown }[],
+): string | null {
   const explicitDefault = templates.find(
     (template) => template?.default === true,
   );
   const standalone = templates.find(
-    (template) => template?.effectV1?.kind === "standalone",
+    (template) =>
+      template.effectV1 !== null &&
+      typeof template.effectV1 === "object" &&
+      "kind" in template.effectV1 &&
+      template.effectV1.kind === "standalone",
   );
   return explicitDefault?.id ?? standalone?.id ?? templates[0]?.id ?? null;
 }
@@ -55,7 +59,7 @@ async function bootstrap(ctx: ViewerAppContext) {
   ctx.state.modules = loaded.modules;
   ctx.state.assets = loaded.assets;
   ctx.state.baseAssets = new Map(loaded.assets);
-  ctx.populateTemplates(loaded.templates);
+  ctx.populateTemplates(ctx.state.templates);
   if (loaded.templates.length === 0) {
     const readyForImport = ctx.deps.t(
       "viewer.status.readyForImport",
@@ -79,11 +83,17 @@ async function bootstrap(ctx: ViewerAppContext) {
   void ctx.selectInitialTemplateWhenReady();
 }
 
-function getTemplateTypeLabel(ctx: ViewerAppContext, template) {
+function getTemplateTypeLabel(
+  ctx: ViewerAppContext,
+  template: unknown,
+): string {
   return getTemplateBundleKindLabel(ctx.deps.t, template);
 }
 
-function populateTemplates(ctx: ViewerAppContext, templates) {
+function populateTemplates(
+  ctx: ViewerAppContext,
+  templates: readonly EditorTemplateSource[],
+): void {
   const selectedId =
     ctx.state.currentTemplate?.id || ctx.refs.templateSelect.value;
   ctx.refs.templateSelect.innerHTML = "";
@@ -222,7 +232,7 @@ export async function selectTemplate(
     void ctx.refreshRendererContractCoverage(template).catch((error) => {
       if (shouldReportSandboxRequestFailure(error)) {
         ctx.logDiagnostic(
-          `${template.id}: ${error instanceof Error ? error.message : String(error)}`,
+          `${templateId}: ${error instanceof Error ? error.message : String(error)}`,
           "error",
         );
       }
@@ -232,52 +242,6 @@ export async function selectTemplate(
     if (generation === ctx.state.templateSelectionGeneration)
       ctx.state.templateSelectionPending = false;
   }
-}
-
-function updateTemplateContext(
-  ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
-  if (!template) {
-    ctx.refs.templateContext.textContent = "";
-    ctx.refs.templateContext.title = "";
-    return;
-  }
-  const effectiveTemplate = ctx.getEffectiveTemplate(template);
-  const layers = effectiveTemplate?.layers?.length ?? 0;
-  const tracks = effectiveTemplate?.timeline?.tracks?.length ?? 0;
-  const duration = ctx.formatSeconds(
-    effectiveTemplate?.duration ?? template.duration ?? 0,
-  );
-  const summary = ctx.deps
-    .t(
-      "viewer.templates.summary",
-      "{layers} layers · {tracks} tracks · {duration}",
-    )
-    .replace("{layers}", String(layers))
-    .replace("{tracks}", String(tracks))
-    .replace("{duration}", duration);
-  ctx.refs.templateContext.textContent = "";
-  const artifactType = resolveTemplateArtifactType(effectiveTemplate);
-  const bundleKind = resolveTemplateBundleKind(effectiveTemplate);
-  const artifactLabel = getTemplateArtifactTypeLabel(
-    ctx.deps.t,
-    effectiveTemplate,
-  );
-  const typeLabel = getTemplateTypeLabel(ctx, effectiveTemplate);
-  const type = document.createElement("strong");
-  type.className = "template-artifact-type";
-  type.dataset.artifactType = artifactType;
-  type.dataset.bundleKind = bundleKind;
-  type.dataset.compactLabel = artifactLabel;
-  type.setAttribute("aria-label", typeLabel);
-  type.textContent = typeLabel;
-  const details = document.createElement("span");
-  details.className = "template-context-summary";
-  details.textContent = summary;
-  ctx.refs.templateContext.append(type, details);
-  ctx.refs.templateContext.hidden = false;
-  ctx.refs.templateContext.title = `${ctx.deps.translateText(template.label, template.id)}\n${getTemplateBundleKindLabel(ctx.deps.t, effectiveTemplate)}: ${getTemplateBundleKindDescription(ctx.deps.t, effectiveTemplate)}\n${summary}`;
 }
 
 async function selectInitialTemplateWhenReady(ctx: ViewerAppContext) {
@@ -301,13 +265,16 @@ async function selectInitialTemplateWhenReady(ctx: ViewerAppContext) {
   }
 }
 
-export function installTemplatesSelectionOwner(ctx: ViewerAppContext): void {
-  ctx.bootstrap = bootstrap.bind(undefined, ctx);
-  ctx.populateTemplates = populateTemplates.bind(undefined, ctx);
-  ctx.selectTemplate = selectTemplate.bind(undefined, ctx);
-  ctx.updateTemplateContext = updateTemplateContext.bind(undefined, ctx);
-  ctx.selectInitialTemplateWhenReady = selectInitialTemplateWhenReady.bind(
-    undefined,
-    ctx,
-  );
+export function createTemplateSelectionActions(
+  getContext: () => ViewerAppContext,
+): TemplateSelectionActions {
+  return {
+    bootstrap: bindViewerAction(bootstrap, getContext),
+    populateTemplates: bindViewerAction(populateTemplates, getContext),
+    selectTemplate: bindViewerAction(selectTemplate, getContext),
+    selectInitialTemplateWhenReady: bindViewerAction(
+      selectInitialTemplateWhenReady,
+      getContext,
+    ),
+  };
 }

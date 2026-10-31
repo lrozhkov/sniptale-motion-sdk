@@ -1,3 +1,44 @@
+import { createTransportRuntimeActions } from "../transport/runtime-recovery.js";
+import { createTransportControllerActions } from "../transport/controller.js";
+import { createPlaybackActions } from "../playback/service.js";
+import { createPreviewAudioActions } from "../playback/preview-audio.js";
+import { createPlaybackVideoCacheActions } from "../playback/video-cache.js";
+import { createDomMotionActions } from "../dom-motion/controller.js";
+import { createEffectFileActions } from "../effect-file/import-export.js";
+import { createLocalEffectStartupActions } from "../effect-file/local-startup.js";
+import { createJsonBindingActions } from "../effect-file/json-binding.js";
+import { createRenderModelActions } from "../rendering/model-cache.js";
+import { createRenderAssetActions } from "../rendering/assets.js";
+import { createRenderServiceActions } from "../rendering/service-owner.js";
+import { createPreviewRasterActions } from "../rendering/raster-size.js";
+import { createPlaybackCachePreferenceActions } from "../playback/cache-toggle.js";
+import { createPreviewMediaActions } from "../preview-media/session.js";
+import { createTimelineLayerNavigationActions } from "../timeline/navigation/actions.js";
+import { createIconActions } from "./icons.js";
+import { createShellLayoutActions } from "./shell-layout.js";
+import { createShellActions } from "./shell.js";
+import { createShellPanelActions } from "./shell-panels.js";
+import { createThemeActions } from "./theme.js";
+import { createKeyboardActions } from "./keyboard.js";
+import { createAppEditingActions } from "./misc.js";
+import { createDiagnosticActions } from "./diagnostics.js";
+import { createWorkspaceViewActions } from "../templates/workspace-view-state.js";
+import { createTemplateComboboxActions } from "../templates/combobox.js";
+import { createAssetFileImportActions } from "../assets/file-import.js";
+import { createTemplateContextActions } from "../templates/workspace-header.js";
+import { createTemplateSelectionActions } from "../templates/selection.js";
+import { createAssetPanelActions } from "../assets/panel-controller.js";
+import { createAssetBindingActions } from "../assets/layer-binding.js";
+import { createControlPanelActions } from "../panels/controls.js";
+import { createTemplateFallbackActions } from "../templates/fallbacks.js";
+import { createPresetPanelActions } from "../panels/presets.js";
+import { createLayerPanelActions } from "../panels/layers.js";
+import { createTemplateModelActions } from "../templates/controller.js";
+import { createEffectExportReadinessActions } from "../effect-file/service.js";
+import { createTimeFormatActions } from "./time-format.js";
+import { createEditorStoreActions } from "../editor/store.js";
+import { createEditorHistoryActions } from "../editor/history-controller.js";
+import { createEditorDraftActions } from "../editor/draft.js";
 import { createLayerFactoryActions } from "../layers/factory.js";
 import { createLayerClipboardActions } from "../layers/clipboard.js";
 import { createLayerOrderActions } from "../layers/order.js";
@@ -92,24 +133,13 @@ import { createPhaseMoveActions } from "../timeline/model/phase-move-plans.js";
 import { createLazyExportFeatures } from "./lazy-export-features.js";
 import { logDiagnostic } from "./diagnostics.js";
 import { dataUrlToBlob, rasterizeSvgAsset } from "../assets/file-import.js";
-import { createAssetBitmap, createRenderAssets } from "../rendering/assets.js";
 import { createTimelineRowTree } from "../timeline/model/row-tree.js";
-import { normalizeScenes } from "../templates/fallbacks.js";
 import { getTrackKeyframesForParent } from "../timeline/view/property-track.js";
-import { renderCurrentFrame } from "../rendering/service.js";
 import { getSelectedKeyframeRefs } from "../timeline/interaction/keyframes.js";
-import { resolveRenderTemplateSnapshot } from "../rendering/model-cache.js";
 import { createViewerRefs } from "./refs.js";
 import { createViewerState } from "./state.js";
 import { viewerAppDependencies } from "./dependencies.js";
 import type { ViewerAppContext } from "./context.js";
-import { getEffectiveTemplate } from "../templates/controller.js";
-import {
-  getEffectiveTimeline,
-  getEditorOverride,
-  setEditorOverride,
-  getEffectiveDuration,
-} from "../editor/store.js";
 
 export function createViewerContext(): ViewerAppContext {
   const refs = createViewerRefs();
@@ -117,6 +147,54 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createTransportRuntimeActions(() => ctx),
+    ...createTransportControllerActions(() => ctx),
+    ...createPlaybackActions(() => ctx),
+    ...createPreviewAudioActions(() => ctx),
+    ...createPlaybackVideoCacheActions(() => ctx),
+    ...createDomMotionActions(() => ctx),
+    ...createJsonBindingActions(() => ctx),
+    ...createEffectFileActions(() => ctx),
+    ...createLocalEffectStartupActions(() => ctx),
+    ...createRenderModelActions(() => ctx),
+    ...createRenderAssetActions(() => ctx),
+    ...createRenderServiceActions(() => ctx),
+    ...createPreviewRasterActions(() => ctx),
+
+    timelineLayerSearchIndexCache: null,
+    timelineLayerSearchResultsCache: [],
+    ...createPlaybackCachePreferenceActions(() => ctx),
+    ...createPreviewMediaActions(() => ctx),
+    ...createTimelineLayerNavigationActions(() => ctx),
+    timelineOverlaySyncFrame: 0,
+    diagnosticsCopyResetTimer: undefined,
+    ...createIconActions(),
+    ...createShellLayoutActions(() => ctx),
+    ...createShellActions(() => ctx),
+    ...createShellPanelActions(() => ctx),
+    ...createThemeActions(() => ctx),
+    ...createKeyboardActions(() => ctx),
+    ...createAppEditingActions(() => ctx),
+    ...createDiagnosticActions(() => ctx),
+    ...createWorkspaceViewActions(() => ctx),
+
+    ...createTemplateComboboxActions(() => ctx),
+    ...createAssetFileImportActions(() => ctx),
+    ...createTemplateContextActions(() => ctx),
+    ...createTemplateSelectionActions(() => ctx),
+    ...createAssetPanelActions(() => ctx),
+    ...createAssetBindingActions(() => ctx),
+    ...createControlPanelActions(() => ctx),
+    ...createTemplateFallbackActions(() => ctx),
+    ...createPresetPanelActions(() => ctx),
+    ...createLayerPanelActions(() => ctx),
+    ...createTemplateModelActions(() => ctx),
+    ...createEffectExportReadinessActions(() => ctx),
+
+    ...createTimeFormatActions(() => ctx),
+    ...createEditorStoreActions(() => ctx),
+    ...createEditorHistoryActions(() => ctx),
+    ...createEditorDraftActions(() => ctx),
     ...createLayerFactoryActions(),
     ...createLayerClipboardActions(() => ctx),
     ...createLayerOrderActions(() => ctx),
@@ -242,26 +320,14 @@ export function createViewerContext(): ViewerAppContext {
     dataUrlToBlob(dataUrl, fallbackMimeType) {
       return dataUrlToBlob(ctx, dataUrl, fallbackMimeType);
     },
-    createAssetBitmap(asset) {
-      return createAssetBitmap(ctx, asset);
-    },
     rasterizeSvgAsset(asset) {
       return rasterizeSvgAsset(ctx, asset);
-    },
-    createRenderAssets(template) {
-      return createRenderAssets(ctx, template);
     },
     createTimelineRowTree(template) {
       return createTimelineRowTree(ctx, template);
     },
-    normalizeScenes(scenes, duration) {
-      return normalizeScenes(ctx, scenes, duration);
-    },
     getTrackKeyframesForParent(track, scene, timeline, parent) {
       return getTrackKeyframesForParent(ctx, track, scene, timeline, parent);
-    },
-    renderCurrentFrame(options) {
-      return renderCurrentFrame(ctx, options);
     },
     syncTimelineSelection(template) {
       syncTimelineSelection(ctx, template);
@@ -281,24 +347,6 @@ export function createViewerContext(): ViewerAppContext {
     },
     getSelectedKeyframeRefs() {
       return getSelectedKeyframeRefs(ctx);
-    },
-    getEditorOverride(template) {
-      return getEditorOverride(ctx, template);
-    },
-    setEditorOverride(patch) {
-      setEditorOverride(ctx, patch);
-    },
-    getEffectiveDuration(template) {
-      return getEffectiveDuration(ctx, template);
-    },
-    getEffectiveTemplate(template) {
-      return getEffectiveTemplate(ctx, template);
-    },
-    getRenderTemplateSnapshot(template) {
-      return resolveRenderTemplateSnapshot(ctx, template);
-    },
-    getEffectiveTimeline(template) {
-      return getEffectiveTimeline(ctx, template);
     },
   };
   return ctx;

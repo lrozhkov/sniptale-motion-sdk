@@ -1379,6 +1379,29 @@ export const messages = {
         en: "Bound {file}",
         ru: "Привязан файл {file}",
       },
+      sourceFileSaved: { en: "Saved {file}", ru: "Сохранён файл {file}" },
+      templateJsonFile: { en: "Template JSON", ru: "JSON шаблона" },
+      fileSystemAccessUnavailable: {
+        en: "File System Access API unavailable; use Export JSON.",
+        ru: "Доступ к файловой системе недоступен; используйте экспорт JSON.",
+      },
+      bindCanceledOrFailed: {
+        en: "Bind canceled or failed",
+        ru: "Привязка отменена или не удалась",
+      },
+      rejectedMismatchedJson: {
+        en: "Rejected mismatched JSON",
+        ru: "Отклонён JSON другого шаблона",
+      },
+      rejectedInvalidJson: {
+        en: "Rejected invalid JSON",
+        ru: "Отклонён некорректный JSON",
+      },
+      saveFailed: { en: "Save failed", ru: "Не удалось сохранить" },
+      exportedJsonDownload: {
+        en: "Exported JSON download",
+        ru: "JSON экспортирован для скачивания",
+      },
       rendererContractCheckPending: {
         en: "Waiting for renderer contract check.",
         ru: "Ожидаем завершения проверки контракта рендерера.",

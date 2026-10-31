@@ -1,7 +1,7 @@
 export function parseSniptaleEffectFilePayload(
   source: string,
   errors: string[] = [],
-): any {
+): unknown {
   try {
     return JSON.parse(source);
   } catch (error) {

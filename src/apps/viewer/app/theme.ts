@@ -1,3 +1,5 @@
+import { bindViewerAction } from "./bind-action.js";
+import type { ThemeActions } from "./shell-contract.js";
 import type { ViewerAppContext } from "./context.js";
 
 const STORAGE_KEY = "effect-sdk-viewer-theme";
@@ -8,7 +10,7 @@ interface ApplyThemeOptions {
   persist?: boolean;
 }
 
-function getStoredTheme(ctx: ViewerAppContext) {
+function getStoredTheme() {
   try {
     const value = window.localStorage?.getItem(STORAGE_KEY);
     return THEMES.has(value ?? "") ? value : null;
@@ -17,7 +19,7 @@ function getStoredTheme(ctx: ViewerAppContext) {
   }
 }
 
-function persistTheme(theme) {
+function persistTheme(theme: string) {
   try {
     window.localStorage?.setItem(STORAGE_KEY, theme);
   } catch {
@@ -27,15 +29,12 @@ function persistTheme(theme) {
 
 function applyTheme(
   ctx: ViewerAppContext,
-  theme,
+  theme: unknown,
   options: ApplyThemeOptions = {},
 ) {
-  const nextTheme = THEMES.has(theme) ? theme : "dark";
+  const nextTheme = theme === "light" ? "light" : "dark";
   const themeChanged = ctx.state.theme !== nextTheme;
-  const snapshotPreserved =
-    themeChanged &&
-    Boolean(ctx.state.currentTemplate) &&
-    !ctx.state.playing &&
+  if (themeChanged && ctx.state.currentTemplate && !ctx.state.playing)
     preserveThemePreviewSnapshot(ctx);
   ctx.state.theme = nextTheme;
   document.documentElement.dataset.theme = nextTheme;
@@ -46,23 +45,49 @@ function applyTheme(
   if (themeChanged && ctx.state.currentTemplate) {
     const generation = (themeRenderGenerations.get(ctx) ?? 0) + 1;
     themeRenderGenerations.set(ctx, generation);
-    window.requestAnimationFrame(async () => {
-      try {
-        if (ctx.state.theme === nextTheme) {
-          await ctx.renderCurrentFrame({ forceFull: true });
-        }
-      } finally {
-        if (
-          snapshotPreserved &&
-          themeRenderGenerations.get(ctx) === generation
-        ) {
-          await waitForThemePreviewPaint();
-          if (themeRenderGenerations.get(ctx) === generation) {
-            ctx.refs.themePreviewSnapshotCanvas.hidden = true;
-          }
-        }
-      }
+    const source = ctx.state.currentTemplate;
+    window.requestAnimationFrame(() => {
+      void refreshThemePreview(ctx, nextTheme, source, generation).catch(
+        (error: unknown) => {
+          if (
+            themeRenderGenerations.get(ctx) !== generation ||
+            ctx.state.currentTemplate !== source ||
+            ctx.state.theme !== nextTheme
+          )
+            return;
+          ctx.setRenderStatus("failed");
+          if (error instanceof Error) ctx.logDiagnostic(error.message, "error");
+        },
+      );
     });
+  }
+}
+
+async function refreshThemePreview(
+  ctx: ViewerAppContext,
+  theme: string,
+  source: object,
+  generation: number,
+): Promise<void> {
+  try {
+    if (
+      themeRenderGenerations.get(ctx) !== generation ||
+      ctx.state.theme !== theme ||
+      ctx.state.currentTemplate !== source
+    )
+      return;
+    await ctx.renderCurrentFrame({ forceFull: true });
+  } finally {
+    const snapshot = ctx.refs.themePreviewSnapshotCanvas;
+    if (
+      snapshot &&
+      !snapshot.hidden &&
+      themeRenderGenerations.get(ctx) === generation
+    ) {
+      await waitForThemePreviewPaint();
+      if (themeRenderGenerations.get(ctx) === generation)
+        snapshot.hidden = true;
+    }
   }
 }
 
@@ -73,8 +98,8 @@ function waitForThemePreviewPaint(): Promise<void> {
 }
 
 function preserveThemePreviewSnapshot(ctx: ViewerAppContext): boolean {
-  const source = ctx.refs.canvas as HTMLCanvasElement;
-  const snapshot = ctx.refs.themePreviewSnapshotCanvas as HTMLCanvasElement;
+  const source = ctx.refs.canvas;
+  const snapshot = ctx.refs.themePreviewSnapshotCanvas;
   const context = snapshot?.getContext?.("2d");
   if (!source || !snapshot || !context) {
     return false;
@@ -101,7 +126,7 @@ function toggleTheme(ctx: ViewerAppContext) {
 }
 
 function initializeTheme(ctx: ViewerAppContext) {
-  ctx.applyTheme(getStoredTheme(ctx) ?? "dark", {
+  ctx.applyTheme(getStoredTheme() ?? "dark", {
     persist: false,
   });
 }
@@ -118,9 +143,13 @@ function syncThemeButton(ctx: ViewerAppContext) {
   );
 }
 
-export function installAppThemeOwner(ctx: ViewerAppContext): void {
-  ctx.applyTheme = applyTheme.bind(undefined, ctx);
-  ctx.toggleTheme = toggleTheme.bind(undefined, ctx);
-  ctx.initializeTheme = initializeTheme.bind(undefined, ctx);
-  ctx.syncThemeButton = syncThemeButton.bind(undefined, ctx);
+export function createThemeActions(
+  getContext: () => ViewerAppContext,
+): ThemeActions {
+  return {
+    applyTheme: bindViewerAction(applyTheme, getContext),
+    toggleTheme: bindViewerAction(toggleTheme, getContext),
+    initializeTheme: bindViewerAction(initializeTheme, getContext),
+    syncThemeButton: bindViewerAction(syncThemeButton, getContext),
+  };
 }

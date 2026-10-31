@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  EffectFileActions,
+  EffectImportOptions,
+  EffectImportResult,
+} from "./contract.js";
+import { readEditorTemplateSource } from "../templates/source.js";
+import { parseViewerSandboxMessage } from "../transport/message-boundary.js";
 import { DOM_MOTION_SCHEMA } from "../../../sdk/dom-motion/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isEffectV1ExportableTemplate } from "./builder.js";
@@ -50,7 +58,8 @@ function exportCurrentEffectFile(ctx: ViewerAppContext) {
 }
 
 async function importSelectedEffectFile(ctx: ViewerAppContext) {
-  const files = Array.from(ctx.refs.effectFileInput.files ?? []) as File[];
+  const files = Array.from(ctx.refs.effectFileInput.files ?? []);
+  const firstFile = files[0];
   ctx.refs.effectFileInput.value = "";
   if (files.length === 0) {
     return;
@@ -58,9 +67,9 @@ async function importSelectedEffectFile(ctx: ViewerAppContext) {
   try {
     if (
       files.length === 1 &&
-      files[0].name.endsWith(".sniptale-dom-motion.json")
+      firstFile?.name.endsWith(".sniptale-dom-motion.json")
     ) {
-      await ctx.importDomMotionSource(JSON.parse(await files[0].text()));
+      await ctx.importDomMotionSource(JSON.parse(await firstFile.text()));
       return;
     }
     const prepared = await materializeEffectImportFiles(files);
@@ -77,10 +86,10 @@ async function importSelectedEffectFile(ctx: ViewerAppContext) {
 
 async function importEffectFileSource(
   ctx: ViewerAppContext,
-  source,
+  source: unknown,
   sourceName = "imported.sniptale-effect.json",
-  options: any = {},
-) {
+  options: EffectImportOptions = {},
+): Promise<EffectImportResult> {
   try {
     const value: unknown =
       typeof source === "string" ? JSON.parse(source) : source;
@@ -93,7 +102,15 @@ async function importEffectFileSource(
       return await ctx.importDomMotionSource(value, options.select !== false);
   } catch (error) {
     if (typeof source === "string" && source.includes(DOM_MOTION_SCHEMA))
-      return { ok: false, errors: [String(error)], templateId: null };
+      return {
+        ok: false,
+        errors: [
+          error instanceof Error
+            ? error.message
+            : "Invalid DOM motion document",
+        ],
+        templateId: null,
+      };
   }
   let verifiedSource: string;
   try {
@@ -137,9 +154,12 @@ async function importEffectFileSource(
     [],
     {
       normalizePresets: ctx.deps.normalizePresets,
-      normalizeScenes: ctx.normalizeScenes,
+      normalizeScenes: (scenes, duration) =>
+        ctx.normalizeScenes(scenes, duration),
     },
   );
+  if (!normalizedEffectFile)
+    throw new Error("Effect document normalization failed.");
   const importedTemplate = ctx.deps.deepClone(normalizedEffectFile.template);
   const moduleId = ctx.createUniqueModuleId(`${uniqueTemplateId}-document`);
   const remapped = remapImportedEffectIdentity(
@@ -167,7 +187,10 @@ async function importEffectFileSource(
       id: moduleId,
       path: sourceName,
     });
-    ctx.state.templates = [...ctx.state.templates, importedTemplate];
+    ctx.state.templates = [
+      ...ctx.state.templates,
+      readEditorTemplateSource(importedTemplate),
+    ];
     ctx.populateTemplates(ctx.state.templates);
     ctx.logDiagnostic(`Imported ${sourceName} as ${uniqueTemplateId}.`, "ok");
     ctx.refs.timelineSaveStatus.textContent = `Imported ${sourceName}`;
@@ -187,7 +210,7 @@ async function preflightImportedDocument(
   document: unknown,
 ): Promise<void> {
   if (!ctx.state.sandboxReady) return;
-  const result = await ctx.requestSandbox(
+  const response: unknown = await ctx.requestSandbox(
     {
       document,
       kind: "validateEffectDocument",
@@ -195,6 +218,9 @@ async function preflightImportedDocument(
     },
     ctx.deps.DEFAULT_LOAD_TIMEOUT_MS,
   );
+  const result = parseViewerSandboxMessage(response);
+  if (result?.kind !== "validateEffectDocumentResult")
+    throw new Error("Invalid sandbox document validation response.");
   if (!result.ok) {
     throw new Error(result.error ?? "Sandbox rejected the Effect document.");
   }
@@ -209,7 +235,10 @@ function captureImportState(ctx: ViewerAppContext) {
   };
 }
 
-function restoreImportState(ctx: ViewerAppContext, previous: any): void {
+function restoreImportState(
+  ctx: ViewerAppContext,
+  previous: ReturnType<typeof captureImportState>,
+): void {
   ctx.state.assets = previous.assets;
   ctx.state.baseAssets = previous.baseAssets;
   ctx.state.modules = previous.modules;
@@ -224,7 +253,10 @@ function mergeMaps<T>(
   return new Map([...base, ...added]);
 }
 
-function validateCurrentEffectFileSource(ctx: ViewerAppContext, source) {
+function validateCurrentEffectFileSource(
+  ctx: ViewerAppContext,
+  source: unknown,
+) {
   return ctx.deps.validateSniptaleEffectFileSource(source, {
     collectTemplateErrors: (template, knownAssetIds) =>
       ctx.collectEditorValidationErrors(template, knownAssetIds, {
@@ -233,13 +265,16 @@ function validateCurrentEffectFileSource(ctx: ViewerAppContext, source) {
     existingAssetIds: ctx.state.assets.keys(),
     isSafeSvgAssetText: ctx.deps.isSafeSvgAssetText,
     normalizePresets: ctx.deps.normalizePresets,
-    normalizeScenes: ctx.normalizeScenes,
+    normalizeScenes: (scenes, duration) =>
+      ctx.normalizeScenes(scenes, duration),
   });
 }
 
 function buildCurrentEffectFile(ctx: ViewerAppContext) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  const module = ctx.state.modules.get(template?.moduleId);
+  const module = template?.moduleId
+    ? ctx.state.modules.get(template.moduleId)
+    : undefined;
   return ctx.deps.buildEffectFileSource({
     assets: ctx.state.assets,
     controlValues: ctx.state.controls,
@@ -248,15 +283,29 @@ function buildCurrentEffectFile(ctx: ViewerAppContext) {
   });
 }
 
-export function installEffectFileImportExportOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.exportCurrentEffectFile = exportCurrentEffectFile.bind(undefined, ctx);
-  ctx.importSelectedEffectFile = importSelectedEffectFile.bind(undefined, ctx);
-  ctx.importEffectFileSource = importEffectFileSource.bind(undefined, ctx);
-  ctx.validateCurrentEffectFileSource = validateCurrentEffectFileSource.bind(
-    undefined,
-    ctx,
-  );
-  ctx.buildCurrentEffectFile = buildCurrentEffectFile.bind(undefined, ctx);
+export function createEffectFileActions(
+  getContext: () => ViewerAppContext,
+): Omit<EffectFileActions, "bootstrapLocalEffects"> {
+  return {
+    exportCurrentEffectFile: bindViewerAction(
+      exportCurrentEffectFile,
+      getContext,
+    ),
+    importSelectedEffectFile: bindViewerAction(
+      importSelectedEffectFile,
+      getContext,
+    ),
+    importEffectFileSource: bindViewerAction(
+      importEffectFileSource,
+      getContext,
+    ),
+    validateCurrentEffectFileSource: bindViewerAction(
+      validateCurrentEffectFileSource,
+      getContext,
+    ),
+    buildCurrentEffectFile: bindViewerAction(
+      buildCurrentEffectFile,
+      getContext,
+    ),
+  };
 }

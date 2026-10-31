@@ -1,3 +1,6 @@
+import type { ViewerAsset } from "./state.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { ViewerSelection } from "../timeline/model/selection-model.js";
 import {
   formatAssetMeta,
   getAssetPreviewUrl,
@@ -11,21 +14,24 @@ type AssetPanelLabels = {
 };
 
 type AssetPanelOptions = {
-  assets: Map<string, any>;
+  assets: ReadonlyMap<string, ViewerAsset>;
   container: HTMLElement;
-  effectiveTemplate: any;
-  onAddAssetLayer: (asset: any) => void;
+  effectiveTemplate: {
+    assets?: readonly string[];
+    layers?: readonly Record<string, unknown>[];
+  } | null;
+  onAddAssetLayer: (asset: ViewerAsset) => void;
   onRemoveAsset: (assetId: string) => void;
   onRenameAssetPath: (assetId: string, path: string) => void;
   onReplaceAsset: (assetId: string) => void;
   onSelectAsset: (assetId: string) => void;
-  selectedItem: any;
-  template: any;
+  selectedItem: ViewerSelection | null;
+  template: EditorTimelineSource | null;
   translate: AssetPanelTranslate;
 };
 
 export type AssetPanelItem = {
-  asset: any;
+  asset: ViewerAsset | undefined;
   assetId: string;
   draggable: boolean;
   meta: string;
@@ -37,18 +43,19 @@ export type AssetPanelItem = {
 };
 
 export function buildAssetPanelItems(options: {
-  assets: Map<string, any>;
-  effectiveTemplate: any;
+  assets: ReadonlyMap<string, ViewerAsset>;
+  effectiveTemplate: {
+    assets?: readonly string[];
+    layers?: readonly Record<string, unknown>[];
+  } | null;
   labels?: Partial<AssetPanelLabels>;
-  selectedItem: any;
+  selectedItem: ViewerSelection | null;
 }): AssetPanelItem[] {
   const labels = {
     missingAsset: options.labels?.missingAsset ?? "missing asset",
     used: options.labels?.used ?? "used",
   };
-  const assetIds = Array.isArray(options.effectiveTemplate?.assets)
-    ? options.effectiveTemplate.assets
-    : [];
+  const assetIds = options.effectiveTemplate?.assets ?? [];
   return assetIds.map((assetId) => {
     const asset = options.assets.get(assetId);
     const usageCount = getAssetUsageCount(options.effectiveTemplate, assetId);

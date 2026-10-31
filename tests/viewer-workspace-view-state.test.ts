@@ -1,10 +1,40 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   captureCompositionWorkspaceView,
   restoreCompositionWorkspaceView,
 } from "../src/apps/viewer/templates/workspace-view-state";
 
 describe("composition workspace view state", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  for (const change of ["source", "generation", "stored-view"] as const) {
+    it(`does not restore stale scroll state after ${change} changes`, () => {
+      const ctx = createContext();
+      const frames: FrameRequestCallback[] = [];
+      vi.stubGlobal(
+        "requestAnimationFrame",
+        (callback: FrameRequestCallback) => {
+          frames.push(callback);
+          return frames.length;
+        },
+      );
+      captureCompositionWorkspaceView(ctx);
+      const source = ctx.state.currentTemplate;
+      expect(restoreCompositionWorkspaceView(ctx, source)).toBe(true);
+      ctx.refs.timelineTracks.scrollTop = 4;
+      ctx.refs.stageWrap.scrollLeft = 5;
+      ctx.refs.stageWrap.scrollTop = 6;
+      if (change === "source") ctx.state.currentTemplate = { id: "beta" };
+      if (change === "generation") ctx.state.templateSelectionGeneration += 1;
+      if (change === "stored-view") captureCompositionWorkspaceView(ctx);
+      frames[0]?.(0);
+      expect(ctx.refs.timelineTracks.scrollTop).toBe(4);
+      expect(ctx.refs.stageWrap.scrollLeft).toBe(5);
+      expect(ctx.refs.stageWrap.scrollTop).toBe(6);
+      expect(ctx.renderCanvasIsolationBreadcrumb).not.toHaveBeenCalled();
+      expect(ctx.updateCanvasSelectionBox).not.toHaveBeenCalled();
+    });
+  }
+
   it("restores canvas, timeline, tree, graph, and isolation view per composition", () => {
     const ctx = createContext();
     const requestAnimationFrame = vi.fn((callback) => callback());
@@ -79,6 +109,7 @@ function createContext(): any {
       canvasIsolationGroupId: "compose",
       compositionWorkspaceViews: new Map(),
       currentTemplate,
+      templateSelectionGeneration: 0,
       expandedSceneIds: new Set(["main"]),
       expandedTimelineRowIds: new Set(["scene:main", "group:main:compose"]),
       graphEditorEnabled: true,

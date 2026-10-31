@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EffectFileActions } from "./contract.js";
 import { getStudioSession } from "./local-catalog.js";
 import type { ViewerAppContext } from "../app/context.js";
 
@@ -64,6 +66,10 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
   return true;
 }
 
-export function installLocalEffectStartupOwner(ctx: ViewerAppContext): void {
-  ctx.bootstrapLocalEffects = bootstrapLocalEffects.bind(undefined, ctx);
+export function createLocalEffectStartupActions(
+  getContext: () => ViewerAppContext,
+): Pick<EffectFileActions, "bootstrapLocalEffects"> {
+  return {
+    bootstrapLocalEffects: bindViewerAction(bootstrapLocalEffects, getContext),
+  };
 }

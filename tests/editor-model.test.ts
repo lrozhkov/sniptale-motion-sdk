@@ -12,6 +12,7 @@ import {
 } from "../src/apps/viewer/editor/history";
 import {
   appendCopyLabel,
+  deepClone,
   buildControlsWithDefaults,
   createUniquePresetId,
   normalizePresets,
@@ -20,6 +21,21 @@ import {
 } from "../src/apps/viewer/editor/model";
 
 describe("viewer editor model", () => {
+  it("clones typed state without erasing values through JSON serialization", () => {
+    const source = {
+      fields: { optional: undefined },
+      bytes: new Uint8Array([1, 2]),
+      time: new Date(0),
+    };
+    const cloned = deepClone(source);
+    cloned.bytes[0] = 9;
+    cloned.time.setTime(1000);
+    expect(source.bytes[0]).toBe(1);
+    expect(source.time.getTime()).toBe(0);
+    expect(cloned.fields).toHaveProperty("optional", undefined);
+    expect(deepClone(undefined)).toBeUndefined();
+  });
+
   it("preserves preset timeline timing and extension fields without normalization", () => {
     const timeline = {
       phases: [{ id: "short", duration: 0.02, start: 0.001 }],

@@ -6,35 +6,36 @@ import {
 } from "../app/constants.js";
 
 export function validateEffectFileAssetPayload(
-  asset: any,
+  asset: unknown,
   errors: string[],
   options: { isSafeSvgAssetText?: (svgText: unknown) => boolean } = {},
 ): void {
-  const assetId = asset?.id ?? "(missing)";
-  if (!asset || typeof asset !== "object") {
+  if (!isRecord(asset)) {
     errors.push("Effect file asset entry must be an object");
     return;
   }
+  const assetId = typeof asset.id === "string" ? asset.id : "(missing)";
   if (!isSafeLocalAssetPath(asset.path)) {
     errors.push(
-      `Effect file asset "${assetId}" has unsafe path "${asset.path}"`,
+      `Effect file asset "${assetId}" has unsafe path "${describeValue(asset.path)}"`,
     );
   }
   if (
     asset.mimeType != null &&
-    !SUPPORTED_AUTHOR_ASSET_TYPES.has(asset.mimeType)
+    (typeof asset.mimeType !== "string" ||
+      !SUPPORTED_AUTHOR_ASSET_TYPES.has(asset.mimeType))
   ) {
     errors.push(
-      `Effect file asset "${assetId}" has unsupported mime type "${asset.mimeType}"`,
+      `Effect file asset "${assetId}" has unsupported mime type "${describeValue(asset.mimeType)}"`,
     );
   }
-  if (asset.kind != null && !["image", "svg"].includes(asset.kind)) {
+  if (asset.kind != null && asset.kind !== "image" && asset.kind !== "svg") {
     errors.push(
-      `Effect file asset "${assetId}" has unsupported kind "${asset.kind}"`,
+      `Effect file asset "${assetId}" has unsupported kind "${describeValue(asset.kind)}"`,
     );
   }
-  const width = Number(asset.width);
-  const height = Number(asset.height);
+  const width = typeof asset.width === "number" ? asset.width : NaN;
+  const height = typeof asset.height === "number" ? asset.height : NaN;
   if (
     Number.isFinite(width) &&
     Number.isFinite(height) &&
@@ -58,12 +59,18 @@ export function validateEffectFileAssetPayload(
     }
   }
   if (asset.dataUrl != null) {
-    if (!/^data:image\/(?:png|jpeg|webp);base64,/i.test(asset.dataUrl)) {
+    if (
+      typeof asset.dataUrl !== "string" ||
+      !/^data:image\/(?:png|jpeg|webp);base64,/i.test(asset.dataUrl)
+    ) {
       errors.push(
         `Effect file asset "${assetId}" has unsupported embedded image data`,
       );
     }
-    if (asset.dataUrl.length > MAX_ASSET_BYTES * 2) {
+    if (
+      typeof asset.dataUrl === "string" &&
+      asset.dataUrl.length > MAX_ASSET_BYTES * 2
+    ) {
       errors.push(
         `Effect file asset "${assetId}" embedded image data is too large`,
       );
@@ -72,4 +79,11 @@ export function validateEffectFileAssetPayload(
   if (asset.mimeType === "image/svg+xml" && !asset.svgText) {
     errors.push(`Effect file asset "${assetId}" is missing SVG text`);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function describeValue(value: unknown): string {
+  return typeof value === "string" ? value : "(invalid)";
 }

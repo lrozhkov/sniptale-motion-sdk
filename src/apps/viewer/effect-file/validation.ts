@@ -1,6 +1,5 @@
 import { parseEffectV1Source } from "../../../sdk/effect-v1/index.js";
 import { normalizeEffectFilePayload } from "./validation-normalization.js";
-import { parseSniptaleEffectFilePayload } from "./validation-parser.js";
 import type {
   EffectFileValidationResult,
   ValidateEffectFileOptions,
@@ -33,7 +32,7 @@ export function validateSniptaleEffectFile(
     const normalized = normalizeEffectFilePayload(payload, errors, options);
     if (normalized) {
       const knownAssetIds = new Set<string>(
-        normalized.assets.map((asset: any) => String(asset.id)),
+        normalized.assets.map((asset) => asset.id),
       );
       errors.push(
         ...(options.collectTemplateErrors?.(

@@ -1,8 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { AssetPanelActions } from "./contract.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function handleAssetDragOver(ctx: ViewerAppContext, event) {
+function handleAssetDragOver(event: DragEvent): void {
   if (
-    Array.from(event.dataTransfer?.types ?? []).includes(
+    event.dataTransfer &&
+    Array.from(event.dataTransfer.types).includes(
       "application/x-sniptale-asset",
     )
   ) {
@@ -11,7 +15,7 @@ function handleAssetDragOver(ctx: ViewerAppContext, event) {
   }
 }
 
-function handleAssetDrop(ctx: ViewerAppContext, event) {
+function handleAssetDrop(ctx: ViewerAppContext, event: DragEvent): void {
   const assetId = event.dataTransfer?.getData("application/x-sniptale-asset");
   if (!assetId) {
     return;
@@ -28,28 +32,28 @@ function handleAssetDrop(ctx: ViewerAppContext, event) {
 
 function renderAssetsPanel(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   ctx.deps.renderAssetsPanelView({
     assets: ctx.state.assets,
     container: ctx.refs.assetsPanel,
     effectiveTemplate: ctx.getEffectiveTemplate(template),
     onAddAssetLayer: ctx.addAssetLayer,
-    onRemoveAsset: ctx.removeAssetIfUnused,
-    onRenameAssetPath: ctx.renameAssetPath,
+    onRemoveAsset: (id) => ctx.removeAssetIfUnused(id),
+    onRenameAssetPath: (id, path) => ctx.renameAssetPath(id, path),
     onReplaceAsset(assetId) {
       ctx.selectAsset(assetId);
       ctx.state.pendingAssetReplaceId = assetId;
       ctx.refs.replaceAssetInput.click();
     },
-    onSelectAsset: ctx.selectAsset,
+    onSelectAsset: (id) => ctx.selectAsset(id),
     selectedItem: ctx.state.selectedItem,
     template,
     translate: ctx.deps.t,
   });
 }
 
-function selectAsset(ctx: ViewerAppContext, assetId) {
+function selectAsset(ctx: ViewerAppContext, assetId: string): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template?.assets?.includes(assetId)) {
     return;
@@ -65,7 +69,11 @@ function selectAsset(ctx: ViewerAppContext, assetId) {
   ctx.updateCanvasSelectionBox();
 }
 
-function renameAssetPath(ctx: ViewerAppContext, assetId, path) {
+function renameAssetPath(
+  ctx: ViewerAppContext,
+  assetId: string,
+  path: string,
+): void {
   const asset = ctx.state.assets.get(assetId);
   if (!asset) {
     return;
@@ -84,7 +92,7 @@ function renameAssetPath(ctx: ViewerAppContext, assetId, path) {
   );
 }
 
-function removeAssetIfUnused(ctx: ViewerAppContext, assetId) {
+function removeAssetIfUnused(ctx: ViewerAppContext, assetId: string): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template || !ctx.state.assets.has(assetId)) {
     return;
@@ -118,11 +126,15 @@ function removeAssetIfUnused(ctx: ViewerAppContext, assetId) {
   });
 }
 
-export function installAssetsPanelControllerOwner(ctx: ViewerAppContext): void {
-  ctx.handleAssetDragOver = handleAssetDragOver.bind(undefined, ctx);
-  ctx.handleAssetDrop = handleAssetDrop.bind(undefined, ctx);
-  ctx.renderAssetsPanel = renderAssetsPanel.bind(undefined, ctx);
-  ctx.selectAsset = selectAsset.bind(undefined, ctx);
-  ctx.renameAssetPath = renameAssetPath.bind(undefined, ctx);
-  ctx.removeAssetIfUnused = removeAssetIfUnused.bind(undefined, ctx);
+export function createAssetPanelActions(
+  getContext: () => ViewerAppContext,
+): AssetPanelActions {
+  return {
+    handleAssetDragOver,
+    handleAssetDrop: bindViewerAction(handleAssetDrop, getContext),
+    renderAssetsPanel: bindViewerAction(renderAssetsPanel, getContext),
+    selectAsset: bindViewerAction(selectAsset, getContext),
+    renameAssetPath: bindViewerAction(renameAssetPath, getContext),
+    removeAssetIfUnused: bindViewerAction(removeAssetIfUnused, getContext),
+  };
 }

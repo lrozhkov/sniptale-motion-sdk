@@ -1,6 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import { readPickedJsonHandle, readWritableFile } from "./file-system.js";
+import type { JsonBindingActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-async function bindTemplateSourceJson(ctx: ViewerAppContext) {
+export async function bindTemplateSourceJson(
+  ctx: JsonBindContext,
+): Promise<void> {
   if (!ctx.state.currentTemplate || !window.showOpenFilePicker) {
     ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
       "viewer.status.fileSystemAccessUnavailable",
@@ -12,44 +17,70 @@ async function bindTemplateSourceJson(ctx: ViewerAppContext) {
     );
     return;
   }
+  const source = ctx.state.currentTemplate;
+  const generation = ctx.state.templateSelectionGeneration;
+  const isCurrent = () =>
+    ctx.state.currentTemplate === source &&
+    ctx.state.templateSelectionGeneration === generation;
   try {
-    const [handle] = await window.showOpenFilePicker({
+    const picked: unknown = await window.showOpenFilePicker({
       multiple: false,
       types: [
         {
           accept: { "application/json": [".json"] },
-          description: "Template JSON",
+          description: ctx.deps.t(
+            "viewer.status.templateJsonFile",
+            "Template JSON",
+          ),
         },
       ],
     });
-    const text = await (await handle.getFile()).text();
-    const parsed = JSON.parse(text);
+    if (!isCurrent()) return;
+    const handle = readPickedJsonHandle(picked);
+    const file: unknown = await handle.getFile();
+    if (!isCurrent()) return;
+    if (!(file instanceof File)) throw new Error("Invalid picked file.");
+    const text: unknown = await file.text();
+    if (!isCurrent()) return;
+    if (typeof text !== "string")
+      throw new Error("Invalid picked file content.");
+    const parsed: unknown = JSON.parse(text);
     if (!ctx.validateBoundTemplateJson(parsed)) {
       return;
     }
     ctx.state.templateFileHandle = handle;
     ctx.refs.saveJsonButton.disabled = false;
-    ctx.refs.timelineSaveStatus.textContent = `Bound ${handle.name}`;
+    ctx.refs.timelineSaveStatus.textContent = ctx.deps
+      .t("viewer.status.sourceFileBound", "Bound {file}")
+      .replace("{file}", handle.name);
     ctx.logDiagnostic(`Bound template source ${handle.name}.`, "ok");
   } catch (error) {
+    if (!isCurrent()) return;
     ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
       "viewer.status.bindCanceledOrFailed",
       "Bind canceled or failed",
     );
     ctx.logDiagnostic(
-      `Bind JSON failed: ${error instanceof Error ? error.message : String(error)}`,
+      `Bind JSON failed: ${error instanceof Error ? error.message : "Unknown file error"}`,
       "error",
     );
   }
 }
 
-function validateBoundTemplateJson(ctx: ViewerAppContext, parsed) {
-  if (
-    !ctx.state.currentTemplate ||
-    parsed?.id !== ctx.state.currentTemplate.id
-  ) {
+function validateBoundTemplateJson(
+  ctx: ViewerAppContext,
+  parsed: unknown,
+): boolean {
+  const id =
+    parsed !== null &&
+    typeof parsed === "object" &&
+    "id" in parsed &&
+    typeof parsed.id === "string"
+      ? parsed.id
+      : null;
+  if (!ctx.state.currentTemplate || id !== ctx.state.currentTemplate.id) {
     ctx.logDiagnostic(
-      `Bound JSON id ${parsed?.id ?? "(missing)"} does not match ${ctx.state.currentTemplate?.id ?? "(none)"}.`,
+      `Bound JSON id ${id ?? "(missing)"} does not match ${ctx.state.currentTemplate?.id ?? "(none)"}.`,
       "error",
     );
     ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
@@ -71,26 +102,51 @@ function validateBoundTemplateJson(ctx: ViewerAppContext, parsed) {
   return true;
 }
 
-async function saveBoundTemplateJson(ctx: ViewerAppContext) {
-  if (!ctx.state.currentTemplate || !ctx.state.templateFileHandle) {
-    return;
-  }
-  if (!ctx.assertExportable("Save blocked")) {
-    return;
-  }
+export async function saveBoundTemplateJson(
+  ctx: JsonSaveContext,
+): Promise<void> {
+  const source = ctx.state.currentTemplate;
+  const handle = ctx.state.templateFileHandle;
+  if (!source || !handle || !ctx.assertExportable("Save blocked")) return;
+  const generation = ctx.state.templateSelectionGeneration;
+  const isCurrent = () =>
+    ctx.state.currentTemplate === source &&
+    ctx.state.templateFileHandle === handle &&
+    ctx.state.templateSelectionGeneration === generation;
+  let writable: FileSystemWritableFileStream | null = null;
   try {
-    const writable = await ctx.state.templateFileHandle.createWritable();
-    await writable.write(ctx.buildCurrentTemplateJson());
+    const json = ctx.buildCurrentTemplateJson();
+    const created: unknown = await handle.createWritable();
+    writable = readWritableFile(created);
+    if (!isCurrent()) {
+      await writable.abort();
+      return;
+    }
+    await writable.write(json);
+    if (!isCurrent()) {
+      await writable.abort();
+      return;
+    }
     await writable.close();
-    ctx.refs.timelineSaveStatus.textContent = `Saved ${ctx.state.templateFileHandle.name}`;
-    ctx.logDiagnostic(`Saved ${ctx.state.templateFileHandle.name}.`, "ok");
+    writable = null;
+    if (!isCurrent()) return;
+    ctx.refs.timelineSaveStatus.textContent = ctx.deps
+      .t("viewer.status.sourceFileSaved", "Saved {file}")
+      .replace("{file}", handle.name);
+    ctx.logDiagnostic(`Saved ${handle.name}.`, "ok");
   } catch (error) {
+    if (writable) {
+      try {
+        await writable.abort();
+      } catch {}
+    }
+    if (!isCurrent()) return;
     ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
       "viewer.status.saveFailed",
       "Save failed",
     );
     ctx.logDiagnostic(
-      `Save JSON failed: ${error instanceof Error ? error.message : String(error)}`,
+      `Save JSON failed: ${error instanceof Error ? error.message : "Unknown file error"}`,
       "error",
     );
   }
@@ -118,7 +174,7 @@ function exportCurrentTemplateJson(ctx: ViewerAppContext) {
   return json;
 }
 
-function createUniqueTemplateId(ctx: ViewerAppContext, baseId) {
+function createUniqueTemplateId(ctx: ViewerAppContext, baseId: string): string {
   const safeBase = ctx.sanitizeIdentifier(baseId || "imported-effect");
   let candidate = `${safeBase}-import`;
   let suffix = 2;
@@ -135,7 +191,23 @@ function buildCurrentTemplateJson(ctx: ViewerAppContext) {
   );
 }
 
-export function wireEffectFileJsonBindingActions(ctx: ViewerAppContext): void {
+type JsonActionButton = {
+  addEventListener(type: "click", handler: () => void): void;
+};
+type JsonActionContext = Pick<
+  JsonBindingActions,
+  | "bindTemplateSourceJson"
+  | "saveBoundTemplateJson"
+  | "exportCurrentTemplateJson"
+> & {
+  refs: {
+    bindJsonButton: JsonActionButton;
+    saveJsonButton: JsonActionButton;
+    exportJsonButton: JsonActionButton;
+  };
+};
+
+export function wireEffectFileJsonBindingActions(ctx: JsonActionContext): void {
   ctx.refs.bindJsonButton.addEventListener("click", () => {
     void ctx.bindTemplateSourceJson();
   });
@@ -147,21 +219,55 @@ export function wireEffectFileJsonBindingActions(ctx: ViewerAppContext): void {
   });
 }
 
-export function installEffectFileJsonBindingOwner(ctx: ViewerAppContext): void {
-  ctx.bindTemplateSourceJson = bindTemplateSourceJson.bind(undefined, ctx);
-  ctx.validateBoundTemplateJson = validateBoundTemplateJson.bind(
-    undefined,
-    ctx,
-  );
-  ctx.saveBoundTemplateJson = saveBoundTemplateJson.bind(undefined, ctx);
-  ctx.exportCurrentTemplateJson = exportCurrentTemplateJson.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createUniqueTemplateId = createUniqueTemplateId.bind(undefined, ctx);
-  ctx.buildCurrentTemplateJson = buildCurrentTemplateJson.bind(undefined, ctx);
-  ctx.wireEffectFileJsonBindingActions = wireEffectFileJsonBindingActions.bind(
-    undefined,
-    ctx,
-  );
+export function createJsonBindingActions(
+  getContext: () => ViewerAppContext,
+): JsonBindingActions {
+  return {
+    bindTemplateSourceJson: bindViewerAction(
+      bindTemplateSourceJson,
+      getContext,
+    ),
+    validateBoundTemplateJson: bindViewerAction(
+      validateBoundTemplateJson,
+      getContext,
+    ),
+    saveBoundTemplateJson: bindViewerAction(saveBoundTemplateJson, getContext),
+    exportCurrentTemplateJson: bindViewerAction(
+      exportCurrentTemplateJson,
+      getContext,
+    ),
+    createUniqueTemplateId: bindViewerAction(
+      createUniqueTemplateId,
+      getContext,
+    ),
+    buildCurrentTemplateJson: bindViewerAction(
+      buildCurrentTemplateJson,
+      getContext,
+    ),
+    wireEffectFileJsonBindingActions: bindViewerAction(
+      wireEffectFileJsonBindingActions,
+      getContext,
+    ),
+  };
 }
+
+type JsonBindingState = Pick<
+  ViewerAppContext["state"],
+  "currentTemplate" | "templateSelectionGeneration" | "templateFileHandle"
+>;
+type JsonBindingSupport = {
+  state: JsonBindingState;
+  refs: {
+    timelineSaveStatus: { textContent: string | null; title: string };
+    saveJsonButton: { disabled: boolean };
+  };
+  deps: { t(key: string, fallback?: string): string };
+  logDiagnostic(message: string, level?: string): void;
+};
+type JsonBindContext = JsonBindingSupport & {
+  validateBoundTemplateJson(parsed: unknown): boolean;
+};
+type JsonSaveContext = JsonBindingSupport & {
+  assertExportable(prefix: string): boolean;
+  buildCurrentTemplateJson(): string;
+};

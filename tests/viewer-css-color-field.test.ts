@@ -6,6 +6,19 @@ import {
 } from "../src/apps/viewer/controls/css-color-field";
 
 describe("viewer CSS color field", () => {
+  it("rejects non-text paints without invoking foreign conversion hooks", () => {
+    const calls: string[] = [];
+    const value = {
+      toString() {
+        calls.push("text");
+        return "#abc";
+      },
+    };
+    expect(isValidCssPaint(value)).toBe(false);
+    expect(toOpaqueHex(value, "#abc")).toBe("#aabbcc");
+    expect(calls).toEqual([]);
+  });
+
   it("preserves Canvas paint values that a native color input cannot represent", () => {
     expect(isValidCssPaint("none")).toBe(true);
     expect(isValidCssPaint("rgba(255, 255, 255, 0.18)")).toBe(true);

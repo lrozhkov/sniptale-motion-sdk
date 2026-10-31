@@ -30,7 +30,8 @@ export function isSafeLocalAssetPath(path: unknown) {
   if (path == null || path === "") {
     return true;
   }
-  const value = String(path).trim();
+  if (typeof path !== "string") return false;
+  const value = path.trim();
   return (
     !/^[a-z]+:/i.test(value) &&
     !value.startsWith("/") &&

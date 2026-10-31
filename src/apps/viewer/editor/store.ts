@@ -1,3 +1,10 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  CanonicalEditorState,
+  EditorStoreActions,
+  HistoryCommitOptions,
+} from "./contract.js";
+import type { EditorCommand } from "./history.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   readEditorTimeline,
@@ -31,7 +38,11 @@ export function setEditorOverride(ctx: ViewerAppContext, patch: unknown): void {
   });
 }
 
-function applyEditorCommand(ctx: ViewerAppContext, command, mutate) {
+function applyEditorCommand<Result>(
+  ctx: ViewerAppContext,
+  command: unknown,
+  mutate: () => Result,
+): Result | null {
   if (!ctx.state.currentTemplate) {
     return null;
   }
@@ -45,7 +56,11 @@ function applyEditorCommand(ctx: ViewerAppContext, command, mutate) {
   ctx.recordEditorCommand(safeCommand);
   return result;
 }
-function beginEditorCommand(ctx: ViewerAppContext, command, options: any = {}) {
+function beginEditorCommand(
+  ctx: ViewerAppContext,
+  command: unknown,
+  options: HistoryCommitOptions = {},
+): void {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -57,13 +72,16 @@ function beginEditorCommand(ctx: ViewerAppContext, command, options: any = {}) {
   ctx.commitHistory(safeCommand.type, options);
   ctx.recordEditorCommand(safeCommand);
 }
-function recordEditorCommand(ctx: ViewerAppContext, command) {
+function recordEditorCommand(
+  ctx: ViewerAppContext,
+  command: EditorCommand,
+): void {
   ctx.deps.recordEditorCommandState(ctx.state, command);
 }
 function getCanonicalEditorState(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
+  template: unknown = ctx.state.currentTemplate,
+): CanonicalEditorState {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   return {
     assets: effectiveTemplate
@@ -96,10 +114,13 @@ export function getEffectiveDuration(
     template !== null && typeof template === "object" && "duration" in template
       ? template.duration
       : undefined;
-  return Number(ctx.getEditorOverride(template).duration ?? duration ?? 1);
+  const value = ctx.getEditorOverride(template).duration ?? duration ?? 1;
+  if (typeof value !== "number" || !Number.isFinite(value))
+    throw new Error("Invalid editor template duration.");
+  return value;
 }
 
-function setCurrentDuration(ctx: ViewerAppContext, duration) {
+function setCurrentDuration(ctx: ViewerAppContext, duration: number): void {
   if (!ctx.state.currentTemplate || !Number.isFinite(duration)) {
     return;
   }
@@ -132,19 +153,11 @@ export function getEffectiveTimeline(
     Number(ctx.getEffectiveDuration(template)),
   );
 }
-function setEffectiveTimeline(ctx: ViewerAppContext, timeline) {
-  if (!ctx.state.currentTemplate) {
-    return;
-  }
-  const normalized = ctx.deps.normalizeTimeline(
-    timeline,
-    ctx.getEffectiveDuration(ctx.state.currentTemplate),
-  );
-  ctx.state.timelineOverrides.set(ctx.state.currentTemplate.id, normalized);
-  ctx.renderTimelineEditor(ctx.state.currentTemplate);
-  void ctx.renderCurrentFrame();
-}
-function renderTimelineEditor(ctx: ViewerAppContext, template) {
+function renderTimelineEditor(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource | null,
+): void {
+  if (!template) return;
   const startedAt = performance.now();
   ctx.state.timelineFullEditorRenderCount += 1;
   ctx.reconcileTimelineSelection(template);
@@ -171,68 +184,36 @@ function renderTimelineEditor(ctx: ViewerAppContext, template) {
   ctx.updateExportAvailability();
   ctx.state.lastTimelineSurfaceRenderMs = performance.now() - startedAt;
 }
-function beginDurationTrim(ctx: ViewerAppContext, event) {
-  event.preventDefault();
-  event.stopPropagation();
-  const template = ctx.state.currentTemplate;
-  if (!template) {
-    return;
-  }
-  const body = event.currentTarget.closest(".timeline-lane-body");
-  const rect = body.getBoundingClientRect();
-  const startX = event.clientX;
-  const originalDuration = ctx.getEffectiveDuration(template);
-  ctx.clearTimelineSelection();
-  ctx.beginEditorCommand({
-    payload: { originalDuration },
-    type: "setDuration",
-  });
-  const onMove = (moveEvent) => {
-    const deltaTime = ctx.timelineDeltaFromPixels(
-      moveEvent.clientX - startX,
-      rect,
-      template,
-    );
-    ctx.state.dragMoved =
-      ctx.state.dragMoved || Math.abs(moveEvent.clientX - startX) > 2;
-    const nextDuration = ctx.snapDuration(
-      ctx.deps.clamp(originalDuration + deltaTime, 0.5, 120),
-    );
-    ctx.setEditorOverride({ duration: nextDuration });
-    ctx.refs.timeSlider.max = String(nextDuration);
-    ctx.refs.durationInput.value = nextDuration.toFixed(2);
-    ctx.refs.timeSlider.value = String(
-      ctx.deps.clamp(Number(ctx.refs.timeSlider.value) || 0, 0, nextDuration),
-    );
-    ctx.renderTimelineEditor(template);
-    void ctx.renderCurrentFrame();
-  };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove);
-}
-function timelineDurationPercent(ctx: ViewerAppContext, timeSpan, duration) {
+function timelineDurationPercent(timeSpan: number, duration: number): number {
   return (
     ((Number(timeSpan) || 0) / Math.max(0.001, Number(duration) || 1)) * 100
   );
 }
-function snapDuration(ctx: ViewerAppContext, duration) {
+function snapDuration(ctx: ViewerAppContext, duration: number): number {
   return ctx.deps.snapTimelineDuration(duration, {
     fps: Number(ctx.refs.fpsInput.value) || 30,
     snapMode: ctx.state.snapMode,
   });
 }
-export function installEditorStoreOwner(ctx: ViewerAppContext): void {
-  ctx.getEditorOverride = getEditorOverride.bind(undefined, ctx);
-  ctx.setEditorOverride = setEditorOverride.bind(undefined, ctx);
-  ctx.applyEditorCommand = applyEditorCommand.bind(undefined, ctx);
-  ctx.beginEditorCommand = beginEditorCommand.bind(undefined, ctx);
-  ctx.recordEditorCommand = recordEditorCommand.bind(undefined, ctx);
-  ctx.getCanonicalEditorState = getCanonicalEditorState.bind(undefined, ctx);
-  ctx.getEffectiveDuration = getEffectiveDuration.bind(undefined, ctx);
-  ctx.setCurrentDuration = setCurrentDuration.bind(undefined, ctx);
-  ctx.getEffectiveTimeline = getEffectiveTimeline.bind(undefined, ctx);
-  ctx.setEffectiveTimeline = setEffectiveTimeline.bind(undefined, ctx);
-  ctx.renderTimelineEditor = renderTimelineEditor.bind(undefined, ctx);
-  ctx.beginDurationTrim = beginDurationTrim.bind(undefined, ctx);
-  ctx.timelineDurationPercent = timelineDurationPercent.bind(undefined, ctx);
-  ctx.snapDuration = snapDuration.bind(undefined, ctx);
+export function createEditorStoreActions(
+  getContext: () => ViewerAppContext,
+): EditorStoreActions {
+  return {
+    getEditorOverride: bindViewerAction(getEditorOverride, getContext),
+    setEditorOverride: bindViewerAction(setEditorOverride, getContext),
+    getEffectiveDuration: bindViewerAction(getEffectiveDuration, getContext),
+    getEffectiveTimeline: bindViewerAction(getEffectiveTimeline, getContext),
+    applyEditorCommand: (command, mutate) =>
+      applyEditorCommand(getContext(), command, mutate),
+    beginEditorCommand: bindViewerAction(beginEditorCommand, getContext),
+    recordEditorCommand: bindViewerAction(recordEditorCommand, getContext),
+    getCanonicalEditorState: bindViewerAction(
+      getCanonicalEditorState,
+      getContext,
+    ),
+    setCurrentDuration: bindViewerAction(setCurrentDuration, getContext),
+    renderTimelineEditor: bindViewerAction(renderTimelineEditor, getContext),
+    timelineDurationPercent,
+    snapDuration: bindViewerAction(snapDuration, getContext),
+  };
 }

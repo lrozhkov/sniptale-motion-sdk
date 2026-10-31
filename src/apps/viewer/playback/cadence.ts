@@ -53,7 +53,8 @@ export function resolvePlaybackSchedulingLatencyMs(
     directFrame &&
     ctx.state.previewCacheEnabled === false &&
     isDirectLiveRenderPreferred(ctx, template) &&
-    ctx.state.directRenderEffectIds?.has?.(template.effectId) &&
+    typeof template?.effectId === "string" &&
+    ctx.state.directRenderEffectIds.has(template.effectId) &&
     ctx.state.directRenderResponsePort?.presentationSurfaceAttached,
   );
   if (ctx.state.previewCacheWarmActive) {

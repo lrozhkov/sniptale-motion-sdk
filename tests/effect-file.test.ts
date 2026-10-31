@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildEffectFileAssets,
@@ -14,15 +14,18 @@ import {
   validateSniptaleEffectFile,
 } from "../src/apps/viewer/effect-file/validation";
 import { SNIPTALE_EFFECT_FILE_SCHEMA } from "../src/apps/viewer/app/constants";
-import { installEffectFileServiceOwner } from "../src/apps/viewer/effect-file/service";
-import { installEffectFileImportExportOwner } from "../src/apps/viewer/effect-file/import-export";
+import { createEffectExportReadinessActions } from "../src/apps/viewer/effect-file/service";
+import { createEffectFileActions } from "../src/apps/viewer/effect-file/import-export";
 
 describe("Effect v1 file builder", () => {
   it("round-trips an imported display label without source-file metadata", () => {
     const template = createTemplate();
     const originalLabel = { ...template.label };
     const ctx = {} as any;
-    installEffectFileServiceOwner(ctx);
+    Object.assign(
+      ctx,
+      createEffectExportReadinessActions(() => ctx),
+    );
     template.label = ctx.appendImportedLabel(template.label);
 
     const source = buildEffectFileSource({ assets: createAssets(), template });
@@ -65,7 +68,10 @@ describe("Effect v1 file builder", () => {
         modules: new Map(),
       },
     } as any;
-    installEffectFileImportExportOwner(ctx);
+    Object.assign(
+      ctx,
+      createEffectFileActions(() => ctx),
+    );
     const source = ctx.buildCurrentEffectFile();
     const validation = validateSniptaleEffectFile(source);
 
@@ -169,6 +175,56 @@ describe("Effect v1 file builder", () => {
     ]);
   });
 
+  it("checks editor source structure before building a portable document", () => {
+    const template = createTemplate();
+    for (const patch of [
+      { duration: "2" },
+      { layers: [null] },
+      { assets: [42] },
+    ]) {
+      expect(() =>
+        buildEffectFilePayload({
+          template: { ...template, ...patch },
+          assets: createAssets(),
+        }),
+      ).toThrow(/Invalid editor template source/);
+    }
+  });
+
+  it("does not invoke conversion hooks in asset metadata", () => {
+    const calls: string[] = [];
+    const invalidNumber = {
+      valueOf() {
+        calls.push("number");
+        return 32;
+      },
+    };
+    const invalidMime = {
+      toString() {
+        calls.push("mime");
+        return "audio/wav";
+      },
+    };
+    const assets = new Map([
+      [
+        "asset",
+        {
+          id: "asset",
+          byteLength: invalidNumber,
+          width: invalidNumber,
+          height: invalidNumber,
+          duration: invalidNumber,
+          mimeType: invalidMime,
+        },
+      ],
+    ]);
+    const [asset] = buildEffectFileAssets({ assets: ["asset"] }, assets);
+    expect(asset).toMatchObject({ id: "asset", kind: "image" });
+    for (const field of ["byteLength", "width", "height", "duration"])
+      expect(asset).not.toHaveProperty(field);
+    expect(calls).toEqual([]);
+  });
+
   it("exports only strict declarative Effect v1 documents", () => {
     expect(isEffectV1ExportableTemplate({ id: "not-v1" })).toBe(false);
     expect(() =>
@@ -199,7 +255,9 @@ describe("Effect v1 file validation", () => {
     });
     const normalized = normalizeEffectFilePayload(validation.payload);
 
-    expect(parsed.schemaVersion).toBe(SNIPTALE_EFFECT_FILE_SCHEMA);
+    expect(parsed).toMatchObject({
+      schemaVersion: SNIPTALE_EFFECT_FILE_SCHEMA,
+    });
     expect(validation).toMatchObject({ errors: [], ok: true });
     expect(normalized).toMatchObject({
       document: { kind: "standalone" },
@@ -248,6 +306,29 @@ describe("Effect v1 file validation", () => {
     expect(v3.errors.join("\n")).toContain("JSON_INVALID");
     expect(v1.ok).toBe(false);
     expect(v1.errors.join("\n")).toContain("EXECUTABLE_FIELD_FORBIDDEN");
+  });
+
+  it("does not coerce unknown asset metadata during editor validation", () => {
+    const convert = vi.fn(() => {
+      throw new Error("must not coerce");
+    });
+    const unsafe = { toString: convert, valueOf: convert };
+    const errors: string[] = [];
+    validateEffectFileAssetPayload(
+      {
+        id: unsafe,
+        path: unsafe,
+        kind: unsafe,
+        mimeType: unsafe,
+        width: unsafe,
+        height: unsafe,
+        dataUrl: unsafe,
+      },
+      errors,
+    );
+    expect(errors.join("\n")).toContain("unsafe path");
+    expect(errors.join("\n")).toContain("unsupported embedded image data");
+    expect(convert).not.toHaveBeenCalled();
   });
 
   it("keeps author asset safety validation available to the editor", () => {
@@ -300,6 +381,19 @@ function createTemplate(kind = "standalone"): any {
     program: {
       commands: [
         { color: "#101820", op: "clear" },
+        ...(kind === "transition"
+          ? ["from", "to"]
+          : kind === "targetEffect"
+            ? ["source"]
+            : []
+        ).map((input) => ({
+          input,
+          op: "image",
+          x: 0,
+          y: 0,
+          width: 128,
+          height: 128,
+        })),
         {
           assetId: "asset-logo",
           height: 64,

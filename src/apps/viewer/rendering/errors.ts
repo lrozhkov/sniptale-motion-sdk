@@ -1,6 +1,6 @@
 export function resolveViewerRenderFailureMessage(
   translate: (key: string, fallback?: string) => string,
-  result: any,
+  result: { errorCode?: unknown; error?: unknown },
 ): string {
   if (result.errorCode === "BACKGROUND_RENDERER_STOPPED") {
     return translate(
@@ -14,5 +14,7 @@ export function resolveViewerRenderFailureMessage(
       "Could not prepare this frame for background rendering.",
     );
   }
-  return result.error ?? translate("viewer.rendering.failed", "Render failed.");
+  return typeof result.error === "string"
+    ? result.error
+    : translate("viewer.rendering.failed", "Render failed.");
 }

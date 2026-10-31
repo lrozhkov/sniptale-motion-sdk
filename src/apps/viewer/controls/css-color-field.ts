@@ -38,7 +38,9 @@ export function createCssColorField(
   valueInput.spellcheck = false;
   valueInput.setAttribute("aria-label", options.valueLabel);
 
-  let committedValue = String(options.value ?? "").trim();
+  let committedValue = (
+    typeof options.value === "string" ? options.value : ""
+  ).trim();
   let committedValid = isValidCssPaint(committedValue);
 
   const syncVisuals = (value: string) => {
@@ -149,7 +151,7 @@ export function createCssColorField(
 }
 
 export function isValidCssPaint(value: unknown): boolean {
-  const text = String(value ?? "").trim();
+  const text = (typeof value === "string" ? value : "").trim();
   if (!text) {
     return false;
   }
@@ -163,7 +165,7 @@ export function isValidCssPaint(value: unknown): boolean {
 }
 
 export function toOpaqueHex(value: unknown, fallback = "#000000"): string {
-  const text = String(value ?? "").trim();
+  const text = (typeof value === "string" ? value : "").trim();
   const hex = parseHexColor(text);
   if (hex) {
     return hex;
@@ -185,6 +187,7 @@ function parseHexColor(value: string): string | null {
     return null;
   }
   const digits = match[1];
+  if (!digits) return null;
   if (digits.length === 3 || digits.length === 4) {
     return `#${digits
       .slice(0, 3)

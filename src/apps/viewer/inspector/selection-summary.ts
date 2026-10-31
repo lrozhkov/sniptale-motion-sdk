@@ -4,14 +4,7 @@ import type { InspectorOverviewActions } from "./overview-contract.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
-import {
-  getTemplateArtifactTypeLabel,
-  resolveTemplateArtifactType,
-} from "../templates/artifact-type.js";
-import {
-  getTemplateBundleKindLabel,
-  resolveTemplateBundleKind,
-} from "../templates/bundle-kind.js";
+import { getTemplateBundleKindLabel } from "../templates/bundle-kind.js";
 import {
   getKeyframeDisplayLabel,
   getKeyframeEasingLabel,

@@ -100,7 +100,7 @@ export function createViewerIcon(name: ViewerIconName): SVGElement {
     height: "16",
     width: "16",
   });
-  return svg as SVGElement;
+  return svg;
 }
 
 export function setIconButton(
@@ -123,7 +123,10 @@ export function setIconButton(
   button.title = label;
 }
 
-export function installAppIconsOwner(ctx: any): void {
-  ctx.createViewerIcon = createViewerIcon;
-  ctx.setIconButton = setIconButton;
+export function createIconActions() {
+  return { createViewerIcon, setIconButton };
+}
+
+export function isViewerIconName(value: unknown): value is ViewerIconName {
+  return typeof value === "string" && Object.hasOwn(ICONS, value);
 }

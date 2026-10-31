@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { installTransportRuntimeRecoveryOwner } from "../src/apps/viewer/transport/runtime-recovery";
+import { createTransportRuntimeActions } from "../src/apps/viewer/transport/runtime-recovery";
 import { SandboxRequestTimeoutError } from "../src/apps/viewer/transport/sandbox-client";
 
 describe("viewer sandbox runtime recovery", () => {
@@ -55,7 +55,10 @@ describe("viewer sandbox runtime recovery", () => {
       clearTimeout: vi.fn(),
       location: { href: "http://127.0.0.1:4177/" },
     });
-    installTransportRuntimeRecoveryOwner(ctx);
+    Object.assign(
+      ctx,
+      createTransportRuntimeActions(() => ctx),
+    );
     try {
       await expect(
         ctx.requestSandbox(
