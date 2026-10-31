@@ -3,10 +3,7 @@ import { createRenderContext, renderSvgToCanvas } from "./render-context.js";
 import { serializeFrameBindingReads } from "./binding-reads.js";
 import { normalizeRenderResult } from "./render-result.js";
 import type { createRenderAssetCache } from "./render-asset-cache.js";
-import type {
-  createFrameCanvasPool,
-  FrameCanvasLease,
-} from "./frame-canvas-pool.js";
+import type { FrameCanvasPool, FrameCanvasLease } from "./frame-canvas-pool.js";
 import { createLogicalCanvasFactory } from "./logical-canvas.js";
 import type { createRenderModelCache } from "./render-model-cache.js";
 import type { createPreviewFrameCache } from "./preview-frame-cache.js";
@@ -32,7 +29,7 @@ export async function renderSandboxFrame(
   registry: SandboxSessionOptions["registry"],
   runtime: SandboxSessionOptions["runtime"],
   assetCache: ReturnType<typeof createRenderAssetCache>,
-  canvasPool: ReturnType<typeof createFrameCanvasPool>,
+  canvasPool: FrameCanvasPool,
   renderModelCache: ReturnType<typeof createRenderModelCache>,
   previewFrameCache: ReturnType<typeof createPreviewFrameCache>,
   previewPresenter: SandboxSessionOptions["previewPresenter"],
@@ -157,7 +154,9 @@ export async function renderSandboxFrame(
       context,
       resolvedMessage.bindingReadMode === "selection"
         ? {
-            primitiveLayerId: resolvedMessage.bindingLayerId,
+            ...(resolvedMessage.bindingLayerId === undefined
+              ? {}
+              : { primitiveLayerId: resolvedMessage.bindingLayerId }),
             selectionOnly: true,
           }
         : {},

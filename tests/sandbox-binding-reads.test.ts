@@ -1,3 +1,4 @@
+import type { RuntimeCanvas } from "../src/apps/sandbox/runtime/canvas-model";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -346,10 +347,13 @@ describe("sandbox render result normalization", () => {
       height: 720,
       width: 1280,
     };
-    const createCanvas = vi.fn(() => ({
-      getContext: () => ({ clearRect, drawImage }),
-      transferToImageBitmap: () => resizedBitmap,
-    }));
+    const createCanvas = vi.fn(
+      () =>
+        ({
+          getContext: () => ({ clearRect, drawImage, setTransform: vi.fn() }),
+          transferToImageBitmap: () => resizedBitmap,
+        }) as unknown as RuntimeCanvas,
+    );
     class TestImageBitmap {}
     Object.setPrototypeOf(sourceBitmap, TestImageBitmap.prototype);
     vi.stubGlobal("ImageBitmap", TestImageBitmap);
@@ -390,10 +394,13 @@ describe("sandbox render result normalization", () => {
       globalCompositeOperation: "lighter",
       setTransform: vi.fn(() => calls.push("transform")),
     };
-    const createCanvas = vi.fn(() => ({
-      getContext: () => context,
-      transferToImageBitmap: () => opaqueBitmap,
-    }));
+    const createCanvas = vi.fn(
+      () =>
+        ({
+          getContext: () => context,
+          transferToImageBitmap: () => opaqueBitmap,
+        }) as unknown as RuntimeCanvas,
+    );
     class TestImageBitmap {}
     Object.setPrototypeOf(sourceBitmap, TestImageBitmap.prototype);
     vi.stubGlobal("ImageBitmap", TestImageBitmap);
@@ -434,10 +441,13 @@ describe("sandbox render result normalization", () => {
     const sourceCanvas = new TestOffscreenCanvas();
     const drawImage = vi.fn();
     const fillRect = vi.fn();
-    const createCanvas = vi.fn(() => ({
-      getContext: () => ({ drawImage, fillRect, setTransform: vi.fn() }),
-      transferToImageBitmap: () => opaqueBitmap,
-    }));
+    const createCanvas = vi.fn(
+      () =>
+        ({
+          getContext: () => ({ drawImage, fillRect, setTransform: vi.fn() }),
+          transferToImageBitmap: () => opaqueBitmap,
+        }) as unknown as RuntimeCanvas,
+    );
     const previousOffscreenCanvas = globalThis.OffscreenCanvas;
     Object.assign(globalThis, { OffscreenCanvas: TestOffscreenCanvas });
     try {

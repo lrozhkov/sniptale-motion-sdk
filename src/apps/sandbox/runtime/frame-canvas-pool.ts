@@ -1,7 +1,11 @@
-type CanvasFactory = (width: number, height: number) => any;
+import type {
+  CanvasFactory,
+  CanvasSurface,
+  RuntimeCanvas,
+} from "./canvas-model.js";
 
-type CanvasPoolEntry = {
-  canvas: any;
+type CanvasPoolEntry<T extends CanvasSurface> = {
+  canvas: T;
   height: number;
   inUse: boolean;
   lastUsed: number;
@@ -10,25 +14,26 @@ type CanvasPoolEntry = {
   width: number;
 };
 
-export type FrameCanvasLease = {
-  createCanvas: CanvasFactory;
+export type FrameCanvasLease<T extends CanvasSurface = RuntimeCanvas> = {
+  createCanvas: CanvasFactory<T>;
   release: () => void;
 };
 
-export function createFrameCanvasPool(
-  createCanvas: CanvasFactory,
+export function createFrameCanvasPool<T extends CanvasSurface>(
+  createCanvas: CanvasFactory<T>,
   maxEntries = 8,
 ) {
-  const entries: CanvasPoolEntry[] = [];
+  const entries: CanvasPoolEntry<T>[] = [];
   let clock = 0;
 
-  function beginFrame(ownerKey: string): FrameCanvasLease {
-    const leased: CanvasPoolEntry[] = [];
+  function beginFrame(ownerKey: string): FrameCanvasLease<T> {
+    const leased: CanvasPoolEntry<T>[] = [];
     let released = false;
     let slot = 0;
 
     return {
       createCanvas(width, height) {
+        if (released) throw new Error("Frame canvas lease is released.");
         const normalizedWidth = normalizeDimension(width);
         const normalizedHeight = normalizeDimension(height);
         const currentSlot = slot;
@@ -85,10 +90,14 @@ export function createFrameCanvasPool(
 }
 
 function normalizeDimension(value: number): number {
-  return Math.max(1, Math.round(Number(value) || 1));
+  return Number.isFinite(value) ? Math.max(1, Math.round(value)) : 1;
 }
 
-function resetCanvas(canvas: any, width: number, height: number): void {
+function resetCanvas(
+  canvas: CanvasSurface,
+  width: number,
+  height: number,
+): void {
   if (canvas.width !== width || canvas.height !== height) {
     if (canvas.width !== width) {
       canvas.width = width;
@@ -106,9 +115,9 @@ function resetCanvas(canvas: any, width: number, height: number): void {
   canvas.width = width;
 }
 
-function retainEntry(
-  entries: CanvasPoolEntry[],
-  entry: CanvasPoolEntry,
+function retainEntry<T extends CanvasSurface>(
+  entries: CanvasPoolEntry<T>[],
+  entry: CanvasPoolEntry<T>,
   maxEntries: number,
 ): void {
   if (entries.length < maxEntries) {
@@ -116,12 +125,10 @@ function retainEntry(
     return;
   }
   let evictionIndex = -1;
-  for (let index = 0; index < entries.length; index += 1) {
-    if (
-      !entries[index].inUse &&
-      (evictionIndex < 0 ||
-        entries[index].lastUsed < entries[evictionIndex].lastUsed)
-    ) {
+  let oldest: CanvasPoolEntry<T> | undefined;
+  for (const [index, candidate] of entries.entries()) {
+    if (!candidate.inUse && (!oldest || candidate.lastUsed < oldest.lastUsed)) {
+      oldest = candidate;
       evictionIndex = index;
     }
   }
@@ -129,3 +136,7 @@ function retainEntry(
     entries.splice(evictionIndex, 1, entry);
   }
 }
+
+export type FrameCanvasPool = ReturnType<
+  typeof createFrameCanvasPool<RuntimeCanvas>
+>;
