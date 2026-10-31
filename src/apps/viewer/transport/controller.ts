@@ -112,6 +112,7 @@ async function ensureModuleLoaded(ctx: ViewerAppContext, moduleId) {
     return false;
   }
   const message = {
+    ...(module.revision === undefined ? {} : { revision: module.revision }),
     document: module.document,
     kind: "loadEffectDocument",
     moduleId,

@@ -7,7 +7,17 @@ export function createViewerStudioState(): {
     sources: Map<string, StudioEffectSelection>;
     saved: Map<string, StudioRevision>;
     busy: boolean;
+    ready: boolean;
+    discoveryFailures: Map<string, string>;
   };
 } {
-  return { studio: { sources: new Map(), saved: new Map(), busy: false } };
+  return {
+    studio: {
+      sources: new Map(),
+      saved: new Map(),
+      busy: false,
+      ready: false,
+      discoveryFailures: new Map(),
+    },
+  };
 }

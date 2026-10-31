@@ -40,7 +40,11 @@ export async function loadSandboxEffectDocument(
   message: Extract<SandboxRuntimeMessage, { kind: "loadEffectDocument" }>,
 ): Promise<void> {
   try {
-    if (!registry.loadedModules.has(message.moduleId)) {
+    if (
+      !registry.loadedModules.has(message.moduleId) ||
+      (message.revision !== undefined &&
+        registry.moduleRevisions.get(message.moduleId) !== message.revision)
+    ) {
       const validation = validateEffectV1Document(message.document);
       if (!validation.ok || !validation.document) {
         const diagnostic = validation.diagnostics[0];
@@ -52,6 +56,8 @@ export async function loadSandboxEffectDocument(
       }
       registerDocument(validation.document, registry, runtime);
       registry.loadedModules.set(message.moduleId, true);
+      if (message.revision !== undefined)
+        registry.moduleRevisions.set(message.moduleId, message.revision);
     }
     postToParent({
       compositionIds: registry.getCompositionIds(),

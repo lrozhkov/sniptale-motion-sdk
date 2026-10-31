@@ -48,6 +48,10 @@ export type ViewerRenderingState = {
   rendererContractTemplateId: string | null;
   sandboxRenderModelId: string | null;
   sandboxRenderAssetsId: string | null;
+  sandboxAssetVersions: Map<
+    string,
+    { cacheKey: string; sessionKeys: Set<string> }
+  >;
 };
 
 export function createViewerRenderingState(): ViewerRenderingState {
@@ -61,6 +65,7 @@ export function createViewerRenderingState(): ViewerRenderingState {
     rendererContractTemplateId: null,
     sandboxRenderModelId: null,
     sandboxRenderAssetsId: null,
+    sandboxAssetVersions: new Map(),
   };
 }
 
@@ -77,9 +82,12 @@ export type TransferredAsset = {
   svgVector?: SerializedSvgVectorSource | undefined;
 };
 export type RenderAssetTransfer = {
+  runtimeGeneration?: number;
+  assetVersions?: Array<{ id: string; cacheKey: string; sessionKey: string }>;
   cacheKeys: string[];
   envelope: {
     assets?: Record<string, TransferredAsset>;
+    retainedAssetIds?: string[];
     renderAssetsId: string;
   };
   transfer: ImageBitmap[];

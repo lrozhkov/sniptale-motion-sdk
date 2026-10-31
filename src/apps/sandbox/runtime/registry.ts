@@ -2,9 +2,24 @@ export function createSandboxRegistry() {
   const effects = new Map<string, any>();
   const compositions = new Map<string, any>();
   const loadedModules = new Map<string, boolean>();
+  const moduleRevisions = new Map<string, string>();
+
+  function disposePrevious(id: string): void {
+    const previous = effects.get(id) ?? compositions.get(id);
+    if (typeof previous?.dispose === "function") {
+      try {
+        previous.dispose();
+      } catch {
+        /* Registration still replaces the old definition. */
+      }
+    }
+    effects.delete(id);
+    compositions.delete(id);
+  }
 
   return {
     loadedModules,
+    moduleRevisions,
     registerEffect(definition: any) {
       if (
         !definition ||
@@ -13,6 +28,7 @@ export function createSandboxRegistry() {
       ) {
         throw new Error("registerEffect expects an id and renderFrame(ctx).");
       }
+      disposePrevious(definition.id);
       effects.set(definition.id, definition);
     },
     registerComposition(definition: any) {
@@ -25,6 +41,7 @@ export function createSandboxRegistry() {
           "registerComposition expects an id and renderFrame(ctx).",
         );
       }
+      disposePrevious(definition.id);
       compositions.set(definition.id, {
         ...definition,
         kind: "composition",
@@ -40,7 +57,7 @@ export function createSandboxRegistry() {
       return Array.from(compositions.keys());
     },
     disposeAll() {
-      for (const effect of effects.values()) {
+      for (const effect of [...effects.values(), ...compositions.values()]) {
         if (typeof effect.dispose === "function") {
           try {
             effect.dispose();
@@ -52,6 +69,7 @@ export function createSandboxRegistry() {
       effects.clear();
       compositions.clear();
       loadedModules.clear();
+      moduleRevisions.clear();
     },
   };
 }

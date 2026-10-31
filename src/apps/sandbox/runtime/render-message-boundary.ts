@@ -1,7 +1,9 @@
+import { parseRetainedAssetIds } from "../../../shared/render-asset-retention.js";
 import { hasValidSandboxRenderFields } from "./render-message-validation.js";
 
 export type SandboxRenderFrameMessage = {
   assets?: Record<string, unknown>;
+  retainedAssetIds?: string[];
   bindingLayerId?: string;
   bindingReadMode?: "contract" | "full" | "selection";
   clips?: Array<Record<string, unknown>>;
@@ -42,10 +44,16 @@ export function parseSandboxRenderFrameMessage(
   message: Record<string, unknown>,
 ): SandboxRenderFrameMessage | null {
   if (!hasValidSandboxRenderFields(message)) return null;
+  const retainedAssetIds =
+    message.retainedAssetIds === undefined
+      ? undefined
+      : parseRetainedAssetIds(message.retainedAssetIds);
+  if (retainedAssetIds === null) return null;
   const previewCacheRange = message.previewCacheRange as
     | { endFrame: number; startFrame: number }
     | undefined;
   return {
+    ...(retainedAssetIds === undefined ? {} : { retainedAssetIds }),
     ...(message.assets === undefined ? {} : { assets: message.assets }),
     ...(message.bindingLayerId === undefined
       ? {}

@@ -1,3 +1,4 @@
+import { createSvgDataUrl } from "../../../shared/svg-data-url.js";
 import { isSafeSvgText } from "../../../sdk/svg-safety.js";
 import { SUPPORTED_AUTHOR_ASSET_TYPES } from "../app/constants.js";
 
@@ -39,7 +40,7 @@ export function getAssetUsageLayers(template: any, assetId: string): any[] {
 
 export function getAssetPreviewUrl(asset: any): string | null {
   if (asset.mimeType === "image/svg+xml" && asset.svgText) {
-    return `data:image/svg+xml;base64,${btoa(asset.svgText)}`;
+    return createSvgDataUrl(asset.svgText);
   }
   return asset.dataUrl || null;
 }

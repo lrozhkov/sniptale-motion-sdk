@@ -1,3 +1,4 @@
+import { parseEffectV1Source } from "../../../sdk/effect-v1/index.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getStudioSession } from "../effect-file/local-catalog.js";
 import { STUDIO_SESSION_HEADER } from "../../../shared/studio/protocol.js";
@@ -60,7 +61,11 @@ function failed(ctx: ViewerAppContext, error: unknown): void {
     "error",
   );
 }
-async function saveRevision(ctx: ViewerAppContext): Promise<void> {
+export async function saveRevision(
+  ctx: ViewerAppContext,
+): Promise<
+  import("../../../shared/studio/revision-contract.js").StudioRevision | null
+> {
   const template = ctx.state.currentTemplate;
   const base = template ? ctx.state.studio.sources.get(template.id) : null;
   if (
@@ -69,15 +74,17 @@ async function saveRevision(ctx: ViewerAppContext): Promise<void> {
     ctx.state.studio.busy ||
     !ctx.assertExportable("Revision save blocked")
   )
-    return;
+    return null;
   ctx.state.studio.busy = true;
   syncStudioActions(ctx);
   try {
     const source: unknown = ctx.buildCurrentEffectFile();
     if (typeof source !== "string") throw new Error("DOCUMENT_INVALID");
+    const document = parseEffectV1Source(source).document;
+    if (!document) throw new Error("DOCUMENT_INVALID");
     const result = await requestStudio(STUDIO_REVISIONS_ROUTE, {
       effectId: base.effectId,
-      source,
+      source: JSON.stringify({ ...document, id: base.effectId }),
       baseRevision: base.fingerprint,
     });
     const revision = parseStudioRevision(result.revision);
@@ -88,7 +95,7 @@ async function saveRevision(ctx: ViewerAppContext): Promise<void> {
     )
       throw new Error("STUDIO_RESPONSE");
     ctx.state.studio.saved.set(template.id, revision);
-    if (ctx.state.currentTemplate !== template) return;
+    if (ctx.state.currentTemplate !== template) return revision;
     status(
       ctx,
       result.sourceChanged
@@ -97,8 +104,10 @@ async function saveRevision(ctx: ViewerAppContext): Promise<void> {
       "Revision saved; the source file was not replaced.",
       ` ${revision.revisionId}`,
     );
+    return revision;
   } catch (error) {
     if (ctx.state.currentTemplate === template) failed(ctx, error);
+    return null;
   } finally {
     ctx.state.studio.busy = false;
     syncStudioActions(ctx);

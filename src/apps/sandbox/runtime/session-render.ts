@@ -64,6 +64,7 @@ export async function renderSandboxFrame(
     const assets = assetCache.resolve(
       resolvedMessage.assets,
       resolvedMessage.renderAssetsId,
+      resolvedMessage.retainedAssetIds,
     );
     recordRenderAssetProfile(profile, assets);
     resolvedMessage.assets = assets;

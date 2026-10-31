@@ -21,6 +21,32 @@ export const messages = {
   },
   viewer: {
     studio: {
+      reload: {
+        updated: {
+          ru: "Документ обновлён из проекта.",
+          en: "Document updated from the project.",
+        },
+        pending: {
+          ru: "В проекте есть новая версия. Текущие правки сохранены в редакторе.",
+          en: "A new project version is available. Current editor changes were retained.",
+        },
+        unavailable: {
+          ru: "Источник недоступен или не прошёл проверку. Последний корректный вариант сохранён в редакторе.",
+          en: "The source is unavailable or invalid. The last valid document was retained in the editor.",
+        },
+        failed: {
+          ru: "Обновление не применено. Текущий вариант оставлен в редакторе.",
+          en: "The update was not applied. The current document was retained in the editor.",
+        },
+        apply: {
+          ru: "Сохранить правки и обновить",
+          en: "Save changes and load update",
+        },
+        retry: {
+          ru: "Сохранить правки и повторить",
+          en: "Save changes and retry",
+        },
+      },
       close: { ru: "Закрыть", en: "Close" },
       save: { ru: "Сохранить ревизию проекта", en: "Save project revision" },
       revisions: { ru: "Ревизии проекта", en: "Project revisions" },

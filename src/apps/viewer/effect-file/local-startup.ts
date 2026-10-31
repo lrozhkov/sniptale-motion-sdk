@@ -1,3 +1,4 @@
+import { getStudioSession } from "./local-catalog.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
@@ -5,7 +6,7 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
   catalog.errors.forEach((error) =>
     ctx.logDiagnostic(`Local effect discovery: ${error}`, "error"),
   );
-  if (catalog.effects.length === 0) return false;
+  if (catalog.effects.length === 0 && !getStudioSession()) return false;
 
   ctx.state.assets = new Map();
   ctx.state.baseAssets = new Map();
@@ -39,7 +40,19 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
       ctx.state.startupTemplateId = template.id;
     }
   }
-  if (imported === 0) return false;
+  if (getStudioSession()) ctx.state.studio.ready = true;
+  if (imported === 0) {
+    if (!getStudioSession()) return false;
+    ctx.populateTemplates(ctx.state.templates);
+    ctx.setPackStatus(
+      ctx.deps.t(
+        "viewer.status.readyForImport",
+        "Ready to import an effect package",
+      ),
+      "ready",
+    );
+    return true;
+  }
   ctx.state.startupTemplateId ??= firstImportedTemplateId;
   ctx.populateTemplates(ctx.state.templates);
   const status = ctx.deps

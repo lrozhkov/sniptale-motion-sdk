@@ -6,6 +6,7 @@ export type EditorModule = {
   document: EffectV1Document;
   id: string;
   path: string;
+  revision?: string;
 };
 export type ViewerPackMetadata = Record<string, unknown> & {
   packId: string;
@@ -14,6 +15,8 @@ export type ViewerPackMetadata = Record<string, unknown> & {
 };
 
 export type ViewerTemplateState = {
+  templateSelectionGeneration: number;
+  templateSelectionPending: boolean;
   modules: Map<string, EditorModule>;
   pack: ViewerPackMetadata | null;
   currentTemplate: EditorTemplateSource | null;
@@ -23,6 +26,8 @@ export type ViewerTemplateState = {
 
 export function createViewerTemplateState(): ViewerTemplateState {
   return {
+    templateSelectionGeneration: 0,
+    templateSelectionPending: false,
     modules: new Map(),
     pack: null,
     currentTemplate: null,

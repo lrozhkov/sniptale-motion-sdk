@@ -5935,3 +5935,21 @@ output {
     top: 120px;
   }
 }
+
+.studio-update-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--panel-2);
+  font-size: 12px;
+}
+.studio-update-bar[hidden] {
+  display: none;
+}

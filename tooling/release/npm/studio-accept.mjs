@@ -1,3 +1,4 @@
+import { acceptStudioLiveReload } from "./studio-live-accept.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -81,7 +82,7 @@ export async function acceptInstalledStudio({
       (await fetch(`${ready.viewerOrigin}/sniptale-motion.json`)).status,
       404,
     );
-    if (browserCheck) await checkBrowser(ready, evidence);
+    if (browserCheck) await checkBrowser(ready, evidence, cli);
   } finally {
     child.kill("SIGINT");
     let timeout;
@@ -104,7 +105,7 @@ export async function acceptInstalledStudio({
   await assert.rejects(fetch(ready.sandboxOrigin));
 }
 
-async function checkBrowser(ready, evidence) {
+async function checkBrowser(ready, evidence, cli) {
   const { chromium, expect } = await import("@playwright/test");
   const browser = await chromium.launch({ headless: true });
   const errors = [];
@@ -206,6 +207,13 @@ async function checkBrowser(ready, evidence) {
     await expect(
       reopened.locator('#controlsPanel [data-css-color-role="value"]'),
     ).toHaveValue("#e14b50");
+    await acceptStudioLiveReload({
+      page: reopened,
+      ready,
+      cli,
+      evidence,
+      expect,
+    });
     assert.deepEqual(errors, []);
     await writeFile(
       join(evidence, "studio-browser.json"),

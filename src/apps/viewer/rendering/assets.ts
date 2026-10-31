@@ -15,7 +15,10 @@ type RenderAssetsContext = {
     | "renderAssetSelection"
     | "sandboxAssetCacheKeys"
     | "sandboxRenderAssetsId"
-  >;
+  > & {
+    baseAssets?: ReadonlyMap<string, unknown>;
+    sandboxRuntimeGeneration?: number;
+  };
   createAssetBitmap(asset: ViewerAsset): Promise<ImageBitmap>;
   logDiagnostic(message: string, severity: string): void;
 };
@@ -24,9 +27,11 @@ export async function createRenderAssets(
   ctx: RenderAssetsContext,
   template: AssetTemplate,
 ): Promise<RenderAssetTransfer> {
+  const runtimeGeneration = ctx.state.sandboxRuntimeGeneration ?? 0;
   const selection = resolveRenderAssetSelection(ctx, template);
   if (ctx.state.sandboxRenderAssetsId === selection.id) {
     return {
+      runtimeGeneration,
       cacheKeys: [],
       envelope: { renderAssetsId: selection.id },
       transfer: [],
@@ -34,6 +39,11 @@ export async function createRenderAssets(
   }
   const assets = new Map<string, TransferredAsset>();
   const cacheKeys: string[] = [];
+  const assetVersions: Array<{
+    id: string;
+    cacheKey: string;
+    sessionKey: string;
+  }> = [];
   const transfer: ImageBitmap[] = [];
   try {
     for (let index = 0; index < selection.assetIds.length; index += 1) {
@@ -71,6 +81,7 @@ export async function createRenderAssets(
           : undefined;
       if (bitmap) {
         cacheKeys.push(sessionCacheKey);
+        assetVersions.push({ id, cacheKey, sessionKey: sessionCacheKey });
       }
       assets.set(
         id,
@@ -95,9 +106,17 @@ export async function createRenderAssets(
     throw error;
   }
   return {
+    runtimeGeneration,
+    assetVersions,
     cacheKeys,
     envelope: {
       assets: Object.fromEntries(assets),
+      retainedAssetIds: [
+        ...new Set([
+          ...ctx.state.assets.keys(),
+          ...(ctx.state.baseAssets?.keys() ?? []),
+        ]),
+      ],
       renderAssetsId: selection.id,
     },
     transfer,
@@ -165,10 +184,45 @@ function getAssetCacheKey(asset: object): string {
   return cacheKey;
 }
 
-function commitRenderAssetTransfers(
-  ctx: ViewerAppContext,
+export function commitRenderAssetTransfers(
+  ctx: Pick<ViewerAppContext, "state">,
   renderAssets: RenderAssetTransfer,
 ) {
+  if (
+    renderAssets.runtimeGeneration !== undefined &&
+    renderAssets.runtimeGeneration !== (ctx.state.sandboxRuntimeGeneration ?? 0)
+  )
+    return;
+  if (
+    ctx.state.renderAssetSelection &&
+    ctx.state.renderAssetSelection.id !== renderAssets.envelope.renderAssetsId
+  ) {
+    resetRenderAssetCache(ctx);
+    return;
+  }
+  const versions = (ctx.state.sandboxAssetVersions ??= new Map());
+  if (renderAssets.envelope.retainedAssetIds) {
+    const retained = new Set(renderAssets.envelope.retainedAssetIds);
+    for (const [id, version] of versions) {
+      if (retained.has(id)) continue;
+      for (const key of version.sessionKeys)
+        ctx.state.sandboxAssetCacheKeys.delete(key);
+      versions.delete(id);
+    }
+  }
+  for (const asset of renderAssets.assetVersions ?? []) {
+    const previous = versions.get(asset.id);
+    if (previous && previous.cacheKey !== asset.cacheKey) {
+      for (const key of previous.sessionKeys)
+        ctx.state.sandboxAssetCacheKeys.delete(key);
+    }
+    const current =
+      previous?.cacheKey === asset.cacheKey
+        ? previous
+        : { cacheKey: asset.cacheKey, sessionKeys: new Set<string>() };
+    current.sessionKeys.add(asset.sessionKey);
+    versions.set(asset.id, current);
+  }
   for (const cacheKey of renderAssets?.cacheKeys ?? []) {
     if (!ctx.state.sandboxAssetCacheKeys.has(cacheKey)) {
       ctx.state.sandboxAssetCacheKeys.add(cacheKey);
@@ -186,8 +240,9 @@ function commitRenderAssetTransfers(
   }
 }
 
-function resetRenderAssetCache(ctx: ViewerAppContext) {
+export function resetRenderAssetCache(ctx: Pick<ViewerAppContext, "state">) {
   ctx.state.sandboxAssetCacheKeys.clear();
+  ctx.state.sandboxAssetVersions?.clear();
   ctx.state.sandboxRenderAssetsId = null;
 }
 

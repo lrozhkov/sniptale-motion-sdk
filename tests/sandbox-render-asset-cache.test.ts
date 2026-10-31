@@ -88,6 +88,65 @@ describe("sandbox render asset cache", () => {
     expect(bitmap.close).toHaveBeenCalledOnce();
   });
 
+  it("replaces prior versions by asset id and releases retired ids", () => {
+    const cache = createRenderAssetCache();
+    const original = createBitmap();
+    const replacement = createBitmap();
+    const other = createBitmap();
+    cache.resolve(
+      { logo: createAsset({ bitmap: original, cacheKey: "v1" }) },
+      "one",
+      ["logo"],
+    );
+    cache.resolve(
+      { logo: createAsset({ bitmap: replacement, cacheKey: "v2" }) },
+      "two",
+      ["logo"],
+    );
+    expect(original.close).toHaveBeenCalledOnce();
+    expect(cache.size()).toBe(1);
+    cache.resolve(
+      { other: createAsset({ id: "other", bitmap: other, cacheKey: "other" }) },
+      "three",
+      ["other"],
+    );
+    expect(replacement.close).toHaveBeenCalledOnce();
+    expect(cache.size()).toBe(1);
+    cache.close();
+    expect(other.close).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the prior cache usable when a later descriptor in a new payload fails", () => {
+    const cache = createRenderAssetCache();
+    const original = createBitmap();
+    const candidate = createBitmap();
+    const unprocessed = createBitmap();
+    cache.resolve(
+      { logo: createAsset({ bitmap: original, cacheKey: "v1" }) },
+      "old",
+    );
+    expect(() =>
+      cache.resolve(
+        {
+          logo: createAsset({ bitmap: candidate, cacheKey: "v2" }),
+          missing: createAsset({ id: "missing", cacheKey: "absent" }),
+          later: createAsset({
+            id: "later",
+            cacheKey: "later",
+            bitmap: unprocessed,
+          }),
+        },
+        "bad",
+      ),
+    ).toThrow("Missing cached bitmap");
+    expect(original.close).not.toHaveBeenCalled();
+    expect(candidate.close).toHaveBeenCalledOnce();
+    expect(unprocessed.close).toHaveBeenCalledOnce();
+    expect(cache.size()).toBe(1);
+    expect(cache.resolve(undefined, "old").logo?.bitmap).toBe(original);
+    cache.close();
+  });
+
   it("validates asset payloads at the sandbox boundary", () => {
     const cache = createRenderAssetCache();
 

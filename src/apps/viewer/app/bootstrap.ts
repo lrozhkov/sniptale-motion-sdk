@@ -1,3 +1,4 @@
+import { installStudioLiveReload } from "../studio/live-reload.js";
 import { installDomMotionOwner } from "../dom-motion/controller.js";
 import { createViewerContext } from "./create-context.js";
 import { wireViewerStartup } from "./startup.js";
@@ -294,6 +295,7 @@ export function startViewerApp(): void {
   wireAppTablists(ctx);
   installDomMotionOwner(ctx);
   wireViewerStartup(ctx);
+  installStudioLiveReload(ctx);
   if (includesLocalDemoPack) {
     installViewerTestApi(ctx);
   }

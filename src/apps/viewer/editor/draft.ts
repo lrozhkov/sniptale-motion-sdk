@@ -1,8 +1,8 @@
+import { beginEditorDraftSession } from "./draft-session.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   EDITOR_DRAFT_HISTORY_LIMIT,
   EDITOR_DRAFT_SCHEMA_VERSION,
-  createEditorDraftKey,
   hasEditorDraftWriteConflict,
   normalizeEditorDraftRecord,
   type EditorDraftRecord,
@@ -20,7 +20,6 @@ import {
   handleDraftStorageError,
   handleEditorBeforeUnload,
   handleEditorPageHide,
-  persistActiveTemplate,
 } from "./draft-lifecycle.js";
 import {
   closeResetDraftDialog,
@@ -37,31 +36,18 @@ async function prepareEditorDraftForTemplate(
   ctx: ViewerAppContext,
   template,
 ): Promise<boolean> {
-  const packId = getDraftPackId(ctx);
-  const sourceFingerprint = getEditorSourceFingerprint(ctx, template);
-  const key = createEditorDraftKey(packId, template.id, sourceFingerprint);
-  const draft = ctx.state.editorDraft;
-  draft.activeKey = key;
-  draft.lastLoadedUpdatedAt = 0;
-  draft.lastPersistedFingerprint = getEditorContentFingerprint(ctx);
-  draft.lastSavedAt = 0;
-  draft.persistedRevision = 0;
-  draft.revision = 0;
-  draft.status = "clean";
-  ctx.state.editorBaseSnapshots.set(
-    template.id,
-    ctx.captureEditorSnapshot("source-base"),
+  const { packId, sourceFingerprint, key, draft } = beginEditorDraftSession(
+    ctx,
+    template,
   );
-  ctx.state.editorBaseFingerprints.set(
-    template.id,
-    getEditorContentFingerprint(ctx),
-  );
-  persistActiveTemplate(ctx, template.id);
+  const initialContent = getEditorContentFingerprint(ctx);
   try {
     const raw = await draftStorage.get(key);
     if (
-      ctx.state.currentTemplate?.id !== template.id ||
-      draft.activeKey !== key
+      ctx.state.currentTemplate !== template ||
+      draft.activeKey !== key ||
+      draft.revision !== 0 ||
+      getEditorContentFingerprint(ctx) !== initialContent
     ) {
       return false;
     }

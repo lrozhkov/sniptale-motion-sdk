@@ -3,7 +3,7 @@ import {
   STUDIO_SELECTION_ROUTE,
 } from "../../../shared/studio/revision-contract.js";
 import { handleStudioRevisionRequest } from "./revision-api.js";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   createServer,
   type IncomingMessage,
@@ -185,12 +185,15 @@ async function handleRequest(
       send(response, 200, "", "application/json; charset=utf-8");
       return;
     }
-    send(
-      response,
-      200,
-      JSON.stringify(await readStudioCatalog(project)),
-      "application/json; charset=utf-8",
-    );
+    const body = JSON.stringify(await readStudioCatalog(project));
+    const etag = `"${createHash("sha256").update(body).digest("hex")}"`;
+    response.setHeader("ETag", etag);
+    if (request.headers["if-none-match"] === etag) {
+      response.writeHead(304);
+      response.end();
+      return;
+    }
+    send(response, 200, body, "application/json; charset=utf-8");
     return;
   }
   if (request.method !== "GET" && request.method !== "HEAD") {

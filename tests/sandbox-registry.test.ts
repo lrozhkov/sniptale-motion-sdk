@@ -36,4 +36,18 @@ describe("sandbox registry", () => {
     expect(registry.getCompositionIds()).toEqual([]);
     expect(registry.loadedModules.size).toBe(0);
   });
+  it("replaces a renderer across effect kinds and disposes both kinds", () => {
+    const registry = createSandboxRegistry();
+    const first = { id: "same", renderFrame: vi.fn(), dispose: vi.fn() };
+    const second = { id: "same", renderFrame: vi.fn(), dispose: vi.fn() };
+    registry.registerEffect(first);
+    registry.registerComposition(second);
+    expect(first.dispose).toHaveBeenCalledOnce();
+    expect(registry.getEffectIds()).toEqual([]);
+    expect(registry.getRenderer("same")?.kind).toBe("composition");
+    registry.moduleRevisions.set("same", "v1");
+    registry.disposeAll();
+    expect(second.dispose).toHaveBeenCalledOnce();
+    expect(registry.moduleRevisions.size).toBe(0);
+  });
 });

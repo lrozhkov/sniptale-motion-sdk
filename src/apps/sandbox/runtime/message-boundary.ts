@@ -13,6 +13,7 @@ export type SandboxRuntimeMessage =
   | {
       document: EffectV1Document;
       kind: "loadEffectDocument";
+      revision?: string;
       moduleId: string;
       requestId: string;
     }
@@ -36,6 +37,10 @@ export function parseSandboxRuntimeMessage(
   if (message.kind === MessageKind.LOAD_EFFECT_DOCUMENT) {
     const validation = validateEffectV1Document(message.document);
     if (
+      (message.revision !== undefined &&
+        (typeof message.revision !== "string" ||
+          message.revision.length === 0 ||
+          message.revision.length > 128)) ||
       typeof message.moduleId !== "string" ||
       typeof message.requestId !== "string" ||
       !validation.ok ||
@@ -44,6 +49,9 @@ export function parseSandboxRuntimeMessage(
       return null;
     }
     return {
+      ...(typeof message.revision === "string"
+        ? { revision: message.revision }
+        : {}),
       document: validation.document,
       kind: "loadEffectDocument",
       moduleId: message.moduleId,

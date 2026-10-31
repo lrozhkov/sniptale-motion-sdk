@@ -128,6 +128,24 @@ describe("installed Motion Studio server", () => {
     expect(catalog.headers.get("cache-control")).toBe("no-store");
     expect(catalog.headers.get("referrer-policy")).toBe("origin");
     expect(catalog.headers.has("access-control-allow-origin")).toBe(false);
+    const etag = catalog.headers.get("etag");
+    expect(etag).toMatch(/^"[a-f0-9]{64}"$/);
+    const unchanged = await fetch(
+      `${studio.viewerOrigin}${STUDIO_CATALOG_ROUTE}`,
+      {
+        headers: {
+          [STUDIO_SESSION_HEADER]: token,
+          "If-None-Match": etag ?? "",
+        },
+      },
+    );
+    expect(unchanged.status).toBe(304);
+    expect(await unchanged.text()).toBe("");
+    const forbidden = await fetch(
+      `${studio.viewerOrigin}${STUDIO_CATALOG_ROUTE}`,
+      { headers: { "If-None-Match": etag ?? "" } },
+    );
+    expect(forbidden.status).toBe(403);
     await studio.close();
     await studio.close();
     await expect(fetch(studio.viewerOrigin)).rejects.toThrow();

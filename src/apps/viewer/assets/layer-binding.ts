@@ -144,7 +144,7 @@ export function prepareImportedAssets(
   return prepared;
 }
 
-async function verifyImportedAssets(
+export async function verifyImportedAssets(
   ctx: ViewerAppContext,
   assets: ReadonlyMap<string, ViewerAsset>,
 ): Promise<void> {

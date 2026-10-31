@@ -28,6 +28,9 @@ export function createViewerRefs() {
       "#expandTimelineRowsButton",
       "button",
     ),
+    studioUpdateBar: requireHtml("#studioUpdateBar", "div"),
+    studioUpdateStatus: requireHtml("#studioUpdateStatus", "span"),
+    applyStudioUpdateButton: requireHtml("#applyStudioUpdateButton", "button"),
     saveStudioRevisionButton: requireHtml(
       "#saveStudioRevisionButton",
       "button",

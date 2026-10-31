@@ -1,3 +1,4 @@
+import { createSvgDataUrl } from "../../../shared/svg-data-url.js";
 import type { ViewerAsset } from "./state.js";
 import {
   calculateSvgRasterSize,
@@ -9,7 +10,7 @@ export async function rasterizeSvgAsset(
   ctx: ViewerAppContext,
   asset: ViewerAsset,
 ): Promise<ImageBitmap> {
-  const dataUrl = `data:image/svg+xml;base64,${btoa(asset.svgText ?? "")}`;
+  const dataUrl = createSvgDataUrl(asset.svgText ?? "");
   const image = new Image();
   await new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();

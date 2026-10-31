@@ -1,3 +1,4 @@
+import { parseRetainedAssetIds } from "../../../shared/render-asset-retention.js";
 import { parseSerializedSvgVector } from "./svg-vector-payload.js";
 
 type BitmapLike = {
@@ -34,14 +35,26 @@ export function createRenderAssetCache() {
       entries.clear();
       currentSelection = null;
     },
-    resolve(value: unknown, selectionIdValue?: unknown) {
+    resolve(
+      value: unknown,
+      selectionIdValue?: unknown,
+      retainedIdsValue?: unknown,
+    ) {
       const selectionId = parseSelectionId(selectionIdValue);
+      const retainedIds =
+        retainedIdsValue === undefined
+          ? undefined
+          : parseRetainedAssetIds(retainedIdsValue);
+      if (retainedIds === null)
+        throw new Error("Expected valid retained asset ids.");
       if (value === undefined && selectionId) {
         if (currentSelection?.id !== selectionId) {
           throw new Error(`Missing cached render asset set ${selectionId}.`);
         }
         return currentSelection.assets;
       }
+      const retained = retainedIds === undefined ? null : new Set(retainedIds);
+      const nextEntries = new Map(entries);
       const resolvedAssets = new Map<string, CachedRenderAsset>();
       if (value == null) {
         return Object.fromEntries(resolvedAssets);
@@ -49,35 +62,72 @@ export function createRenderAssetCache() {
       if (!isRecord(value)) {
         throw new Error("Expected render assets to be an object.");
       }
-      for (const [assetId, candidate] of Object.entries(value)) {
-        const asset = parseRenderAsset(assetId, candidate);
-        const incomingBitmap = readBitmap(candidate);
-        const cached = entries.get(asset.cacheKey);
-        if (incomingBitmap) {
-          if (cached?.bitmap && cached.bitmap !== incomingBitmap) {
-            cached.bitmap.close();
+      try {
+        for (const [assetId, candidate] of Object.entries(value)) {
+          const asset = parseRenderAsset(assetId, candidate);
+          const incomingBitmap = readBitmap(candidate);
+          const cached = nextEntries.get(asset.cacheKey);
+          if (cached && cached.id !== asset.id)
+            throw new Error(`Cached render asset id mismatch for ${assetId}.`);
+          if (incomingBitmap) {
+            for (const [key, previous] of nextEntries) {
+              if (previous.id === asset.id && key !== asset.cacheKey)
+                nextEntries.delete(key);
+            }
+            const next = {
+              ...cached,
+              ...asset,
+              bitmap: incomingBitmap,
+            } as CachedRenderAsset;
+            nextEntries.set(asset.cacheKey, next);
+            resolvedAssets.set(assetId, next);
+            continue;
           }
-          const next = {
-            ...cached,
-            ...asset,
-            bitmap: incomingBitmap,
-          } as CachedRenderAsset;
-          entries.set(asset.cacheKey, next);
-          resolvedAssets.set(assetId, next);
-          continue;
+          if (!cached) {
+            throw new Error(`Missing cached bitmap for asset ${assetId}.`);
+          }
+          if (cached.id !== asset.id) {
+            throw new Error(`Cached render asset id mismatch for ${assetId}.`);
+          }
+          resolvedAssets.set(assetId, cached);
         }
-        if (!cached) {
-          throw new Error(`Missing cached bitmap for asset ${assetId}.`);
+        if (retained) {
+          if ([...resolvedAssets.keys()].some((id) => !retained.has(id)))
+            throw new Error("Active assets must be retained.");
+          for (const [key, asset] of nextEntries)
+            if (!retained.has(asset.id)) nextEntries.delete(key);
         }
-        if (cached.id !== asset.id) {
-          throw new Error(`Cached render asset id mismatch for ${assetId}.`);
+      } catch (error) {
+        const previous = new Set<unknown>(
+          [...entries.values()].map((asset) => asset.bitmap),
+        );
+        for (const candidate of Object.values(value)) {
+          const bitmap: unknown = isRecord(candidate) ? candidate.bitmap : null;
+          if (
+            isRecord(bitmap) &&
+            typeof bitmap.close === "function" &&
+            !previous.has(bitmap)
+          ) {
+            previous.add(bitmap);
+            bitmap.close();
+          }
         }
-        resolvedAssets.set(assetId, cached);
+        throw error;
       }
+      const kept = new Set(
+        [...nextEntries.values()].map((asset) => asset.bitmap),
+      );
+      const closed = new Set<BitmapLike>();
+      for (const asset of entries.values()) {
+        if (!kept.has(asset.bitmap) && !closed.has(asset.bitmap)) {
+          asset.bitmap.close();
+          closed.add(asset.bitmap);
+        }
+      }
+      entries.clear();
+      for (const [key, asset] of nextEntries) entries.set(key, asset);
       const assets = Object.fromEntries(resolvedAssets);
-      if (selectionId) {
-        currentSelection = { assets, id: selectionId };
-      }
+      currentSelection = selectionId ? { assets, id: selectionId } : null;
       return assets;
     },
     size() {
@@ -189,6 +239,6 @@ function readOptionalNumber(
   return value;
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

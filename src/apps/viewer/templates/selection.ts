@@ -1,3 +1,4 @@
+import { beginEditorDraftSession } from "../editor/draft-session.js";
 import { readEditorTemplateSource } from "./source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { shouldReportSandboxRequestFailure } from "../transport/sandbox-client.js";
@@ -131,69 +132,105 @@ function populateTemplates(ctx: ViewerAppContext, templates) {
   ctx.syncTemplateCombobox();
 }
 
-async function selectTemplate(ctx: ViewerAppContext, templateId) {
-  const template = ctx.state.templates.find((item) => item.id === templateId);
+export async function selectTemplate(
+  ctx: ViewerAppContext,
+  templateId: string,
+  options: {
+    canSelect?: () => boolean;
+    beforeReset?: () => void;
+    restoreDraft?: boolean;
+  } = {},
+): Promise<boolean> {
+  let template = ctx.state.templates.find((item) => item.id === templateId);
   if (!template) {
-    return;
+    return false;
   }
-  if (ctx.state.currentTemplate) {
-    ctx.captureCompositionWorkspaceView?.();
-    await ctx.flushEditorDraft?.();
-  }
-  ctx.stopPreviewAudio?.();
-  resetTemplateSelectionState(ctx, template);
-  ctx.state.assets = new Map(ctx.state.baseAssets);
-  ctx.state.editorOverrides.delete(template.id);
-  ctx.state.timelineOverrides.delete(template.id);
-  ctx.syncPreviewQualityBadge(1);
-  ctx.refs.saveJsonButton.disabled = true;
-  ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
-    "viewer.status.noFileBound",
-    "No file bound",
-  );
-  ctx.refs.templateSelect.value = template.id;
-  ctx.refs.templateSelect.title = `${ctx.deps.translateText(template.label, template.id)}\n${getTemplateTypeLabel(ctx, template)} · ${template.id}`;
-  ctx.syncTemplateCombobox();
-  ctx.updateTemplateContext(template);
-  ctx.syncPreviewMediaUi?.(template);
-  const duration = ctx.getEffectiveDuration(template);
-  ctx.refs.durationInput.value = String(duration);
-  ctx.refs.timeSlider.max = String(duration);
-  ctx.refs.timeSlider.value = "0";
-  if (ctx.refs.fullscreenTimeSlider) {
-    ctx.refs.fullscreenTimeSlider.max = String(duration);
-    ctx.refs.fullscreenTimeSlider.value = "0";
-  }
-  ctx.refs.timeOutput.textContent = ctx.deps.t(
-    "viewer.time.zeroSeconds",
-    "0.000s",
-  );
-  if (ctx.refs.fullscreenTimeOutput) {
-    ctx.refs.fullscreenTimeOutput.textContent = ctx.deps.t(
+  const generation = (ctx.state.templateSelectionGeneration ?? 0) + 1;
+  ctx.state.templateSelectionGeneration = generation;
+  ctx.state.templateSelectionPending = true;
+  try {
+    if (ctx.state.currentTemplate) {
+      ctx.captureCompositionWorkspaceView?.();
+      await ctx.flushEditorDraft?.();
+    }
+    if (
+      generation !== ctx.state.templateSelectionGeneration ||
+      options.canSelect?.() === false
+    )
+      return false;
+    options.beforeReset?.();
+    template = ctx.state.templates.find((item) => item.id === templateId);
+    if (!template) return false;
+    const isCurrent = () =>
+      generation === ctx.state.templateSelectionGeneration &&
+      ctx.state.currentTemplate === template;
+    ctx.stopPreviewAudio?.();
+    resetTemplateSelectionState(ctx, template);
+    ctx.state.assets = new Map(ctx.state.baseAssets);
+    ctx.state.editorOverrides.delete(template.id);
+    ctx.state.timelineOverrides.delete(template.id);
+    ctx.syncPreviewQualityBadge(1);
+    ctx.refs.saveJsonButton.disabled = true;
+    ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
+      "viewer.status.noFileBound",
+      "No file bound",
+    );
+    ctx.refs.templateSelect.value = template.id;
+    ctx.refs.templateSelect.title = `${ctx.deps.translateText(template.label, template.id)}\n${getTemplateTypeLabel(ctx, template)} · ${template.id}`;
+    ctx.syncTemplateCombobox();
+    ctx.updateTemplateContext(template);
+    ctx.syncPreviewMediaUi?.(template);
+    const duration = ctx.getEffectiveDuration(template);
+    ctx.refs.durationInput.value = String(duration);
+    ctx.refs.timeSlider.max = String(duration);
+    ctx.refs.timeSlider.value = "0";
+    if (ctx.refs.fullscreenTimeSlider) {
+      ctx.refs.fullscreenTimeSlider.max = String(duration);
+      ctx.refs.fullscreenTimeSlider.value = "0";
+    }
+    ctx.refs.timeOutput.textContent = ctx.deps.t(
       "viewer.time.zeroSeconds",
       "0.000s",
     );
-  }
-  ctx.state.controls = ctx.deps.buildControlsWithDefaults(template);
-  await ctx.prepareEditorDraftForTemplate?.(template);
-  ctx.restoreCompositionWorkspaceView?.(template);
-  ctx.refs.timelineZoomInput.value = String(ctx.state.timelineZoom);
-  renderTemplateWorkspace(ctx, template);
-  if (await ctx.prepareDomMotionTemplate?.(template)) return;
-  ctx.refs.previewCacheButton.disabled = false;
-  if (!(await ctx.ensureModuleLoaded(template.moduleId))) {
-    return;
-  }
-  ctx.syncPlaybackButtons();
-  await ctx.renderCurrentFrame({ forceFull: true });
-  void ctx.refreshRendererContractCoverage(template).catch((error) => {
-    if (shouldReportSandboxRequestFailure(error)) {
-      ctx.logDiagnostic(
-        `${template.id}: ${error instanceof Error ? error.message : String(error)}`,
-        "error",
+    if (ctx.refs.fullscreenTimeOutput) {
+      ctx.refs.fullscreenTimeOutput.textContent = ctx.deps.t(
+        "viewer.time.zeroSeconds",
+        "0.000s",
       );
     }
-  });
+    ctx.state.controls = ctx.deps.buildControlsWithDefaults(template);
+    if (options.restoreDraft === false) {
+      ctx.state.historyPast = [];
+      ctx.state.historyFuture = [];
+      ctx.state.historyCoalescing = null;
+      beginEditorDraftSession(ctx, template);
+    } else await ctx.prepareEditorDraftForTemplate?.(template);
+    if (!isCurrent()) return false;
+    ctx.restoreCompositionWorkspaceView?.(template);
+    ctx.refs.timelineZoomInput.value = String(ctx.state.timelineZoom);
+    renderTemplateWorkspace(ctx, template);
+    if (await ctx.prepareDomMotionTemplate?.(template)) return isCurrent();
+    if (!isCurrent()) return false;
+    ctx.refs.previewCacheButton.disabled = false;
+    if (!(await ctx.ensureModuleLoaded(template.moduleId))) {
+      return false;
+    }
+    if (!isCurrent()) return false;
+    ctx.syncPlaybackButtons();
+    await ctx.renderCurrentFrame({ forceFull: true });
+    void ctx.refreshRendererContractCoverage(template).catch((error) => {
+      if (shouldReportSandboxRequestFailure(error)) {
+        ctx.logDiagnostic(
+          `${template.id}: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        );
+      }
+    });
+    return isCurrent();
+  } finally {
+    if (generation === ctx.state.templateSelectionGeneration)
+      ctx.state.templateSelectionPending = false;
+  }
 }
 
 function updateTemplateContext(

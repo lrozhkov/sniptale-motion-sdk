@@ -1,15 +1,18 @@
+import {
+  createStructuralBudget,
+  isBoundedStructuredRecord,
+  isBoundedStructuredValue,
+  enterRecord,
+  leaveRecord,
+  consumeNode,
+  consumeString,
+  isRecord,
+  type StructuralBudget,
+} from "./render-structure-budget.js";
+import { parseRetainedAssetIds } from "../../../shared/render-asset-retention.js";
 const MAX_RENDER_DIMENSION = 16_384;
 const MAX_RENDER_SEQUENCE = 2_147_483_647;
-const MAX_STRUCTURE_NODES = 50_000;
-const MAX_STRUCTURE_STRING_CHARS = 3_000_000;
-const MAX_STRUCTURE_DEPTH = 32;
 const INPUT_FRAME_KEYS = new Set(["from", "next", "previous", "source", "to"]);
-
-type StructuralBudget = {
-  active: WeakSet<object>;
-  nodes: number;
-  stringChars: number;
-};
 
 export function hasValidSandboxRenderFields(
   message: Record<string, unknown>,
@@ -51,6 +54,9 @@ export function hasValidSandboxRenderFields(
     (message.renderModel === undefined ||
       (message.renderModelId !== undefined &&
         isBoundedStructuredRecord(message.renderModel, budget))) &&
+    isOptional(message.retainedAssetIds, (value) =>
+      consumeRetainedIds(value, budget),
+    ) &&
     isOptional(message.assets, (value) => isRenderAssets(value, budget)) &&
     isOptional(message.controls, (value) =>
       isBoundedStructuredRecord(value, budget),
@@ -81,14 +87,6 @@ export function hasValidSandboxRenderFields(
       isBoundedStructuredRecord(value, budget),
     )
   );
-}
-
-function createStructuralBudget(): StructuralBudget {
-  return {
-    active: new WeakSet(),
-    nodes: MAX_STRUCTURE_NODES,
-    stringChars: MAX_STRUCTURE_STRING_CHARS,
-  };
 }
 
 function isOptional(value: unknown, validate: (value: unknown) => boolean) {
@@ -222,96 +220,11 @@ function isRecordArray(value: unknown, budget: StructuralBudget): boolean {
   );
 }
 
-function isBoundedStructuredRecord(
-  value: unknown,
-  budget: StructuralBudget,
-): boolean {
-  return isRecord(value) && isBoundedStructuredValue(value, budget, 0);
-}
-
-function isBoundedStructuredValue(
-  value: unknown,
-  budget: StructuralBudget,
-  depth: number,
-): boolean {
-  if (!consumeNode(budget) || depth > MAX_STRUCTURE_DEPTH) return false;
-  if (
-    value === null ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
-  ) {
-    return true;
-  }
-  if (typeof value === "string") {
-    return consumeString(value, budget, 1_500_000);
-  }
-  if (Array.isArray(value)) {
-    if (value.length > 10_000 || budget.active.has(value)) return false;
-    budget.active.add(value);
-    const valid = value.every((item) =>
-      isBoundedStructuredValue(item, budget, depth + 1),
-    );
-    budget.active.delete(value);
-    return valid;
-  }
-  if (!isRecord(value) || budget.active.has(value)) return false;
-  const entries = Object.entries(value);
-  if (entries.length > 10_000) return false;
-  budget.active.add(value);
-  const valid = entries.every(
-    ([key, item]) =>
-      consumeString(key, budget, 256) &&
-      isBoundedStructuredValue(item, budget, depth + 1),
+function consumeRetainedIds(value: unknown, budget: StructuralBudget): boolean {
+  const ids = parseRetainedAssetIds(value);
+  return (
+    ids !== null &&
+    consumeNode(budget) &&
+    ids.every((id) => consumeNode(budget) && consumeString(id, budget, 512))
   );
-  budget.active.delete(value);
-  return valid;
-}
-
-function enterRecord(
-  value: unknown,
-  budget: StructuralBudget,
-  maxEntries: number,
-): value is Record<string, unknown> {
-  if (
-    !isRecord(value) ||
-    budget.active.has(value) ||
-    Object.keys(value).length > maxEntries ||
-    !consumeNode(budget)
-  ) {
-    return false;
-  }
-  budget.active.add(value);
-  return true;
-}
-
-function leaveRecord(value: object, budget: StructuralBudget): void {
-  budget.active.delete(value);
-}
-
-function consumeNode(budget: StructuralBudget): boolean {
-  budget.nodes -= 1;
-  return budget.nodes >= 0;
-}
-
-function consumeString(
-  value: string,
-  budget: StructuralBudget,
-  maxLength: number,
-  requireContent = false,
-): boolean {
-  if (
-    value.length > maxLength ||
-    (requireContent && value.length === 0) ||
-    budget.stringChars < value.length
-  ) {
-    return false;
-  }
-  budget.stringChars -= value.length;
-  return true;
-}
-
-function isRecord(value: unknown): value is Record<string, any> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
 }
