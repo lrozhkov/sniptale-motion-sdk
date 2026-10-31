@@ -1,15 +1,29 @@
+import { isValidationRecord } from "./input.js";
+import type { ValidationTemplate } from "./input.js";
+import type {
+  EditorValidationIssue,
+  EditorValidationOptions,
+  KnownValidationAssets,
+} from "./types.js";
 import { createValidationIssue } from "./issues.js";
 
 export function collectPresetIssues(
-  template,
-  knownAssetIds,
-  options,
-  issues,
-  collectEditorValidationIssues,
+  template: ValidationTemplate,
+  knownAssetIds: KnownValidationAssets,
+  options: EditorValidationOptions,
+  issues: EditorValidationIssue[],
+  collectEditorValidationIssues: (
+    template: unknown,
+    options: EditorValidationOptions,
+  ) => EditorValidationIssue[],
 ) {
   const presetIds = new Set<string>();
   for (const preset of template.presets ?? []) {
-    if (!preset?.id) {
+    if (
+      !isValidationRecord(preset) ||
+      typeof preset.id !== "string" ||
+      !preset.id
+    ) {
       issues.push(
         createValidationIssue("Preset is missing id", {
           messageKey: "presetMissingId",
@@ -31,17 +45,16 @@ export function collectPresetIssues(
     presetIds.add(preset.id);
     const presetTemplate = {
       ...template,
-      clips: Array.isArray(preset.clips) ? preset.clips : [],
+      clips: preset.clips === undefined ? [] : preset.clips,
       duration:
-        Number(preset.duration ?? template.duration) ||
-        Number(template.duration),
-      layers: Array.isArray(preset.layers) ? preset.layers : [],
+        preset.duration === undefined ? template.duration : preset.duration,
+      layers: preset.layers === undefined ? [] : preset.layers,
       presets: [],
-      scenes: Array.isArray(preset.scenes) ? preset.scenes : [],
+      scenes: preset.scenes === undefined ? [] : preset.scenes,
       timeline:
-        preset.timeline && typeof preset.timeline === "object"
-          ? preset.timeline
-          : { phases: [], tracks: [] },
+        preset.timeline === undefined
+          ? { phases: [], tracks: [] }
+          : preset.timeline,
     };
     const presetIssues = collectEditorValidationIssues(presetTemplate, {
       ...options,

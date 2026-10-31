@@ -1,3 +1,5 @@
+import { createEditorValidationActions } from "../editor/validation.js";
+import { createPanelValidationActions } from "../panels/validation.js";
 import { createInspectorHealthActions } from "../inspector/health-panels.js";
 import { createInspectorRendererBindingActions } from "../inspector/renderer-bindings.js";
 import { createRendererContractCoverageActions } from "../rendering/contract-coverage.js";
@@ -105,6 +107,8 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createEditorValidationActions(() => ctx),
+    ...createPanelValidationActions(() => ctx),
     ...createInspectorHealthActions(() => ctx),
     ...createInspectorRendererBindingActions(() => ctx),
     ...createRendererContractCoverageActions(() => ctx),

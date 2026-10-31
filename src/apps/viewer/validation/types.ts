@@ -12,10 +12,21 @@ export type EditorValidationIssue = {
 };
 
 export type EditorValidationOptions = {
-  assets?: Map<string, any>;
+  assets?: ReadonlyMap<string, unknown>;
   isSafeLocalAssetPath?: (path: unknown) => boolean;
   isSafeSvgAssetText?: (svgText: unknown) => boolean;
-  knownAssetIds?: Map<string, any> | Set<string>;
-  rendererCoverage?: any;
+  knownAssetIds?: KnownValidationAssets;
+  rendererCoverage?: unknown;
   validatePresets?: boolean;
 };
+
+export type KnownValidationAssets =
+  | ReadonlyMap<string, unknown>
+  | ReadonlySet<string>;
+export type ValidationIssueTarget = Partial<
+  Omit<EditorValidationIssue, "message">
+>;
+export type AddValidationIssue = (
+  message: string,
+  target?: ValidationIssueTarget,
+) => void;

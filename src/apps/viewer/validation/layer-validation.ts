@@ -1,3 +1,5 @@
+import type { ValidationTemplate } from "./input.js";
+import type { AddValidationIssue, KnownValidationAssets } from "./types.js";
 import { isRangeInvalid } from "./ranges.js";
 import {
   MAX_LAYER_GROUP_DEPTH,
@@ -8,7 +10,11 @@ import {
   isLayerSubtreeContiguous,
 } from "../layers/hierarchy.js";
 
-export function collectLayerIssues(template, knownAssetIds, addIssue) {
+export function collectLayerIssues(
+  template: ValidationTemplate,
+  knownAssetIds: KnownValidationAssets,
+  addIssue: AddValidationIssue,
+) {
   const layerIds = new Set<string>();
   for (const layer of template.layers ?? []) {
     if (!layer?.id) {
@@ -85,7 +91,10 @@ export function collectLayerIssues(template, knownAssetIds, addIssue) {
   return layerIds;
 }
 
-function collectLayerHierarchyIssues(template, addIssue): void {
+function collectLayerHierarchyIssues(
+  template: ValidationTemplate,
+  addIssue: AddValidationIssue,
+): void {
   const layers = template.layers ?? [];
   const hierarchy = createLayerHierarchyIndex(layers);
   const groupIds = new Set(
@@ -125,7 +134,7 @@ function collectLayerHierarchyIssues(template, addIssue): void {
     }
   }
   for (const clip of template.clips ?? []) {
-    if (groupIds.has(clip.layerId)) {
+    if (clip.layerId && groupIds.has(clip.layerId)) {
       addIssue(`Group "${clip.layerId}" cannot own a clip`, {
         messageKey: "layerGroupClip",
         messageParams: { group: clip.layerId },
@@ -155,7 +164,12 @@ function collectLayerHierarchyIssues(template, addIssue): void {
   }
 }
 
-export function collectClipBaseIssues(template, duration, layerIds, addIssue) {
+export function collectClipBaseIssues(
+  template: ValidationTemplate,
+  duration: number,
+  layerIds: ReadonlySet<string>,
+  addIssue: AddValidationIssue,
+) {
   for (const clip of template.clips ?? []) {
     if (!clip?.layerId || !layerIds.has(clip.layerId)) {
       addIssue(
@@ -168,13 +182,7 @@ export function collectClipBaseIssues(template, duration, layerIds, addIssue) {
         },
       );
     }
-    if (
-      isRangeInvalid(
-        Number(clip.start) || 0,
-        Number(clip.duration) || 0,
-        duration,
-      )
-    ) {
+    if (isRangeInvalid(clip.start ?? 0, clip.duration ?? 0, duration)) {
       addIssue(
         `Clip "${clip.layerId ?? "(missing)"}" is outside effect duration`,
         {

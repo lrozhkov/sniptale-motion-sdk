@@ -1555,6 +1555,10 @@ export const messages = {
           en: 'Duplicate track id "{id}"',
           ru: "Повторяется ID трека «{id}»",
         },
+        invalidEditorStructure: {
+          en: "Invalid editor document field at {path}",
+          ru: "Неверное поле документа редактора: {path}",
+        },
         effectDurationPositive: {
           en: "Effect duration must be a positive number",
           ru: "Длительность эффекта должна быть положительным числом",

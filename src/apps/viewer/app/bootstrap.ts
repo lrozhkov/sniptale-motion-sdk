@@ -35,7 +35,6 @@ import { installPlaybackCacheToggleOwner } from "../playback/cache-toggle.js";
 import { installEditorStoreOwner } from "../editor/store.js";
 import { installEditorHistoryControllerOwner } from "../editor/history-controller.js";
 import { installEditorDraftOwner } from "../editor/draft.js";
-import { installEditorValidationOwner } from "../editor/validation.js";
 import { installAppKeyboardOwner } from "./keyboard.js";
 import { installPanelsControlsOwner } from "../panels/controls.js";
 import { installPanelsPresetsOwner } from "../panels/presets.js";
@@ -50,7 +49,6 @@ import { installRenderingRasterSizeOwner } from "../rendering/raster-size.js";
 import { installRenderingModelCacheOwner } from "../rendering/model-cache.js";
 import { installAppMiscOwner } from "./misc.js";
 import { installLayersOperationsOwner } from "../layers/operations.js";
-import { installPanelsValidationOwner } from "../panels/validation.js";
 import { installAppDiagnosticsOwner } from "./diagnostics.js";
 import { installPreviewMediaSessionOwner } from "../preview-media/session.js";
 export function startViewerApp(): void {
@@ -72,7 +70,6 @@ export function startViewerApp(): void {
   installEditorStoreOwner(ctx);
   installEditorHistoryControllerOwner(ctx);
   installEditorDraftOwner(ctx);
-  installEditorValidationOwner(ctx);
   installAppKeyboardOwner(ctx);
   installPanelsControlsOwner(ctx);
   installPanelsPresetsOwner(ctx);
@@ -88,7 +85,6 @@ export function startViewerApp(): void {
   installRenderingExportFrameOwner(ctx);
   installAppMiscOwner(ctx);
   installLayersOperationsOwner(ctx);
-  installPanelsValidationOwner(ctx);
   installAppDiagnosticsOwner(ctx);
   installLayersSelectionLayoutOwner(ctx);
   installTimelineNavigationOwners(ctx);

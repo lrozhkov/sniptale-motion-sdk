@@ -1,10 +1,21 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import { isValidationRecord } from "../validation/input.js";
+import type {
+  EditorValidationActions,
+  EditorValidationContextOptions,
+} from "../validation/contract.js";
+import type {
+  KnownValidationAssets,
+  EditorValidationOptions,
+} from "../validation/types.js";
+import type { EditorTemplateSource } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function collectEditorValidationErrors(
   ctx: ViewerAppContext,
-  template,
-  knownAssetIds = ctx.state.assets,
-  options: any = {},
+  template: unknown,
+  knownAssetIds: KnownValidationAssets = ctx.state.assets,
+  options: EditorValidationOptions = {},
 ) {
   return ctx.deps.collectEditorValidationErrorsModel(
     template,
@@ -17,9 +28,9 @@ function collectEditorValidationErrors(
 
 function collectEditorValidationIssues(
   ctx: ViewerAppContext,
-  template,
-  knownAssetIds = ctx.state.assets,
-  options: any = {},
+  template: unknown,
+  knownAssetIds: KnownValidationAssets = ctx.state.assets,
+  options: EditorValidationOptions = {},
 ) {
   return ctx.deps.collectEditorValidationIssuesModel(
     template,
@@ -32,8 +43,8 @@ function collectEditorValidationIssues(
 
 function createEditorValidationOptions(
   ctx: ViewerAppContext,
-  knownAssetIds = ctx.state.assets,
-  options: any = {},
+  knownAssetIds: KnownValidationAssets = ctx.state.assets,
+  options: EditorValidationContextOptions = {},
 ) {
   return {
     ...options,
@@ -43,8 +54,9 @@ function createEditorValidationOptions(
     knownAssetIds,
     rendererCoverage: Object.hasOwn(options, "rendererCoverage")
       ? options.rendererCoverage
-      : options.targetTemplate?.id === ctx.state.currentTemplate?.id &&
-          !isRendererContractCoveragePending(ctx, options.targetTemplate) &&
+      : isValidationRecord(options.targetTemplate) &&
+          options.targetTemplate.id === ctx.state.currentTemplate?.id &&
+          !isRendererContractCoveragePending(ctx) &&
           ctx.state.rendererContractTemplateId === ctx.state.currentTemplate?.id
         ? ctx.state.rendererContractReads
         : null,
@@ -53,7 +65,7 @@ function createEditorValidationOptions(
 
 export function isRendererContractCoveragePending(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTemplateSource | null = ctx.state.currentTemplate,
 ): boolean {
   return Boolean(
     template &&
@@ -63,19 +75,31 @@ export function isRendererContractCoveragePending(
   );
 }
 
-export function installEditorValidationOwner(ctx: ViewerAppContext): void {
-  ctx.collectEditorValidationErrors = collectEditorValidationErrors.bind(
-    undefined,
-    ctx,
-  );
-  ctx.collectEditorValidationIssues = collectEditorValidationIssues.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createEditorValidationOptions = createEditorValidationOptions.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isRendererContractCoveragePending =
-    isRendererContractCoveragePending.bind(undefined, ctx);
+export function createEditorValidationActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  EditorValidationActions,
+  | "collectEditorValidationErrors"
+  | "collectEditorValidationIssues"
+  | "createEditorValidationOptions"
+  | "isRendererContractCoveragePending"
+> {
+  return {
+    collectEditorValidationErrors: bindViewerAction(
+      collectEditorValidationErrors,
+      getContext,
+    ),
+    collectEditorValidationIssues: bindViewerAction(
+      collectEditorValidationIssues,
+      getContext,
+    ),
+    createEditorValidationOptions: bindViewerAction(
+      createEditorValidationOptions,
+      getContext,
+    ),
+    isRendererContractCoveragePending: bindViewerAction(
+      isRendererContractCoveragePending,
+      getContext,
+    ),
+  };
 }

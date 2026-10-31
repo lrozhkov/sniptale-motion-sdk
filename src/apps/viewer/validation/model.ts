@@ -6,7 +6,7 @@ import {
 } from "./layer-validation.js";
 import { collectPresetIssues } from "./preset-validation.js";
 import { collectRendererContractIssues } from "./renderer-contract-validation.js";
-import { isRangeInvalid } from "./ranges.js";
+import { readValidationTemplate } from "./input.js";
 import {
   collectClipSceneIssues,
   collectPhaseIssues,
@@ -14,6 +14,7 @@ import {
   collectTrackIssues,
 } from "./timeline-validation.js";
 import type {
+  AddValidationIssue,
   EditorValidationIssue,
   EditorValidationOptions,
 } from "./types.js";
@@ -26,7 +27,7 @@ export type {
 } from "./types.js";
 
 export function hasInvalidTiming(
-  template: any,
+  template: unknown,
   options: EditorValidationOptions = {},
 ): boolean {
   return collectEditorValidationErrors(template, options).some((error) =>
@@ -35,7 +36,7 @@ export function hasInvalidTiming(
 }
 
 export function collectEditorValidationErrors(
-  template: any,
+  template: unknown,
   options: EditorValidationOptions = {},
 ): string[] {
   return collectEditorValidationIssues(template, options).map(
@@ -44,11 +45,11 @@ export function collectEditorValidationErrors(
 }
 
 export function collectEditorValidationIssues(
-  template: any,
+  value: unknown,
   options: EditorValidationOptions = {},
 ): EditorValidationIssue[] {
   const knownAssetIds = options.knownAssetIds ?? options.assets ?? new Set();
-  if (!template) {
+  if (value === null || value === undefined) {
     return [
       createValidationIssue("No template selected", {
         messageKey: "noTemplateSelected",
@@ -57,11 +58,23 @@ export function collectEditorValidationIssues(
     ];
   }
 
+  const { template, errorPath } = readValidationTemplate(value);
+  if (!template) {
+    return [
+      createValidationIssue(`Invalid editor document field at ${errorPath}`, {
+        category: "Schema",
+        messageKey: "invalidEditorStructure",
+        messageParams: { path: errorPath },
+        targetType: "effect",
+      }),
+    ];
+  }
+
   const issues: EditorValidationIssue[] = [];
-  const addIssue = (message, target = {}) => {
+  const addIssue: AddValidationIssue = (message, target = {}) => {
     issues.push(createValidationIssue(message, target));
   };
-  const duration = Number(template.duration);
+  const duration = template.duration ?? NaN;
   if (!Number.isFinite(duration) || duration <= 0) {
     addIssue("Effect duration must be a positive number", {
       messageKey: "effectDurationPositive",

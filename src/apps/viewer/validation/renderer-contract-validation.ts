@@ -1,17 +1,26 @@
+import { normalizeBindingReads } from "../app/binding-reads.js";
+import type {
+  ValidationTemplate,
+  ValidationLayer,
+  ValidationClip,
+  ValidationTrack,
+} from "./input.js";
+import type { AddValidationIssue } from "./types.js";
 import { getTrackLayerOwnerId } from "./model-helpers.js";
 
 export function collectRendererContractIssues(
-  template,
-  rendererCoverage,
-  addIssue,
+  template: ValidationTemplate,
+  rendererCoverage: unknown,
+  addIssue: AddValidationIssue,
 ) {
   if (!template || !rendererCoverage) {
     return;
   }
-  const controlReads = toStringSet(rendererCoverage.controls);
-  const phaseReads = toStringSet(rendererCoverage.phases);
-  const layerGateReads = toStringSet(rendererCoverage.layerGateReads);
-  const trackReads = toStringSet(rendererCoverage.tracks);
+  const reads = normalizeBindingReads(rendererCoverage);
+  const controlReads = toStringSet(reads.controls);
+  const phaseReads = toStringSet(reads.phases);
+  const layerGateReads = toStringSet(reads.layerGateReads);
+  const trackReads = toStringSet(reads.tracks);
   for (const control of template.controls ?? []) {
     if (control?.id && !controlReads.has(control.id)) {
       addIssue(
@@ -57,7 +66,7 @@ export function collectRendererContractIssues(
       .filter((clip) => clip?.layerId)
       .map((clip) => [clip.layerId, clip]),
   );
-  const tracksByLayer = new Map<string, any[]>();
+  const tracksByLayer = new Map<string, ValidationTrack[]>();
   for (const track of template.timeline?.tracks ?? []) {
     const layerId = getTrackLayerOwnerId(track);
     if (!layerId) {
@@ -133,7 +142,11 @@ function toStringSet(value: unknown): Set<string> {
   );
 }
 
-function isVisualContractLayer(layer, clipsByLayer, tracksByLayer) {
+function isVisualContractLayer(
+  layer: ValidationLayer,
+  clipsByLayer: ReadonlyMap<string | null | undefined, ValidationClip>,
+  tracksByLayer: ReadonlyMap<string, readonly ValidationTrack[]>,
+) {
   if (!layer?.id || layer.type === "audio" || layer.type === "group") {
     return false;
   }
@@ -148,7 +161,7 @@ function isVisualContractLayer(layer, clipsByLayer, tracksByLayer) {
     "svgAsset",
   ]);
   return (
-    visualTypes.has(layer.type) ||
+    (layer.type !== undefined && visualTypes.has(layer.type)) ||
     clipsByLayer.has(layer.id) ||
     (tracksByLayer.get(layer.id)?.length ?? 0) > 0
   );

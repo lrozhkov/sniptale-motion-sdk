@@ -1,6 +1,26 @@
+import type {
+  ValidationTemplate,
+  ValidationTrack,
+  ValidationTimeline,
+  ValidationKeyframe,
+  ValidationScene,
+  ValidationPhase,
+} from "./input.js";
+import type { AddValidationIssue } from "./types.js";
+type KeyframeIssueArguments = {
+  addIssue: AddValidationIssue;
+  duration: number;
+  phaseLayerOwners: ReadonlyMap<string, ReadonlySet<string>>;
+  phasesById: ReadonlyMap<string, ValidationPhase>;
+  scenesById: ReadonlyMap<string, ValidationScene>;
+  sceneIds: ReadonlySet<string>;
+  phaseIds: ReadonlySet<string>;
+  template: ValidationTemplate;
+  track: ValidationTrack;
+};
 import { TIMING_BOUNDARY_TOLERANCE } from "../app/constants.js";
 
-export function collectTrackKeyframeIssues(args) {
+export function collectTrackKeyframeIssues(args: KeyframeIssueArguments) {
   const {
     addIssue,
     duration,
@@ -14,7 +34,7 @@ export function collectTrackKeyframeIssues(args) {
   } = args;
   const trackLayerOwner = getTrackLayerOwnerId(track) ?? "__scene__";
   for (const keyframe of track.keyframes ?? []) {
-    const time = Number(keyframe.time);
+    const time = keyframe.time ?? NaN;
     if (!Number.isFinite(time) || time < 0 || time > duration) {
       addIssue(
         `Keyframe "${keyframe.id ?? "(missing)"}" in "${track.id}" is outside effect duration`,
@@ -76,14 +96,15 @@ export function collectTrackKeyframeIssues(args) {
         );
       }
     }
-    const phase: any = phasesById.get(keyframe.phaseId ?? track.phaseId);
+    const phaseId = keyframe.phaseId ?? track.phaseId;
+    const phase = phaseId ? phasesById.get(phaseId) : undefined;
     if (
       phase &&
       Number.isFinite(time) &&
       !isTimeInsideBoundaryRange(
         time,
-        Number(phase.start) || 0,
-        (Number(phase.start) || 0) + (Number(phase.duration) || 0),
+        phase.start ?? 0,
+        (phase.start ?? 0) + (phase.duration ?? 0),
       )
     ) {
       addIssue(
@@ -110,8 +131,8 @@ export function collectTrackKeyframeIssues(args) {
       Number.isFinite(time) &&
       !isTimeInsideBoundaryRange(
         time,
-        Number(scene.start) || 0,
-        (Number(scene.start) || 0) + (Number(scene.duration) || 0),
+        scene.start ?? 0,
+        (scene.start ?? 0) + (scene.duration ?? 0),
       )
     ) {
       addIssue(
@@ -130,7 +151,9 @@ export function collectTrackKeyframeIssues(args) {
   }
 }
 
-export function buildPhaseLayerOwners(tracks) {
+export function buildPhaseLayerOwners(
+  tracks: readonly ValidationTrack[] | undefined,
+) {
   const phaseLayerOwners = new Map<string, Set<string>>();
   for (const track of tracks ?? []) {
     const trackOwner = getTrackLayerOwnerId(track) ?? "__scene__";
@@ -153,7 +176,7 @@ export function buildPhaseLayerOwners(tracks) {
   return phaseLayerOwners;
 }
 
-export function getTrackLayerOwnerId(track) {
+export function getTrackLayerOwnerId(track: ValidationTrack): string | null {
   if (typeof track?.layerId === "string") {
     return track.layerId;
   }
@@ -164,12 +187,16 @@ export function getTrackLayerOwnerId(track) {
     return track.target;
   }
   if (typeof track?.id === "string" && track.id.includes(".")) {
-    return track.id.split(".")[0];
+    return track.id.split(".")[0] ?? null;
   }
   return null;
 }
 
-function getKeyframeOwnershipSceneId(timeline, track, keyframe) {
+function getKeyframeOwnershipSceneId(
+  timeline: ValidationTimeline | undefined,
+  track: ValidationTrack,
+  keyframe: ValidationKeyframe,
+) {
   if (typeof keyframe?.sceneId === "string") {
     return keyframe.sceneId;
   }
@@ -182,7 +209,7 @@ function getKeyframeOwnershipSceneId(timeline, track, keyframe) {
   return typeof phase?.sceneId === "string" ? phase.sceneId : null;
 }
 
-function keyframeTarget(track, keyframe) {
+function keyframeTarget(track: ValidationTrack, keyframe: ValidationKeyframe) {
   return {
     keyframeId: keyframe.id ?? null,
     targetId: keyframe.id ?? track.id,
@@ -191,17 +218,26 @@ function keyframeTarget(track, keyframe) {
   };
 }
 
-export function isRangeInsideScene(start, duration, scene) {
+export function isRangeInsideScene(
+  start: number,
+  duration: number,
+  scene: ValidationScene | undefined,
+) {
   if (!scene) {
     return false;
   }
   return (
-    start >= scene.start - TIMING_BOUNDARY_TOLERANCE &&
-    start + duration <= scene.start + scene.duration + TIMING_BOUNDARY_TOLERANCE
+    start >= (scene.start ?? 0) - TIMING_BOUNDARY_TOLERANCE &&
+    start + duration <=
+      (scene.start ?? 0) + (scene.duration ?? 0) + TIMING_BOUNDARY_TOLERANCE
   );
 }
 
-export function isTimeInsideBoundaryRange(time, start, end) {
+export function isTimeInsideBoundaryRange(
+  time: number,
+  start: number,
+  end: number,
+) {
   return (
     time >= start - TIMING_BOUNDARY_TOLERANCE &&
     time <= end + TIMING_BOUNDARY_TOLERANCE

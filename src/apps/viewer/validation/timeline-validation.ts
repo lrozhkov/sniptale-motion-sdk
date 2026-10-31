@@ -1,3 +1,14 @@
+import type { ValidationTemplate, ValidationScene } from "./input.js";
+import type { AddValidationIssue } from "./types.js";
+type TrackIssueArguments = {
+  addIssue: AddValidationIssue;
+  duration: number;
+  layerIds: ReadonlySet<string>;
+  phaseIds: ReadonlySet<string>;
+  sceneIds: ReadonlySet<string>;
+  scenesById: ReadonlyMap<string, ValidationScene>;
+  template: ValidationTemplate;
+};
 import {
   buildPhaseLayerOwners,
   collectTrackKeyframeIssues,
@@ -5,9 +16,13 @@ import {
 } from "./model-helpers.js";
 import { isRangeInvalid } from "./ranges.js";
 
-export function collectSceneIssues(template, duration, addIssue) {
+export function collectSceneIssues(
+  template: ValidationTemplate,
+  duration: number,
+  addIssue: AddValidationIssue,
+) {
   const sceneIds = new Set<string>();
-  const scenesById = new Map<string, any>();
+  const scenesById = new Map<string, ValidationScene>();
   for (const scene of template.scenes ?? []) {
     if (!scene?.id) {
       addIssue("Scene is missing id", {
@@ -26,13 +41,7 @@ export function collectSceneIssues(template, duration, addIssue) {
     }
     sceneIds.add(scene.id);
     scenesById.set(scene.id, scene);
-    if (
-      isRangeInvalid(
-        Number(scene.start) || 0,
-        Number(scene.duration) || 0,
-        duration,
-      )
-    ) {
+    if (isRangeInvalid(scene.start ?? 0, scene.duration ?? 0, duration)) {
       addIssue(`Scene "${scene.id}" is outside effect duration`, {
         messageKey: "sceneOutsideEffect",
         messageParams: { scene: scene.id },
@@ -45,10 +54,10 @@ export function collectSceneIssues(template, duration, addIssue) {
 }
 
 export function collectClipSceneIssues(
-  template,
-  sceneIds,
-  scenesById,
-  addIssue,
+  template: ValidationTemplate,
+  sceneIds: ReadonlySet<string>,
+  scenesById: ReadonlyMap<string, ValidationScene>,
+  addIssue: AddValidationIssue,
 ) {
   for (const clip of template.clips ?? []) {
     if (clip.sceneId && !sceneIds.has(clip.sceneId)) {
@@ -67,8 +76,8 @@ export function collectClipSceneIssues(
     } else if (
       clip.sceneId &&
       !isRangeInsideScene(
-        Number(clip.start) || 0,
-        Number(clip.duration) || 0,
+        clip.start ?? 0,
+        clip.duration ?? 0,
         scenesById.get(clip.sceneId),
       )
     ) {
@@ -89,11 +98,11 @@ export function collectClipSceneIssues(
 }
 
 export function collectPhaseIssues(
-  template,
-  duration,
-  sceneIds,
-  scenesById,
-  addIssue,
+  template: ValidationTemplate,
+  duration: number,
+  sceneIds: ReadonlySet<string>,
+  scenesById: ReadonlyMap<string, ValidationScene>,
+  addIssue: AddValidationIssue,
 ) {
   const phaseIds = new Set<string>();
   for (const phase of template.timeline?.phases ?? []) {
@@ -113,13 +122,7 @@ export function collectPhaseIssues(
       });
     }
     phaseIds.add(phase.id);
-    if (
-      isRangeInvalid(
-        Number(phase.start) || 0,
-        Number(phase.duration) || 0,
-        duration,
-      )
-    ) {
+    if (isRangeInvalid(phase.start ?? 0, phase.duration ?? 0, duration)) {
       addIssue(`Phase "${phase.id}" is outside effect duration`, {
         messageKey: "phaseOutsideEffect",
         messageParams: { phase: phase.id },
@@ -140,8 +143,8 @@ export function collectPhaseIssues(
     } else if (
       phase.sceneId &&
       !isRangeInsideScene(
-        Number(phase.start) || 0,
-        Number(phase.duration) || 0,
+        phase.start ?? 0,
+        phase.duration ?? 0,
         scenesById.get(phase.sceneId),
       )
     ) {
@@ -156,7 +159,7 @@ export function collectPhaseIssues(
   return phaseIds;
 }
 
-export function collectTrackIssues(args) {
+export function collectTrackIssues(args: TrackIssueArguments) {
   const {
     addIssue,
     duration,

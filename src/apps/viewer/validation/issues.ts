@@ -1,8 +1,8 @@
-import type { EditorValidationIssue } from "./types.js";
+import type { EditorValidationIssue, ValidationIssueTarget } from "./types.js";
 
 export function createValidationIssue(
-  message,
-  target: any = {},
+  message: string,
+  target: ValidationIssueTarget = {},
 ): EditorValidationIssue {
   return {
     category:
@@ -13,8 +13,12 @@ export function createValidationIssue(
       }),
     keyframeId: target.keyframeId ?? null,
     message,
-    messageKey: target.messageKey,
-    messageParams: target.messageParams,
+    ...(target.messageKey === undefined
+      ? {}
+      : { messageKey: target.messageKey }),
+    ...(target.messageParams === undefined
+      ? {}
+      : { messageParams: target.messageParams }),
     severity: target.severity ?? "error",
     targetId: target.targetId ?? null,
     targetType: target.targetType ?? "effect",
@@ -22,9 +26,11 @@ export function createValidationIssue(
   };
 }
 
-export function categorizeValidationIssue(issue): string {
-  const message = String(issue?.message ?? "").toLowerCase();
-  const targetType = String(issue?.targetType ?? "").toLowerCase();
+export function categorizeValidationIssue(
+  issue: { message?: string; targetType?: string } | null | undefined,
+): string {
+  const message = (issue?.message ?? "").toLowerCase();
+  const targetType = (issue?.targetType ?? "").toLowerCase();
   if (
     targetType === "asset" ||
     message.includes("asset") ||

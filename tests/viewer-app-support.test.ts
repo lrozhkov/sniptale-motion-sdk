@@ -18,7 +18,7 @@ import { createViewerRefs } from "../src/apps/viewer/app/refs";
 import { createViewerState } from "../src/apps/viewer/app/state";
 import { installAppShellOwner } from "../src/apps/viewer/app/shell";
 import {
-  installEditorValidationOwner,
+  createEditorValidationActions,
   isRendererContractCoveragePending,
 } from "../src/apps/viewer/editor/validation";
 import { getInitialTemplateId } from "../src/apps/viewer/templates/selection";
@@ -265,7 +265,10 @@ describe("viewer app support owners", () => {
       },
       state,
     } as any;
-    installEditorValidationOwner(ctx);
+    Object.assign(
+      ctx,
+      createEditorValidationActions(() => ctx),
+    );
 
     ctx.collectEditorValidationIssues(state.currentTemplate);
     expect(

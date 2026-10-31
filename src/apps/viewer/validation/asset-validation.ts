@@ -1,4 +1,16 @@
-export function collectAssetIssues(template, knownAssetIds, options, addIssue) {
+import { isValidationRecord } from "./input.js";
+import type { ValidationTemplate } from "./input.js";
+import type {
+  AddValidationIssue,
+  EditorValidationOptions,
+  KnownValidationAssets,
+} from "./types.js";
+export function collectAssetIssues(
+  template: ValidationTemplate,
+  knownAssetIds: KnownValidationAssets,
+  options: EditorValidationOptions,
+  addIssue: AddValidationIssue,
+) {
   for (const assetId of template.assets ?? []) {
     if (!knownAssetIds.has(assetId)) {
       addIssue(`Template references missing asset "${assetId}"`, {
@@ -10,18 +22,33 @@ export function collectAssetIssues(template, knownAssetIds, options, addIssue) {
       continue;
     }
     const asset =
-      knownAssetIds instanceof Map
+      "get" in knownAssetIds
         ? knownAssetIds.get(assetId)
         : options.assets?.get(assetId);
-    if (asset && !options.isSafeLocalAssetPath?.(asset.path)) {
-      addIssue(`Asset "${assetId}" has unsafe local path "${asset.path}"`, {
+    if (
+      asset !== undefined &&
+      (!isValidationRecord(asset) ||
+        typeof asset.path !== "string" ||
+        !options.isSafeLocalAssetPath?.(asset.path))
+    ) {
+      const path =
+        isValidationRecord(asset) && typeof asset.path === "string"
+          ? asset.path
+          : "(invalid)";
+      addIssue(`Asset "${assetId}" has unsafe local path "${path}"`, {
         messageKey: "assetUnsafePath",
-        messageParams: { asset: assetId, path: String(asset.path) },
+        messageParams: { asset: assetId, path },
         targetId: assetId,
         targetType: "asset",
       });
     }
-    if (asset?.svgText && !options.isSafeSvgAssetText?.(asset.svgText)) {
+    if (
+      isValidationRecord(asset) &&
+      asset.svgText !== undefined &&
+      asset.svgText !== null &&
+      (typeof asset.svgText !== "string" ||
+        !options.isSafeSvgAssetText?.(asset.svgText))
+    ) {
       addIssue(`Asset "${assetId}" contains unsafe SVG content`, {
         messageKey: "assetUnsafeSvg",
         messageParams: { asset: assetId },
