@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   calculateScaledRenderSize,
-  installRenderingPreviewQualityOwner,
+  createPreviewQualityActions,
 } from "../src/apps/viewer/rendering/preview-quality";
 import { syncPreviewQualityBadge } from "../src/apps/viewer/rendering/preview-quality-badge";
 
@@ -17,7 +17,10 @@ describe("viewer explicit preview quality", () => {
         previewCacheWarmActive: true,
       },
     } as any;
-    installRenderingPreviewQualityOwner(ctx);
+    Object.assign(
+      ctx,
+      createPreviewQualityActions(() => ctx),
+    );
 
     expect(
       ctx.getPreviewRenderPlan(1280, 720, {
@@ -35,7 +38,10 @@ describe("viewer explicit preview quality", () => {
   it("settles interactions with one explicit full-quality render", async () => {
     const renderCurrentFrame = vi.fn(async () => undefined);
     const ctx = { renderCurrentFrame, state: {} } as any;
-    installRenderingPreviewQualityOwner(ctx);
+    Object.assign(
+      ctx,
+      createPreviewQualityActions(() => ctx),
+    );
 
     await ctx.settlePreviewAfterInteraction();
 
@@ -58,7 +64,10 @@ describe("viewer explicit preview quality", () => {
       },
       updateCanvasSelectionBox,
     } as any;
-    installRenderingPreviewQualityOwner(ctx);
+    Object.assign(
+      ctx,
+      createPreviewQualityActions(() => ctx),
+    );
 
     await expect(ctx.refinePreviewAtFullQuality()).resolves.toBe(true);
     expect(renderCurrentFrame).toHaveBeenCalledWith({ forceFull: true });

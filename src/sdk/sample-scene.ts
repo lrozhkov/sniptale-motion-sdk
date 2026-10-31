@@ -79,10 +79,13 @@ export async function createInputFrames(
     "previous",
   );
   drawAbstractTransitionFrame(nextContext, width, height, progress, "next");
-  return {
-    next: await createImageBitmap(nextCanvas),
-    previous: await createImageBitmap(previousCanvas),
-  };
+  const next = await createImageBitmap(nextCanvas);
+  try {
+    return { next, previous: await createImageBitmap(previousCanvas) };
+  } catch (error) {
+    next.close();
+    throw error;
+  }
 }
 
 function drawGrid(

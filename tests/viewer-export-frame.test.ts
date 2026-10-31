@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { installRenderingExportFrameOwner } from "../src/apps/viewer/rendering/export-frame";
+import { createExportFrameActions } from "../src/apps/viewer/rendering/export-frame";
 
 describe("viewer export frame coordinates", () => {
   it("keeps authoring coordinates while rendering a larger raster", async () => {
@@ -37,7 +37,10 @@ describe("viewer export frame coordinates", () => {
         loadedModules: new Set(["module"]),
       },
     } as any;
-    installRenderingExportFrameOwner(ctx);
+    Object.assign(
+      ctx,
+      createExportFrameActions(() => ctx),
+    );
     const template = {
       effectId: "effect",
       id: "template",
@@ -85,6 +88,45 @@ describe("viewer export frame coordinates", () => {
     );
   });
 
+  it.each(["failed-response", "commit-error"] as const)(
+    "releases export bitmap on %s",
+    async (mode) => {
+      const bitmap = { close: vi.fn() };
+      const failure = new Error("commit failed");
+      const ctx = {
+        state: { controls: {}, loadedModules: new Set(["module"]) },
+        deps: {
+          createRequestId: () => "export",
+          t: (_key: string, fallback: string) => fallback,
+        },
+        getCompositionDesignSize: () => ({ width: 1280, height: 720 }),
+        getRendererType: () => "effect-v1",
+        createRenderInputFrames: async () => ({ frames: {}, transfer: [] }),
+        createRenderAssets: async () => ({ envelope: {}, transfer: [] }),
+        createRenderModelEnvelope: () => ({}),
+        requestSandbox: async () => ({
+          ok: mode !== "failed-response",
+          bitmap,
+        }),
+        commitRenderAssetTransfers: () => {
+          throw failure;
+        },
+      } as any;
+      Object.assign(
+        ctx,
+        createExportFrameActions(() => ctx),
+      );
+      await expect(
+        ctx.renderFrameBitmapForExport(
+          { id: "effect", moduleId: "module" },
+          { duration: 1 },
+          { fps: 30, frameIndex: 0, width: 1280, height: 720, time: 0 },
+        ),
+      ).rejects.toThrow();
+      expect(bitmap.close).toHaveBeenCalledOnce();
+    },
+  );
+
   it("keeps target-effect frames transparent for source compositing", async () => {
     const requestSandbox = vi.fn(async () => ({
       bitmap: { height: 720, width: 1280 },
@@ -110,7 +152,10 @@ describe("viewer export frame coordinates", () => {
       requestSandbox,
       state: { controls: {}, loadedModules: new Set(["module"]) },
     } as any;
-    installRenderingExportFrameOwner(ctx);
+    Object.assign(
+      ctx,
+      createExportFrameActions(() => ctx),
+    );
 
     await ctx.renderFrameBitmapForExport(
       {
@@ -167,7 +212,10 @@ describe("viewer export frame coordinates", () => {
       const ctx = {
         drawBaseForTemplate: vi.fn(() => calls.push("base")),
       } as any;
-      installRenderingExportFrameOwner(ctx);
+      Object.assign(
+        ctx,
+        createExportFrameActions(() => ctx),
+      );
 
       ctx.drawExportFrame(context, template, { height: 720, width: 1280 }, 0.5);
 

@@ -1,3 +1,6 @@
+import { createRenderInputActions } from "../rendering/input-frames.js";
+import { createPreviewQualityActions } from "../rendering/preview-quality.js";
+import { createExportFrameActions } from "../rendering/export-frame.js";
 import { createEditorValidationActions } from "../editor/validation.js";
 import { createPanelValidationActions } from "../panels/validation.js";
 import { createInspectorHealthActions } from "../inspector/health-panels.js";
@@ -107,6 +110,9 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createRenderInputActions(() => ctx),
+    ...createPreviewQualityActions(() => ctx),
+    ...createExportFrameActions(() => ctx),
     ...createEditorValidationActions(() => ctx),
     ...createPanelValidationActions(() => ctx),
     ...createInspectorHealthActions(() => ctx),

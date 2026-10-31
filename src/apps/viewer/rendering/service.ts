@@ -48,8 +48,9 @@ export async function renderCurrentFrame(
   ctx.state.renderQueued = false;
   ctx.setRenderStatus("rendering");
   try {
-    if (!ctx.state.loadedModules.has(template.moduleId)) {
-      if (!(await ctx.ensureModuleLoaded(template.moduleId))) {
+    const moduleId = template.moduleId ?? "";
+    if (!ctx.state.loadedModules.has(moduleId)) {
+      if (!(await ctx.ensureModuleLoaded(moduleId))) {
         return;
       }
     }
@@ -61,6 +62,7 @@ export async function renderCurrentFrame(
       options.profile === true,
     );
     const effectiveTemplate = ctx.getRenderTemplateSnapshot(template);
+    if (!effectiveTemplate) return;
     const duration = effectiveTemplate.duration;
     const { height: outputHeight, width: outputWidth } =
       ctx.getCompositionDesignSize();

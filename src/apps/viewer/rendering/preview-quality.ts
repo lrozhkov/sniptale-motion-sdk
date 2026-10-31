@@ -1,9 +1,30 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { ViewerRenderOutputActions } from "./output-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { syncPreviewQualityBadge } from "./preview-quality-badge.js";
 
 const CONTRACT_SAMPLE_LONG_EDGE = 160;
 
-export function calculateScaledRenderSize(width, height, scale) {
+export function calculateScaledRenderSize(
+  width: unknown,
+  height: unknown,
+  scale: unknown,
+) {
+  if (
+    typeof width !== "number" ||
+    !Number.isFinite(width) ||
+    width <= 0 ||
+    typeof height !== "number" ||
+    !Number.isFinite(height) ||
+    height <= 0 ||
+    typeof scale !== "number" ||
+    !Number.isFinite(scale) ||
+    scale <= 0
+  ) {
+    throw new RangeError(
+      "Render dimensions and scale must be positive finite numbers.",
+    );
+  }
   const scaledWidth = Math.min(
     width,
     Math.max(160, Math.round((width * scale) / 2) * 2),
@@ -19,7 +40,7 @@ export function calculateScaledRenderSize(width, height, scale) {
   };
 }
 
-function getPreviewRenderPlan(_ctx: ViewerAppContext, width, height) {
+function getPreviewRenderPlan(width: number, height: number) {
   return {
     height,
     renderQuality: "full" as const,
@@ -45,7 +66,7 @@ async function settlePreviewAfterInteraction(ctx: ViewerAppContext) {
   return true;
 }
 
-function getContractRenderSize(ctx: ViewerAppContext, width, height) {
+function getContractRenderSize(width: number, height: number) {
   const scale = Math.min(
     1,
     CONTRACT_SAMPLE_LONG_EDGE / Math.max(width, height),
@@ -53,26 +74,39 @@ function getContractRenderSize(ctx: ViewerAppContext, width, height) {
   return calculateScaledRenderSize(width, height, scale);
 }
 
-function normalizePreviewBindingReads(ctx: ViewerAppContext, reads) {
+function normalizePreviewBindingReads(ctx: ViewerAppContext, reads: unknown) {
   return ctx.deps.normalizeBindingReads(reads);
 }
 
-export function installRenderingPreviewQualityOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.getPreviewRenderPlan = getPreviewRenderPlan.bind(undefined, ctx);
-  ctx.getContractRenderSize = getContractRenderSize.bind(undefined, ctx);
-  ctx.normalizePreviewBindingReads = normalizePreviewBindingReads.bind(
-    undefined,
-    ctx,
-  );
-  ctx.syncPreviewQualityBadge = syncPreviewQualityBadge.bind(undefined, ctx);
-  ctx.refinePreviewAtFullQuality = refinePreviewAtFullQuality.bind(
-    undefined,
-    ctx,
-  );
-  ctx.settlePreviewAfterInteraction = settlePreviewAfterInteraction.bind(
-    undefined,
-    ctx,
-  );
+export function createPreviewQualityActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  ViewerRenderOutputActions,
+  | "getPreviewRenderPlan"
+  | "getContractRenderSize"
+  | "normalizePreviewBindingReads"
+  | "syncPreviewQualityBadge"
+  | "refinePreviewAtFullQuality"
+  | "settlePreviewAfterInteraction"
+> {
+  return {
+    getPreviewRenderPlan,
+    getContractRenderSize,
+    normalizePreviewBindingReads: bindViewerAction(
+      normalizePreviewBindingReads,
+      getContext,
+    ),
+    syncPreviewQualityBadge: bindViewerAction(
+      syncPreviewQualityBadge,
+      getContext,
+    ),
+    refinePreviewAtFullQuality: bindViewerAction(
+      refinePreviewAtFullQuality,
+      getContext,
+    ),
+    settlePreviewAfterInteraction: bindViewerAction(
+      settlePreviewAfterInteraction,
+      getContext,
+    ),
+  };
 }

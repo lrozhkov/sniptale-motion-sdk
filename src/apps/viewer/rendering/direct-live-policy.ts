@@ -1,3 +1,4 @@
+type DirectLiveTemplate = { id?: string; effectId?: string };
 import type { ViewerAppContext } from "../app/context.js";
 import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
 
@@ -7,12 +8,12 @@ const DIRECT_PROFILE_MAX_SAMPLES = 24;
 
 export function beginDirectLiveRenderProfile(
   ctx: ViewerAppContext,
-  template,
+  template: DirectLiveTemplate | null | undefined,
   detailed: boolean,
 ) {
   const active = shouldProfileDirectLiveRender(ctx, template);
   return {
-    commit(profile) {
+    commit(profile: SandboxRenderProfile | undefined) {
       if (active) {
         recordDirectLiveRenderProfile(ctx, template, profile);
       }
@@ -29,7 +30,7 @@ export function beginDirectLiveRenderProfile(
 
 export function isDirectLiveRenderPreferred(
   ctx: ViewerAppContext,
-  template,
+  template: DirectLiveTemplate | null | undefined,
 ): boolean {
   return ctx.state.directLiveRenderKeys.has(
     createDirectLiveRenderKey(ctx, template),
@@ -38,13 +39,13 @@ export function isDirectLiveRenderPreferred(
 
 export function shouldProfileDirectLiveRender(
   ctx: ViewerAppContext,
-  template,
+  template: DirectLiveTemplate | null | undefined,
 ): boolean {
   const key = createDirectLiveRenderKey(ctx, template);
   return Boolean(
     ctx.state.playing &&
     ctx.state.previewCacheEnabled === false &&
-    ctx.state.directRenderEffectIds.has(template?.effectId) &&
+    ctx.state.directRenderEffectIds.has(template?.effectId ?? "") &&
     ctx.state.directRenderResponsePort?.presentationSurfaceAttached &&
     !ctx.state.directLiveRenderKeys.has(key) &&
     !ctx.state.directLiveProfileCompleteKeys.has(key),
@@ -53,7 +54,7 @@ export function shouldProfileDirectLiveRender(
 
 export function recordDirectLiveRenderProfile(
   ctx: ViewerAppContext,
-  template,
+  template: DirectLiveTemplate | null | undefined,
   profile: SandboxRenderProfile | undefined,
 ): void {
   if (!profile) {
@@ -79,7 +80,7 @@ export function recordDirectLiveRenderProfile(
 
 export function createDirectLiveRenderKey(
   ctx: ViewerAppContext,
-  template,
+  template: DirectLiveTemplate | null | undefined,
 ): string {
-  return `${String(template?.effectId ?? template?.id ?? "effect")}:${ctx.state.previewRasterWidth}x${ctx.state.previewRasterHeight}`;
+  return `${template?.effectId ?? template?.id ?? "effect"}:${ctx.state.previewRasterWidth}x${ctx.state.previewRasterHeight}`;
 }
