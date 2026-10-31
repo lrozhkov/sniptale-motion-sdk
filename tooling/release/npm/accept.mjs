@@ -1,5 +1,6 @@
 import { acceptInstalledStudio } from "./studio-accept.mjs";
 import { acceptInstalledProof } from "./proof-accept.mjs";
+import { acceptInstalledSkills } from "./skills-accept.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -117,6 +118,12 @@ try {
   assert.equal((await invoke("docs", ["docs"])).ok, true);
   const project = join(workspace, "проект с пробелами");
   await invoke("init", ["init", project]);
+  await acceptInstalledSkills({
+    invoke,
+    project,
+    installer: join(repo, "node_modules/skills/dist/cli.mjs"),
+    evidence,
+  });
   for (const kind of ["standalone", "targetEffect", "transition"]) {
     await invoke(
       `new-${kind}`,

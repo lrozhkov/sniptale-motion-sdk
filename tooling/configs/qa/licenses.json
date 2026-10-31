@@ -143,6 +143,34 @@
       "requiredScope": "production",
       "disposition": "Redistribute the exact MPL-2.0 text and preserve the exact package tarball as the corresponding-source URL.",
       "correspondingSourceUrl": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz"
+    },
+    {
+      "packageName": "chownr",
+      "version": "3.0.0",
+      "licenseExpression": "BlueOak-1.0.0",
+      "requiredScope": "development-only",
+      "disposition": "Optional skills installer development dependency; excluded from production redistribution. Reviewed Blue Oak 1.0.0 copyright/patent permissions and license-or-link notice requirement at https://blueoakcouncil.org/license/1.0.0. Preserve upstream license text when redistributing this development tool."
+    },
+    {
+      "packageName": "minipass",
+      "version": "7.1.3",
+      "licenseExpression": "BlueOak-1.0.0",
+      "requiredScope": "development-only",
+      "disposition": "Optional skills installer development dependency; excluded from production redistribution. Reviewed Blue Oak 1.0.0 copyright/patent permissions and license-or-link notice requirement at https://blueoakcouncil.org/license/1.0.0. Preserve upstream license text when redistributing this development tool."
+    },
+    {
+      "packageName": "tar",
+      "version": "7.5.22",
+      "licenseExpression": "BlueOak-1.0.0",
+      "requiredScope": "development-only",
+      "disposition": "Optional skills installer development dependency; excluded from production redistribution. Reviewed Blue Oak 1.0.0 copyright/patent permissions and license-or-link notice requirement at https://blueoakcouncil.org/license/1.0.0. Preserve upstream license text when redistributing this development tool."
+    },
+    {
+      "packageName": "yallist",
+      "version": "5.0.0",
+      "licenseExpression": "BlueOak-1.0.0",
+      "requiredScope": "development-only",
+      "disposition": "Optional skills installer development dependency; excluded from production redistribution. Reviewed Blue Oak 1.0.0 copyright/patent permissions and license-or-link notice requirement at https://blueoakcouncil.org/license/1.0.0. Preserve upstream license text when redistributing this development tool."
     }
   ],
   "pinnedSources": [

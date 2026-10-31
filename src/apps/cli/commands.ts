@@ -21,6 +21,7 @@ import { proveMotionEffect } from "./proof/command.js";
 import { sanitizeCliDiagnostics } from "./diagnostics.js";
 import { publicDiagnosticPath } from "./diagnostic-path.js";
 import type { Locale } from "../../shared/i18n/config.js";
+import { inspectSkillKit } from "./skill-kit.js";
 
 export async function runMotionCli(
   argv: string[],
@@ -142,6 +143,8 @@ export async function runMotionCli(
         );
       await installMotionBrowser(context, args.locale);
       result = { ok: true, browser: "chromium", installation: "completed" };
+    } else if (args.command === "skills") {
+      result = await inspectSkillKit(context, args.locale);
     } else if (args.command === "docs") {
       const text = await readFile(
         join(context.packageRoot, "README.md"),

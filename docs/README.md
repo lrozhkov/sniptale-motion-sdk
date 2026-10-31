@@ -11,6 +11,7 @@ Code, schemas, tests, and deterministic policies own implementation detail. This
 - [Provenance](oss/provenance.md): first-party license source, dependency evidence, generated notices, and local asset policy.
 - [Release readiness](oss/release.md): local candidate checks, legal payload, blockers, and publication boundary.
 - [Локальный npm-комплект](tooling/npm-toolkit.md): установка, команды и ограничения промежуточного кандидата.
+- [Portable authoring skill](authoring/create-effect/SKILL.md): verified toolkit binding and the user workflow, with the [document contract](authoring/create-effect/references/effect-v1-contract.md), [graph runtime](authoring/create-effect/references/graph-runtime.md) and [authoring patterns](authoring/create-effect/references/authoring-patterns.md).
 - [Code quality](tooling/code-quality.md): deterministic rule-to-check mapping and the explicit review-only set.
 
 Root policies remain at the repository root: [license](../LICENSE), [notice](../NOTICE), [contribution policy](../CONTRIBUTING.md), and [security support](../SECURITY.md).

@@ -57,6 +57,7 @@ export function parseCliArguments(argv: string[]) {
       "studio",
       "browser",
       "prove",
+      "skills",
     ].includes(command)
   ) {
     throw new MotionCliError("ARGUMENTS", `Unknown command: ${command}`);

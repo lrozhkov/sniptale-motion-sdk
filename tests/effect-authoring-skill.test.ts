@@ -8,14 +8,14 @@ import {
   validateEffectV1Document,
 } from "../src/sdk/effect-v1/index.js";
 
-const skillRoot = ".agents/skills/create-effect";
+const skillRoot = "docs/authoring/create-effect";
 
 describe("Effect v1 authoring skill", () => {
   it("is installed as a discoverable skill package", () => {
     const skill = read(`${skillRoot}/SKILL.md`);
-    const metadata = read(`${skillRoot}/agents/openai.yaml`);
+    const metadata = read(".agents/skills/create-effect/agents/openai.yaml");
 
-    expect(skill).toMatch(/^---\nname: create-effect\ndescription: .+\n---\n/);
+    expect(skill).toMatch(/^---\nname: create-effect\ndescription: .+\n/);
     expect(metadata).toContain('display_name: "Create Sniptale Effect"');
     expect(metadata).toContain("$create-effect");
     expect(read(".gitignore")).toContain("/.tmp/");
@@ -25,7 +25,7 @@ describe("Effect v1 authoring skill", () => {
     const skill = read(`${skillRoot}/SKILL.md`);
     const contract = read(`${skillRoot}/references/effect-v1-contract.md`);
     const patterns = read(`${skillRoot}/references/authoring-patterns.md`);
-    const manual = `${skill}\n${contract}\n${patterns}`;
+    const manual = `${skill}\n${contract}\n${patterns}\n${read(".agents/skills/create-effect/SKILL.md")}`;
 
     expect(manual).toContain("*.sniptale-effect.json");
     expect(manual).toContain("npm run effect:new");
@@ -75,7 +75,13 @@ describe("Effect v1 authoring skill", () => {
   it("documents a minimal payload accepted by the authoritative validator", () => {
     const document = readJsonExamples(
       `${skillRoot}/references/effect-v1-contract.md`,
-    ).find((example: any) => example?.schemaVersion === "sniptale.effect.v1");
+    ).find(
+      (example) =>
+        example !== null &&
+        typeof example === "object" &&
+        "schemaVersion" in example &&
+        example.schemaVersion === "sniptale.effect.v1",
+    );
 
     expect(validateEffectV1Document(document)).toMatchObject({
       ok: true,
@@ -90,6 +96,6 @@ function read(path: string): string {
 
 function readJsonExamples(path: string): unknown[] {
   return [...read(path).matchAll(/```json\n([\s\S]*?)\n```/g)].map((match) =>
-    JSON.parse(match[1]),
+    JSON.parse(match[1] ?? ""),
   );
 }

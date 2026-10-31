@@ -2,8 +2,10 @@ import type { Locale } from "./config.js";
 
 const messages = {
   ru: {
-    help: "Команды: init [папка], new <id> [--kind standalone|targetEffect|transition], validate <файл> [--asset-root папка], prove <файл> [--asset-root папка] [--browser-channel chrome|msedge|chromium], export <файл> --output <файл> [--asset-root папка], studio [папка] [--no-open], doctor [--browser-channel chrome|msedge|chromium], browser install, docs.\nОпции: --json, --locale ru|en, --help, --version.\nКоды завершения: 0 — успех, 1 — ошибка операции/валидации, 2 — неверные аргументы.\n",
+    help: "Команды: init [папка], new <id> [--kind standalone|targetEffect|transition], validate <файл> [--asset-root папка], prove <файл> [--asset-root папка] [--browser-channel chrome|msedge|chromium], export <файл> --output <файл> [--asset-root папка], studio [папка] [--no-open], doctor [--browser-channel chrome|msedge|chromium], browser install, skills, docs.\nОпции: --json, --locale ru|en, --help, --version.\nКоды завершения: 0 — успех, 1 — ошибка операции/валидации, 2 — неверные аргументы.\n",
     studioReady: "Studio запущена. Откройте адрес в браузере:",
+    skillKitFailed:
+      "Набор skill не соответствует установленному toolkit или повреждён. Переустановите проверенный архив и повторите skills.",
     studioStop: "Для остановки нажмите Ctrl+C.",
     browserOpenFailed:
       "Не удалось открыть браузер автоматически. Откройте адрес Studio вручную.",
@@ -39,8 +41,10 @@ const messages = {
       "Браузер не требуется для создания и валидации. Studio использует установленный браузер; prove запускает совместимый браузер без интерфейса.",
   },
   en: {
-    help: "Commands: init [directory], new <id> [--kind standalone|targetEffect|transition], validate <file> [--asset-root directory], prove <file> [--asset-root directory] [--browser-channel chrome|msedge|chromium], export <file> --output <file> [--asset-root directory], studio [directory] [--no-open], doctor [--browser-channel chrome|msedge|chromium], browser install, docs.\nOptions: --json, --locale ru|en, --help, --version.\nExit codes: 0 success, 1 operation/validation failure, 2 invalid arguments.\n",
+    help: "Commands: init [directory], new <id> [--kind standalone|targetEffect|transition], validate <file> [--asset-root directory], prove <file> [--asset-root directory] [--browser-channel chrome|msedge|chromium], export <file> --output <file> [--asset-root directory], studio [directory] [--no-open], doctor [--browser-channel chrome|msedge|chromium], browser install, skills, docs.\nOptions: --json, --locale ru|en, --help, --version.\nExit codes: 0 success, 1 operation/validation failure, 2 invalid arguments.\n",
     studioReady: "Studio is running. Open this address in a browser:",
+    skillKitFailed:
+      "The skill kit does not match the installed toolkit or is damaged. Reinstall the verified archive and run skills again.",
     studioStop: "Press Ctrl+C to stop.",
     browserOpenFailed:
       "The browser could not be opened automatically. Open the Studio address manually.",

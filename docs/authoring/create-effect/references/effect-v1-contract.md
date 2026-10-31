@@ -16,17 +16,15 @@
 
 ## Local storage and engine ingestion
 
-Store each authored bundle below `.tmp/effects/<effect-id>/`. The repository ignores all of `.tmp`, so effect JSON, source media, generated proof, and other working artifacts remain local. Keep the main document at `.tmp/effects/<effect-id>/<effect-id>.sniptale-effect.json` and assets below `.tmp/effects/<effect-id>/assets/`.
+Create a project with the verified toolkit CLI and keep source documents under `effects/<effect-id>/effect.sniptale-effect.json`. Keep referenced assets in that effect directory, for example `effects/<effect-id>/assets/mark.svg`. `exports/` holds portable delivery files; `.tmp/` holds disposable proof and working output. Source documents are project data and must not be treated as disposable caches.
 
-Treat the effect directory as the asset root. A declared path such as `assets/logo.svg` resolves from `.tmp/effects/<effect-id>/`, not from the JSON file after arbitrary relocation and not from a global pack. Paths must be forward-slash relative paths without absolute prefixes, URL schemes, backslashes, or `..` traversal. Symlinks that resolve outside the asset root are rejected.
-
-The engine does not scan a source directory and does not need an effect registry. `effect:validate` and `effect:prove` read the selected JSON file, materialize its declared local assets in memory, import the validated document through the viewer boundary, and load it into the sandbox. The viewer can likewise import a selected effect document and its files. Generated development demo packs are test infrastructure, not the authoring destination; never copy a new effect into one or add it to a committed manifest.
+Treat the effect directory as the asset root. Asset paths use forward slashes and resolve relative to that root, without absolute prefixes, URL schemes, backslashes, or `..` traversal. Symlinks that resolve outside the root are rejected. `validate` materializes local assets and checks the document. `prove` additionally imports through the normal viewer and renders in the isolated sandbox. The engine needs no source-code registry entry. Keep the implementation unchanged during effect authoring.
 
 Use these exact path relationships:
 
 ```text
-.tmp/effects/orbit-title/
-├── orbit-title.sniptale-effect.json
+effects/orbit-title/
+├── effect.sniptale-effect.json
 └── assets/
     ├── mark.svg
     ├── texture.webp
@@ -46,13 +44,13 @@ Use these exact path relationships:
 }
 ```
 
-Pass `.tmp/effects/orbit-title` as `--asset-root` for that document.
+Pass `effects/orbit-title` as `--asset-root` for that document.
 
 ## Required document shape
 
 Use one strict UTF-8 JSON object without comments or trailing commas. Unknown fields are rejected at every validated boundary.
 
-The root requires `schemaVersion`, `id`, `kind`, `duration`, `label`, `assets`, `controls`, `layers`, `clips`, `scenes`, `timeline`, and `program`. `description` and `presets` are optional. Use `schemaVersion: "sniptale.effect.v1"` exactly. Use a positive duration in seconds. Use identifiers that start with an alphanumeric character and contain at most 128 letters, digits, `.`, `_`, or `-` characters.
+The root requires `schemaVersion`, `id`, `kind`, `duration`, `label`, `assets`, `controls`, `layers`, `clips`, `scenes`, `timeline`, and `program`. `description` and `presets` are optional. Use `schemaVersion: "sniptale.effect.v1"` exactly. Use a positive duration in seconds. Use identifiers that start with a letter and contain at most 128 letters, digits, `.`, `_`, or `-` characters.
 
 Use this minimal topology for a standalone effect:
 

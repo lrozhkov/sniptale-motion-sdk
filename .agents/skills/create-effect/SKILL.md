@@ -9,9 +9,9 @@ Create only declarative Effect v1 data. Keep the SDK implementation static and l
 
 ## Load the contract
 
-Read [references/effect-v1-contract.md](references/effect-v1-contract.md) completely before creating or changing an effect. Read [references/graph-runtime.md](references/graph-runtime.md) completely before designing its render graph. Read [references/authoring-patterns.md](references/authoring-patterns.md) when implementing any nontrivial animation, runtime-input composition, asset usage, timeline, or repeated geometry.
+Read [../../../docs/authoring/create-effect/references/effect-v1-contract.md](../../../docs/authoring/create-effect/references/effect-v1-contract.md) completely before creating or changing an effect. Read [../../../docs/authoring/create-effect/references/graph-runtime.md](../../../docs/authoring/create-effect/references/graph-runtime.md) completely before designing its render graph. Read [../../../docs/authoring/create-effect/references/authoring-patterns.md](../../../docs/authoring/create-effect/references/authoring-patterns.md) when implementing any nontrivial animation, runtime-input composition, asset usage, timeline, or repeated geometry.
 
-Treat these skill references as the working authoring manual. Consult `schemas/sniptale-effect-v1.schema.json` or `src/sdk/effect-v1/` only when the validator reports a case that the manual does not cover or when the user explicitly asks to audit the engine contract.
+The shared references illustrate the installed toolkit project layout. In this source checkout, use the ignored paths and repository commands below; asset-root semantics are the same. Treat these skill references as the working authoring manual. Consult `schemas/sniptale-effect-v1.schema.json` or `src/sdk/effect-v1/` only when the validator reports a case that the manual does not cover or when the user explicitly asks to audit the engine contract.
 
 ## Keep the effect local
 
@@ -80,7 +80,7 @@ Run browser-backed import and runtime proof after static validation passes:
 npm run effect:prove -- .tmp/effects/<effect-id>/<effect-id>.sniptale-effect.json --asset-root .tmp/effects/<effect-id>
 ```
 
-Accept the result only when the proof reports `ok: true`, nonblank frames, expected time variation, runtime-input isolation, observable control changes, complete binding coverage, and zero recovery or stale-response deltas. Review the start, middle, end, phase boundaries, text placement, clipping, opacity, and transitions for visual intent; automated proof establishes execution, not taste.
+Accept the result only when the proof reports `ok: true`, nonblank frames, expected time variation, runtime-input isolation, observable control changes, complete binding coverage, real asset transfers and successful rapid-seek/sandbox-restart recovery. The proof deliberately restarts the sandbox; do not require a zero restart delta. Review the start, middle, end, phase boundaries, text placement, clipping, opacity, and transitions for visual intent; automated proof establishes execution, not taste.
 
 ## Respect the boundary
 

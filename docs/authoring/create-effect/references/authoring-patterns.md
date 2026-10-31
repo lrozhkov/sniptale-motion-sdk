@@ -20,7 +20,7 @@
 Generate the final local document instead of writing the root contract from memory:
 
 ```bash
-npm run effect:new -- --id orbit-title --kind standalone --output .tmp/effects/orbit-title/orbit-title.sniptale-effect.json
+sniptale-motion new orbit-title --kind standalone
 ```
 
 The starter already consumes required runtime inputs for `targetEffect` and `transition`, declares a visible control, connects leaf layers to clips, and supplies a graph that passes validation. Replace its visual design while preserving any still-needed closure relationships.
@@ -232,7 +232,7 @@ For a wipe, keep `from` full-frame and put the `to` image inside a rectangular `
 
 ## Local asset usage
 
-Place a file at `.tmp/effects/orbit-title/assets/mark.svg` and declare:
+Place a file at `effects/orbit-title/assets/mark.svg` and declare:
 
 ```json
 {
@@ -259,7 +259,7 @@ Render it with exactly one source:
 }
 ```
 
-Run validation with `--asset-root .tmp/effects/orbit-title`. The validator calculates materialized integrity metadata in memory; do not manually embed a large data URL unless the delivery format specifically requires a single file.
+Run validation with `--asset-root effects/orbit-title`. The validator calculates materialized integrity metadata in memory; do not manually embed a large data URL unless the delivery format specifically requires a single file.
 
 For SVG choreography, replace `image` with `svgParts` and use a preset:
 

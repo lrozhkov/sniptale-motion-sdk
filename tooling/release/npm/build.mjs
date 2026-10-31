@@ -95,6 +95,56 @@ for (const item of [
 }
 await cp(join(repo, "schemas"), join(stage, "schemas"), { recursive: true });
 await cp(join(repo, "docs/tooling/npm-toolkit.md"), join(stage, "README.md"));
+await cp(
+  join(repo, "docs/authoring/create-effect"),
+  join(stage, "skills/create-effect"),
+  { recursive: true },
+);
+const installer = JSON.parse(
+  await readFile(join(repo, "node_modules/skills/package.json"), "utf8"),
+);
+if (
+  installer.name !== "skills" ||
+  installer.version !== rootManifest.devDependencies.skills ||
+  !/^>=\d+\.\d+\.\d+$/.test(installer.engines?.node ?? "")
+)
+  throw new Error(
+    "The optional skill installer differs from the pinned development toolchain.",
+  );
+const inputs = await collectFiles(stage);
+const runtimeFiles = [];
+const skillFiles = [];
+for (const path of inputs) {
+  const entry = {
+    path,
+    sha256: createHash("sha256")
+      .update(await readFile(join(stage, path)))
+      .digest("hex"),
+  };
+  if (path.startsWith("skills/create-effect/")) skillFiles.push(entry);
+  else if (
+    ["bin/", "apps/", "sdk/", "schemas/", "node_modules/playwright-core/"].some(
+      (prefix) => path.startsWith(prefix),
+    )
+  )
+    runtimeFiles.push(entry);
+}
+const fingerprint = (rows) =>
+  createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+const descriptor = {
+  schemaVersion: "sniptale.motion-skill-kit.v1",
+  toolkitVersion: rootManifest.version,
+  runtimeDigest: fingerprint(runtimeFiles),
+  skillDigest: fingerprint(skillFiles),
+};
+await writeFile(
+  join(stage, "skill-kit.json"),
+  `${JSON.stringify({ ...descriptor, installerVersion: installer.version, installerNode: installer.engines.node, runtimeFiles, skillFiles }, null, 2)}\n`,
+);
+await writeFile(
+  join(stage, "skills/create-effect/references/toolkit.json"),
+  `${JSON.stringify(descriptor, null, 2)}\n`,
+);
 const manifest = {
   name: "@sniptale/motion",
   version: rootManifest.version,
@@ -117,6 +167,8 @@ const manifest = {
     "apps",
     "sdk",
     "schemas",
+    "skills",
+    "skill-kit.json",
     "LICENSES",
     "NOTICE",
     "THIRD_PARTY_DEPENDENCIES.json",
