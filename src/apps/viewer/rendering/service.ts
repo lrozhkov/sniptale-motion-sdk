@@ -16,6 +16,11 @@ import {
 import { mergeQueuedRenderOptions } from "./render-queue.js";
 import { beginViewerRenderProfile } from "./render-profile-state.js";
 import { beginDirectLiveRenderProfile } from "./direct-live-policy.js";
+import { discardStaleFrame } from "./frame-observation.js";
+import {
+  clearCompletedTransformPreview,
+  completeFramePresentation,
+} from "./frame-completion.js";
 export async function renderCurrentFrame(
   ctx: ViewerAppContext,
   options: RenderOptions = {},
@@ -97,6 +102,12 @@ export async function renderCurrentFrame(
     const fps = Math.max(1, Number(ctx.refs.fpsInput.value) || 30);
     const progress = duration > 0 ? time / duration : 0;
     const sequenceId = ++ctx.state.frameSequence;
+    const runtimeGeneration = ctx.state.sandboxRuntimeGeneration;
+    const frameAuthority = {
+      template,
+      sequence: sequenceId,
+      generation: runtimeGeneration,
+    };
     if (!ctx.state.playing) {
       const formattedTime = ctx.formatSeconds(time);
       ctx.refs.timeOutput.textContent = formattedTime;
@@ -217,11 +228,7 @@ export async function renderCurrentFrame(
       ctx.commitRenderAssetTransfers(renderAssets);
       ctx.commitRenderModelEnvelope(renderModel);
       ctx.markSandboxRenderHealthy(template.id);
-      if (result.sequenceId !== ctx.state.frameSequence) {
-        ctx.state.staleResponses += 1;
-        result.bitmap?.close?.();
-        return;
-      }
+      if (discardStaleFrame(ctx, frameAuthority, result)) return;
       directLiveProfile.commit(result.renderProfile);
       const videoCacheStep = capturePlaybackVideoFrame
         ? await ctx.capturePlaybackVideoCacheFrame?.({
@@ -231,6 +238,7 @@ export async function renderCurrentFrame(
           })
         : null;
       renderProfile?.mark("videoCacheMs");
+      if (discardStaleFrame(ctx, frameAuthority, result)) return;
       if (videoCacheStep?.captured) {
         result.bitmap?.close?.();
       } else {
@@ -243,12 +251,7 @@ export async function renderCurrentFrame(
           result.bindingReads,
         );
       }
-      if (
-        options.forceFull === true &&
-        ctx.state.canvasTransformPreview?.awaitingFullRender
-      ) {
-        ctx.state.canvasTransformPreview = null;
-      }
+      clearCompletedTransformPreview(ctx, options.forceFull === true);
       if (!ctx.state.playing) {
         ctx.mergeRendererContractReads(template.id, ctx.state.lastBindingReads);
       }
@@ -269,24 +272,19 @@ export async function renderCurrentFrame(
           previousCacheFrames,
         });
       }
-      ctx.syncPreviewQualityBadge(renderPlan.scale);
-      if (options.forceFull === true) {
-        ctx.state.interactivePreviewScale = 1;
-      }
-      ctx.setRenderStatus("applied");
-      if (
-        ctx.state.activeSidebarGroup === "health" &&
-        ctx.state.activeHealthTab === "renderer"
-      ) {
-        ctx.renderRendererBindingsPanel(template);
-      }
-      if (ctx.state.playing && capturePlaybackBindings) {
-        ctx.scheduleCanvasSelectionPlaybackUpdate();
-      } else {
-        if (!ctx.state.playing) {
-          ctx.updateCanvasSelectionBox();
-        }
-      }
+      completeFramePresentation(
+        ctx,
+        template,
+        {
+          templateId: template.id,
+          sequence: sequenceId,
+          generation: runtimeGeneration,
+          time,
+          scale: renderPlan.scale,
+        },
+        options.forceFull === true,
+        capturePlaybackBindings,
+      );
       renderProfile?.mark("postProcessMs");
       renderProfile?.finish(ctx, {
         height,

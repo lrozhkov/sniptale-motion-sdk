@@ -127,9 +127,8 @@ describe("architecture guardrails", () => {
       "effect:corpus": "tsx tooling/effect-v1/corpus/generate.ts",
       "effect:corpus:check": "tsx tooling/effect-v1/corpus/verify.ts",
       "effect:new": "tsx tooling/effect-v1/new.ts",
-      "effect:prove": "npm run build:local && npm run effect:prove:runtime --",
-      "effect:prove:runtime":
-        "EFFECT_SDK_VIEWER_PORT=4377 EFFECT_SDK_SANDBOX_PORT=4378 tsx tooling/effect-v1/prove.ts",
+      "effect:prove": "npm run build && npm run effect:prove:runtime --",
+      "effect:prove:runtime": "tsx tooling/effect-v1/prove.ts",
       "effect:schema":
         "tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json",
       "effect:schema:check":
@@ -366,8 +365,16 @@ describe("architecture guardrails", () => {
       'from "../../../tests/smoke/scenarios/main-flow.mjs"',
     );
     expect(read("tooling/effect-v1/prove.ts")).toContain(
-      'from "../test/smoke/runtime.mjs"',
+      'runRepositoryMotionCommand("prove")',
     );
+    expect(read("tooling/effect-v1/validate.ts")).toContain(
+      'runRepositoryMotionCommand("validate")',
+    );
+    expect(read("tooling/effect-v1/command-runtime.ts")).toContain(
+      'from "../../src/apps/cli/commands.js"',
+    );
+    expect(read("tooling/effect-v1/prove.ts")).not.toContain("../test/");
+    expect(read("tooling/effect-v1/prove.ts")).not.toContain("effectsViewer");
   });
 
   it("keeps browser smoke scenarios and helpers below owner size limits", () => {

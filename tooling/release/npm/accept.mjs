@@ -1,4 +1,5 @@
 import { acceptInstalledStudio } from "./studio-accept.mjs";
+import { acceptInstalledProof } from "./proof-accept.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -175,6 +176,22 @@ try {
     missingBrowser.browser.nextCommand,
     "sniptale-motion browser install",
   );
+  const unavailableProof = await run(
+    "prove-without-browser",
+    process.execPath,
+    [
+      cli,
+      "prove",
+      "exports/standalone.sniptale-effect.json",
+      "--browser-channel",
+      "chromium",
+      "--json",
+    ],
+    project,
+    1,
+    withoutBrowser,
+  );
+  assert.equal(unavailableProof.diagnostics[0].code, "BROWSER_UNAVAILABLE");
   assert.equal(
     (
       await run(
@@ -188,6 +205,8 @@ try {
     ).ok,
     true,
   );
+  if (process.env.MOTION_NPM_BROWSER_ACCEPT === "1")
+    await acceptInstalledProof({ invoke, project });
   await acceptInstalledStudio({
     cli,
     project,
@@ -221,6 +240,19 @@ try {
     true,
   );
   const portable = join(project, "exports/with-asset.sniptale-effect.json");
+  if (process.env.MOTION_NPM_BROWSER_ACCEPT === "1") {
+    const proof = await invoke(
+      "prove-relative-asset",
+      ["prove", effectFile, "--browser-channel", "chromium"],
+      project,
+    );
+    assert.equal(proof.ok, true);
+    assert.equal(proof.proof.assets.declared, 1);
+    assert.equal(proof.proof.assets.materialized, true);
+    assert.equal(proof.proof.assetTransfers.ok, true);
+    assert.ok(proof.proof.assetTransfers.bitmapTransfers >= 1);
+    assert.ok(proof.proof.assetTransfers.envelopeTransfers >= 1);
+  }
   await invoke(
     "export-relative-asset",
     ["export", effectFile, "--output", portable],

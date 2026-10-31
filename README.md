@@ -2,7 +2,7 @@
 
 **Describe the motion. Let an agent make it portable.**
 
-Sniptale Motion SDK is a local-first workspace for creating, inspecting, validating, previewing, and exporting reusable motion effects with a Codex agent. It is intended to let people without professional animation or programming skills turn visual intent into a strict `sniptale.effect.v1` document that a compatible Sniptale video editor can import and render.
+Sniptale Motion SDK is a local-first workspace for creating, inspecting, validating, previewing, and exporting reusable motion effects with a coding agent. It is intended to let people without professional animation or programming skills turn visual intent into a strict `sniptale.effect.v1` document that a compatible Sniptale video editor can import and render.
 
 > **Alpha preview.** The Effect v1 contract, authoring UI, agent workflow, and video-editor integration are still experimental. Formats and editing behavior may change without migration or backward compatibility. Keep important source media and exported effects backed up, and test an effect in the exact editor build where it will be used.
 

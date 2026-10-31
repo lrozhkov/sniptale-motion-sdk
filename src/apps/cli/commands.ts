@@ -17,13 +17,19 @@ import { initProject, newEffect } from "./project.js";
 import { exportMotionEffect } from "./export.js";
 import { inspectMotionBrowser } from "./browser/runtime.js";
 import { installMotionBrowser } from "./browser/install.js";
+import { proveMotionEffect } from "./proof/command.js";
+import { sanitizeCliDiagnostics } from "./diagnostics.js";
+import { publicDiagnosticPath } from "./diagnostic-path.js";
+import type { Locale } from "../../shared/i18n/config.js";
 
 export async function runMotionCli(
   argv: string[],
   context: CliContext,
 ): Promise<number> {
+  let locale: Locale = "ru";
   try {
     const args = parseCliArguments(argv);
+    locale = args.locale;
     const messages = cliMessages(args.locale);
     if (args.values.version) {
       context.stdout(
@@ -87,6 +93,23 @@ export async function runMotionCli(
           runtime: "not-run",
         },
       };
+    } else if (args.command === "prove") {
+      if (!args.positional)
+        throw new MotionCliError("ARGUMENTS", "prove requires a file.");
+      result = await proveMotionEffect(
+        context,
+        resolve(context.cwd, args.positional),
+        {
+          locale: args.locale,
+          ...(context.signal ? { signal: context.signal } : {}),
+          ...(args.values.browserChannel
+            ? { channel: args.values.browserChannel }
+            : {}),
+          ...(args.values["asset-root"]
+            ? { assetRoot: resolve(context.cwd, args.values["asset-root"]) }
+            : {}),
+        },
+      );
     } else if (args.command === "export") {
       if (!args.positional || !args.values.output)
         throw new MotionCliError(
@@ -144,6 +167,7 @@ export async function runMotionCli(
         }),
       };
     }
+    result = sanitizeCliDiagnostics(result, args.locale);
     if (args.values.json) context.stdout(`${JSON.stringify(result)}\n`);
     else {
       const stream = result.ok ? context.stdout : context.stderr;
@@ -157,10 +181,16 @@ export async function runMotionCli(
       error instanceof MotionCliError || error instanceof EffectV1BundleError
         ? error.code
         : filesystemCode(error);
-    const message = error instanceof Error ? error.message : String(error);
+    const messages = cliMessages(locale);
+    const message =
+      error instanceof EffectV1BundleError
+        ? messages.assetValidationFailed
+        : error instanceof MotionCliError
+          ? error.message
+          : messages.operationFailed;
     if (argv.includes("--json"))
       context.stdout(
-        `${JSON.stringify({ ok: false, diagnostics: [{ code, message, path: error instanceof EffectV1BundleError ? error.path : "$", severity: "error" }] })}\n`,
+        `${JSON.stringify({ ok: false, diagnostics: [{ code, message, path: error instanceof EffectV1BundleError ? publicDiagnosticPath(error.path) : "$", severity: "error" }] })}\n`,
       );
     else context.stderr(`${code}: ${message}\n`);
     return code === "ARGUMENTS" ? 2 : 1;

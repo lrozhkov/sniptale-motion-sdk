@@ -14,11 +14,11 @@ export function parseCliArguments(argv: string[]) {
       ? { "no-open": { type: "boolean" as const } }
       : {}),
     ...(command === "new" ? { kind: { type: "string" as const } } : {}),
-    ...(command === "validate" || command === "export"
+    ...(["validate", "export", "prove"].includes(command)
       ? { "asset-root": { type: "string" as const } }
       : {}),
     ...(command === "export" ? { output: { type: "string" as const } } : {}),
-    ...(command === "doctor"
+    ...(command === "doctor" || command === "prove"
       ? { "browser-channel": { type: "string" as const } }
       : {}),
   } as const;
@@ -56,11 +56,14 @@ export function parseCliArguments(argv: string[]) {
       "docs",
       "studio",
       "browser",
+      "prove",
     ].includes(command)
   ) {
     throw new MotionCliError("ARGUMENTS", `Unknown command: ${command}`);
   }
-  const minimum = ["new", "validate", "export", "browser"].includes(command)
+  const minimum = ["new", "validate", "export", "browser", "prove"].includes(
+    command,
+  )
     ? 1
     : 0;
   const maximum = [
@@ -70,6 +73,7 @@ export function parseCliArguments(argv: string[]) {
     "export",
     "studio",
     "browser",
+    "prove",
   ].includes(command)
     ? 1
     : 0;
