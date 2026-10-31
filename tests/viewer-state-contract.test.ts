@@ -42,6 +42,24 @@ import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 
 describe("viewer state contracts", () => {
+  it("keeps timeline nodes and ownership fields typed at the application boundary", () => {
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createTimelineLane"]>["body"]
+    >().toEqualTypeOf<HTMLDivElement>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createTimelineBlock"]>
+    >().toEqualTypeOf<HTMLButtonElement>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["getSceneOwnershipSummary"]>["rows"][number]
+    >().toEqualTypeOf<[string, string]>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createPhaseOptions"]>[number]["value"]
+    >().toBeString();
+    expectTypeOf<
+      Parameters<ViewerAppContext["appendInspectorSelectRow"]>[0]["onChange"]
+    >().toEqualTypeOf<(value: string) => void>();
+  });
+
   it("keeps selection commands and navigation items typed at the application boundary", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["getVisibleTimelineSelectionItems"]>

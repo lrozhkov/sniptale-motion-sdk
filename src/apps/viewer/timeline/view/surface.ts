@@ -1,16 +1,21 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+
+import type { EditorTimelineSource } from "../../editor/timeline-source.js";
+
+import type { TimelineSurfaceOptions } from "./model.js";
 import { readTimelineRenderSnapshot } from "../snapshot.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderTimelineStructure(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): void {
   renderTimelineSurface(ctx, template, { reuseModel: true, tracks: true });
 }
 
 function renderTimelineViewport(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): void {
   renderTimelineSurface(ctx, template, {
     reuseModel: true,
@@ -21,7 +26,7 @@ function renderTimelineViewport(
 
 function renderTimelineModel(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): void {
   renderTimelineSurface(ctx, template, {
     curve: true,
@@ -32,14 +37,8 @@ function renderTimelineModel(
 
 function renderTimelineSurface(
   ctx: ViewerAppContext,
-  template,
-  options: {
-    curve?: boolean;
-    reuseModel?: boolean;
-    ruler?: boolean;
-    selectionCrumb?: boolean;
-    tracks?: boolean;
-  },
+  template: EditorTimelineSource | null | undefined,
+  options: TimelineSurfaceOptions,
 ): void {
   if (!template) {
     return;
@@ -73,8 +72,18 @@ function renderTimelineSurface(
   ctx.state.lastTimelineSurfaceRenderMs = performance.now() - startedAt;
 }
 
-export function installTimelineSurfaceViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderTimelineModel = renderTimelineModel.bind(undefined, ctx);
-  ctx.renderTimelineStructure = renderTimelineStructure.bind(undefined, ctx);
-  ctx.renderTimelineViewport = renderTimelineViewport.bind(undefined, ctx);
+export function createTimelineSurfaceActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderTimelineModel: bindViewerAction(renderTimelineModel, getContext),
+    renderTimelineStructure: bindViewerAction(
+      renderTimelineStructure,
+      getContext,
+    ),
+    renderTimelineViewport: bindViewerAction(
+      renderTimelineViewport,
+      getContext,
+    ),
+  };
 }

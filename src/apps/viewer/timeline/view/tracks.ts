@@ -1,13 +1,18 @@
-import { readTimelineRenderSnapshot } from "../snapshot.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+
 import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type { TimelineViewSource, TimelineContentMetrics } from "./model.js";
+import { readTimelineRenderSnapshot } from "../snapshot.js";
+
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderTimelineTracks(
   ctx: ViewerAppContext,
-  template: { id: string },
+  template: TimelineViewSource,
   timeline: EditorTimeline,
   options: { reuseModel?: boolean } = {},
-) {
+): void {
   const startedAt = performance.now();
   const scrollTop = ctx.refs.timelineTracks.scrollTop;
   const contentRect = ctx.getTimelineContentMetrics(ctx.refs.timelineTracks);
@@ -86,10 +91,10 @@ function renderTimelineTracks(
 
 function renderTimelineGridLines(
   ctx: ViewerAppContext,
-  template,
-  timeline,
-  contentRect = null,
-) {
+  template: TimelineViewSource,
+  timeline: EditorTimeline,
+  contentRect: TimelineContentMetrics | null = null,
+): void {
   const duration = timeline.duration || template.duration || 1;
   for (const time of ctx.getVisibleTimelineTicks(duration)) {
     const line = document.createElement("span");
@@ -104,7 +109,14 @@ function renderTimelineGridLines(
   }
 }
 
-export function installTimelineTracksViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderTimelineTracks = renderTimelineTracks.bind(undefined, ctx);
-  ctx.renderTimelineGridLines = renderTimelineGridLines.bind(undefined, ctx);
+export function createTimelineTracksActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderTimelineTracks: bindViewerAction(renderTimelineTracks, getContext),
+    renderTimelineGridLines: bindViewerAction(
+      renderTimelineGridLines,
+      getContext,
+    ),
+  };
 }

@@ -1,84 +1,30 @@
-import type { ViewerAppContext } from "../../app/context.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
 
-function renderLayerIntervalRow(
-  ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneGroup,
-  scene,
-  clipRow,
-  ownershipLinks,
-  duration,
-  inheritedDisabled = false,
-) {
-  const { clip, layer } = clipRow;
-  const role = ctx.deps.t("viewer.timeline.layerClip", "Clip");
-  const interval = getSceneClampedClipInterval(clip, scene);
-  const intervalLabel = `${role} · ${ctx.formatSecondsRange(
-    interval.effectiveStart,
-    interval.effectiveEnd,
-    2,
-  )}`;
-  const lane = ctx.createTimelineLane(
-    intervalLabel,
-    interval.invalid
-      ? `${ctx.deps.t("viewer.timeline.clipRawInterval", "Raw")} ${ctx.formatSecondsRange(
-          interval.rawStart,
-          interval.rawEnd,
-          2,
-        )}`
-      : ctx.deps.t("viewer.timeline.layerIntervalRole", "Clip timing"),
-  );
-  lane.row.classList.add(
-    "scene-child-lane",
-    "clip-lane",
-    "layer-interval-lane",
-  );
-  lane.row.dataset.parentSceneId = scene.id;
-  lane.row.dataset.layerId = clip.layerId;
-  lane.row.dataset.parentLayerId = clip.layerId;
-  lane.row.classList.toggle("disabled", clip.enabled === false);
-  lane.row.classList.toggle("invalid", interval.invalid);
-  lane.row.classList.toggle(
-    "inherited-disabled",
-    Boolean(inheritedDisabled) || scene.enabled === false,
-  );
-  lane.label.title = interval.invalid
-    ? `${intervalLabel}\n${ctx.deps.t(
-        "viewer.timeline.clipRawInterval",
-        "Raw",
-      )} ${ctx.formatSecondsRange(interval.rawStart, interval.rawEnd)}`
-    : intervalLabel;
-  ctx.appendTimelineEnabledToggle(lane.label, {
-    enabled: ctx.isTimelineItemEnabled(clip),
-    id: clip.layerId,
-    title: ctx.deps.t("viewer.timeline.toggleClip", "Toggle clip"),
-    type: "clip",
-  });
-  ctx.markRendererBinding(lane.row, "clip", clip.layerId);
-  const block = createLayerIntervalBlock(
-    ctx,
-    template,
-    scene,
-    clipRow,
-    ownershipLinks,
-    duration,
-    inheritedDisabled,
-  );
-  lane.body.append(block);
-  sceneGroup.append(lane.row);
-}
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type { EffectClip } from "../../../../sdk/types.js";
+import type {
+  TimelineScene,
+  TimelineTrackRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type {
+  TimelineViewSource,
+  TimelineClipRow,
+  TimelineClipInterval,
+} from "./model.js";
+import type { ViewerAppContext } from "../../app/context.js";
 
 function createLayerIntervalBlock(
   ctx: ViewerAppContext,
-  template,
-  scene,
-  clipRow,
-  ownershipLinks,
-  duration,
-  inheritedDisabled = false,
-) {
+  _template: TimelineViewSource,
+  scene: TimelineScene,
+  clipRow: TimelineClipRow,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+  inheritedDisabled: boolean = false,
+): HTMLButtonElement {
   const { clip, layer } = clipRow;
   const interval = getSceneClampedClipInterval(clip, scene);
   const intervalLabel = layer?.name ?? clip.layerId;
@@ -134,7 +80,7 @@ function createLayerIntervalBlock(
     if (ctx.shouldSuppressDragClick(event)) {
       return;
     }
-    (event.currentTarget as HTMLElement).focus({ preventScroll: true });
+    block.focus({ preventScroll: true });
     ctx.selectClipBlock(clip.layerId, event);
   });
   if (!clip.locked && !layer?.locked) {
@@ -156,7 +102,10 @@ function createLayerIntervalBlock(
   return block;
 }
 
-function getSceneClampedClipInterval(clip, scene) {
+function getSceneClampedClipInterval(
+  clip: EffectClip,
+  scene: TimelineScene,
+): TimelineClipInterval {
   const rawStart = Number(clip.start) || 0;
   const rawEnd = rawStart + (Number(clip.duration) || 0);
   const sceneStart = Number(scene.start) || 0;
@@ -179,15 +128,15 @@ function getSceneClampedClipInterval(clip, scene) {
 
 function renderSceneTracksGroup(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneGroup,
-  scene,
-  tracks,
-  ownershipLinks,
-  duration,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  sceneGroup: HTMLElement,
+  scene: TimelineScene,
+  tracks: TimelineTrackRow[],
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): void {
   const expanded = ctx.isTimelineRowExpanded("sceneTracks", scene.id);
   const rowIndex = ctx.claimTimelineVirtualRow();
   if (rowIndex !== null) {
@@ -228,9 +177,18 @@ function renderSceneTracksGroup(
   }
 }
 
-export function installTimelineClipGroupViewOwner(ctx: ViewerAppContext): void {
-  ctx.getSceneClampedClipInterval = getSceneClampedClipInterval.bind(undefined);
-  ctx.createLayerIntervalBlock = createLayerIntervalBlock.bind(undefined, ctx);
-  ctx.renderLayerIntervalRow = renderLayerIntervalRow.bind(undefined, ctx);
-  ctx.renderSceneTracksGroup = renderSceneTracksGroup.bind(undefined, ctx);
+export function createTimelineClipGroupActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    getSceneClampedClipInterval: getSceneClampedClipInterval,
+    createLayerIntervalBlock: bindViewerAction(
+      createLayerIntervalBlock,
+      getContext,
+    ),
+    renderSceneTracksGroup: bindViewerAction(
+      renderSceneTracksGroup,
+      getContext,
+    ),
+  };
 }

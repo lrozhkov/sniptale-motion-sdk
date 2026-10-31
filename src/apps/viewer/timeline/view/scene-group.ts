@@ -1,14 +1,25 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type {
+  TimelineScene,
+  TimelineSceneRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type { TimelineViewSource, TimelineLane } from "./model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderSceneTimelineGroup(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneRow,
-  ownershipLinks,
-  duration,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  sceneRow: TimelineSceneRow,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): void {
   const { scene } = sceneRow;
   const expanded = ctx.isSceneExpanded(scene.id);
   const rowIndex = ctx.claimTimelineVirtualRow();
@@ -81,18 +92,18 @@ function renderSceneTimelineGroup(
 }
 
 function createSceneLane(
-  ctx,
-  template,
-  effectiveTemplate,
-  timeline,
-  scene,
-  ownershipLinks,
-  duration,
-  expanded,
-  rowIndex,
-) {
+  ctx: ViewerAppContext,
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+  expanded: boolean,
+  rowIndex: number | null,
+): TimelineLane {
   const sceneLane = ctx.createTimelineLane(
-    scene.label || scene.id,
+    ctx.deps.translateText(scene.label, scene.id) || scene.id,
     ctx.deps.t("viewer.timeline.scene", "Scene"),
   );
   sceneLane.row.classList.add("timeline-scene-row");
@@ -127,18 +138,24 @@ function createSceneLane(
   return sceneLane;
 }
 
-function createSceneBlock(ctx, template, scene, ownershipLinks, duration) {
+function createSceneBlock(
+  ctx: ViewerAppContext,
+  _template: TimelineViewSource,
+  scene: TimelineScene,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): HTMLButtonElement {
   const block = ctx.createTimelineBlock({
     className: "scene-block",
     id: scene.id,
     invalid: ctx.isRangeInvalid(scene.start, scene.duration, duration),
-    label: `${scene.label || scene.id} · ${ctx.formatSecondsRange(
+    label: `${ctx.deps.translateText(scene.label, scene.id) || scene.id} · ${ctx.formatSecondsRange(
       scene.start,
       scene.start + scene.duration,
       2,
     )}`,
     left: ctx.timelinePercent(scene.start, duration),
-    locked: scene.locked,
+    locked: scene.locked === true,
     width: ctx.timelineDurationPercent(scene.duration, duration),
   });
   block.dataset.sceneId = scene.id;
@@ -150,7 +167,7 @@ function createSceneBlock(ctx, template, scene, ownershipLinks, duration) {
     if (ctx.shouldSuppressDragClick(event)) {
       return;
     }
-    (event.currentTarget as HTMLElement).focus({ preventScroll: true });
+    block.focus({ preventScroll: true });
     ctx.selectSceneBlock(scene.id, event);
   });
   if (!scene.locked) {
@@ -163,7 +180,12 @@ function createSceneBlock(ctx, template, scene, ownershipLinks, duration) {
   return block;
 }
 
-function appendSceneEdge(ctx, block, sceneId, edge) {
+function appendSceneEdge(
+  ctx: ViewerAppContext,
+  block: HTMLButtonElement,
+  sceneId: string,
+  edge: "start" | "end",
+): void {
   const node = document.createElement("span");
   node.className = `timeline-edge ${edge}`;
   node.addEventListener("pointerdown", (event) =>
@@ -172,6 +194,13 @@ function appendSceneEdge(ctx, block, sceneId, edge) {
   block.append(node);
 }
 
-export function installViewSceneGroupOwner(ctx: ViewerAppContext): void {
-  ctx.renderSceneTimelineGroup = renderSceneTimelineGroup.bind(undefined, ctx);
+export function createTimelineSceneGroupActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderSceneTimelineGroup: bindViewerAction(
+      renderSceneTimelineGroup,
+      getContext,
+    ),
+  };
 }

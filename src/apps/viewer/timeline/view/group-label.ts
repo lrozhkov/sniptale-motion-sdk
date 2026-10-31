@@ -1,6 +1,21 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type {
+  TimelineScene,
+  TimelineTrackRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type {
+  TimelineViewSource,
+  TimelineLane,
+  TimelineGroupLabelOptions,
+} from "./model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function formatTrackCount(ctx: ViewerAppContext, count: number) {
+function formatTrackCount(ctx: ViewerAppContext, count: number): string {
   const pluralCategory = new Intl.PluralRules(ctx.deps.getLocale()).select(
     count,
   );
@@ -17,7 +32,11 @@ function formatTrackCount(ctx: ViewerAppContext, count: number) {
     .replace("{count}", String(count));
 }
 
-function decorateTimelineGroupLabel(ctx: ViewerAppContext, lane, options) {
+function decorateTimelineGroupLabel(
+  ctx: ViewerAppContext,
+  lane: TimelineLane,
+  options: TimelineGroupLabelOptions,
+): void {
   lane.label.classList.add("timeline-group-label");
   const metadata = options.metadata
     ? ctx.deps.t(
@@ -84,16 +103,16 @@ function syncTimelineGroupLabelTitle(label: HTMLElement): void {
 
 function renderPropertyTrackRows(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneGroup,
-  scene,
-  trackRows,
-  ownershipLinks,
-  duration,
-  inheritedDisabled = false,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  sceneGroup: HTMLElement,
+  scene: TimelineScene,
+  trackRows: TimelineTrackRow[],
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+  inheritedDisabled: boolean = false,
+): void {
   for (const trackRow of trackRows) {
     ctx.renderTimelinePropertyTrackLane(
       template,
@@ -113,7 +132,7 @@ function renderPropertyTrackRows(
           trackRow.parent.type === "scenePhase"
             ? trackRow.parent.id
             : null,
-        depth: trackRow.depth,
+        ...(trackRow.depth !== undefined ? { depth: trackRow.depth } : {}),
         inheritedDisabled,
         type: trackRow.parent.type,
       },
@@ -121,12 +140,17 @@ function renderPropertyTrackRows(
   }
 }
 
-export function installTimelineGroupLabelViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.decorateTimelineGroupLabel = decorateTimelineGroupLabel.bind(
-    undefined,
-    ctx,
-  );
-  ctx.renderPropertyTrackRows = renderPropertyTrackRows.bind(undefined, ctx);
+export function createTimelineGroupLabelActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    decorateTimelineGroupLabel: bindViewerAction(
+      decorateTimelineGroupLabel,
+      getContext,
+    ),
+    renderPropertyTrackRows: bindViewerAction(
+      renderPropertyTrackRows,
+      getContext,
+    ),
+  };
 }

@@ -1,8 +1,22 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type {
+  EffectScene,
+  EffectClip,
+  TimelineKeyframe,
+  TimelinePhase,
+} from "../../../sdk/types.js";
+import type { OwnershipSummary } from "./ownership-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function getSceneOwnershipSummary(ctx: ViewerAppContext, template, scene) {
+function getSceneOwnershipSummary(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  scene: EffectScene,
+): OwnershipSummary {
   const plan = ctx.createSceneMovePlan(template, [scene.id], template.duration);
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   return {
     note: t(
       "viewer.inspector.ownershipDetails.sceneNote",
@@ -31,13 +45,17 @@ function getSceneOwnershipSummary(ctx: ViewerAppContext, template, scene) {
   };
 }
 
-function getClipOwnershipSummary(ctx: ViewerAppContext, template, clip) {
+function getClipOwnershipSummary(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  clip: EffectClip,
+): OwnershipSummary {
   const plan = ctx.createClipMovePlan(
     template,
     [clip.layerId],
     template.duration,
   );
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   return {
     note: t(
       "viewer.inspector.ownershipDetails.clipNote",
@@ -68,9 +86,13 @@ function getClipOwnershipSummary(ctx: ViewerAppContext, template, clip) {
   };
 }
 
-function getPhaseOwnershipSummary(ctx: ViewerAppContext, template, phase) {
+function getPhaseOwnershipSummary(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  phase: TimelinePhase,
+): OwnershipSummary {
   const plan = ctx.createPhaseMovePlan(template, [phase.id], template.duration);
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   return {
     note: t(
       "viewer.inspector.ownershipDetails.phaseNote",
@@ -99,13 +121,17 @@ function getPhaseOwnershipSummary(ctx: ViewerAppContext, template, phase) {
   };
 }
 
-function getTrackOwnershipSummary(ctx: ViewerAppContext, template, track) {
+function getTrackOwnershipSummary(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  track: MotionPathTrack,
+): OwnershipSummary {
   const layerId = ctx.getTrackLayerId(track);
   const clip = layerId
     ? (template.clips ?? []).find((item) => item.layerId === layerId)
     : null;
   const keyCount = track.keyframes?.length ?? 0;
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   return {
     note: t(
       "viewer.inspector.ownershipDetails.trackNote",
@@ -138,10 +164,10 @@ function getTrackOwnershipSummary(ctx: ViewerAppContext, template, track) {
 
 function getKeyframeOwnershipSummary(
   ctx: ViewerAppContext,
-  template,
-  track,
-  keyframe,
-) {
+  template: EditorTemplate,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+): OwnershipSummary {
   const layerId = ctx.getTrackLayerId(track);
   const clip = layerId
     ? (template.clips ?? []).find((item) => item.layerId === layerId)
@@ -155,7 +181,7 @@ function getKeyframeOwnershipSummary(
         scene.start + scene.duration,
       ),
     )?.id;
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   return {
     note: t(
       "viewer.inspector.ownershipDetails.keyframeNote",
@@ -183,86 +209,29 @@ function getKeyframeOwnershipSummary(
   };
 }
 
-function updateClipOwnership(ctx: ViewerAppContext, layerId, sceneId) {
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  if (!template) {
-    return;
-  }
-  const clips = ctx.deps.deepClone(template.clips);
-  const clip = clips.find((item) => item.layerId === layerId);
-  if (!clip || clip.locked) {
-    return;
-  }
-  ctx.beginEditorCommand({
-    payload: { layerId, sceneId },
-    type: "updateClipOwnership",
-  });
-  clip.sceneId = sceneId || null;
-  ctx.setEditorOverride({ clips });
-  ctx.selectClipBlock(layerId);
-  ctx.renderTimelineEditor(ctx.state.currentTemplate);
-  void ctx.renderCurrentFrame();
-}
-
-function updatePhaseOwnership(ctx: ViewerAppContext, phaseId, sceneId) {
-  const template = ctx.state.currentTemplate;
-  const timeline = ctx.getEffectiveTimeline(template);
-  const phase = timeline.phases.find((item) => item.id === phaseId);
-  if (!template || !phase || phase.locked) {
-    return;
-  }
-  ctx.beginEditorCommand({
-    payload: { phaseId, sceneId },
-    type: "updatePhaseOwnership",
-  });
-  phase.sceneId = sceneId || null;
-  ctx.state.timelineOverrides.set(
-    template.id,
-    ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
-  );
-  ctx.selectPhaseBlock(phaseId);
-  ctx.renderTimelineEditor(template);
-  void ctx.renderCurrentFrame();
-}
-
-function updateTrackOwnership(ctx: ViewerAppContext, trackId, patch) {
-  const template = ctx.state.currentTemplate;
-  const timeline = ctx.getEffectiveTimeline(template);
-  const track = timeline.tracks.find((item) => item.id === trackId);
-  if (!template || !track) {
-    return;
-  }
-  ctx.beginEditorCommand({
-    payload: { trackId, ...patch },
-    type: "updateTrackOwnership",
-  });
-  if (Object.hasOwn(patch, "phaseId")) {
-    track.phaseId = patch.phaseId || null;
-  }
-  if (Object.hasOwn(patch, "sceneId")) {
-    track.sceneId = patch.sceneId || null;
-  }
-  ctx.state.timelineOverrides.set(
-    template.id,
-    ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
-  );
-  ctx.selectTrackLane(trackId);
-  ctx.renderTimelineEditor(template);
-  void ctx.renderCurrentFrame();
-}
-
-export function installInspectorOwnershipSummaryOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.getSceneOwnershipSummary = getSceneOwnershipSummary.bind(undefined, ctx);
-  ctx.getClipOwnershipSummary = getClipOwnershipSummary.bind(undefined, ctx);
-  ctx.getPhaseOwnershipSummary = getPhaseOwnershipSummary.bind(undefined, ctx);
-  ctx.getTrackOwnershipSummary = getTrackOwnershipSummary.bind(undefined, ctx);
-  ctx.getKeyframeOwnershipSummary = getKeyframeOwnershipSummary.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateClipOwnership = updateClipOwnership.bind(undefined, ctx);
-  ctx.updatePhaseOwnership = updatePhaseOwnership.bind(undefined, ctx);
-  ctx.updateTrackOwnership = updateTrackOwnership.bind(undefined, ctx);
+export function createOwnershipSummaryActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    getSceneOwnershipSummary: bindViewerAction(
+      getSceneOwnershipSummary,
+      getContext,
+    ),
+    getClipOwnershipSummary: bindViewerAction(
+      getClipOwnershipSummary,
+      getContext,
+    ),
+    getPhaseOwnershipSummary: bindViewerAction(
+      getPhaseOwnershipSummary,
+      getContext,
+    ),
+    getTrackOwnershipSummary: bindViewerAction(
+      getTrackOwnershipSummary,
+      getContext,
+    ),
+    getKeyframeOwnershipSummary: bindViewerAction(
+      getKeyframeOwnershipSummary,
+      getContext,
+    ),
+  };
 }

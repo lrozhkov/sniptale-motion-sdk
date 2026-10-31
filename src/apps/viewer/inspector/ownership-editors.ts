@@ -1,6 +1,19 @@
+import { createOwnershipOptions } from "./ownership-options.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type {
+  EffectClip,
+  TimelineKeyframe,
+  TimelinePhase,
+} from "../../../sdk/types.js";
+import type { OwnershipSummary, OwnershipOption } from "./ownership-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function appendTimingOwnershipInspector(ctx: ViewerAppContext, summary) {
+function appendTimingOwnershipInspector(
+  ctx: ViewerAppContext,
+  summary: OwnershipSummary | null | undefined,
+): void {
   if (!summary) {
     return;
   }
@@ -29,7 +42,11 @@ function appendTimingOwnershipInspector(ctx: ViewerAppContext, summary) {
   ctx.appendInspectorNode(box);
 }
 
-function appendClipOwnershipEditor(ctx: ViewerAppContext, clip, template) {
+function appendClipOwnershipEditor(
+  ctx: ViewerAppContext,
+  clip: EffectClip,
+  template: EditorTemplate,
+): void {
   ctx.appendOwnershipHeading();
   ctx.appendInspectorSelectRow({
     dataset: { layerId: clip.layerId, ownershipProperty: "sceneId" },
@@ -43,7 +60,11 @@ function appendClipOwnershipEditor(ctx: ViewerAppContext, clip, template) {
   });
 }
 
-function appendPhaseOwnershipEditor(ctx: ViewerAppContext, phase, template) {
+function appendPhaseOwnershipEditor(
+  ctx: ViewerAppContext,
+  phase: TimelinePhase,
+  template: EditorTemplate,
+): void {
   ctx.appendOwnershipHeading();
   ctx.appendInspectorSelectRow({
     dataset: { phaseId: phase.id, ownershipProperty: "sceneId" },
@@ -57,7 +78,11 @@ function appendPhaseOwnershipEditor(ctx: ViewerAppContext, phase, template) {
   });
 }
 
-function appendTrackOwnershipEditor(ctx: ViewerAppContext, track, template) {
+function appendTrackOwnershipEditor(
+  ctx: ViewerAppContext,
+  track: MotionPathTrack,
+  template: EditorTemplate,
+): void {
   ctx.appendOwnershipHeading();
   ctx.appendInspectorSelectRow({
     dataset: { ownershipProperty: "phaseId", trackId: track.id },
@@ -83,7 +108,10 @@ function appendTrackOwnershipEditor(ctx: ViewerAppContext, track, template) {
   });
 }
 
-function appendTrackKeyframeActions(ctx: ViewerAppContext, track) {
+function appendTrackKeyframeActions(
+  ctx: ViewerAppContext,
+  track: MotionPathTrack,
+): void {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
   heading.textContent = ctx.deps.t(
@@ -112,10 +140,10 @@ function appendTrackKeyframeActions(ctx: ViewerAppContext, track) {
 
 function appendKeyframeOwnershipEditor(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  template,
-) {
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  template: EditorTemplate,
+): void {
   ctx.appendOwnershipHeading();
   ctx.appendInspectorSelectRow({
     dataset: {
@@ -165,108 +193,70 @@ function appendKeyframeOwnershipEditor(
   });
 }
 
-function appendOwnershipHeading(ctx: ViewerAppContext) {
+function appendOwnershipHeading(ctx: ViewerAppContext): void {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
   heading.textContent = ctx.deps.t("viewer.inspector.ownership", "Ownership");
   ctx.appendInspectorNode(heading);
 }
 
-function createSceneOptions(ctx: ViewerAppContext, template, emptyLabel) {
+function createSceneOptions(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  emptyLabel: string,
+): OwnershipOption[] {
   return createOwnershipOptions(
     ctx.normalizeScenes(template.scenes ?? [], template.duration),
     emptyLabel,
+    ctx.deps.translateText,
   );
 }
 
-function createPhaseOptions(ctx: ViewerAppContext, template, emptyLabel) {
-  return createOwnershipOptions(template.timeline?.phases ?? [], emptyLabel);
-}
-
-function createOwnershipOptions(items, emptyLabel) {
-  const labels = items.map((item) => String(item.label || item.id));
-  const counts = new Map<string, number>();
-  for (const label of labels) {
-    counts.set(label, (counts.get(label) ?? 0) + 1);
-  }
-  return [
-    { label: emptyLabel, title: emptyLabel, value: "" },
-    ...items.map((item, index) => {
-      const label = labels[index];
-      const title = label === item.id ? label : `${label} (${item.id})`;
-      return {
-        label: counts.get(label)! > 1 ? title : label,
-        title,
-        value: item.id,
-      };
-    }),
-  ];
-}
-
-function appendInspectorSelectRow(
+function createPhaseOptions(
   ctx: ViewerAppContext,
-  { dataset = {}, label, onChange, options, value },
+  template: EditorTemplate,
+  emptyLabel: string,
+): OwnershipOption[] {
+  return createOwnershipOptions(
+    template.timeline?.phases ?? [],
+    emptyLabel,
+    ctx.deps.translateText,
+  );
+}
+
+export function createOwnershipEditorActions(
+  getContext: () => ViewerAppContext,
 ) {
-  const row = document.createElement("label");
-  row.className = "inspector-row inspector-edit-row inspector-select-row";
-  const name = document.createElement("span");
-  name.textContent = label;
-  const select = document.createElement("select");
-  select.setAttribute("aria-label", label);
-  Object.entries(dataset).forEach(([key, entryValue]) => {
-    select.dataset[key] = String(entryValue);
-  });
-  for (const option of options) {
-    const item = document.createElement("option");
-    item.value = option.value;
-    item.textContent = option.label;
-    item.title = option.title ?? option.label;
-    select.append(item);
-  }
-  select.value = value ?? "";
-  syncInspectorSelectTitle(select);
-  select.addEventListener("change", () => {
-    syncInspectorSelectTitle(select);
-    onChange(select.value);
-  });
-  row.append(name, select);
-  ctx.appendInspectorNode(row);
-}
-
-function syncInspectorSelectTitle(select: HTMLSelectElement): void {
-  const selected = select.selectedOptions[0];
-  select.title = selected?.title || selected?.textContent?.trim() || "";
-}
-
-export function installInspectorOwnershipEditorsOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendTimingOwnershipInspector = appendTimingOwnershipInspector.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendClipOwnershipEditor = appendClipOwnershipEditor.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendPhaseOwnershipEditor = appendPhaseOwnershipEditor.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendTrackOwnershipEditor = appendTrackOwnershipEditor.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendTrackKeyframeActions = appendTrackKeyframeActions.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendKeyframeOwnershipEditor = appendKeyframeOwnershipEditor.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendOwnershipHeading = appendOwnershipHeading.bind(undefined, ctx);
-  ctx.createSceneOptions = createSceneOptions.bind(undefined, ctx);
-  ctx.createPhaseOptions = createPhaseOptions.bind(undefined, ctx);
-  ctx.appendInspectorSelectRow = appendInspectorSelectRow.bind(undefined, ctx);
+  return {
+    appendTimingOwnershipInspector: bindViewerAction(
+      appendTimingOwnershipInspector,
+      getContext,
+    ),
+    appendClipOwnershipEditor: bindViewerAction(
+      appendClipOwnershipEditor,
+      getContext,
+    ),
+    appendPhaseOwnershipEditor: bindViewerAction(
+      appendPhaseOwnershipEditor,
+      getContext,
+    ),
+    appendTrackOwnershipEditor: bindViewerAction(
+      appendTrackOwnershipEditor,
+      getContext,
+    ),
+    appendTrackKeyframeActions: bindViewerAction(
+      appendTrackKeyframeActions,
+      getContext,
+    ),
+    appendKeyframeOwnershipEditor: bindViewerAction(
+      appendKeyframeOwnershipEditor,
+      getContext,
+    ),
+    appendOwnershipHeading: bindViewerAction(
+      appendOwnershipHeading,
+      getContext,
+    ),
+    createSceneOptions: bindViewerAction(createSceneOptions, getContext),
+    createPhaseOptions: bindViewerAction(createPhaseOptions, getContext),
+  };
 }

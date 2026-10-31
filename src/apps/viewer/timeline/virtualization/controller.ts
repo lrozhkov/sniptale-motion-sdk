@@ -34,7 +34,7 @@ function beginTimelineVirtualRender(
   appendVirtualSpacer(ctx, window.start, "before");
 }
 
-function claimTimelineVirtualRow(ctx: ViewerAppContext): number | null {
+export function claimTimelineVirtualRow(ctx: ViewerAppContext): number | null {
   const index = ctx.state.timelineVirtualRowCursor++;
   const window = ctx.state.timelineVirtualWindow;
   if (!window || index < window.start || index >= window.end) {
@@ -159,7 +159,6 @@ export function installTimelineVirtualizationOwner(
 ): void {
   Object.assign(ctx, {
     beginTimelineVirtualRender: beginTimelineVirtualRender.bind(undefined, ctx),
-    claimTimelineVirtualRow: claimTimelineVirtualRow.bind(undefined, ctx),
     endTimelineVirtualRender: endTimelineVirtualRender.bind(undefined, ctx),
     getTimelineLayerRowIndex: getTimelineLayerRowIndex.bind(undefined, ctx),
     getTimelineItemRowIndex: getTimelineItemRowIndex.bind(undefined, ctx),

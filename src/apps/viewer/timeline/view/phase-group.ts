@@ -1,18 +1,29 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type {
+  TimelineScene,
+  TimelinePhaseRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type { TimelineViewSource } from "./model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { getPhaseRowTimingBounds } from "../model/phase-bounds.js";
 
 function renderPhaseGroup(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneGroup,
-  scene,
-  phaseRow,
-  ownershipLinks,
-  duration,
-  inheritedDisabled = false,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  sceneGroup: HTMLElement,
+  scene: TimelineScene,
+  phaseRow: TimelinePhaseRow,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+  inheritedDisabled: boolean = false,
+): void {
   const { phase } = phaseRow;
   const rowType =
     phaseRow.parent?.type === "scenePhase" ? "scenePhase" : "phase";
@@ -75,7 +86,7 @@ function renderPhaseGroup(
           ctx.isPhaseSceneBoundaryInvalid(effectiveTemplate, phase)),
       label: phase.label || phase.id,
       left: ctx.timelinePercent(bounds.start, duration),
-      locked: phase.locked,
+      locked: phase.locked === true,
       width: ctx.timelineDurationPercent(bounds.duration, duration),
     });
     block.dataset.phaseId = phase.id;
@@ -90,7 +101,7 @@ function renderPhaseGroup(
       if (ctx.shouldSuppressDragClick(event)) {
         return;
       }
-      (event.currentTarget as HTMLElement).focus({ preventScroll: true });
+      block.focus({ preventScroll: true });
       ctx.selectPhaseBlock(phase.id, event);
     });
     if (!phase.locked) {
@@ -131,8 +142,10 @@ function renderPhaseGroup(
   }
 }
 
-export function installTimelinePhaseGroupViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderPhaseGroup = renderPhaseGroup.bind(undefined, ctx);
+export function createTimelinePhaseGroupActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderPhaseGroup: bindViewerAction(renderPhaseGroup, getContext),
+  };
 }

@@ -1,16 +1,27 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type {
+  TimelineScene,
+  TimelineLayerGroupRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type { TimelineViewSource } from "./model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderStructuralLayerGroup(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneGroup,
-  scene,
-  groupRow,
-  ownershipLinks,
-  duration,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  sceneGroup: HTMLElement,
+  scene: TimelineScene,
+  groupRow: TimelineLayerGroupRow,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): void {
   const group = groupRow.layer;
   const expanded = ctx.isTimelineRowExpanded("group", groupRow.expansionId);
   const rowIndex = ctx.claimTimelineVirtualRow();
@@ -19,7 +30,7 @@ function renderStructuralLayerGroup(
       .map((layerId) =>
         effectiveTemplate.layers.find((layer) => layer.id === layerId),
       )
-      .filter(Boolean);
+      .filter((layer) => layer !== undefined);
     const allVisible =
       leaves.length > 0 && leaves.every((layer) => layer.visible !== false);
     const allLocked =
@@ -97,12 +108,12 @@ function renderStructuralLayerGroup(
 }
 
 function appendGroupRange(
-  ctx,
-  body,
-  template,
-  scene,
-  groupRow,
-  duration,
+  ctx: ViewerAppContext,
+  body: HTMLElement,
+  template: EditorTemplate,
+  scene: TimelineScene,
+  groupRow: TimelineLayerGroupRow,
+  duration: number,
 ): void {
   const intervals = (template.clips ?? [])
     .filter(
@@ -129,7 +140,12 @@ function appendGroupRange(
   body.append(block);
 }
 
-function appendGroupLockToggle(ctx, label, groupId, locked): void {
+function appendGroupLockToggle(
+  ctx: ViewerAppContext,
+  label: HTMLElement,
+  groupId: string,
+  locked: boolean,
+): void {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "timeline-lock-toggle icon-button";
@@ -149,11 +165,13 @@ function appendGroupLockToggle(ctx, label, groupId, locked): void {
   label.prepend(button);
 }
 
-export function installTimelineStructuralLayerGroupViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderStructuralLayerGroup = renderStructuralLayerGroup.bind(
-    undefined,
-    ctx,
-  );
+export function createTimelineStructuralLayerGroupActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderStructuralLayerGroup: bindViewerAction(
+      renderStructuralLayerGroup,
+      getContext,
+    ),
+  };
 }

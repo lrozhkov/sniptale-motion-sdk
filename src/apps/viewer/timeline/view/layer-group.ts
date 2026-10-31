@@ -1,16 +1,28 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type { EffectClip } from "../../../../sdk/types.js";
+import type {
+  TimelineScene,
+  TimelineLayerLeafRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type { TimelineViewSource } from "./model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderLayerGroup(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  sceneGroup,
-  scene,
-  layerRow,
-  ownershipLinks,
-  duration,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  sceneGroup: HTMLElement,
+  scene: TimelineScene,
+  layerRow: TimelineLayerLeafRow,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): void {
   const { clip, layer, layerId } = layerRow;
   const globalScope = scene.isGlobalTimelineScope === true;
   const expanded = ctx.isTimelineRowExpanded("layer", layerRow.expansionId);
@@ -109,7 +121,11 @@ function renderLayerGroup(
   );
 }
 
-function shouldRenderLayerInterval(ctx: ViewerAppContext, clip, duration) {
+function shouldRenderLayerInterval(
+  ctx: ViewerAppContext,
+  clip: EffectClip,
+  duration: number,
+): boolean {
   if (clip?.sceneId) {
     return true;
   }
@@ -123,8 +139,10 @@ function shouldRenderLayerInterval(ctx: ViewerAppContext, clip, duration) {
   );
 }
 
-export function installTimelineLayerGroupViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderLayerGroup = renderLayerGroup.bind(undefined, ctx);
+export function createTimelineLayerGroupActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderLayerGroup: bindViewerAction(renderLayerGroup, getContext),
+  };
 }

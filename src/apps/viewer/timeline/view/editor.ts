@@ -1,7 +1,23 @@
-import type { ViewerAppContext } from "../../app/context.js";
-import { installTimelineTracksViewOwner } from "./tracks.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
 
-function renderTimelineRuler(ctx: ViewerAppContext, template, timeline) {
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type { TimelineScene } from "../model/row-tree-model.js";
+
+import type {
+  TimelineViewSource,
+  TimelineLane,
+  TimelineBlockOptions,
+  TimelineSceneSummary,
+} from "./model.js";
+import type { ViewerAppContext } from "../../app/context.js";
+
+function renderTimelineRuler(
+  ctx: ViewerAppContext,
+  template: TimelineViewSource,
+  timeline: EditorTimeline,
+): void {
   const contentRect = ctx.getTimelineContentMetrics(ctx.refs.timelineRuler);
   ctx.refs.timelineRuler.innerHTML = "";
   const duration = timeline.duration || template.duration || 1;
@@ -38,7 +54,11 @@ function renderTimelineRuler(ctx: ViewerAppContext, template, timeline) {
   ctx.updateTimelineViewportLabel(duration);
   ctx.updateTimelinePlaybackRangeOverlay();
 }
-function formatTimelineTickLabel(ctx: ViewerAppContext, time, tickStep) {
+function formatTimelineTickLabel(
+  ctx: ViewerAppContext,
+  time: number,
+  tickStep: number,
+): string {
   if (tickStep < 0.1) {
     return ctx.formatSeconds(time, 2);
   }
@@ -49,18 +69,18 @@ function formatTimelineTickLabel(ctx: ViewerAppContext, time, tickStep) {
 }
 function decorateSceneLaneLabel(
   ctx: ViewerAppContext,
-  lane,
-  scene,
-  expanded,
-  summary,
-) {
+  lane: TimelineLane,
+  scene: TimelineScene,
+  expanded: boolean,
+  summary: TimelineSceneSummary | null | undefined,
+): void {
   lane.label.classList.add(
     "scene-lane-label",
     "timeline-lane-label-single-line",
   );
   if (summary) {
     lane.row.dataset.sceneSummary = summary.compact;
-    lane.label.title = `${scene.label || scene.id}\n${summary.full}`;
+    lane.label.title = `${ctx.deps.translateText(scene.label, scene.id) || scene.id}\n${summary.full}`;
   }
   const toggle = document.createElement("button");
   toggle.type = "button";
@@ -86,10 +106,10 @@ function decorateSceneLaneLabel(
 }
 function getSceneTimelineSummary(
   ctx: ViewerAppContext,
-  template,
-  timeline,
-  scene,
-) {
+  template: EditorTemplate,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+): TimelineSceneSummary {
   const scenes = ctx.normalizeScenes(template.scenes ?? [], template.duration);
   const globalLayerIds = ctx.getGlobalTimelineLayerIds(template, scenes);
   const clips = (template.clips ?? []).filter(
@@ -139,7 +159,7 @@ function getSceneTimelineSummary(
       .replace("{keys}", String(keyframes)),
   };
 }
-function toggleSceneExpansion(ctx: ViewerAppContext, sceneId) {
+function toggleSceneExpansion(ctx: ViewerAppContext, sceneId: string): void {
   if (ctx.state.expandedSceneIds.has(sceneId)) {
     ctx.state.expandedSceneIds.delete(sceneId);
     ctx.setTimelineRowExpanded("scene", sceneId, false);
@@ -149,13 +169,17 @@ function toggleSceneExpansion(ctx: ViewerAppContext, sceneId) {
   }
   ctx.renderTimelineStructure(ctx.state.currentTemplate);
 }
-function isSceneExpanded(ctx: ViewerAppContext, sceneId) {
+function isSceneExpanded(ctx: ViewerAppContext, sceneId: string): boolean {
   return (
     ctx.state.expandedSceneIds.has(sceneId) ||
     ctx.isTimelineRowExpanded("scene", sceneId)
   );
 }
-function createTimelineLane(ctx: ViewerAppContext, labelText, kindText = "") {
+function createTimelineLane(
+  ctx: ViewerAppContext,
+  labelText: string,
+  kindText: string = "",
+): TimelineLane {
   const row = document.createElement("div");
   row.className = "timeline-lane";
   const label = document.createElement("div");
@@ -178,9 +202,7 @@ function createTimelineLane(ctx: ViewerAppContext, labelText, kindText = "") {
   body.addEventListener("pointerdown", (event) => {
     if (
       (event.altKey || event.shiftKey) &&
-      !(event.currentTarget as HTMLElement).classList.contains(
-        "track-lane-body",
-      )
+      !body.classList.contains("track-lane-body")
     ) {
       ctx.beginTimelineMarqueeSelection(event);
     }
@@ -192,7 +214,7 @@ function createTimelineLane(ctx: ViewerAppContext, labelText, kindText = "") {
 function decorateTimelineRowDepth(
   _ctx: ViewerAppContext,
   row: HTMLElement,
-  depth = 0,
+  depth: number = 0,
   rowIndex: number | null = null,
 ): void {
   const normalizedDepth = Math.max(0, Number(depth) || 0);
@@ -205,9 +227,9 @@ function decorateTimelineRowDepth(
   }
 }
 function createTimelineBlock(
-  ctx: ViewerAppContext,
-  { className, id, invalid, label, left, locked, width },
-) {
+  _ctx: ViewerAppContext,
+  { className, id, invalid, label, left, locked, width }: TimelineBlockOptions,
+): HTMLButtonElement {
   const block = document.createElement("button");
   block.type = "button";
   block.className = `timeline-block ${className}${locked ? " locked" : ""}${invalid ? " invalid" : ""}`;
@@ -222,14 +244,26 @@ function createTimelineBlock(
   return block;
 }
 
-export function installViewEditorOwner(ctx: ViewerAppContext): void {
-  installTimelineTracksViewOwner(ctx);
-  ctx.renderTimelineRuler = renderTimelineRuler.bind(undefined, ctx);
-  ctx.decorateSceneLaneLabel = decorateSceneLaneLabel.bind(undefined, ctx);
-  ctx.getSceneTimelineSummary = getSceneTimelineSummary.bind(undefined, ctx);
-  ctx.toggleSceneExpansion = toggleSceneExpansion.bind(undefined, ctx);
-  ctx.isSceneExpanded = isSceneExpanded.bind(undefined, ctx);
-  ctx.createTimelineLane = createTimelineLane.bind(undefined, ctx);
-  ctx.decorateTimelineRowDepth = decorateTimelineRowDepth.bind(undefined, ctx);
-  ctx.createTimelineBlock = createTimelineBlock.bind(undefined, ctx);
+export function createTimelineEditorActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderTimelineRuler: bindViewerAction(renderTimelineRuler, getContext),
+    decorateSceneLaneLabel: bindViewerAction(
+      decorateSceneLaneLabel,
+      getContext,
+    ),
+    getSceneTimelineSummary: bindViewerAction(
+      getSceneTimelineSummary,
+      getContext,
+    ),
+    toggleSceneExpansion: bindViewerAction(toggleSceneExpansion, getContext),
+    isSceneExpanded: bindViewerAction(isSceneExpanded, getContext),
+    createTimelineLane: bindViewerAction(createTimelineLane, getContext),
+    decorateTimelineRowDepth: bindViewerAction(
+      decorateTimelineRowDepth,
+      getContext,
+    ),
+    createTimelineBlock: bindViewerAction(createTimelineBlock, getContext),
+  };
 }

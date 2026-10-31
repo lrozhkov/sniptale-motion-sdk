@@ -1,15 +1,26 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type { EditorTimeline } from "../../editor/model-types.js";
+
+import type {
+  TimelineScene,
+  TimelineLayerRow,
+} from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type { TimelineViewSource } from "./model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderGlobalTimelineGroup(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  globalScene,
-  layerRows,
-  ownershipLinks,
-  duration,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  globalScene: TimelineScene | null,
+  layerRows: TimelineLayerRow[],
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): void {
   if (!globalScene || layerRows.length === 0) {
     return;
   }
@@ -31,11 +42,13 @@ function renderGlobalTimelineGroup(
   }
 }
 
-export function installTimelineGlobalGroupViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderGlobalTimelineGroup = renderGlobalTimelineGroup.bind(
-    undefined,
-    ctx,
-  );
+export function createTimelineGlobalGroupActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderGlobalTimelineGroup: bindViewerAction(
+      renderGlobalTimelineGroup,
+      getContext,
+    ),
+  };
 }

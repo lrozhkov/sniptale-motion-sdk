@@ -1,3 +1,6 @@
+import type { TimelineSurfaceActions } from "../timeline/view/surface-contract.js";
+import type { TimelineRowViewActions } from "../timeline/view/row-contract.js";
+import type { InspectorOwnershipActions } from "../inspector/ownership-contract.js";
 import type { TimelineSelectionActions } from "../timeline/model/selection-actions.js";
 import type { TimelineModelActions } from "../timeline/model/actions.js";
 import type { TrackLayerSource } from "../layers/model.js";
@@ -21,7 +24,13 @@ import type { EditorTemplate } from "../templates/model.js";
 import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
-  extends Mp4ExportActions, TimelineModelActions, TimelineSelectionActions {
+  extends
+    Mp4ExportActions,
+    TimelineModelActions,
+    TimelineSelectionActions,
+    InspectorOwnershipActions,
+    TimelineSurfaceActions,
+    TimelineRowViewActions {
   deps: ViewerAppDependencies;
   lastPlaybackAudioTs: number;
   playbackAnimationFrame: number | null;

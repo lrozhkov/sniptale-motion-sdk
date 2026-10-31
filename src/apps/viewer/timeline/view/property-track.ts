@@ -1,23 +1,28 @@
-import type {
-  TimelineTrackParent,
-  TimelineScene,
-} from "../model/row-tree-model.js";
-import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
 import type { EditorTimeline } from "../../editor/model-types.js";
+import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../../sdk/types.js";
+import type { TimelineScene } from "../model/row-tree-model.js";
+import type { OwnershipLinks } from "../model/ownership-model.js";
+import type { TimelineViewSource, TimelineRenderParent } from "./model.js";
+import type { TimelineTrackParent } from "../model/row-tree-model.js";
+
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderTimelinePropertyTrackLane(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  scene,
-  track,
-  visibleKeyframes,
-  ownershipLinks,
-  duration,
-  parent,
-) {
+  template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  track: MotionPathTrack,
+  visibleKeyframes: TimelineKeyframe<unknown>[],
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+  parent: TimelineRenderParent,
+): void {
   const rowIndex = ctx.claimTimelineVirtualRow();
   if (rowIndex === null) {
     return;
@@ -140,14 +145,14 @@ function renderTimelinePropertyTrackLane(
 
 function createTimelineKeyframePoint(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
-  timeline,
-  track,
-  keyframe,
-  ownershipLinks,
-  duration,
-) {
+  _template: TimelineViewSource,
+  effectiveTemplate: EditorTemplate,
+  _timeline: EditorTimeline,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  ownershipLinks: OwnershipLinks,
+  duration: number,
+): HTMLButtonElement {
   const point = document.createElement("button");
   point.type = "button";
   point.className = `keyframe-point${ctx.isSelectedKeyframe(track.id, keyframe.id) ? " selected" : ""}`;
@@ -184,7 +189,7 @@ function createTimelineKeyframePoint(
     if (ctx.shouldSuppressDragClick(event)) {
       return;
     }
-    (event.currentTarget as HTMLElement).focus({ preventScroll: true });
+    point.focus({ preventScroll: true });
     ctx.selectKeyframe(track.id, keyframe.id, event);
   });
   return point;
@@ -196,7 +201,7 @@ export function getTrackKeyframesForParent(
   scene: TimelineScene,
   timeline: EditorTimeline,
   parent: TimelineTrackParent,
-) {
+): TimelineKeyframe<unknown>[] {
   return (track.keyframes ?? []).filter((keyframe) => {
     if (!ctx.keyframeBelongsToScene(track, keyframe, scene, timeline)) {
       return false;
@@ -234,19 +239,17 @@ export function getTrackKeyframesForParent(
   });
 }
 
-export function installTimelinePropertyTrackViewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderTimelinePropertyTrackLane = renderTimelinePropertyTrackLane.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createTimelineKeyframePoint = createTimelineKeyframePoint.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getTrackKeyframesForParent = getTrackKeyframesForParent.bind(
-    undefined,
-    ctx,
-  );
+export function createTimelinePropertyTrackActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    renderTimelinePropertyTrackLane: bindViewerAction(
+      renderTimelinePropertyTrackLane,
+      getContext,
+    ),
+    createTimelineKeyframePoint: bindViewerAction(
+      createTimelineKeyframePoint,
+      getContext,
+    ),
+  };
 }
