@@ -1,12 +1,14 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
-import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
+import { createCanvasDragPreview } from "./drag-preview.js";
 import { prepareCanvasGesture } from "./gesture.js";
 import {
   calculateCanvasAnchorMove,
   normalizeCanvasAngleDelta,
 } from "./transform-math.js";
 
-function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
+function beginCanvasRotationDrag(ctx: ViewerAppContext, event: PointerEvent) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
     return ctx.beginCanvasSelectionRotationDrag(event);
   }
@@ -56,7 +58,7 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
   );
   const preview = createCanvasDragPreview(ctx, { box, layer, layerId });
   let latestRotation = originalRotation;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const angle = Math.atan2(
       moveEvent.clientY - pivot.y,
@@ -66,8 +68,7 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
       ((angle - startAngle) * 180) / Math.PI,
     );
     if (
-      !activateCanvasDrag(
-        ctx,
+      !preview.activate(
         Math.abs(delta),
         () =>
           ctx.beginEditorCommand({
@@ -122,7 +123,7 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
   });
 }
 
-function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
+function beginCanvasAnchorDrag(ctx: ViewerAppContext, event: PointerEvent) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
     return false;
   }
@@ -175,12 +176,12 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
     x: original.x,
     y: original.y,
   };
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
-      !activateCanvasDrag(ctx, Math.abs(pageDx) + Math.abs(pageDy), () =>
+      !preview.activate(Math.abs(pageDx) + Math.abs(pageDy), () =>
         ctx.beginEditorCommand({
           payload: {
             layerId,
@@ -233,7 +234,17 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
   });
 }
 
-export function installCanvasPivotDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasRotationDrag = beginCanvasRotationDrag.bind(undefined, ctx);
-  ctx.beginCanvasAnchorDrag = beginCanvasAnchorDrag.bind(undefined, ctx);
+export function createCanvasPivotDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasTransformActions,
+  "beginCanvasRotationDrag" | "beginCanvasAnchorDrag"
+> {
+  return {
+    beginCanvasRotationDrag: bindViewerAction(
+      beginCanvasRotationDrag,
+      getContext,
+    ),
+    beginCanvasAnchorDrag: bindViewerAction(beginCanvasAnchorDrag, getContext),
+  };
 }

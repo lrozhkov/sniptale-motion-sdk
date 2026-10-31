@@ -1,3 +1,6 @@
+import type { LayerHierarchyIndex } from "../layers/hierarchy.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasSelectionActions } from "./selection-contract.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerAncestorIds, isLayerGroup } from "../layers/hierarchy.js";
@@ -129,7 +132,10 @@ export function exitCanvasGroupIsolation(ctx: ViewerAppContext): boolean {
   return true;
 }
 
-function getValidCanvasIsolationGroupId(ctx, hierarchy): string | null {
+function getValidCanvasIsolationGroupId(
+  ctx: ViewerAppContext,
+  hierarchy: LayerHierarchyIndex<EffectLayer>,
+): string | null {
   const isolationId = ctx.state.canvasIsolationGroupId;
   const isolation = isolationId ? hierarchy.byId.get(isolationId) : null;
   if (isLayerGroup(isolation)) {
@@ -139,17 +145,35 @@ function getValidCanvasIsolationGroupId(ctx, hierarchy): string | null {
   return null;
 }
 
-export function installCanvasSelectionLevelOwner(ctx: ViewerAppContext): void {
-  ctx.resolveCanvasHitSelectionLayerId = resolveCanvasHitSelectionLayerId.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getCanvasSelectionLevelLayerIds = getCanvasSelectionLevelLayerIds.bind(
-    undefined,
-    ctx,
-  );
-  ctx.selectCanvasLayers = selectCanvasLayers.bind(undefined, ctx);
-  ctx.enterCanvasGroup = enterCanvasGroup.bind(undefined, ctx);
-  ctx.enterSelectedCanvasGroup = enterSelectedCanvasGroup.bind(undefined, ctx);
-  ctx.exitCanvasGroupIsolation = exitCanvasGroupIsolation.bind(undefined, ctx);
+export function createCanvasSelectionLevelActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasSelectionActions,
+  | "resolveCanvasHitSelectionLayerId"
+  | "getCanvasSelectionLevelLayerIds"
+  | "selectCanvasLayers"
+  | "enterCanvasGroup"
+  | "enterSelectedCanvasGroup"
+  | "exitCanvasGroupIsolation"
+> {
+  return {
+    resolveCanvasHitSelectionLayerId: bindViewerAction(
+      resolveCanvasHitSelectionLayerId,
+      getContext,
+    ),
+    getCanvasSelectionLevelLayerIds: bindViewerAction(
+      getCanvasSelectionLevelLayerIds,
+      getContext,
+    ),
+    selectCanvasLayers: bindViewerAction(selectCanvasLayers, getContext),
+    enterCanvasGroup: bindViewerAction(enterCanvasGroup, getContext),
+    enterSelectedCanvasGroup: bindViewerAction(
+      enterSelectedCanvasGroup,
+      getContext,
+    ),
+    exitCanvasGroupIsolation: bindViewerAction(
+      exitCanvasGroupIsolation,
+      getContext,
+    ),
+  };
 }

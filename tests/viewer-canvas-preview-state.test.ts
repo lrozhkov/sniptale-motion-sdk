@@ -42,6 +42,37 @@ const options = {
 };
 
 describe("canvas preview state ownership", () => {
+  it("starts its command once after crossing the movement threshold", () => {
+    const ctx = context();
+    const preview = createCanvasDragPreview(ctx);
+    const start = vi.fn();
+    expect(preview.activate(2, start)).toBe(false);
+    expect(ctx.state.dragMoved).toBe(false);
+    expect(preview.activate(3, start)).toBe(true);
+    expect(preview.activate(4, start)).toBe(true);
+    expect(start).toHaveBeenCalledTimes(1);
+    preview.finalize();
+    expect(preview.activate(4, start)).toBe(false);
+  });
+
+  it.each(["source", "replacement", "finalized", "history"] as const)(
+    "does not begin a command through an obsolete %s gesture",
+    (change) => {
+      const ctx = context();
+      const preview = createCanvasDragPreview(ctx, options);
+      if (change === "source")
+        ctx.state.currentTemplate = { id: "source", duration: 2 };
+      if (change === "replacement") createCanvasDragPreview(ctx, options);
+      if (change === "finalized") preview.finalize();
+      if (change === "history")
+        invalidateCanvasDragPreview(ctx.state, ctx.refs.canvasSelectionBox);
+      const start = vi.fn();
+      expect(preview.activate(4, start)).toBe(false);
+      expect(start).not.toHaveBeenCalled();
+      expect(ctx.state.dragMoved).toBe(false);
+    },
+  );
+
   it("keeps the new handle active when neither operation has a preview object", () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {

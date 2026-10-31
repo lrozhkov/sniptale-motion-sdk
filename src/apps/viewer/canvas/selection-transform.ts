@@ -1,5 +1,6 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
-import { activateCanvasDrag } from "./drag-preview.js";
 import {
   resolveCanvasSelectionScaleFactor,
   transformCanvasSelection,
@@ -15,7 +16,7 @@ import {
 } from "./selection-transform-state.js";
 import { normalizeCanvasAngleDelta } from "./transform-math.js";
 
-function beginCanvasSelectionDrag(ctx: ViewerAppContext, event) {
+function beginCanvasSelectionDrag(ctx: ViewerAppContext, event: PointerEvent) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "move");
   if (!snapshot) {
     return false;
@@ -36,12 +37,12 @@ function beginCanvasSelectionDrag(ctx: ViewerAppContext, event) {
     pivot: center,
     translation: { x: 0, y: 0 },
   });
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
-      !activateCanvasDrag(ctx, Math.abs(pageDx) + Math.abs(pageDy), () =>
+      !preview.activate(Math.abs(pageDx) + Math.abs(pageDy), () =>
         beginCanvasSelectionTransformCommand(ctx, snapshot),
       )
     ) {
@@ -75,7 +76,11 @@ function beginCanvasSelectionDrag(ctx: ViewerAppContext, event) {
   return true;
 }
 
-function beginCanvasSelectionScaleDrag(ctx: ViewerAppContext, event, handle) {
+function beginCanvasSelectionScaleDrag(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+  handle: string,
+) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "scale");
   if (!snapshot || !["nw", "ne", "se", "sw"].includes(handle)) {
     return false;
@@ -94,7 +99,7 @@ function beginCanvasSelectionScaleDrag(ctx: ViewerAppContext, event, handle) {
     pivot: fixed,
     scale: 1,
   });
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const point = ctx.getCanvasPointFromEvent(moveEvent);
     const current = { x: point.x - fixed.x, y: point.y - fixed.y };
@@ -102,7 +107,7 @@ function beginCanvasSelectionScaleDrag(ctx: ViewerAppContext, event, handle) {
       (current.x * startVector.x + current.y * startVector.y) /
       startLengthSquared;
     if (
-      !activateCanvasDrag(ctx, Math.abs(rawFactor - 1) * 100, () =>
+      !preview.activate(Math.abs(rawFactor - 1) * 100, () =>
         beginCanvasSelectionTransformCommand(ctx, snapshot),
       )
     ) {
@@ -124,7 +129,10 @@ function beginCanvasSelectionScaleDrag(ctx: ViewerAppContext, event, handle) {
   return true;
 }
 
-function beginCanvasSelectionRotationDrag(ctx: ViewerAppContext, event) {
+function beginCanvasSelectionRotationDrag(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "rotation");
   if (!snapshot) {
     return false;
@@ -149,7 +157,7 @@ function beginCanvasSelectionRotationDrag(ctx: ViewerAppContext, event) {
   );
   const preview = beginCanvasSelectionPreview(ctx, snapshot);
   let latest = transformCanvasSelection(snapshot.entries, { pivot });
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const angle = Math.atan2(
       moveEvent.clientY - pagePivot.y,
@@ -163,8 +171,7 @@ function beginCanvasSelectionRotationDrag(ctx: ViewerAppContext, event) {
     }
     rotation = ctx.deps.clamp(rotation, minRotation, maxRotation);
     if (
-      !activateCanvasDrag(
-        ctx,
+      !preview.activate(
         Math.abs(rotation),
         () => beginCanvasSelectionTransformCommand(ctx, snapshot),
         0.5,
@@ -181,16 +188,26 @@ function beginCanvasSelectionRotationDrag(ctx: ViewerAppContext, event) {
   return true;
 }
 
-export function installCanvasSelectionTransformOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginCanvasSelectionDrag = beginCanvasSelectionDrag.bind(undefined, ctx);
-  ctx.beginCanvasSelectionScaleDrag = beginCanvasSelectionScaleDrag.bind(
-    undefined,
-    ctx,
-  );
-  ctx.beginCanvasSelectionRotationDrag = beginCanvasSelectionRotationDrag.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasSelectionTransformActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasTransformActions,
+  | "beginCanvasSelectionDrag"
+  | "beginCanvasSelectionScaleDrag"
+  | "beginCanvasSelectionRotationDrag"
+> {
+  return {
+    beginCanvasSelectionDrag: bindViewerAction(
+      beginCanvasSelectionDrag,
+      getContext,
+    ),
+    beginCanvasSelectionScaleDrag: bindViewerAction(
+      beginCanvasSelectionScaleDrag,
+      getContext,
+    ),
+    beginCanvasSelectionRotationDrag: bindViewerAction(
+      beginCanvasSelectionRotationDrag,
+      getContext,
+    ),
+  };
 }

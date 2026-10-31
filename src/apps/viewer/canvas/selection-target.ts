@@ -1,11 +1,22 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { TrackLayerSource } from "../layers/model.js";
+import type { ViewerSelection } from "../timeline/model/selection-model.js";
+import type { CanvasSelectionTarget } from "./path-contract.js";
+import type { EditorTemplate } from "../templates/model.js";
+export type CanvasSelectionTrack = TrackLayerSource & {
+  phaseId?: string | null;
+  keyframes?: readonly { phaseId?: string | null }[];
+};
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasSelectionActions } from "./selection-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerLeafIds, isLayerGroup } from "../layers/hierarchy.js";
 
 type SelectionTargetInput = {
-  getTrackLayerId: (track: any) => string | null;
-  item: any;
-  layers: any[];
-  timeline: any;
+  getTrackLayerId: (track: CanvasSelectionTrack) => string | null;
+  item: ViewerSelection | null;
+  layers: readonly Pick<EffectLayer, "id">[];
+  timeline: { tracks: readonly CanvasSelectionTrack[] };
 };
 
 export function resolveCanvasSelectionLayerId({
@@ -44,11 +55,13 @@ export function resolveCanvasSelectionLayerId({
         owners.add(layerId);
       }
     }
-    return owners.size === 1 ? [...owners][0] : null;
+    return owners.size === 1 ? ([...owners][0] ?? null) : null;
   }
   return null;
 
-  function resolveKnownTrackLayerId(track): string | null {
+  function resolveKnownTrackLayerId(
+    track: CanvasSelectionTrack | undefined,
+  ): string | null {
     const layerId = track ? getTrackLayerId(track) : null;
     return layerId && layerIds.has(layerId) ? layerId : null;
   }
@@ -65,14 +78,16 @@ function getCanvasSelectionLayerId(
     getTrackLayerId: (track) => ctx.getTrackLayerId(track),
     item: ctx.state.selectedItem,
     layers: template.layers ?? [],
-    timeline: template.timeline ?? { phases: [], tracks: [] },
+    timeline: template.timeline ?? { tracks: [] },
   });
 }
 
 function getCanvasSelectionTarget(
   ctx: ViewerAppContext,
-  template = ctx.getRenderTemplateSnapshot(ctx.state.currentTemplate),
-) {
+  template: EditorTemplate | null = ctx.getRenderTemplateSnapshot(
+    ctx.state.currentTemplate,
+  ),
+): CanvasSelectionTarget | null {
   if (!template) {
     return null;
   }
@@ -111,10 +126,20 @@ function getCanvasSelectionTarget(
     : null;
 }
 
-export function installCanvasSelectionTargetOwner(ctx: ViewerAppContext): void {
-  ctx.getCanvasSelectionLayerId = getCanvasSelectionLayerId.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getCanvasSelectionTarget = getCanvasSelectionTarget.bind(undefined, ctx);
+export function createCanvasSelectionTargetActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasSelectionActions,
+  "getCanvasSelectionLayerId" | "getCanvasSelectionTarget"
+> {
+  return {
+    getCanvasSelectionLayerId: bindViewerAction(
+      getCanvasSelectionLayerId,
+      getContext,
+    ),
+    getCanvasSelectionTarget: bindViewerAction(
+      getCanvasSelectionTarget,
+      getContext,
+    ),
+  };
 }

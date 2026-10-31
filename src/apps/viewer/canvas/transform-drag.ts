@@ -1,10 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
-import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
+import { createCanvasDragPreview } from "./drag-preview.js";
 import { prepareCanvasGesture } from "./gesture.js";
 
 function beginCanvasLayerDrag(
   ctx: ViewerAppContext,
-  event,
+  event: PointerEvent,
   explicitLayerId: string | null = null,
 ) {
   if (
@@ -60,12 +62,12 @@ function beginCanvasLayerDrag(
   );
   const preview = createCanvasDragPreview(ctx, { box, layer, layerId });
   let latest = { ...original };
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
-      !activateCanvasDrag(ctx, Math.abs(pageDx) + Math.abs(pageDy), () =>
+      !preview.activate(Math.abs(pageDx) + Math.abs(pageDy), () =>
         ctx.beginEditorCommand({
           payload: { layerId, properties: ["x", "y"] },
           type: "updateLayerProperty",
@@ -116,6 +118,10 @@ function beginCanvasLayerDrag(
   });
 }
 
-export function installCanvasTransformDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasLayerDrag = beginCanvasLayerDrag.bind(undefined, ctx);
+export function createCanvasTransformDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<CanvasTransformActions, "beginCanvasLayerDrag"> {
+  return {
+    beginCanvasLayerDrag: bindViewerAction(beginCanvasLayerDrag, getContext),
+  };
 }

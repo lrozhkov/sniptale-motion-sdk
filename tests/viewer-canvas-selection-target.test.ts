@@ -1,3 +1,5 @@
+import type { CanvasSelectionTrack } from "../src/apps/viewer/canvas/selection-target.js";
+import type { ViewerSelection } from "../src/apps/viewer/timeline/model/selection-model.js";
 import { describe, expect, it } from "vitest";
 
 import { resolveCanvasSelectionLayerId } from "../src/apps/viewer/canvas/selection-target";
@@ -22,9 +24,9 @@ const timeline = {
     },
   ],
 };
-const getTrackLayerId = (track) => track?.target ?? null;
+const getTrackLayerId = (track: CanvasSelectionTrack) => track?.target ?? null;
 
-function resolve(item) {
+function resolve(item: ViewerSelection) {
   return resolveCanvasSelectionLayerId({
     getTrackLayerId,
     item,

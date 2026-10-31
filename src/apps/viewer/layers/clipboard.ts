@@ -120,7 +120,7 @@ function duplicateSelectedLayers(ctx: ViewerAppContext) {
   const duplicatedRootIds = rootIds
     .map((id) => idMap.get(id))
     .filter((id): id is string => Boolean(id));
-  ctx.setSelectedLayers(duplicatedRootIds, { ...template, clips, layers });
+  ctx.setSelectedLayers(duplicatedRootIds, { layers });
   ctx.logDiagnostic(
     ctx.deps
       .t("viewer.layers.duplicatedCount", "Duplicated {count} items.")

@@ -1,15 +1,18 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
+import type { CanvasPoint } from "./geometry-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { prepareCanvasGesture } from "./gesture.js";
 import { calculateCanvasAnchorMove } from "./transform-math.js";
 
-function rotateSelectedCanvasLayer(ctx: ViewerAppContext, delta) {
+function rotateSelectedCanvasLayer(ctx: ViewerAppContext, delta: number) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
     return ctx.rotateCanvasSelectionBy?.(delta) ?? false;
   }
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
-  if (!layerId) return;
+  if (!layerId) return false;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||
@@ -45,11 +48,11 @@ function rotateSelectedCanvasLayer(ctx: ViewerAppContext, delta) {
   return true;
 }
 
-function moveSelectedCanvasAnchor(ctx: ViewerAppContext, delta) {
+function moveSelectedCanvasAnchor(ctx: ViewerAppContext, delta: CanvasPoint) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
-  if (!layerId) return;
+  if (!layerId) return false;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   if (
     !template ||
@@ -105,10 +108,20 @@ function moveSelectedCanvasAnchor(ctx: ViewerAppContext, delta) {
   return true;
 }
 
-export function installCanvasPivotKeyboardOwner(ctx: ViewerAppContext): void {
-  ctx.rotateSelectedCanvasLayer = rotateSelectedCanvasLayer.bind(
-    undefined,
-    ctx,
-  );
-  ctx.moveSelectedCanvasAnchor = moveSelectedCanvasAnchor.bind(undefined, ctx);
+export function createCanvasPivotKeyboardActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasTransformActions,
+  "rotateSelectedCanvasLayer" | "moveSelectedCanvasAnchor"
+> {
+  return {
+    rotateSelectedCanvasLayer: bindViewerAction(
+      rotateSelectedCanvasLayer,
+      getContext,
+    ),
+    moveSelectedCanvasAnchor: bindViewerAction(
+      moveSelectedCanvasAnchor,
+      getContext,
+    ),
+  };
 }

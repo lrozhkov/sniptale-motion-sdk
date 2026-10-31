@@ -1,3 +1,6 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasSelectionActions } from "./selection-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerAncestorIds, isLayerGroup } from "../layers/hierarchy.js";
 
@@ -39,7 +42,7 @@ function renderCanvasIsolationBreadcrumb(ctx: ViewerAppContext): void {
   });
 }
 
-function getCanvasIsolationPath(ctx: ViewerAppContext): any[] {
+function getCanvasIsolationPath(ctx: ViewerAppContext): EffectLayer[] {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const isolationId = ctx.state.canvasIsolationGroupId;
   if (!template || !isolationId) {
@@ -60,7 +63,11 @@ function getCanvasIsolationPath(ctx: ViewerAppContext): any[] {
   ];
 }
 
-function navigateCanvasIsolation(ctx, path, index: number): void {
+function navigateCanvasIsolation(
+  ctx: ViewerAppContext,
+  path: readonly EffectLayer[],
+  index: number,
+): void {
   const isolation = index >= 0 ? path[index] : null;
   const selected = path[index + 1] ?? path[0] ?? null;
   ctx.state.canvasIsolationGroupId = isolation?.id ?? null;
@@ -80,7 +87,7 @@ function navigateCanvasIsolation(ctx, path, index: number): void {
 }
 
 function appendBreadcrumbButton(
-  breadcrumb,
+  breadcrumb: HTMLElement,
   label: string,
   activate: () => void,
 ): void {
@@ -92,18 +99,29 @@ function appendBreadcrumbButton(
   breadcrumb.append(button);
 }
 
-function appendBreadcrumbSeparator(ctx: ViewerAppContext, breadcrumb): void {
+function appendBreadcrumbSeparator(
+  ctx: ViewerAppContext,
+  breadcrumb: HTMLElement,
+): void {
   const separator = ctx.createViewerIcon("chevronRight");
   separator.classList.add("canvas-isolation-separator");
   breadcrumb.append(separator);
 }
 
-export function installCanvasIsolationBreadcrumbOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.getCanvasIsolationPath = getCanvasIsolationPath.bind(undefined, ctx);
-  ctx.renderCanvasIsolationBreadcrumb = renderCanvasIsolationBreadcrumb.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasIsolationBreadcrumbActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasSelectionActions,
+  "getCanvasIsolationPath" | "renderCanvasIsolationBreadcrumb"
+> {
+  return {
+    getCanvasIsolationPath: bindViewerAction(
+      getCanvasIsolationPath,
+      getContext,
+    ),
+    renderCanvasIsolationBreadcrumb: bindViewerAction(
+      renderCanvasIsolationBreadcrumb,
+      getContext,
+    ),
+  };
 }

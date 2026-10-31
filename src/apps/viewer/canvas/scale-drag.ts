@@ -1,14 +1,21 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
+import type { CanvasPoint } from "./geometry-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   resolveLayerCanvasResizeProperty,
   type LayerEditorCapabilities,
 } from "../layers/editor-capabilities.js";
-import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
+import { createCanvasDragPreview } from "./drag-preview.js";
 import { prepareCanvasGesture } from "./gesture.js";
 import { resolveCanvasResizeEdit } from "./resize-edit.js";
 import { calculateCanvasResize } from "./transform-math.js";
 
-function beginCanvasScaleDrag(ctx: ViewerAppContext, event, handle) {
+function beginCanvasScaleDrag(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+  handle: string,
+) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
     return ctx.beginCanvasSelectionScaleDrag(event, handle);
   }
@@ -59,7 +66,7 @@ function beginCanvasScaleDrag(ctx: ViewerAppContext, event, handle) {
   const preview = createCanvasDragPreview(ctx, { box, layer, layerId });
   let latestTransform = { ...original };
   let latestEdit: Record<string, number> = {};
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     const delta = {
@@ -87,7 +94,7 @@ function beginCanvasScaleDrag(ctx: ViewerAppContext, event, handle) {
       rotation,
     });
     if (
-      !activateCanvasDrag(ctx, Math.abs(pageDx) + Math.abs(pageDy), () =>
+      !preview.activate(Math.abs(pageDx) + Math.abs(pageDy), () =>
         ctx.beginEditorCommand({
           payload: {
             handle,
@@ -111,6 +118,10 @@ function beginCanvasScaleDrag(ctx: ViewerAppContext, event, handle) {
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updateLayerPropertiesAtTime(layerId, time, latestEdit, {
@@ -128,8 +139,8 @@ function beginCanvasScaleDrag(ctx: ViewerAppContext, event, handle) {
 
 function resizeSelectedCanvasLayer(
   ctx: ViewerAppContext,
-  handle,
-  delta,
+  handle: string,
+  delta: CanvasPoint,
   lockAspect = false,
 ) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
@@ -138,7 +149,7 @@ function resizeSelectedCanvasLayer(
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
-  if (!layerId) return;
+  if (!layerId) return false;
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
   const capabilities = layer ? ctx.getLayerEditorCapabilities(layer) : null;
   if (
@@ -226,10 +237,17 @@ function canResizeHandle(
   );
 }
 
-export function installCanvasScaleDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasScaleDrag = beginCanvasScaleDrag.bind(undefined, ctx);
-  ctx.resizeSelectedCanvasLayer = resizeSelectedCanvasLayer.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasScaleDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasTransformActions,
+  "beginCanvasScaleDrag" | "resizeSelectedCanvasLayer"
+> {
+  return {
+    beginCanvasScaleDrag: bindViewerAction(beginCanvasScaleDrag, getContext),
+    resizeSelectedCanvasLayer: bindViewerAction(
+      resizeSelectedCanvasLayer,
+      getContext,
+    ),
+  };
 }

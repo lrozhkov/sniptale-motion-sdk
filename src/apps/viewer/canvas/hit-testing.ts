@@ -1,6 +1,14 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { CanvasPoint } from "./geometry-contract.js";
+import type { CanvasLayerHit } from "./selection-contract.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasSelectionActions } from "./selection-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function getCanvasPointFromEvent(ctx: ViewerAppContext, event) {
+function getCanvasPointFromEvent(
+  ctx: ViewerAppContext,
+  event: Pick<MouseEvent, "clientX" | "clientY">,
+) {
   const rect = ctx.refs.canvas.getBoundingClientRect();
   return {
     x:
@@ -12,7 +20,10 @@ function getCanvasPointFromEvent(ctx: ViewerAppContext, event) {
   };
 }
 
-function beginCanvasHitTestPointerDown(ctx: ViewerAppContext, event) {
+function beginCanvasHitTestPointerDown(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+) {
   if (event.button !== 0 || event.defaultPrevented) {
     return;
   }
@@ -68,7 +79,7 @@ function beginCanvasHitTestPointerDown(ctx: ViewerAppContext, event) {
   }
 }
 
-function handleCanvasDoubleClick(ctx: ViewerAppContext, event) {
+function handleCanvasDoubleClick(ctx: ViewerAppContext, event: MouseEvent) {
   const hit = ctx.findTopCanvasLayerAtEvent(event);
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const selectionId =
@@ -77,7 +88,7 @@ function handleCanvasDoubleClick(ctx: ViewerAppContext, event) {
       : null;
   const hierarchy = template ? ctx.getLayerHierarchy(template) : null;
   const selected = selectionId ? hierarchy?.byId.get(selectionId) : null;
-  if (selected?.type !== "group") {
+  if (!hit || selected?.type !== "group") {
     return;
   }
   event.preventDefault();
@@ -85,14 +96,14 @@ function handleCanvasDoubleClick(ctx: ViewerAppContext, event) {
   ctx.enterCanvasGroup(selected.id, hit.layer.id);
 }
 
-function findTopCanvasLayerAtEvent(ctx: ViewerAppContext, event) {
+function findTopCanvasLayerAtEvent(ctx: ViewerAppContext, event: MouseEvent) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return null;
   }
   const point = ctx.getCanvasPointFromEvent(event);
   const time = Number(ctx.refs.timeSlider.value) || 0;
-  let fullFrameHit = null;
+  let fullFrameHit: CanvasLayerHit | null = null;
   for (const layer of [...(template.layers ?? [])].reverse()) {
     if (
       layer.visible === false ||
@@ -112,7 +123,7 @@ function findTopCanvasLayerAtEvent(ctx: ViewerAppContext, event) {
   return fullFrameHit;
 }
 
-function isFullCanvasLayer(ctx: ViewerAppContext, layer) {
+function isFullCanvasLayer(ctx: ViewerAppContext, layer: EffectLayer) {
   if (ctx.getLayerEditorCapabilities(layer).canvas === "fullFrame") {
     return true;
   }
@@ -124,7 +135,11 @@ function isFullCanvasLayer(ctx: ViewerAppContext, layer) {
   );
 }
 
-export function isCanvasPointInsideLayer(ctx: ViewerAppContext, point, layer) {
+export function isCanvasPointInsideLayer(
+  ctx: ViewerAppContext,
+  point: CanvasPoint,
+  layer: EffectLayer,
+) {
   const box = ctx.getLayerCanvasHitBox(layer.id, layer);
   if (!box) {
     return false;
@@ -143,7 +158,10 @@ export function isCanvasPointInsideLayer(ctx: ViewerAppContext, point, layer) {
   );
 }
 
-function beginCanvasSelectionPointerDown(ctx: ViewerAppContext, event) {
+function beginCanvasSelectionPointerDown(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+) {
   if (ctx.refs.canvasSelectionBox.dataset.inactive === "true") {
     event.preventDefault();
     event.stopPropagation();
@@ -193,31 +211,56 @@ function beginCanvasSelectionPointerDown(ctx: ViewerAppContext, event) {
   ctx.beginCanvasLayerDrag(event);
 }
 
-function isCanvasTransformHandleEvent(ctx: ViewerAppContext, event) {
+function isCanvasTransformHandleEvent(
+  _ctx: ViewerAppContext,
+  event: Pick<Event, "target">,
+) {
   return (
     event.target instanceof Element &&
     Boolean(event.target.closest(".canvas-transform-handle"))
   );
 }
 
-export function installCanvasHitTestingOwner(ctx: ViewerAppContext): void {
-  ctx.getCanvasPointFromEvent = getCanvasPointFromEvent.bind(undefined, ctx);
-  ctx.beginCanvasHitTestPointerDown = beginCanvasHitTestPointerDown.bind(
-    undefined,
-    ctx,
-  );
-  ctx.handleCanvasDoubleClick = handleCanvasDoubleClick.bind(undefined, ctx);
-  ctx.findTopCanvasLayerAtEvent = findTopCanvasLayerAtEvent.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isCanvasPointInsideLayer = isCanvasPointInsideLayer.bind(undefined, ctx);
-  ctx.beginCanvasSelectionPointerDown = beginCanvasSelectionPointerDown.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isCanvasTransformHandleEvent = isCanvasTransformHandleEvent.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasHitTestingActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasSelectionActions,
+  | "getCanvasPointFromEvent"
+  | "beginCanvasHitTestPointerDown"
+  | "handleCanvasDoubleClick"
+  | "findTopCanvasLayerAtEvent"
+  | "isCanvasPointInsideLayer"
+  | "beginCanvasSelectionPointerDown"
+  | "isCanvasTransformHandleEvent"
+> {
+  return {
+    getCanvasPointFromEvent: bindViewerAction(
+      getCanvasPointFromEvent,
+      getContext,
+    ),
+    beginCanvasHitTestPointerDown: bindViewerAction(
+      beginCanvasHitTestPointerDown,
+      getContext,
+    ),
+    handleCanvasDoubleClick: bindViewerAction(
+      handleCanvasDoubleClick,
+      getContext,
+    ),
+    findTopCanvasLayerAtEvent: bindViewerAction(
+      findTopCanvasLayerAtEvent,
+      getContext,
+    ),
+    isCanvasPointInsideLayer: bindViewerAction(
+      isCanvasPointInsideLayer,
+      getContext,
+    ),
+    beginCanvasSelectionPointerDown: bindViewerAction(
+      beginCanvasSelectionPointerDown,
+      getContext,
+    ),
+    isCanvasTransformHandleEvent: bindViewerAction(
+      isCanvasTransformHandleEvent,
+      getContext,
+    ),
+  };
 }

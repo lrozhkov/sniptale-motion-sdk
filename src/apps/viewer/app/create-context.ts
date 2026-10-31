@@ -1,3 +1,16 @@
+import { createLayerHierarchyActions } from "../layers/hierarchy-controller.js";
+import { createCanvasSelectionTargetActions } from "../canvas/selection-target.js";
+import { createCanvasHitTestingActions } from "../canvas/hit-testing.js";
+import { createCanvasMarqueeActions } from "../canvas/marquee.js";
+import { createCanvasSelectionLevelActions } from "../canvas/selection-level.js";
+import { createCanvasIsolationBreadcrumbActions } from "../canvas/isolation-breadcrumb.js";
+import { createCanvasTransformDragActions } from "../canvas/transform-drag.js";
+import { createCanvasScaleDragActions } from "../canvas/scale-drag.js";
+import { createCanvasPivotDragActions } from "../canvas/pivot-drag.js";
+import { createCanvasPivotKeyboardActions } from "../canvas/pivot-keyboard.js";
+import { createCanvasKeyboardTransformActions } from "../canvas/keyboard-transform.js";
+import { createCanvasSelectionTransformActions } from "../canvas/selection-transform.js";
+import { createCanvasSelectionTransformKeyboardActions } from "../canvas/selection-transform-keyboard.js";
 import { createLayerEditorCapabilityActions } from "../layers/editor-capabilities.js";
 import { createCanvasGuideActions } from "../canvas/guide-snap.js";
 import { createCanvasPathOverlayActions } from "../canvas/path-overlay.js";
@@ -67,6 +80,21 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createLayerHierarchyActions(() => ctx),
+    ...createCanvasSelectionTargetActions(() => ctx),
+    ...createCanvasHitTestingActions(() => ctx),
+    ...createCanvasMarqueeActions(() => ctx),
+    ...createCanvasSelectionLevelActions(() => ctx),
+    ...createCanvasIsolationBreadcrumbActions(() => ctx),
+
+    ...createCanvasTransformDragActions(() => ctx),
+    ...createCanvasScaleDragActions(() => ctx),
+    ...createCanvasPivotDragActions(() => ctx),
+    ...createCanvasPivotKeyboardActions(() => ctx),
+    ...createCanvasKeyboardTransformActions(() => ctx),
+    ...createCanvasSelectionTransformActions(() => ctx),
+    ...createCanvasSelectionTransformKeyboardActions(() => ctx),
+
     ...createLayerEditorCapabilityActions(),
     ...createCanvasGuideActions(() => ctx),
     ...createCanvasPathOverlayActions(() => ctx),

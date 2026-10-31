@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  activateCanvasDrag,
   createCanvasDragPreview,
   projectCanvasTransformPreviewBox,
 } from "../src/apps/viewer/canvas/drag-preview";
@@ -17,17 +16,6 @@ describe("viewer canvas transform math", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
-  });
-
-  it("starts an edit only after crossing the drag threshold", () => {
-    const ctx = { state: { dragMoved: false } } as any;
-    let starts = 0;
-
-    expect(activateCanvasDrag(ctx, 2, () => starts++)).toBe(false);
-    expect(ctx.state.dragMoved).toBe(false);
-    expect(activateCanvasDrag(ctx, 3, () => starts++)).toBe(true);
-    expect(activateCanvasDrag(ctx, 4, () => starts++)).toBe(true);
-    expect(starts).toBe(1);
   });
 
   it("coalesces raw pointer updates into one interactive frame", () => {

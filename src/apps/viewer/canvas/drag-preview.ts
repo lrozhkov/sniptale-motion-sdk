@@ -3,7 +3,6 @@ import type { RenderOptions } from "../rendering/state.js";
 import type { CanvasTransformValues } from "./transform-state.js";
 import type { CanvasBox } from "./primitive-geometry.js";
 import type { EffectLayer } from "../../../sdk/types.js";
-import type { ViewerAppContext } from "../app/context.js";
 
 const DEFERRED_INTERACTIVE_RENDER_DELAY_MS = 120;
 
@@ -17,8 +16,8 @@ export function invalidateCanvasDragPreview(
   if (selectionBox) delete selectionBox.dataset.transforming;
 }
 
-export function activateCanvasDrag(
-  ctx: ViewerAppContext,
+function activateCanvasDrag(
+  ctx: Pick<CanvasDragContext, "state">,
   distance: number,
   startCommand: () => void,
   threshold = 2,
@@ -136,6 +135,16 @@ export function createCanvasDragPreview(
   ctx.refs.canvasSelectionBox.dataset.transforming = "true";
   return {
     isCurrent: isCurrentPreview,
+    activate(
+      distance: number,
+      startCommand: () => void,
+      threshold = 2,
+    ): boolean {
+      return (
+        isCurrentPreview() &&
+        activateCanvasDrag(ctx, distance, startCommand, threshold)
+      );
+    },
     finalize(finalUpdate: (() => void) | null = null) {
       if (frame) {
         cancelAnimationFrame(frame);

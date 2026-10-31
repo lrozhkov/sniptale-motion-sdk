@@ -1,13 +1,18 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-const ARROW_DELTAS = {
+const ARROW_DELTAS: Partial<Record<string, { x: number; y: number }>> = {
   ArrowDown: { x: 0, y: 1 },
   ArrowLeft: { x: -1, y: 0 },
   ArrowRight: { x: 1, y: 0 },
   ArrowUp: { x: 0, y: -1 },
 };
 
-function handleCanvasTransformHandleKeydown(ctx: ViewerAppContext, event) {
+function handleCanvasTransformHandleKeydown(
+  ctx: ViewerAppContext,
+  event: KeyboardEvent,
+) {
   const direction = ARROW_DELTAS[event.code];
   if (!direction) {
     return;
@@ -52,9 +57,13 @@ function handleCanvasTransformHandleKeydown(ctx: ViewerAppContext, event) {
   }
 }
 
-export function installCanvasKeyboardTransformOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.handleCanvasTransformHandleKeydown =
-    handleCanvasTransformHandleKeydown.bind(undefined, ctx);
+export function createCanvasKeyboardTransformActions(
+  getContext: () => ViewerAppContext,
+): Pick<CanvasTransformActions, "handleCanvasTransformHandleKeydown"> {
+  return {
+    handleCanvasTransformHandleKeydown: bindViewerAction(
+      handleCanvasTransformHandleKeydown,
+      getContext,
+    ),
+  };
 }

@@ -1,3 +1,6 @@
+import type { LayerHierarchyActions } from "../layers/hierarchy-contract.js";
+import type { CanvasSelectionActions } from "../canvas/selection-contract.js";
+import type { CanvasTransformActions } from "../canvas/transform-contract.js";
 import type { LayerEditorCapabilityActions } from "../layers/editor-capabilities.js";
 import type { CanvasGuideActions } from "../canvas/guide-contract.js";
 import type { CanvasPathActions } from "../canvas/path-contract.js";
@@ -47,6 +50,9 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    LayerHierarchyActions,
+    CanvasSelectionActions,
+    CanvasTransformActions,
     LayerEditorCapabilityActions,
     CanvasGuideActions,
     CanvasPathActions,

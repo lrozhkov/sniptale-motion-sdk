@@ -1,3 +1,6 @@
+import type { CanvasSelectionGestureSnapshot } from "./selection-transform-state.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasTransformActions } from "./transform-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   resolveCanvasSelectionScaleFactor,
@@ -9,7 +12,7 @@ import {
   getCanvasSelectionBoxCenter,
 } from "./selection-transform-state.js";
 
-function moveCanvasSelectionBy(ctx: ViewerAppContext, dx, dy) {
+function moveCanvasSelectionBy(ctx: ViewerAppContext, dx: number, dy: number) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "move");
   if (!snapshot) {
     return false;
@@ -23,7 +26,7 @@ function moveCanvasSelectionBy(ctx: ViewerAppContext, dx, dy) {
   return true;
 }
 
-function rotateCanvasSelectionBy(ctx: ViewerAppContext, delta) {
+function rotateCanvasSelectionBy(ctx: ViewerAppContext, delta: number) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "rotation");
   if (!snapshot) {
     return false;
@@ -44,7 +47,10 @@ function rotateCanvasSelectionBy(ctx: ViewerAppContext, delta) {
   return true;
 }
 
-function scaleCanvasSelectionBy(ctx: ViewerAppContext, requestedFactor) {
+function scaleCanvasSelectionBy(
+  ctx: ViewerAppContext,
+  requestedFactor: number,
+) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "scale");
   if (!snapshot) {
     return false;
@@ -65,7 +71,7 @@ function scaleCanvasSelectionBy(ctx: ViewerAppContext, requestedFactor) {
 function setCanvasSelectionFrameProperty(
   ctx: ViewerAppContext,
   property: "height" | "left" | "top" | "width",
-  requestedValue,
+  requestedValue: number,
 ) {
   const operation =
     property === "left" || property === "top" ? "move" : "scale";
@@ -97,7 +103,11 @@ function setCanvasSelectionFrameProperty(
   return true;
 }
 
-function beginKeyboardSelectionCommand(ctx, snapshot, coalescePrefix): void {
+function beginKeyboardSelectionCommand(
+  ctx: ViewerAppContext,
+  snapshot: CanvasSelectionGestureSnapshot,
+  coalescePrefix: string,
+): void {
   ctx.beginEditorCommand(
     {
       payload: {
@@ -110,14 +120,28 @@ function beginKeyboardSelectionCommand(ctx, snapshot, coalescePrefix): void {
   );
 }
 
-export function installCanvasSelectionTransformKeyboardOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.moveCanvasSelectionBy = moveCanvasSelectionBy.bind(undefined, ctx);
-  ctx.rotateCanvasSelectionBy = rotateCanvasSelectionBy.bind(undefined, ctx);
-  ctx.scaleCanvasSelectionBy = scaleCanvasSelectionBy.bind(undefined, ctx);
-  ctx.setCanvasSelectionFrameProperty = setCanvasSelectionFrameProperty.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasSelectionTransformKeyboardActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasTransformActions,
+  | "moveCanvasSelectionBy"
+  | "rotateCanvasSelectionBy"
+  | "scaleCanvasSelectionBy"
+  | "setCanvasSelectionFrameProperty"
+> {
+  return {
+    moveCanvasSelectionBy: bindViewerAction(moveCanvasSelectionBy, getContext),
+    rotateCanvasSelectionBy: bindViewerAction(
+      rotateCanvasSelectionBy,
+      getContext,
+    ),
+    scaleCanvasSelectionBy: bindViewerAction(
+      scaleCanvasSelectionBy,
+      getContext,
+    ),
+    setCanvasSelectionFrameProperty: bindViewerAction(
+      setCanvasSelectionFrameProperty,
+      getContext,
+    ),
+  };
 }

@@ -4,13 +4,16 @@ import { installLayersClipboardOwner } from "../src/apps/viewer/layers/clipboard
 import { createLayerEditorCapabilityActions } from "../src/apps/viewer/layers/editor-capabilities";
 import { installLayersFactoryOwner } from "../src/apps/viewer/layers/factory";
 import { installLayersGroupingOwner } from "../src/apps/viewer/layers/grouping";
-import { installLayersHierarchyControllerOwner } from "../src/apps/viewer/layers/hierarchy-controller";
+import { createLayerHierarchyActions } from "../src/apps/viewer/layers/hierarchy-controller";
 import { installLayersPropertiesOwner } from "../src/apps/viewer/layers/properties";
 
 describe("viewer structural layer grouping", () => {
   it("groups and ungroups one contiguous selection with atomic commands", () => {
     const ctx = createContext();
-    installLayersHierarchyControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createLayerHierarchyActions(() => ctx),
+    );
     installLayersGroupingOwner(ctx);
 
     expect(ctx.groupSelectedLayers()).toBe(true);
@@ -63,7 +66,10 @@ describe("viewer structural layer grouping", () => {
     });
     ctx.state.selectedLayers = ["group-1"];
     ctx.state.selectedItem = { layerId: "group-1", type: "layer" };
-    installLayersHierarchyControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createLayerHierarchyActions(() => ctx),
+    );
     Object.assign(ctx, createLayerEditorCapabilityActions());
     installLayersFactoryOwner(ctx);
     installLayersClipboardOwner(ctx);
@@ -117,7 +123,10 @@ describe("viewer structural layer grouping", () => {
         editableLayer("title", "text", "group-1"),
       ],
     });
-    installLayersHierarchyControllerOwner(ctx);
+    Object.assign(
+      ctx,
+      createLayerHierarchyActions(() => ctx),
+    );
     installLayersPropertiesOwner(ctx);
 
     ctx.toggleLayerVisibility("group-1");

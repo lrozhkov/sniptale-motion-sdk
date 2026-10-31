@@ -1,3 +1,9 @@
+import { bindViewerAction } from "../app/bind-action.js";
+
+import type {
+  LayerHierarchyActions,
+  LayerHierarchySource,
+} from "./hierarchy-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createLayerHierarchyIndex,
@@ -7,14 +13,18 @@ import {
 
 function getLayerHierarchy(
   ctx: ViewerAppContext,
-  template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
+  template: LayerHierarchySource | null = ctx.getEffectiveTemplate(
+    ctx.state.currentTemplate,
+  ),
 ) {
   return createLayerHierarchyIndex(template?.layers ?? []);
 }
 
 function getSelectedLayerRootIds(
   ctx: ViewerAppContext,
-  template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
+  template: LayerHierarchySource | null = ctx.getEffectiveTemplate(
+    ctx.state.currentTemplate,
+  ),
 ) {
   return normalizeLayerSelectionRoots(
     ctx.getLayerHierarchy(template),
@@ -24,7 +34,9 @@ function getSelectedLayerRootIds(
 
 function getSelectedLayerLeafIds(
   ctx: ViewerAppContext,
-  template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
+  template: LayerHierarchySource | null = ctx.getEffectiveTemplate(
+    ctx.state.currentTemplate,
+  ),
 ) {
   const hierarchy = ctx.getLayerHierarchy(template);
   return getLayerLeafIds(hierarchy, ctx.state.selectedLayers);
@@ -33,7 +45,9 @@ function getSelectedLayerLeafIds(
 function setSelectedLayers(
   ctx: ViewerAppContext,
   layerIds: string[],
-  template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
+  template: LayerHierarchySource | null = ctx.getEffectiveTemplate(
+    ctx.state.currentTemplate,
+  ),
 ) {
   const roots = normalizeLayerSelectionRoots(
     ctx.getLayerHierarchy(template),
@@ -46,11 +60,19 @@ function setSelectedLayers(
     : { type: "effect" };
 }
 
-export function installLayersHierarchyControllerOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.getLayerHierarchy = getLayerHierarchy.bind(undefined, ctx);
-  ctx.getSelectedLayerRootIds = getSelectedLayerRootIds.bind(undefined, ctx);
-  ctx.getSelectedLayerLeafIds = getSelectedLayerLeafIds.bind(undefined, ctx);
-  ctx.setSelectedLayers = setSelectedLayers.bind(undefined, ctx);
+export function createLayerHierarchyActions(
+  getContext: () => ViewerAppContext,
+): LayerHierarchyActions {
+  return {
+    getLayerHierarchy: bindViewerAction(getLayerHierarchy, getContext),
+    getSelectedLayerRootIds: bindViewerAction(
+      getSelectedLayerRootIds,
+      getContext,
+    ),
+    getSelectedLayerLeafIds: bindViewerAction(
+      getSelectedLayerLeafIds,
+      getContext,
+    ),
+    setSelectedLayers: bindViewerAction(setSelectedLayers, getContext),
+  };
 }

@@ -1,3 +1,5 @@
+import type { CanvasRect } from "./geometry-contract.js";
+import type { CanvasUpdateOptions } from "./contract.js";
 import type { EffectLayerEditorTransformProperty } from "../../../sdk/types.js";
 import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -155,7 +157,7 @@ export function applyCanvasSelectionTransform(
   ctx: ViewerAppContext,
   snapshot: CanvasSelectionGestureSnapshot,
   result: CanvasSelectionTransformResult,
-  options: any = {},
+  options: CanvasUpdateOptions = {},
 ): void {
   if (ctx.state.canvasTransformPreview?.boxes) {
     ctx.state.canvasTransformPreview.boxes = result.boxes;
@@ -177,11 +179,14 @@ export function applyCanvasSelectionTransform(
   });
 }
 
-export function getCanvasSelectionBoxCenter(box) {
+export function getCanvasSelectionBoxCenter(box: CanvasRect) {
   return { x: box.x + box.width * 0.5, y: box.y + box.height * 0.5 };
 }
 
-export function getOpposingCanvasSelectionCorner(box, handle) {
+export function getOpposingCanvasSelectionCorner(
+  box: CanvasRect,
+  handle: string,
+) {
   return {
     x: handle.includes("w") ? box.x + box.width : box.x,
     y: handle.includes("n") ? box.y + box.height : box.y,

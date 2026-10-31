@@ -1,10 +1,18 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { CanvasPoint, CanvasRect } from "./geometry-contract.js";
+import type { SelectionModifiers } from "../timeline/model/selection-model.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasSelectionActions } from "./selection-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerLeafIds } from "../layers/hierarchy.js";
 import { resolveCanvasSelectionBounds } from "./selection-bounds.js";
 
 const MARQUEE_THRESHOLD_CSS_PIXELS = 3;
 
-function beginCanvasMarqueeSelection(ctx: ViewerAppContext, event) {
+function beginCanvasMarqueeSelection(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+) {
   if (event.button !== 0) {
     return false;
   }
@@ -13,7 +21,7 @@ function beginCanvasMarqueeSelection(ctx: ViewerAppContext, event) {
   const initial = [...ctx.state.selectedLayers];
   const marquee = ensureCanvasMarquee(ctx);
   marquee.hidden = true;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const rect = normalizePageRect(start, {
       x: moveEvent.clientX,
       y: moveEvent.clientY,
@@ -40,7 +48,10 @@ function beginCanvasMarqueeSelection(ctx: ViewerAppContext, event) {
   return true;
 }
 
-function findCanvasMarqueeLayerIds(ctx: ViewerAppContext, pageRect): string[] {
+function findCanvasMarqueeLayerIds(
+  ctx: ViewerAppContext,
+  pageRect: CanvasRect,
+): string[] {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return [];
@@ -98,7 +109,11 @@ function findCanvasMarqueeLayerIds(ctx: ViewerAppContext, pageRect): string[] {
   });
 }
 
-function resolveMarqueeSelection(initial, hits, event): string[] {
+function resolveMarqueeSelection(
+  initial: string[],
+  hits: string[],
+  event: SelectionModifiers,
+): string[] {
   if (!hasSelectionModifier(event)) {
     return hits;
   }
@@ -118,7 +133,11 @@ function resolveMarqueeSelection(initial, hits, event): string[] {
   return result;
 }
 
-function isStandaloneFullCanvasLayer(ctx, rootId, layer): boolean {
+function isStandaloneFullCanvasLayer(
+  ctx: ViewerAppContext,
+  rootId: string,
+  layer: EffectLayer,
+): boolean {
   if (rootId !== layer.id) {
     return false;
   }
@@ -133,7 +152,7 @@ function isStandaloneFullCanvasLayer(ctx, rootId, layer): boolean {
   );
 }
 
-function ensureCanvasMarquee(ctx): HTMLDivElement {
+function ensureCanvasMarquee(ctx: ViewerAppContext): HTMLDivElement {
   const existing = ctx.refs.stageFrame.querySelector(".canvas-marquee");
   if (existing instanceof HTMLDivElement) {
     return existing;
@@ -145,7 +164,11 @@ function ensureCanvasMarquee(ctx): HTMLDivElement {
   return marquee;
 }
 
-function updateCanvasMarqueeRect(ctx, marquee, rect): void {
+function updateCanvasMarqueeRect(
+  ctx: ViewerAppContext,
+  marquee: HTMLDivElement,
+  rect: CanvasRect,
+): void {
   const stageRect = ctx.refs.stageFrame.getBoundingClientRect();
   marquee.style.left = `${rect.x - stageRect.left}px`;
   marquee.style.top = `${rect.y - stageRect.top}px`;
@@ -153,7 +176,7 @@ function updateCanvasMarqueeRect(ctx, marquee, rect): void {
   marquee.style.height = `${rect.height}px`;
 }
 
-function normalizePageRect(start, end) {
+function normalizePageRect(start: CanvasPoint, end: CanvasPoint) {
   const x = Math.min(start.x, end.x);
   const y = Math.min(start.y, end.y);
   return {
@@ -164,13 +187,17 @@ function normalizePageRect(start, end) {
   };
 }
 
-function hasSelectionModifier(event): boolean {
+function hasSelectionModifier(event: SelectionModifiers): boolean {
   return Boolean(event.shiftKey || event.metaKey || event.ctrlKey);
 }
 
-export function installCanvasMarqueeOwner(ctx: ViewerAppContext): void {
-  ctx.beginCanvasMarqueeSelection = beginCanvasMarqueeSelection.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasMarqueeActions(
+  getContext: () => ViewerAppContext,
+): Pick<CanvasSelectionActions, "beginCanvasMarqueeSelection"> {
+  return {
+    beginCanvasMarqueeSelection: bindViewerAction(
+      beginCanvasMarqueeSelection,
+      getContext,
+    ),
+  };
 }

@@ -2,7 +2,7 @@ import { bindViewerAction } from "../app/bind-action.js";
 import type { CanvasPathActions } from "./path-contract.js";
 import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
-import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
+import { createCanvasDragPreview } from "./drag-preview.js";
 
 function beginMotionPathTangentDrag(
   ctx: ViewerAppContext,
@@ -59,7 +59,7 @@ function beginMotionPathTangentDrag(
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
-      !activateCanvasDrag(ctx, Math.abs(pageDx) + Math.abs(pageDy), () =>
+      !preview.activate(Math.abs(pageDx) + Math.abs(pageDy), () =>
         ctx.beginEditorCommand({
           payload: {
             layerId,

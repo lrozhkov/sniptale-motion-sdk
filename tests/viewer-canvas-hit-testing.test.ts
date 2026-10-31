@@ -18,7 +18,7 @@ describe("viewer canvas hit testing", () => {
         y: box.y + box.height * 0.5,
       }),
     } as any;
-    const layer = { id: "card" };
+    const layer = { id: "card", type: "rect" };
 
     expect(isCanvasPointInsideLayer(ctx, { x: 225, y: 80 }, layer)).toBe(true);
     expect(getLayerCanvasHitBox).toHaveBeenCalledWith("card", layer);
@@ -37,10 +37,18 @@ describe("viewer canvas hit testing", () => {
     } as any;
 
     expect(
-      isCanvasPointInsideLayer(ctx, { x: 70, y: 95 }, { id: "rotated" }),
+      isCanvasPointInsideLayer(
+        ctx,
+        { x: 70, y: 95 },
+        { id: "rotated", type: "rect" },
+      ),
     ).toBe(true);
     expect(
-      isCanvasPointInsideLayer(ctx, { x: 120, y: 50 }, { id: "rotated" }),
+      isCanvasPointInsideLayer(
+        ctx,
+        { x: 120, y: 50 },
+        { id: "rotated", type: "rect" },
+      ),
     ).toBe(false);
   });
 });
