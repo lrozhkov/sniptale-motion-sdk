@@ -109,19 +109,22 @@ function isTimelineSelectionItemCurrent(ctx: ViewerAppContext, item) {
   if (item.type !== current.type) {
     return false;
   }
-  if (item.type === "scene") {
+  if (item.type === "scene" && current.type === "scene") {
     return item.sceneId === current.sceneId;
   }
-  if (item.type === "clip" || item.type === "layer") {
+  if (
+    (item.type === "clip" || item.type === "layer") &&
+    (current.type === "clip" || current.type === "layer")
+  ) {
     return item.layerId === current.layerId;
   }
-  if (item.type === "phase") {
+  if (item.type === "phase" && current.type === "phase") {
     return item.phaseId === current.phaseId;
   }
-  if (item.type === "track") {
+  if (item.type === "track" && current.type === "track") {
     return item.trackId === current.trackId;
   }
-  if (item.type === "keyframe") {
+  if (item.type === "keyframe" && current.type === "keyframe") {
     return (
       item.trackId === current.trackId && item.keyframeId === current.keyframeId
     );

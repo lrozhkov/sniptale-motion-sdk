@@ -223,7 +223,7 @@ describe("viewer app support owners", () => {
 
   it("does not validate an unfinished renderer contract as missing bindings", () => {
     const state = createViewerState();
-    state.currentTemplate = { id: "template" };
+    state.currentTemplate = { id: "template", duration: 1 };
     state.rendererContractTemplateId = "template";
     state.rendererContractCoverageReady = false;
     const ctx = { state } as any;
@@ -244,9 +244,12 @@ describe("viewer app support owners", () => {
       (_template: unknown, _options: { rendererCoverage: unknown }) => [],
     );
     const state = createViewerState();
-    state.currentTemplate = { id: "template" };
+    state.currentTemplate = { id: "template", duration: 1 };
     state.rendererContractTemplateId = "template";
-    state.rendererContractReads = { layers: ["box"] };
+    state.rendererContractReads = {
+      ...state.rendererContractReads,
+      layers: ["box"],
+    };
     const ctx = {
       deps: {
         collectEditorValidationErrorsModel: vi.fn(() => []),

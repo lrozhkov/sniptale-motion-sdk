@@ -1,3 +1,4 @@
+import { readEditorTemplateSource } from "./source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { shouldReportSandboxRequestFailure } from "../transport/sandbox-client.js";
 import {
@@ -49,7 +50,7 @@ async function bootstrap(ctx: ViewerAppContext) {
     return;
   }
   ctx.state.pack = loaded.pack;
-  ctx.state.templates = loaded.templates;
+  ctx.state.templates = loaded.templates.map(readEditorTemplateSource);
   ctx.state.modules = loaded.modules;
   ctx.state.assets = loaded.assets;
   ctx.state.baseAssets = new Map(loaded.assets);

@@ -12,7 +12,7 @@ let renderModelSequence = 0;
 
 export function resolveRenderTemplateSnapshot(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: { id: string } | null = ctx.state.currentTemplate,
 ): any {
   if (!template) {
     return null;

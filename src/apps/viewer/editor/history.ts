@@ -1,3 +1,8 @@
+import type { ViewerSelectionState } from "../timeline/model/selection-model.js";
+import {
+  parseViewerSelection,
+  parseKeyframeSelectionRef,
+} from "../timeline/model/selection-validation.js";
 import { deepClone } from "./model.js";
 
 export type EditorSnapshot = {
@@ -27,19 +32,13 @@ export type EditorCommand = {
   type: string;
 };
 
-export type EditorHistoryState = {
-  controls: unknown;
+export type EditorHistoryState = Partial<ViewerSelectionState> & {
+  controls: Record<string, unknown>;
   editorCommands: unknown[];
   editorOverrides: Map<string, unknown>;
   historyPast: EditorSnapshot[];
   historyFuture: EditorSnapshot[];
-  selectedClips?: unknown[];
-  selectedItem?: unknown;
-  selectedKeyframes?: unknown[];
-  selectedLayers?: unknown[];
-  selectedPhases?: unknown[];
   selectedPresetId?: string | null;
-  selectedScenes?: unknown[];
   timelineOverrides: Map<string, unknown>;
 };
 
@@ -127,6 +126,18 @@ export function restoreEditorSnapshotState(
   snapshot: EditorSnapshot,
   options: { fallbackControls?: unknown } = {},
 ): void {
+  const controls = snapshot.controls ?? options.fallbackControls ?? {};
+  if (!isRecord(controls)) throw new Error("Invalid editor snapshot controls.");
+  const selection = parseViewerSelection(snapshot.selectedItem) ?? {
+    type: "effect" as const,
+  };
+  const keyframes =
+    snapshot.selectedKeyframes ??
+    (snapshot.selectedKeyframe ? [snapshot.selectedKeyframe] : []);
+  const selectedKeyframes = keyframes.flatMap((value) => {
+    const ref = parseKeyframeSelectionRef(value);
+    return ref ? [ref] : [];
+  });
   if (snapshot.templateId !== null) {
     if (snapshot.editorOverride) {
       state.editorOverrides.set(
@@ -145,22 +156,23 @@ export function restoreEditorSnapshotState(
       state.timelineOverrides.delete(snapshot.templateId);
     }
   }
-  state.selectedItem = deepClone(snapshot.selectedItem ?? { type: "effect" });
-  state.selectedClips = deepClone(snapshot.selectedClips ?? []);
-  state.selectedLayers = deepClone(snapshot.selectedLayers ?? []);
+  state.selectedItem = selection;
+  state.selectedClips = selectionIds(snapshot.selectedClips);
+  state.selectedLayers = selectionIds(snapshot.selectedLayers);
   state.selectedPresetId = snapshot.selectedPresetId ?? null;
-  state.selectedPhases = deepClone(snapshot.selectedPhases ?? []);
-  state.selectedScenes = deepClone(snapshot.selectedScenes ?? []);
-  state.selectedKeyframes = deepClone(
-    snapshot.selectedKeyframes ??
-      (snapshot.selectedKeyframe ? [snapshot.selectedKeyframe] : []),
-  );
+  state.selectedPhases = selectionIds(snapshot.selectedPhases);
+  state.selectedScenes = selectionIds(snapshot.selectedScenes);
+  state.selectedKeyframes = selectedKeyframes;
   state.editorCommands = deepClone(snapshot.editorCommands ?? []);
-  state.controls = deepClone(
-    snapshot.controls ?? options.fallbackControls ?? {},
-  );
+  state.controls = deepClone(controls);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function selectionIds(values: unknown[]): string[] {
+  return (values ?? []).filter(
+    (value): value is string => typeof value === "string",
+  );
 }

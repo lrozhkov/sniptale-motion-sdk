@@ -19,7 +19,7 @@ import { canonicalizeKeyframeSelection } from "./keyframe-selection.js";
 
 export function reconcileTimelineSelection(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: unknown = ctx.state.currentTemplate,
 ): void {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {

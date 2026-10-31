@@ -11,6 +11,7 @@ import type {
   EditorPreset,
   EditorTemplate,
   EditorTemplateMetadata,
+  EditorTemplateSource,
   EditorText,
 } from "./model.js";
 
@@ -19,6 +20,35 @@ export function readTemplateSource(
 ): Record<string, unknown> & { id: string } {
   if (!isSource(value)) throw new Error("Invalid editor template source.");
   return value;
+}
+
+export function readEditorTemplateSource(value: unknown): EditorTemplateSource {
+  if (!isEditorTemplateSource(value))
+    throw new Error("Invalid editor template source structure.");
+  return value;
+}
+
+function isEditorTemplateSource(value: unknown): value is EditorTemplateSource {
+  return (
+    isSource(value) &&
+    finite(value.duration) &&
+    isMetadata(value) &&
+    optional(
+      value,
+      "layers",
+      (entries) => isList(entries) && entries.every(isEditorLayer),
+    ) &&
+    optional(
+      value,
+      "clips",
+      (entries) => isList(entries) && entries.every(isClip),
+    ) &&
+    optional(
+      value,
+      "scenes",
+      (entries) => isList(entries) && entries.every(isScene),
+    )
+  );
 }
 
 export function readTemplatePatch(value: unknown): Record<string, unknown> {
@@ -67,6 +97,7 @@ function isMetadata(
   value: Record<string, unknown>,
 ): value is Record<string, unknown> & EditorTemplateMetadata {
   return (
+    optional(value, "default", isBoolean) &&
     optional(value, "assets", (list) => isList(list) && list.every(isString)) &&
     optional(
       value,

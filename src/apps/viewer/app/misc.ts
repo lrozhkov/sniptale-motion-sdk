@@ -80,9 +80,8 @@ function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
     return;
   }
   if (ctx.state.selectedItem.type === "phase") {
-    const phase = timeline.phases.find(
-      (item) => item.id === ctx.state.selectedItem.phaseId,
-    );
+    const phaseId = ctx.state.selectedItem.phaseId;
+    const phase = timeline.phases.find((item) => item.id === phaseId);
     if (!phase || phase.locked) {
       return;
     }
@@ -113,9 +112,8 @@ function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
       effectiveTemplate.scenes ?? [],
       ctx.getEffectiveDuration(template),
     );
-    const scene = scenes.find(
-      (item) => item.id === ctx.state.selectedItem.sceneId,
-    );
+    const sceneId = ctx.state.selectedItem.sceneId;
+    const scene = scenes.find((item) => item.id === sceneId);
     if (!scene || scene.locked || scenes.length <= 1) {
       return;
     }

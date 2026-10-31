@@ -1,10 +1,12 @@
+import { readEditorTemplateSource } from "./source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resetPlaybackRunState } from "../playback/run-state.js";
 
 export function resetTemplateSelectionState(
   ctx: ViewerAppContext,
-  template: any,
+  source: unknown,
 ): void {
+  const template = readEditorTemplateSource(source);
   void ctx.invalidatePlaybackVideoCache?.();
   ctx.state.playing = false;
   ctx.state.currentTemplate = template;

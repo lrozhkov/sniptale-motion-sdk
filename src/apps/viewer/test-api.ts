@@ -1,3 +1,4 @@
+import { isEffectV1ExportableTemplate } from "./effect-file/builder.js";
 import type { ViewerAppContext } from "./app/context.js";
 import {
   getLayerGeometryForTest,
@@ -49,14 +50,12 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
         : null;
     },
     exportEffectFile() {
-      return ctx.state.currentTemplate?.effectV1?.program?.kind === "graph" &&
+      return isEffectV1ExportableTemplate(ctx.state.currentTemplate) &&
         ctx.assertExportable("Effect file export blocked")
         ? ctx.buildCurrentEffectFile()
         : null;
     },
-    getTemplateJsonForTest() {
-      return ctx.buildCurrentTemplateJson();
-    },
+    getTemplateJsonForTest: () => ctx.buildCurrentTemplateJson(),
     async profileTemplateFrame(templateId, time, directPresentation = false) {
       await renderTemplateFrame(ctx, templateId, time, {
         directPresentation: Boolean(directPresentation),

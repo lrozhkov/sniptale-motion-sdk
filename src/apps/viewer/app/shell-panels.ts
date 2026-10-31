@@ -178,7 +178,7 @@ function syncInspectorTabs(
   const available = new Set(
     INSPECTOR_TABS_BY_TYPE[type] ?? INSPECTOR_TABS_BY_TYPE.effect,
   );
-  if (type === "layer") {
+  if (item.type === "layer") {
     const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
     const layer = template?.layers?.find((entry) => entry.id === item.layerId);
     const multiSelection = ctx.isLayerSelectionInspector?.(template);

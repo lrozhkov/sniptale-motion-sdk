@@ -149,6 +149,23 @@ it.each(["ru", "en"])(
     expect(edited.ink).toBe("#111");
   },
 );
+it("preserves opaque instance controls when applying validated visual values", () => {
+  const current: Record<string, unknown> = {
+    title: "Keep",
+    flag: false,
+    extension: { retained: true },
+  };
+  const before = structuredClone(current);
+  expect(applyEffectV1ControlPreset(source(), current, "orange-dark")).toEqual({
+    ...before,
+    ink: "#fff",
+    size: 16,
+  });
+  expect(current).toEqual(before);
+  expect(() =>
+    applyEffectV1ControlPresetValues(source(), current, { ink: false }),
+  ).toThrow();
+});
 it.each([
   [null, "CONTROL_PRESET_VALUES"],
   [{}, "CONTROL_PRESET_VALUES"],

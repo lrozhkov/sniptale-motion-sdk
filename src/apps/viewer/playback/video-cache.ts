@@ -112,7 +112,7 @@ async function preparePlaybackVideoCache(
   await invalidation;
   if (
     generation !== cache.generation ||
-    ctx.state.previewCacheEnabled === false ||
+    !isPreviewCacheEnabled(ctx) ||
     ctx.state.currentTemplate?.id !== template.id
   ) {
     return "unavailable";
@@ -183,7 +183,7 @@ async function preparePlaybackVideoCache(
     if (
       !encoder &&
       generation === cache.generation &&
-      ctx.state.previewCacheEnabled !== false &&
+      isPreviewCacheEnabled(ctx) &&
       ctx.state.currentTemplate?.id === template.id
     ) {
       await fallBackToExactFrameCache(ctx, key);
@@ -192,7 +192,7 @@ async function preparePlaybackVideoCache(
     if (
       !encoder ||
       generation !== cache.generation ||
-      ctx.state.previewCacheEnabled === false ||
+      !isPreviewCacheEnabled(ctx) ||
       ctx.state.currentTemplate?.id !== template.id
     ) {
       await encoder?.cancel();
@@ -268,4 +268,8 @@ export function installPlaybackVideoCacheOwner(ctx: ViewerAppContext): void {
   );
   ctx.stopPlaybackVideoCache = stopPlaybackVideoCache.bind(undefined, ctx);
   ctx.syncPlaybackVideoCache = syncPlaybackVideoCache.bind(undefined, ctx);
+}
+
+function isPreviewCacheEnabled(ctx: ViewerAppContext): boolean {
+  return ctx.state.previewCacheEnabled;
 }

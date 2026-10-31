@@ -96,7 +96,7 @@ function playbackTick(ctx: ViewerAppContext, now) {
     renderIntervalMs,
     ctx.state.averagePlaybackTickMs,
     (ctx.state.currentTemplate.layers?.length ?? 0) +
-      (ctx.state.currentTemplate.timeline?.tracks?.length ?? 0),
+      getTimelineTrackCount(ctx.state.currentTemplate.timeline),
   );
   if (
     playback.finished ||
@@ -239,4 +239,13 @@ export function installPlaybackServiceOwner(ctx: ViewerAppContext): void {
     undefined,
     ctx,
   );
+}
+
+function getTimelineTrackCount(value: unknown): number {
+  return value !== null &&
+    typeof value === "object" &&
+    "tracks" in value &&
+    Array.isArray(value.tracks)
+    ? value.tracks.length
+    : 0;
 }

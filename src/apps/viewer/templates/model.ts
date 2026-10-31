@@ -25,6 +25,7 @@ export type EditorControl = Record<string, unknown> & {
   options?: { value: string | number; label?: EditorText }[];
 };
 export type EditorTemplateMetadata = {
+  default?: boolean;
   assets?: string[];
   controls?: EditorControl[];
   presets?: unknown[];
@@ -36,12 +37,19 @@ export type EditorTemplateMetadata = {
   category?: string;
   target?: string;
 };
-export type EditorTemplate = Record<string, unknown> &
+export type EditorTemplateSource = Record<string, unknown> &
   EditorTemplateMetadata & {
     id: string;
     duration: number;
-    layers: EffectLayer[];
-    clips: EffectClip[];
-    scenes: EffectScene[];
-    timeline: EditorTimeline;
+    layers?: EffectLayer[];
+    clips?: EffectClip[];
+    scenes?: EffectScene[];
+    timeline?: unknown;
   };
+
+export type EditorTemplate = EditorTemplateSource & {
+  layers: EffectLayer[];
+  clips: EffectClip[];
+  scenes: EffectScene[];
+  timeline: EditorTimeline;
+};

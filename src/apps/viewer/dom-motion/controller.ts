@@ -85,7 +85,7 @@ export function installDomMotionOwner(ctx: ViewerAppContext): void {
   };
   ctx.renderDomMotionFrame = async () => {
     const base = ctx.state.currentTemplate;
-    const override = base ? ctx.state.editorOverrides.get(base.id) : null;
+    const override = ctx.getEditorOverride(base);
     const template = base
       ? {
           ...base,

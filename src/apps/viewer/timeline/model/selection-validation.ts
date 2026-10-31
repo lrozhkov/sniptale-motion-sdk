@@ -143,6 +143,42 @@ function hasKeyframe(
   );
 }
 
+/** Check selection identity; document membership is resolved separately. */
+export function parseViewerSelection(value: unknown): ViewerSelection | null {
+  if (!isRecord(value)) return null;
+  switch (value.type) {
+    case "effect":
+      return { type: "effect" };
+    case "layer":
+    case "clip":
+      return typeof value.layerId === "string"
+        ? { type: value.type, layerId: value.layerId }
+        : null;
+    case "phase":
+      return typeof value.phaseId === "string"
+        ? { type: "phase", phaseId: value.phaseId }
+        : null;
+    case "scene":
+      return typeof value.sceneId === "string"
+        ? { type: "scene", sceneId: value.sceneId }
+        : null;
+    case "track":
+      return typeof value.trackId === "string"
+        ? { type: "track", trackId: value.trackId }
+        : null;
+    case "keyframe": {
+      const ref = parseKeyframeSelectionRef(value);
+      return ref ? { ...ref, type: "keyframe" } : null;
+    }
+    case "asset":
+      return typeof value.assetId === "string"
+        ? { type: "asset", assetId: value.assetId }
+        : null;
+    default:
+      return null;
+  }
+}
+
 export function parseKeyframeSelectionRef(
   value: unknown,
 ): KeyframeSelectionRef | null {
