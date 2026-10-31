@@ -129,8 +129,10 @@ function beginGraphKeyframeDrag(
         }
         commitInteractiveGraphTimeline(ctx, template, timeline);
       },
-      () =>
-        ctx.showTimelineSnapIndicator(plan.updates[keyframeRefKey(primary)]),
+      () => {
+        const nextTime = plan.updates[keyframeRefKey(primary)];
+        if (nextTime !== undefined) ctx.showTimelineSnapIndicator(nextTime);
+      },
     );
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>

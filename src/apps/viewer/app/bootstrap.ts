@@ -42,14 +42,9 @@ import { installCanvasSelectionTransformKeyboardOwner } from "../canvas/selectio
 import { installCanvasSelectionLevelOwner } from "../canvas/selection-level.js";
 import { installCanvasIsolationBreadcrumbOwner } from "../canvas/isolation-breadcrumb.js";
 import { installCanvasMarqueeOwner } from "../canvas/marquee.js";
-import { installTimelineKeyframeIdOwner } from "../timeline/model/keyframe-id.js";
-import { installTimelineEnabledOwner } from "../timeline/model/enabled.js";
-import { installTimelineRowTreeOwner } from "../timeline/model/row-tree.js";
 import { installTimelineNavigationOwners } from "../timeline/navigation/install.js";
-import { installTimelineVirtualizationOwner } from "../timeline/virtualization/controller.js";
 import { installInteractionMarqueeOwner } from "../timeline/interaction/marquee.js";
 import { installTimelinePlaybackRangeOwner } from "../timeline/interaction/playback-range.js";
-import { installInteractionTimelineOverlaysOwner } from "../timeline/interaction/overlays.js";
 import { installLayersFactoryOwner } from "../layers/factory.js";
 import { installLayersClipboardOwner } from "../layers/clipboard.js";
 import { installLayersOrderOwner } from "../layers/order.js";
@@ -69,7 +64,6 @@ import { installInspectorKeyframeSegmentOwner } from "../inspector/keyframe-segm
 import { installInspectorKeyframeEditOwner } from "../inspector/keyframe-edit.js";
 import { installInspectorKeyframeSelectionOwner } from "../inspector/keyframe-selection.js";
 import { installInteractionKeyframePropertiesOwner } from "../timeline/interaction/keyframe-properties.js";
-import { installTimelineTimingPropertiesOwner } from "../timeline/model/timing-properties.js";
 import { installTemplatesSelectionOwner } from "../templates/selection.js";
 import { installCompositionWorkspaceViewOwner } from "../templates/workspace-view-state.js";
 import { installTemplatesComboboxOwner } from "../templates/combobox.js";
@@ -113,7 +107,6 @@ import { installInteractionKeyframesOwner } from "../timeline/interaction/keyfra
 import { installInteractionKeyframeClipboardOwner } from "../timeline/interaction/keyframe-clipboard.js";
 import { installInteractionKeyframeBatchOwner } from "../timeline/interaction/keyframe-batch.js";
 import { installTimelineKeyframeNudgeOwner } from "../timeline/interaction/keyframe-nudge.js";
-import { installInteractionViewportOwner } from "../timeline/interaction/viewport.js";
 import { installInspectorOverviewOwner } from "../inspector/overview.js";
 import { installInspectorLayerOverviewOwner } from "../inspector/layer-overview.js";
 import { installInspectorContextHeaderOwner } from "../inspector/context-header.js";
@@ -167,8 +160,6 @@ export function startViewerApp(): void {
   installInteractionKeyframeBatchOwner(ctx);
   installInteractionKeyframePropertiesOwner(ctx);
   installTimelineKeyframeNudgeOwner(ctx);
-  installInteractionTimelineOverlaysOwner(ctx);
-  installInteractionViewportOwner(ctx);
   installInspectorContextHeaderOwner(ctx);
   installInspectorEffectOverviewOwner(ctx);
   installInspectorLayerOverviewOwner(ctx);
@@ -218,11 +209,7 @@ export function startViewerApp(): void {
   installCanvasPropertyUpdatesOwner(ctx);
   installCanvasSelectionTransformOwner(ctx);
   installCanvasSelectionTransformKeyboardOwner(ctx);
-  installTimelineKeyframeIdOwner(ctx);
-  installTimelineEnabledOwner(ctx);
-  installTimelineRowTreeOwner(ctx);
   installTimelineNavigationOwners(ctx);
-  installTimelineVirtualizationOwner(ctx);
   installInteractionMarqueeOwner(ctx);
   installTimelinePlaybackRangeOwner(ctx);
   installLayersFactoryOwner(ctx);
@@ -238,7 +225,6 @@ export function startViewerApp(): void {
   installInspectorKeyframeCurveHandlesOwner(ctx);
   installInspectorKeyframeEditOwner(ctx);
   installInspectorKeyframeSelectionOwner(ctx);
-  installTimelineTimingPropertiesOwner(ctx);
   installTemplatesComboboxOwner(ctx);
   installTemplatesSelectionOwner(ctx);
   installCompositionWorkspaceViewOwner(ctx);

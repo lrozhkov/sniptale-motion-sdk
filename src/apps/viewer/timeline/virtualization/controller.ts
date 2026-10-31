@@ -1,3 +1,10 @@
+import type { TimelineRowTree } from "../model/row-tree-model.js";
+import type {
+  TimelineOrderedRow,
+  TimelineLayerRowTarget,
+  TimelineItemRowTarget,
+} from "./row-order-model.js";
+import { bindViewerAction } from "../../app/bind-action.js";
 import { readTimelineRenderSnapshot } from "../snapshot.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
@@ -12,8 +19,8 @@ import {
 
 function beginTimelineVirtualRender(
   ctx: ViewerAppContext,
-  tree,
-  scrollTop = ctx.refs.timelineTracks.scrollTop,
+  tree: TimelineRowTree,
+  scrollTop: number = ctx.refs.timelineTracks.scrollTop,
 ): void {
   const rows = createTimelineOrderedRows(ctx, tree);
   const rowHeight = getTimelineRowHeight(ctx);
@@ -34,7 +41,7 @@ function beginTimelineVirtualRender(
   appendVirtualSpacer(ctx, window.start, "before");
 }
 
-export function claimTimelineVirtualRow(ctx: ViewerAppContext): number | null {
+function claimTimelineVirtualRow(ctx: ViewerAppContext): number | null {
   const index = ctx.state.timelineVirtualRowCursor++;
   const window = ctx.state.timelineVirtualWindow;
   if (!window || index < window.start || index >= window.end) {
@@ -71,12 +78,20 @@ function scheduleTimelineVirtualRender(ctx: ViewerAppContext): void {
   });
 }
 
-function getTimelineLayerRowIndex(ctx: ViewerAppContext, template, target) {
+function getTimelineLayerRowIndex(
+  ctx: ViewerAppContext,
+  template: unknown,
+  target: TimelineLayerRowTarget,
+): number {
   const rows = getTimelineOrderedRows(ctx, template);
   return findTimelineLayerRowIndex(rows, target);
 }
 
-function getTimelineItemRowIndex(ctx: ViewerAppContext, template, item) {
+function getTimelineItemRowIndex(
+  ctx: ViewerAppContext,
+  template: unknown,
+  item: TimelineItemRowTarget,
+): number {
   return findTimelineItemRowIndex(getTimelineOrderedRows(ctx, template), item);
 }
 
@@ -113,14 +128,20 @@ function scrollTimelineRowIntoView(
   return true;
 }
 
-function createTimelineOrderedRows(ctx: ViewerAppContext, tree) {
+function createTimelineOrderedRows(
+  ctx: ViewerAppContext,
+  tree: TimelineRowTree,
+): TimelineOrderedRow[] {
   return flattenVisibleTimelineRows(tree, {
     isRowExpanded: (type, id) => ctx.isTimelineRowExpanded(type, id),
     isSceneExpanded: (sceneId) => ctx.isSceneExpanded(sceneId),
   });
 }
 
-function getTimelineOrderedRows(ctx: ViewerAppContext, template) {
+function getTimelineOrderedRows(
+  ctx: ViewerAppContext,
+  template: unknown,
+): TimelineOrderedRow[] {
   const tree =
     readTimelineRenderSnapshot(ctx.state, template)?.tree ??
     ctx.createTimelineRowTree(template);
@@ -154,18 +175,37 @@ function appendVirtualSpacer(
   ctx.refs.timelineTracks.append(spacer);
 }
 
-export function installTimelineVirtualizationOwner(
-  ctx: ViewerAppContext,
-): void {
-  Object.assign(ctx, {
-    beginTimelineVirtualRender: beginTimelineVirtualRender.bind(undefined, ctx),
-    endTimelineVirtualRender: endTimelineVirtualRender.bind(undefined, ctx),
-    getTimelineLayerRowIndex: getTimelineLayerRowIndex.bind(undefined, ctx),
-    getTimelineItemRowIndex: getTimelineItemRowIndex.bind(undefined, ctx),
-    scheduleTimelineVirtualRender: scheduleTimelineVirtualRender.bind(
-      undefined,
-      ctx,
+export function createTimelineVirtualizationActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    claimTimelineVirtualRow: bindViewerAction(
+      claimTimelineVirtualRow,
+      getContext,
     ),
-    scrollTimelineRowIntoView: scrollTimelineRowIntoView.bind(undefined, ctx),
-  });
+    beginTimelineVirtualRender: bindViewerAction(
+      beginTimelineVirtualRender,
+      getContext,
+    ),
+    endTimelineVirtualRender: bindViewerAction(
+      endTimelineVirtualRender,
+      getContext,
+    ),
+    getTimelineLayerRowIndex: bindViewerAction(
+      getTimelineLayerRowIndex,
+      getContext,
+    ),
+    getTimelineItemRowIndex: bindViewerAction(
+      getTimelineItemRowIndex,
+      getContext,
+    ),
+    scheduleTimelineVirtualRender: bindViewerAction(
+      scheduleTimelineVirtualRender,
+      getContext,
+    ),
+    scrollTimelineRowIntoView: bindViewerAction(
+      scrollTimelineRowIntoView,
+      getContext,
+    ),
+  };
 }

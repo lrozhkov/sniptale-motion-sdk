@@ -1,12 +1,13 @@
-import type { ViewerAppContext } from "../../app/context.js";
+export type KeyframeIdTimeline = {
+  tracks: readonly { keyframes: readonly { id: string }[] }[];
+};
 
-function createKeyframeId(
-  ctx: ViewerAppContext,
-  timeline,
-  trackId,
-  label,
-  time,
-) {
+export function createKeyframeId(
+  timeline: KeyframeIdTimeline,
+  trackId: string,
+  label: string,
+  time: number,
+): string {
   const base =
     `${trackId}-${label}-${time.toFixed(3).replace(".", "-")}`.replace(
       /[^a-zA-Z0-9._-]/g,
@@ -24,8 +25,4 @@ function createKeyframeId(
     nextId = `${base}-${suffix}`;
   }
   return nextId;
-}
-
-export function installTimelineKeyframeIdOwner(ctx: ViewerAppContext): void {
-  ctx.createKeyframeId = createKeyframeId.bind(undefined, ctx);
 }

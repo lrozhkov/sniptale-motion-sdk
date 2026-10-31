@@ -1,6 +1,4 @@
 import type { ViewerAppContext } from "../../app/context.js";
-import { bindViewerAction } from "../../app/bind-action.js";
-import { claimTimelineVirtualRow } from "../virtualization/controller.js";
 import type { TimelineSurfaceActions } from "./surface-contract.js";
 import type { TimelineRowViewActions } from "./row-contract.js";
 import { createTimelineEditorActions } from "./editor.js";
@@ -34,9 +32,5 @@ export function createTimelineViewActions(
     ...createTimelineStructuralLayerGroupActions(getContext),
     ...createTimelineGlobalGroupActions(getContext),
     ...createTimelineLabelActions(getContext),
-    claimTimelineVirtualRow: bindViewerAction(
-      claimTimelineVirtualRow,
-      getContext,
-    ),
   };
 }

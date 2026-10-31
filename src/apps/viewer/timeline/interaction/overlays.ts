@@ -1,6 +1,8 @@
+import type { TimelineContentMetrics } from "../view/model.js";
+import { bindViewerAction } from "../../app/bind-action.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function showTimelineSnapIndicator(ctx: ViewerAppContext, time) {
+function showTimelineSnapIndicator(ctx: ViewerAppContext, time: number): void {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -12,7 +14,8 @@ function showTimelineSnapIndicator(ctx: ViewerAppContext, time) {
       indicator.classList.add("visible");
     });
   }
-  window.clearTimeout(ctx.state.snapIndicatorTimer);
+  if (ctx.state.snapIndicatorTimer !== null)
+    window.clearTimeout(ctx.state.snapIndicatorTimer);
   ctx.state.snapIndicatorTimer = window.setTimeout(() => {
     for (const root of [ctx.refs.timelineRuler, ctx.refs.timelineTracks]) {
       root
@@ -22,7 +25,7 @@ function showTimelineSnapIndicator(ctx: ViewerAppContext, time) {
   }, 850);
 }
 
-function updateTimelinePlayhead(ctx: ViewerAppContext) {
+function updateTimelinePlayhead(ctx: ViewerAppContext): void {
   const template = ctx.state.currentTemplate;
   if (!template) {
     return;
@@ -53,94 +56,7 @@ function applyPlayheadTransform(element: HTMLElement, offset: number): void {
   }
 }
 
-function getTimelineContentMetrics(ctx: ViewerAppContext, element) {
-  if (
-    element !== ctx.refs.timelineTracks &&
-    element !== ctx.refs.timelineRuler
-  ) {
-    return {
-      offsetLeft: 0,
-      width: Math.max(1, element.scrollWidth || element.clientWidth),
-    };
-  }
-  const offsetLeft = getTimelineLabelWidth(ctx);
-  const visibleWidth = getCachedTimelineVisibleWidth(ctx, offsetLeft);
-  if (element === ctx.refs.timelineRuler) {
-    return {
-      offsetLeft,
-      visibleWidth,
-      width: visibleWidth,
-    };
-  }
-  const viewport = ctx.getTimelineViewport(
-    ctx.getEffectiveDuration(ctx.state.currentTemplate),
-  );
-  return {
-    offsetLeft,
-    visibleWidth,
-    width: visibleWidth * viewport.zoom,
-  };
-}
-
-function getCachedTimelineVisibleWidth(
-  ctx: ViewerAppContext,
-  offsetLeft: number,
-) {
-  if (Number.isFinite(ctx.state.timelineContentVisibleWidth)) {
-    return ctx.state.timelineContentVisibleWidth;
-  }
-  const width = Math.max(1, ctx.refs.timelineTracks.clientWidth - offsetLeft);
-  ctx.state.timelineContentVisibleWidth = width;
-  return width;
-}
-
-function observeTimelineContentMetrics(ctx: ViewerAppContext) {
-  const observer = new ResizeObserver(() => {
-    ctx.state.timelineContentVisibleWidth = null;
-    ctx.state.timelineLabelWidth = null;
-  });
-  observer.observe(ctx.refs.timelineTracks);
-}
-
-function getTimelineContentRect(ctx: ViewerAppContext, element) {
-  const rootRect = element.getBoundingClientRect();
-  const metrics = getTimelineContentMetrics(ctx, element);
-  return {
-    ...metrics,
-    left: rootRect.left + metrics.offsetLeft,
-  };
-}
-
-function getTimelineTrackOverlayHeight(ctx: ViewerAppContext) {
-  if (Number.isFinite(ctx.state.timelineTrackOverlayHeight)) {
-    return ctx.state.timelineTrackOverlayHeight;
-  }
-  if (Number.isFinite(ctx.state.timelineVirtualTotalHeight)) {
-    const height = Math.max(
-      ctx.refs.timelineTracks.clientHeight,
-      ctx.state.timelineVirtualTotalHeight,
-    );
-    ctx.state.timelineTrackOverlayHeight = height;
-    return height;
-  }
-  let contentHeight = 0;
-  for (const group of ctx.refs.timelineTracks.querySelectorAll(
-    ".timeline-scene-group",
-  )) {
-    if (!(group instanceof HTMLElement)) {
-      continue;
-    }
-    contentHeight = Math.max(
-      contentHeight,
-      group.offsetTop + group.offsetHeight,
-    );
-  }
-  const height = Math.max(ctx.refs.timelineTracks.clientHeight, contentHeight);
-  ctx.state.timelineTrackOverlayHeight = height;
-  return height;
-}
-
-function updateTimelineTrackOverlayHeights(ctx: ViewerAppContext) {
+function updateTimelineTrackOverlayHeights(ctx: ViewerAppContext): void {
   const height = ctx.getTimelineTrackOverlayHeight();
   if (ctx.state.timelineAppliedOverlayHeight === height) {
     return;
@@ -154,9 +70,9 @@ function updateTimelineTrackOverlayHeights(ctx: ViewerAppContext) {
 
 function updateTimelineHorizontalScrollSpacer(
   ctx: ViewerAppContext,
-  duration,
-  contentRect = null,
-) {
+  duration: number,
+  contentRect: TimelineContentMetrics | null = null,
+): void {
   const viewport = ctx.getTimelineViewport(duration);
   const rect =
     contentRect ?? ctx.getTimelineContentRect(ctx.refs.timelineTracks);
@@ -190,7 +106,7 @@ function updateTimelineHorizontalScrollSpacer(
   }
 }
 
-function handleTimelineTracksScroll(ctx: ViewerAppContext) {
+function handleTimelineTracksScroll(ctx: ViewerAppContext): void {
   ctx.scheduleTimelineVirtualRender?.();
   const template = ctx.state.currentTemplate;
   if (!template) {
@@ -212,83 +128,29 @@ function handleTimelineTracksScroll(ctx: ViewerAppContext) {
   ctx.updateTimelineViewportLabel(duration);
 }
 
-function getTimelineVisibleContentWidth(ctx: ViewerAppContext) {
-  return Math.max(
-    1,
-    ctx.refs.timelineTracks.clientWidth - getTimelineLabelWidth(ctx),
-  );
-}
-
-function getTimelineScrollableContentWidth(
-  ctx: ViewerAppContext,
-  duration = ctx.getEffectiveDuration(ctx.state.currentTemplate),
+export function createTimelineOverlayActions(
+  getContext: () => ViewerAppContext,
 ) {
-  return (
-    ctx.getTimelineVisibleContentWidth() *
-    ctx.getTimelineViewport(duration).zoom
-  );
-}
-
-function getTimelineHorizontalOverflowWidth(
-  ctx: ViewerAppContext,
-  duration = ctx.getEffectiveDuration(ctx.state.currentTemplate),
-) {
-  return Math.max(
-    0,
-    ctx.getTimelineScrollableContentWidth(duration) -
-      ctx.getTimelineVisibleContentWidth(),
-  );
-}
-
-function getTimelineLabelWidth(ctx: ViewerAppContext) {
-  if (Number.isFinite(ctx.state.timelineLabelWidth)) {
-    return ctx.state.timelineLabelWidth;
-  }
-  const width = Number.parseFloat(
-    getComputedStyle(ctx.refs.timelineTracks).getPropertyValue(
-      "--timeline-label-width",
+  return {
+    handleTimelineTracksScroll: bindViewerAction(
+      handleTimelineTracksScroll,
+      getContext,
     ),
-  );
-  ctx.state.timelineLabelWidth = Number.isFinite(width)
-    ? width
-    : ctx.deps.TIMELINE_LABEL_WIDTH;
-  return ctx.state.timelineLabelWidth;
-}
-
-export function installInteractionTimelineOverlaysOwner(
-  ctx: ViewerAppContext,
-): void {
-  Object.assign(ctx, {
-    getTimelineContentMetrics: getTimelineContentMetrics.bind(undefined, ctx),
-    getTimelineContentRect: getTimelineContentRect.bind(undefined, ctx),
-    getTimelineHorizontalOverflowWidth: getTimelineHorizontalOverflowWidth.bind(
-      undefined,
-      ctx,
+    showTimelineSnapIndicator: bindViewerAction(
+      showTimelineSnapIndicator,
+      getContext,
     ),
-    getTimelineScrollableContentWidth: getTimelineScrollableContentWidth.bind(
-      undefined,
-      ctx,
+    updateTimelineHorizontalScrollSpacer: bindViewerAction(
+      updateTimelineHorizontalScrollSpacer,
+      getContext,
     ),
-    getTimelineTrackOverlayHeight: getTimelineTrackOverlayHeight.bind(
-      undefined,
-      ctx,
+    updateTimelinePlayhead: bindViewerAction(
+      updateTimelinePlayhead,
+      getContext,
     ),
-    getTimelineVisibleContentWidth: getTimelineVisibleContentWidth.bind(
-      undefined,
-      ctx,
+    updateTimelineTrackOverlayHeights: bindViewerAction(
+      updateTimelineTrackOverlayHeights,
+      getContext,
     ),
-    handleTimelineTracksScroll: handleTimelineTracksScroll.bind(undefined, ctx),
-    observeTimelineContentMetrics: observeTimelineContentMetrics.bind(
-      undefined,
-      ctx,
-    ),
-    showTimelineSnapIndicator: showTimelineSnapIndicator.bind(undefined, ctx),
-    updateTimelineHorizontalScrollSpacer:
-      updateTimelineHorizontalScrollSpacer.bind(undefined, ctx),
-    updateTimelinePlayhead: updateTimelinePlayhead.bind(undefined, ctx),
-    updateTimelineTrackOverlayHeights: updateTimelineTrackOverlayHeights.bind(
-      undefined,
-      ctx,
-    ),
-  });
+  };
 }

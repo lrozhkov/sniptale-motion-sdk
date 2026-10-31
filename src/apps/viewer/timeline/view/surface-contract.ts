@@ -54,5 +54,4 @@ export interface TimelineSurfaceActions {
   getTimelineTrackDisplayLabel(
     track: MotionPathTrack | null | undefined,
   ): string;
-  claimTimelineVirtualRow(): number | null;
 }

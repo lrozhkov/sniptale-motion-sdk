@@ -64,3 +64,11 @@ export type TimelineRowTree = {
   globalScene: TimelineScene | null;
   scenes: TimelineSceneRow[];
 };
+
+export type TimelineExpansionType =
+  | "scene"
+  | "group"
+  | "layer"
+  | "phase"
+  | "scenePhase"
+  | "sceneTracks";

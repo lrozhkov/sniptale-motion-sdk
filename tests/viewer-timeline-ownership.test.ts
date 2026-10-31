@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { createTimelineOwnershipPredicates } from "../src/apps/viewer/timeline/model/ownership-predicates";
-import { installTimelineRowTreeOwner } from "../src/apps/viewer/timeline/model/row-tree";
+import {
+  createTimelineRowTree,
+  createTimelineRowTreeActions,
+} from "../src/apps/viewer/timeline/model/row-tree";
 import { createTimelineNavigationActions } from "../src/apps/viewer/timeline/model/selection-navigation";
 
 describe("viewer timeline ownership predicates", () => {
@@ -90,7 +93,14 @@ describe("viewer timeline ownership predicates", () => {
       ctx,
       createTimelineOwnershipPredicates(() => ctx),
     );
-    installTimelineRowTreeOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineRowTreeActions(() => ctx),
+      {
+        createTimelineRowTree: (template: unknown) =>
+          createTimelineRowTree(ctx, template),
+      },
+    );
 
     const tree = ctx.createTimelineRowTree({
       clips: [
@@ -164,7 +174,14 @@ describe("viewer timeline ownership predicates", () => {
       ctx,
       createTimelineOwnershipPredicates(() => ctx),
     );
-    installTimelineRowTreeOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineRowTreeActions(() => ctx),
+      {
+        createTimelineRowTree: (template: unknown) =>
+          createTimelineRowTree(ctx, template),
+      },
+    );
 
     const tree = ctx.createTimelineRowTree({
       clips: [],
@@ -266,7 +283,14 @@ describe("viewer timeline ownership predicates", () => {
       ctx,
       createTimelineOwnershipPredicates(() => ctx),
     );
-    installTimelineRowTreeOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineRowTreeActions(() => ctx),
+      {
+        createTimelineRowTree: (template: unknown) =>
+          createTimelineRowTree(ctx, template),
+      },
+    );
 
     const tree = ctx.createTimelineRowTree({
       clips: [],

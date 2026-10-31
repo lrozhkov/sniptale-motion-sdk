@@ -8,8 +8,16 @@ type SnapshotState = {
 
 export function readTimelineRenderSnapshot(
   state: SnapshotState,
-  template: { id: string },
+  template: unknown,
 ): TimelineRenderSnapshot | null {
+  if (
+    template === null ||
+    typeof template !== "object" ||
+    Array.isArray(template) ||
+    !("id" in template) ||
+    typeof template.id !== "string"
+  )
+    return null;
   const cached = state.timelineRenderSnapshot;
   return cached?.templateId === template.id &&
     cached.sourceTemplate === template &&

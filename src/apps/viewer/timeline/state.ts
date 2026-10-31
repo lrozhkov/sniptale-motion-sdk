@@ -2,7 +2,7 @@ import type { EditorTemplate } from "../templates/model.js";
 import type { EditorTimeline } from "../editor/model-types.js";
 import type { TimelineRowTree } from "./model/row-tree-model.js";
 import type { TimelineKeyframe } from "../../../sdk/types.js";
-import type { TimelineOrderedRow } from "./virtualization/row-order.js";
+import type { TimelineOrderedRow } from "./virtualization/row-order-model.js";
 import type { TimelineVirtualWindow } from "./virtualization/window.js";
 
 export type KeyframeClipboardEntry = {

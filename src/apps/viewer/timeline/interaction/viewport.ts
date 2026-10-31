@@ -1,18 +1,31 @@
+import type { TimelineContentMetrics } from "../view/model.js";
+import type { TimelineViewport } from "../viewport.js";
+import { bindViewerAction } from "../../app/bind-action.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function seekFromTimelineEvent(ctx: ViewerAppContext, event) {
+function seekFromTimelineEvent(ctx: ViewerAppContext, event: MouseEvent): void {
   if (!ctx.state.currentTemplate || ctx.shouldSuppressDragClick(event)) {
     return;
   }
-  const nextTime = ctx.timelineTimeFromEvent(event, event.currentTarget);
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement)) return;
+  const nextTime = ctx.timelineTimeFromEvent(event, target);
   ctx.showTimelineSnapIndicator(nextTime);
   ctx.seekToTime(nextTime);
 }
-function timelineTimeFromEvent(ctx: ViewerAppContext, event, element) {
+function timelineTimeFromEvent(
+  ctx: ViewerAppContext,
+  event: Pick<MouseEvent, "clientX">,
+  element: HTMLElement,
+): number {
   const rawTime = ctx.timelineRawTimeFromEvent(event, element);
   return ctx.snapTime(rawTime);
 }
-function timelineRawTimeFromEvent(ctx: ViewerAppContext, event, element) {
+function timelineRawTimeFromEvent(
+  ctx: ViewerAppContext,
+  event: Pick<MouseEvent, "clientX">,
+  element: HTMLElement,
+): number {
   const duration = ctx.getEffectiveDuration(ctx.state.currentTemplate);
   const rect = ctx.getTimelineContentRect(element);
   const visibleX = ctx.deps.clamp(
@@ -36,7 +49,7 @@ function timelineRawTimeFromEvent(ctx: ViewerAppContext, event, element) {
   );
   return (x / Math.max(1, rect.width)) * duration;
 }
-function seekToTime(ctx: ViewerAppContext, time) {
+function seekToTime(ctx: ViewerAppContext, time: number): void {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -55,11 +68,11 @@ function seekToTime(ctx: ViewerAppContext, time) {
 }
 function timelineContentPixel(
   ctx: ViewerAppContext,
-  time,
-  duration,
-  element,
-  contentRect = null,
-) {
+  time: number,
+  duration: number,
+  element: HTMLElement,
+  contentRect: TimelineContentMetrics | null = null,
+): number {
   if (element === ctx.refs.timelineRuler) {
     const rect = contentRect ?? ctx.getTimelineContentMetrics(element);
     return (
@@ -77,7 +90,10 @@ function timelineContentPixel(
     rect.offsetLeft + rect.width * (ctx.timelinePercent(time, duration) / 100)
   );
 }
-function getVisibleTimelineTicks(ctx: ViewerAppContext, duration) {
+function getVisibleTimelineTicks(
+  ctx: ViewerAppContext,
+  duration: number,
+): number[] {
   const viewport = ctx.getTimelineViewport(duration);
   const step = ctx.deps.getTimelineTickStep(viewport.span);
   const ticks: number[] = [];
@@ -90,7 +106,11 @@ function getVisibleTimelineTicks(ctx: ViewerAppContext, duration) {
   }
   return ticks;
 }
-function timelinePercent(ctx: ViewerAppContext, time, duration) {
+function timelinePercent(
+  ctx: ViewerAppContext,
+  time: number,
+  duration: number,
+): number {
   return (
     (ctx.deps.clamp(Number(time) || 0, 0, Math.max(0.001, duration)) /
       Math.max(0.001, Number(duration) || 1)) *
@@ -99,8 +119,8 @@ function timelinePercent(ctx: ViewerAppContext, time, duration) {
 }
 function getTimelineViewport(
   ctx: ViewerAppContext,
-  duration = ctx.getEffectiveDuration(),
-) {
+  duration: number = ctx.getEffectiveDuration(),
+): TimelineViewport {
   const viewport = ctx.deps.calculateTimelineViewport(
     duration,
     ctx.state.timelineZoom,
@@ -112,8 +132,8 @@ function getTimelineViewport(
 }
 function updateTimelineViewportLabel(
   ctx: ViewerAppContext,
-  duration = ctx.getEffectiveDuration(),
-) {
+  duration: number = ctx.getEffectiveDuration(),
+): void {
   const viewport = ctx.getTimelineViewport(duration);
   ctx.refs.timelineZoomInput.value = String(viewport.zoom);
   ctx.refs.timelineViewportLabel.textContent = ctx.formatSecondsRange(
@@ -122,14 +142,18 @@ function updateTimelineViewportLabel(
     2,
   );
 }
-function snapTime(ctx: ViewerAppContext, time) {
+function snapTime(ctx: ViewerAppContext, time: number): number {
   return ctx.deps.snapTimelineTime(time, {
     duration: ctx.getEffectiveDuration(),
     fps: Number(ctx.refs.fpsInput.value) || 30,
     snapMode: ctx.state.snapMode,
   });
 }
-function setTimelineZoom(ctx: ViewerAppContext, nextZoom, anchorTime = null) {
+function setTimelineZoom(
+  ctx: ViewerAppContext,
+  nextZoom: number,
+  anchorTime: number | null = null,
+): void {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -144,7 +168,7 @@ function setTimelineZoom(ctx: ViewerAppContext, nextZoom, anchorTime = null) {
   ctx.state.timelineOffset = nextState.offset;
   ctx.renderTimelineViewport(ctx.state.currentTemplate);
 }
-function panTimeline(ctx: ViewerAppContext, deltaSeconds) {
+function panTimeline(ctx: ViewerAppContext, deltaSeconds: number): void {
   if (!ctx.state.currentTemplate) {
     return;
   }
@@ -156,13 +180,15 @@ function panTimeline(ctx: ViewerAppContext, deltaSeconds) {
   });
   ctx.renderTimelineViewport(ctx.state.currentTemplate);
 }
-function handleTimelineWheel(ctx: ViewerAppContext, event) {
+function handleTimelineWheel(ctx: ViewerAppContext, event: WheelEvent): void {
   if (!ctx.state.currentTemplate) {
     return;
   }
   const duration = ctx.getEffectiveDuration(ctx.state.currentTemplate);
   const viewport = ctx.getTimelineViewport(duration);
-  const anchor = ctx.timelineRawTimeFromEvent(event, event.currentTarget);
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement)) return;
+  const anchor = ctx.timelineRawTimeFromEvent(event, target);
   if (event.ctrlKey || event.metaKey) {
     event.preventDefault();
     ctx.setTimelineZoom(
@@ -188,23 +214,31 @@ function handleTimelineWheel(ctx: ViewerAppContext, event) {
     ctx.panTimeline(delta);
   }
 }
-export function installInteractionViewportOwner(ctx: ViewerAppContext): void {
-  Object.assign(ctx, {
-    getTimelineViewport: getTimelineViewport.bind(undefined, ctx),
-    getVisibleTimelineTicks: getVisibleTimelineTicks.bind(undefined, ctx),
-    handleTimelineWheel: handleTimelineWheel.bind(undefined, ctx),
-    panTimeline: panTimeline.bind(undefined, ctx),
-    seekFromTimelineEvent: seekFromTimelineEvent.bind(undefined, ctx),
-    seekToTime: seekToTime.bind(undefined, ctx),
-    setTimelineZoom: setTimelineZoom.bind(undefined, ctx),
-    snapTime: snapTime.bind(undefined, ctx),
-    timelineContentPixel: timelineContentPixel.bind(undefined, ctx),
-    timelinePercent: timelinePercent.bind(undefined, ctx),
-    timelineTimeFromEvent: timelineTimeFromEvent.bind(undefined, ctx),
-    timelineRawTimeFromEvent: timelineRawTimeFromEvent.bind(undefined, ctx),
-    updateTimelineViewportLabel: updateTimelineViewportLabel.bind(
-      undefined,
-      ctx,
+export function createTimelineViewportActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    getTimelineViewport: bindViewerAction(getTimelineViewport, getContext),
+    getVisibleTimelineTicks: bindViewerAction(
+      getVisibleTimelineTicks,
+      getContext,
     ),
-  });
+    handleTimelineWheel: bindViewerAction(handleTimelineWheel, getContext),
+    panTimeline: bindViewerAction(panTimeline, getContext),
+    seekFromTimelineEvent: bindViewerAction(seekFromTimelineEvent, getContext),
+    seekToTime: bindViewerAction(seekToTime, getContext),
+    setTimelineZoom: bindViewerAction(setTimelineZoom, getContext),
+    snapTime: bindViewerAction(snapTime, getContext),
+    timelineContentPixel: bindViewerAction(timelineContentPixel, getContext),
+    timelinePercent: bindViewerAction(timelinePercent, getContext),
+    timelineTimeFromEvent: bindViewerAction(timelineTimeFromEvent, getContext),
+    timelineRawTimeFromEvent: bindViewerAction(
+      timelineRawTimeFromEvent,
+      getContext,
+    ),
+    updateTimelineViewportLabel: bindViewerAction(
+      updateTimelineViewportLabel,
+      getContext,
+    ),
+  };
 }

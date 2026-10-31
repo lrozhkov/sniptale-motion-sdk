@@ -5,6 +5,9 @@ import type {
 } from "../src/apps/viewer/timeline/model/row-tree-model.js";
 import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
 import type { TimelineNavigationItem } from "../src/apps/viewer/timeline/model/selection-model.js";
+import type { TimelineExpansionType } from "../src/apps/viewer/timeline/model/row-tree-model.js";
+import type { TimelineOrderedRow } from "../src/apps/viewer/timeline/virtualization/row-order-model.js";
+import type { TimelineViewport } from "../src/apps/viewer/timeline/viewport.js";
 import type {
   ClipMovePlan,
   PhaseMovePlan,
@@ -42,6 +45,30 @@ import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 
 describe("viewer state contracts", () => {
+  it("keeps viewport geometry and row scope typed at the application boundary", () => {
+    expectTypeOf<
+      ReturnType<ViewerAppContext["getTimelineViewport"]>
+    >().toEqualTypeOf<TimelineViewport>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["getTimelineContentRect"]>["left"]
+    >().toBeNumber();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["getTimelineItemRowIndex"]>
+    >().toBeNumber();
+    expectTypeOf<
+      Parameters<ViewerAppContext["setTimelineRowExpanded"]>[0]
+    >().toEqualTypeOf<TimelineExpansionType>();
+    expectTypeOf<
+      Exclude<
+        Extract<TimelineOrderedRow, { globalScope: true }>["sceneId"],
+        undefined
+      >
+    >().toBeNever();
+    expectTypeOf<
+      Extract<TimelineOrderedRow, { globalScope: false }>["sceneId"]
+    >().toBeString();
+  });
+
   it("keeps timeline nodes and ownership fields typed at the application boundary", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["createTimelineLane"]>["body"]

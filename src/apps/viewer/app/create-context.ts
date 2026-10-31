@@ -1,3 +1,4 @@
+import { createTimelineActions } from "../timeline/actions.js";
 import { createTimelineViewActions } from "../timeline/view/actions.js";
 import { createInspectorOwnershipActions } from "../inspector/ownership-actions.js";
 import { createTimelineSelectionStateActions } from "../timeline/model/selection-state.js";
@@ -45,6 +46,7 @@ export function createViewerContext(): ViewerAppContext {
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
     ...createLazyExportFeatures(() => ctx),
+    ...createTimelineActions(() => ctx),
     ...createTimelineViewActions(() => ctx),
     ...createInspectorOwnershipActions(() => ctx),
     ...createTimelineSelectionStateActions(() => ctx),

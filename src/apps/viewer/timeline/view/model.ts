@@ -1,5 +1,8 @@
 import type { EffectClip, EffectLayer } from "../../../../sdk/types.js";
-import type { TimelineTrackParent } from "../model/row-tree-model.js";
+import type {
+  TimelineTrackParent,
+  TimelineExpansionType,
+} from "../model/row-tree-model.js";
 export type TimelineViewSource = { id: string; duration?: number };
 export type TimelineLane = {
   row: HTMLDivElement;
@@ -23,7 +26,7 @@ export type TimelineGroupLabelOptions = {
   label: string;
   metadata?: string;
   scope?: string | null;
-  type: string;
+  type: TimelineExpansionType;
 };
 export type TimelineRenderParent = {
   group: HTMLElement;
@@ -55,3 +58,5 @@ export type TimelineSurfaceOptions = {
   selectionCrumb?: boolean;
   tracks?: boolean;
 };
+
+export type TimelineContentRect = TimelineContentMetrics & { left: number };

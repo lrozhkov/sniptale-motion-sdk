@@ -1,3 +1,7 @@
+import type { TimelineRowTreeActions } from "../timeline/model/row-tree-contract.js";
+import type { TimelineVirtualizationActions } from "../timeline/virtualization/contract.js";
+import type { TimelineViewportActions } from "../timeline/interaction/viewport-contract.js";
+import type { TimelineTimingActions } from "../timeline/model/timing-contract.js";
 import type { TimelineSurfaceActions } from "../timeline/view/surface-contract.js";
 import type { TimelineRowViewActions } from "../timeline/view/row-contract.js";
 import type { InspectorOwnershipActions } from "../inspector/ownership-contract.js";
@@ -30,7 +34,11 @@ export interface ViewerAppContext
     TimelineSelectionActions,
     InspectorOwnershipActions,
     TimelineSurfaceActions,
-    TimelineRowViewActions {
+    TimelineRowViewActions,
+    TimelineRowTreeActions,
+    TimelineVirtualizationActions,
+    TimelineViewportActions,
+    TimelineTimingActions {
   deps: ViewerAppDependencies;
   lastPlaybackAudioTs: number;
   playbackAnimationFrame: number | null;

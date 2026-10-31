@@ -1,10 +1,18 @@
+import type { TimelineEnabledToggleOptions } from "./timing-contract.js";
+import { bindViewerAction } from "../../app/bind-action.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function isTimelineItemEnabled(ctx: ViewerAppContext, item) {
+function isTimelineItemEnabled(
+  _ctx: ViewerAppContext,
+  item: { enabled?: boolean } | null | undefined,
+): boolean {
   return item?.enabled !== false;
 }
 
-function toggleTimelineSceneEnabled(ctx: ViewerAppContext, sceneId) {
+function toggleTimelineSceneEnabled(
+  ctx: ViewerAppContext,
+  sceneId: string,
+): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -23,7 +31,10 @@ function toggleTimelineSceneEnabled(ctx: ViewerAppContext, sceneId) {
   void ctx.renderCurrentFrame();
 }
 
-function toggleTimelineClipEnabled(ctx: ViewerAppContext, layerId) {
+function toggleTimelineClipEnabled(
+  ctx: ViewerAppContext,
+  layerId: string,
+): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -40,7 +51,10 @@ function toggleTimelineClipEnabled(ctx: ViewerAppContext, layerId) {
   void ctx.renderCurrentFrame();
 }
 
-function toggleTimelinePhaseEnabled(ctx: ViewerAppContext, phaseId) {
+function toggleTimelinePhaseEnabled(
+  ctx: ViewerAppContext,
+  phaseId: string,
+): void {
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const phase = timeline.phases.find((item) => item.id === phaseId);
@@ -57,7 +71,10 @@ function toggleTimelinePhaseEnabled(ctx: ViewerAppContext, phaseId) {
   void ctx.renderCurrentFrame();
 }
 
-function toggleTimelineTrackEnabled(ctx: ViewerAppContext, trackId) {
+function toggleTimelineTrackEnabled(
+  ctx: ViewerAppContext,
+  trackId: string,
+): void {
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const track = timeline.tracks.find((item) => item.id === trackId);
@@ -76,9 +93,9 @@ function toggleTimelineTrackEnabled(ctx: ViewerAppContext, trackId) {
 
 function toggleTimelineKeyframeEnabled(
   ctx: ViewerAppContext,
-  trackId,
-  keyframeId,
-) {
+  trackId: string,
+  keyframeId: string,
+): void {
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const track = timeline.tracks.find((item) => item.id === trackId);
@@ -98,14 +115,9 @@ function toggleTimelineKeyframeEnabled(
 
 function appendTimelineEnabledToggle(
   ctx: ViewerAppContext,
-  label,
-  options: {
-    enabled: boolean;
-    id: string;
-    title: string;
-    type: "clip" | "keyframe" | "layer" | "phase" | "scene" | "track";
-  },
-) {
+  label: HTMLElement,
+  options: TimelineEnabledToggleOptions,
+): void {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "timeline-enabled-toggle icon-button";
@@ -131,30 +143,34 @@ function appendTimelineEnabledToggle(
   label.prepend(button);
 }
 
-export function installTimelineEnabledOwner(ctx: ViewerAppContext): void {
-  ctx.isTimelineItemEnabled = isTimelineItemEnabled.bind(undefined, ctx);
-  ctx.toggleTimelineSceneEnabled = toggleTimelineSceneEnabled.bind(
-    undefined,
-    ctx,
-  );
-  ctx.toggleTimelineClipEnabled = toggleTimelineClipEnabled.bind(
-    undefined,
-    ctx,
-  );
-  ctx.toggleTimelinePhaseEnabled = toggleTimelinePhaseEnabled.bind(
-    undefined,
-    ctx,
-  );
-  ctx.toggleTimelineTrackEnabled = toggleTimelineTrackEnabled.bind(
-    undefined,
-    ctx,
-  );
-  ctx.toggleTimelineKeyframeEnabled = toggleTimelineKeyframeEnabled.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendTimelineEnabledToggle = appendTimelineEnabledToggle.bind(
-    undefined,
-    ctx,
-  );
+export function createTimelineEnabledActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    isTimelineItemEnabled: bindViewerAction(isTimelineItemEnabled, getContext),
+    toggleTimelineSceneEnabled: bindViewerAction(
+      toggleTimelineSceneEnabled,
+      getContext,
+    ),
+    toggleTimelineClipEnabled: bindViewerAction(
+      toggleTimelineClipEnabled,
+      getContext,
+    ),
+    toggleTimelinePhaseEnabled: bindViewerAction(
+      toggleTimelinePhaseEnabled,
+      getContext,
+    ),
+    toggleTimelineTrackEnabled: bindViewerAction(
+      toggleTimelineTrackEnabled,
+      getContext,
+    ),
+    toggleTimelineKeyframeEnabled: bindViewerAction(
+      toggleTimelineKeyframeEnabled,
+      getContext,
+    ),
+    appendTimelineEnabledToggle: bindViewerAction(
+      appendTimelineEnabledToggle,
+      getContext,
+    ),
+  };
 }

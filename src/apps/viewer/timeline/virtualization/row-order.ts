@@ -1,37 +1,40 @@
-export type TimelineOrderedRow = {
-  globalScope: boolean;
-  kind: "layer" | "phase" | "scene" | "sceneTracks" | "track";
-  layerId?: string;
-  phaseId?: string;
-  sceneId?: string;
-  trackId?: string;
-};
-
-export type TimelineExpansionReader = {
-  isRowExpanded: (type: string, id: string) => boolean;
-  isSceneExpanded: (sceneId: string) => boolean;
-};
-
+import type {
+  TimelineOrderedRow,
+  TimelineRowScope,
+  TimelineOrderingTree,
+  TimelineOrderingLayer,
+  TimelineOrderingPhase,
+  TimelineOrderingTrack,
+  TimelineExpansionReader,
+  TimelineLayerRowTarget,
+  TimelineItemRowTarget,
+} from "./row-order-model.js";
 export function flattenVisibleTimelineRows(
-  tree,
+  tree: TimelineOrderingTree,
   expansion: TimelineExpansionReader,
 ): TimelineOrderedRow[] {
   const rows: TimelineOrderedRow[] = [];
-  appendLayerRows(rows, tree.globalLayers ?? [], null, true, expansion);
+  appendLayerRows(
+    rows,
+    tree.globalLayers ?? [],
+    { globalScope: true },
+    expansion,
+  );
   for (const sceneRow of tree.scenes ?? []) {
     const sceneId = sceneRow.scene.id;
+    const scope: TimelineRowScope = { globalScope: false, sceneId };
     rows.push({ globalScope: false, kind: "scene", sceneId });
     if (!expansion.isSceneExpanded(sceneId)) {
       continue;
     }
-    appendLayerRows(rows, sceneRow.layers, sceneId, false, expansion);
+    appendLayerRows(rows, sceneRow.layers, scope, expansion);
     for (const phaseRow of sceneRow.scenePhases) {
-      appendPhaseRow(rows, phaseRow, sceneId, false, "scenePhase", expansion);
+      appendPhaseRow(rows, phaseRow, scope, "scenePhase", expansion);
     }
     if (sceneRow.sceneTracks.length > 0) {
       rows.push({ globalScope: false, kind: "sceneTracks", sceneId });
       if (expansion.isRowExpanded("sceneTracks", sceneId)) {
-        appendTrackRows(rows, sceneRow.sceneTracks, sceneId, false);
+        appendTrackRows(rows, sceneRow.sceneTracks, scope);
       }
     }
   }
@@ -39,12 +42,8 @@ export function flattenVisibleTimelineRows(
 }
 
 export function findTimelineLayerRowIndex(
-  rows: TimelineOrderedRow[],
-  target: {
-    globalScope?: boolean;
-    layerId: string;
-    sceneId?: string | null;
-  },
+  rows: readonly TimelineOrderedRow[],
+  target: TimelineLayerRowTarget,
 ): number {
   return rows.findIndex(
     (row) =>
@@ -56,15 +55,8 @@ export function findTimelineLayerRowIndex(
 }
 
 export function findTimelineItemRowIndex(
-  rows: TimelineOrderedRow[],
-  item: {
-    keyframeId?: string;
-    layerId?: string;
-    phaseId?: string;
-    sceneId?: string | null;
-    trackId?: string;
-    type?: string;
-  },
+  rows: readonly TimelineOrderedRow[],
+  item: TimelineItemRowTarget,
 ): number {
   if (item.type === "scene") {
     return rows.findIndex(
@@ -93,7 +85,10 @@ export function findTimelineItemRowIndex(
     : rows.findIndex((row) => row.kind === kind && rowMatchesItem(row, item));
 }
 
-function rowMatchesItem(row: TimelineOrderedRow, item): boolean {
+function rowMatchesItem(
+  row: TimelineOrderedRow,
+  item: TimelineItemRowTarget,
+): boolean {
   if (row.kind === "layer") {
     return row.layerId === item.layerId;
   }
@@ -108,70 +103,57 @@ function rowMatchesItem(row: TimelineOrderedRow, item): boolean {
 
 function appendLayerRows(
   output: TimelineOrderedRow[],
-  layerRows,
-  sceneId: string | null,
-  globalScope: boolean,
+  layerRows: readonly TimelineOrderingLayer[],
+  scope: TimelineRowScope,
   expansion: TimelineExpansionReader,
 ): void {
   for (const row of layerRows) {
     output.push({
-      globalScope,
+      ...scope,
       kind: "layer",
       layerId: row.layerId,
-      sceneId: sceneId ?? undefined,
     });
     const rowType = row.kind === "group" ? "group" : "layer";
     if (!expansion.isRowExpanded(rowType, row.expansionId)) {
       continue;
     }
     if (row.kind === "group") {
-      appendLayerRows(output, row.children, sceneId, globalScope, expansion);
+      appendLayerRows(output, row.children, scope, expansion);
       continue;
     }
     for (const phaseRow of row.phases) {
-      appendPhaseRow(
-        output,
-        phaseRow,
-        sceneId,
-        globalScope,
-        "phase",
-        expansion,
-      );
+      appendPhaseRow(output, phaseRow, scope, "phase", expansion);
     }
-    appendTrackRows(output, row.directTracks, sceneId, globalScope);
+    appendTrackRows(output, row.directTracks, scope);
   }
 }
 
 function appendPhaseRow(
   output: TimelineOrderedRow[],
-  phaseRow,
-  sceneId: string | null,
-  globalScope: boolean,
+  phaseRow: TimelineOrderingPhase,
+  scope: TimelineRowScope,
   expansionType: "phase" | "scenePhase",
   expansion: TimelineExpansionReader,
 ): void {
   output.push({
-    globalScope,
+    ...scope,
     kind: "phase",
     phaseId: phaseRow.phase.id,
-    sceneId: sceneId ?? undefined,
   });
   if (expansion.isRowExpanded(expansionType, phaseRow.expansionId)) {
-    appendTrackRows(output, phaseRow.tracks, sceneId, globalScope);
+    appendTrackRows(output, phaseRow.tracks, scope);
   }
 }
 
 function appendTrackRows(
   output: TimelineOrderedRow[],
-  trackRows,
-  sceneId: string | null,
-  globalScope: boolean,
+  trackRows: readonly TimelineOrderingTrack[],
+  scope: TimelineRowScope,
 ): void {
   for (const row of trackRows) {
     output.push({
-      globalScope,
+      ...scope,
       kind: "track",
-      sceneId: sceneId ?? undefined,
       trackId: row.track.id,
     });
   }

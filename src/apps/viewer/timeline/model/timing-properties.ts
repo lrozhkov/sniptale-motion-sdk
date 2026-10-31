@@ -1,6 +1,13 @@
+import type { TimelineEditableProperty } from "./timing-contract.js";
+import { bindViewerAction } from "../../app/bind-action.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function updatePhaseProperty(ctx: ViewerAppContext, phaseId, property, value) {
+function updatePhaseProperty(
+  ctx: ViewerAppContext,
+  phaseId: string,
+  property: TimelineEditableProperty,
+  value: string | number,
+): void {
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const phase = timeline.phases.find((item) => item.id === phaseId);
@@ -52,7 +59,12 @@ function updatePhaseProperty(ctx: ViewerAppContext, phaseId, property, value) {
   void ctx.renderCurrentFrame();
 }
 
-function updateSceneProperty(ctx: ViewerAppContext, sceneId, property, value) {
+function updateSceneProperty(
+  ctx: ViewerAppContext,
+  sceneId: string,
+  property: TimelineEditableProperty,
+  value: string | number,
+): void {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!template || !effectiveTemplate) {
@@ -105,9 +117,11 @@ function updateSceneProperty(ctx: ViewerAppContext, sceneId, property, value) {
   void ctx.renderCurrentFrame();
 }
 
-export function installTimelineTimingPropertiesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.updatePhaseProperty = updatePhaseProperty.bind(undefined, ctx);
-  ctx.updateSceneProperty = updateSceneProperty.bind(undefined, ctx);
+export function createTimelineTimingActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    updatePhaseProperty: bindViewerAction(updatePhaseProperty, getContext),
+    updateSceneProperty: bindViewerAction(updateSceneProperty, getContext),
+  };
 }

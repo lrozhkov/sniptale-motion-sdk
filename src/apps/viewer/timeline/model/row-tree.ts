@@ -1,3 +1,5 @@
+import type { TimelineExpansionType } from "./row-tree-model.js";
+import { bindViewerAction } from "../../app/bind-action.js";
 import type {
   TimelineRowTree,
   TimelineScene,
@@ -13,17 +15,17 @@ import {
 
 function getTimelineRowExpansionId(
   _ctx: ViewerAppContext,
-  type: string,
+  type: TimelineExpansionType,
   id: string,
-) {
+): string {
   return `${type}:${id}`;
 }
 
 function isTimelineRowExpanded(
   ctx: ViewerAppContext,
-  type: string,
+  type: TimelineExpansionType,
   id: string,
-) {
+): boolean {
   return ctx.state.expandedTimelineRowIds.has(
     ctx.getTimelineRowExpansionId(type, id),
   );
@@ -31,10 +33,10 @@ function isTimelineRowExpanded(
 
 function setTimelineRowExpanded(
   ctx: ViewerAppContext,
-  type: string,
+  type: TimelineExpansionType,
   id: string,
   expanded: boolean,
-) {
+): void {
   const rowId = ctx.getTimelineRowExpansionId(type, id);
   if (expanded) {
     ctx.state.expandedTimelineRowIds.add(rowId);
@@ -45,14 +47,17 @@ function setTimelineRowExpanded(
 
 function toggleTimelineRowExpansion(
   ctx: ViewerAppContext,
-  type: string,
+  type: TimelineExpansionType,
   id: string,
-) {
+): void {
   ctx.setTimelineRowExpanded(type, id, !ctx.isTimelineRowExpanded(type, id));
   ctx.renderTimelineStructure(ctx.state.currentTemplate);
 }
 
-function setAllTimelineRowsExpanded(ctx: ViewerAppContext, expanded: boolean) {
+function setAllTimelineRowsExpanded(
+  ctx: ViewerAppContext,
+  expanded: boolean,
+): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -68,8 +73,8 @@ function setAllTimelineRowsExpanded(ctx: ViewerAppContext, expanded: boolean) {
 
 function createExpandedTimelineRowIdSet(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
+  template: unknown = ctx.state.currentTemplate,
+): Set<string> {
   const rowIds = new Set<string>();
   const tree = ctx.createTimelineRowTree(template);
   addExpandedLayerRows(ctx, rowIds, tree.globalLayers ?? []);
@@ -90,8 +95,8 @@ function createExpandedTimelineRowIdSet(
 
 function createInitialTimelineRowIdSet(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
+  template: unknown = ctx.state.currentTemplate,
+): Set<string> {
   const rowIds = new Set<string>();
   const tree = ctx.createTimelineRowTree(template);
   for (const scene of tree.scenes) {
@@ -197,21 +202,34 @@ function addExpandedLayerRows(
   }
 }
 
-export function installTimelineRowTreeOwner(ctx: ViewerAppContext): void {
-  Object.assign(ctx, {
-    createExpandedTimelineRowIdSet: createExpandedTimelineRowIdSet.bind(
-      undefined,
-      ctx,
+export function createTimelineRowTreeActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    createExpandedTimelineRowIdSet: bindViewerAction(
+      createExpandedTimelineRowIdSet,
+      getContext,
     ),
-    createInitialTimelineRowIdSet: createInitialTimelineRowIdSet.bind(
-      undefined,
-      ctx,
+    createInitialTimelineRowIdSet: bindViewerAction(
+      createInitialTimelineRowIdSet,
+      getContext,
     ),
-    createTimelineRowTree: createTimelineRowTree.bind(undefined, ctx),
-    getTimelineRowExpansionId: getTimelineRowExpansionId.bind(undefined, ctx),
-    isTimelineRowExpanded: isTimelineRowExpanded.bind(undefined, ctx),
-    setAllTimelineRowsExpanded: setAllTimelineRowsExpanded.bind(undefined, ctx),
-    setTimelineRowExpanded: setTimelineRowExpanded.bind(undefined, ctx),
-    toggleTimelineRowExpansion: toggleTimelineRowExpansion.bind(undefined, ctx),
-  });
+    getTimelineRowExpansionId: bindViewerAction(
+      getTimelineRowExpansionId,
+      getContext,
+    ),
+    isTimelineRowExpanded: bindViewerAction(isTimelineRowExpanded, getContext),
+    setAllTimelineRowsExpanded: bindViewerAction(
+      setAllTimelineRowsExpanded,
+      getContext,
+    ),
+    setTimelineRowExpanded: bindViewerAction(
+      setTimelineRowExpanded,
+      getContext,
+    ),
+    toggleTimelineRowExpansion: bindViewerAction(
+      toggleTimelineRowExpansion,
+      getContext,
+    ),
+  };
 }

@@ -1,3 +1,4 @@
+import type { TimelineOrderingTree } from "../src/apps/viewer/timeline/virtualization/row-order-model.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -53,12 +54,12 @@ describe("viewer timeline virtualization", () => {
       isSceneExpanded: () => true,
     });
 
+    expect(Object.hasOwn(rows[0] ?? {}, "sceneId")).toBe(false);
     expect(rows).toEqual([
       {
         globalScope: true,
         kind: "layer",
         layerId: "global-grid",
-        sceneId: undefined,
       },
       { globalScope: false, kind: "scene", sceneId: "scene" },
       {
@@ -133,8 +134,8 @@ describe("viewer timeline virtualization", () => {
   });
 });
 
-function createTree() {
-  const track = (id) => ({ track: { id } });
+function createTree(): TimelineOrderingTree {
+  const track = (id: string) => ({ track: { id } });
   return {
     globalLayers: [
       {

@@ -27,6 +27,14 @@ function stateWithSnapshot() {
 }
 
 describe("timeline model snapshot authority", () => {
+  it.each([null, undefined, {}, { id: 1 }, "source"])(
+    "rejects an absent or malformed source identity: %j",
+    (value) => {
+      const { state } = stateWithSnapshot();
+      expect(readTimelineRenderSnapshot(state, value)).toBeNull();
+    },
+  );
+
   it("reuses an unchanged model when only viewport state changes", () => {
     const { state, source } = stateWithSnapshot();
     state.timelineZoom = 2;
