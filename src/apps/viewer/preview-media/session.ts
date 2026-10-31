@@ -1,6 +1,7 @@
 import type { ViewerAppContext } from "../app/context.js";
 import {
   PREVIEW_MEDIA_SLOTS,
+  parsePreviewMediaSlot,
   resolvePreviewMediaSlots,
   type PreviewMediaSlot,
 } from "./model.js";
@@ -8,19 +9,18 @@ import {
   createPreviewMediaFrameFromEntry,
   disposePreviewMediaEntry,
   loadPreviewMedia,
-  type PreviewMediaEntry,
 } from "./frame-source.js";
 
 const MAX_PREVIEW_MEDIA_BYTES = 512 * 1024 * 1024;
 
 function wirePreviewMediaSession(ctx: ViewerAppContext): void {
-  for (const input of ctx.refs.previewMediaInputs as HTMLInputElement[]) {
+  for (const input of ctx.refs.previewMediaInputs) {
     input.addEventListener("change", () => void importPreviewMedia(ctx, input));
   }
-  for (const button of ctx.refs
-    .previewMediaClearButtons as HTMLButtonElement[]) {
+  for (const button of ctx.refs.previewMediaClearButtons) {
     button.addEventListener("click", () => {
-      const slot = button.dataset.previewMediaClear as PreviewMediaSlot;
+      const slot = parsePreviewMediaSlot(button.dataset.previewMediaClear);
+      if (!slot) return;
       clearPreviewMedia(ctx, slot);
     });
   }
@@ -38,17 +38,20 @@ function syncPreviewMediaUi(
   const visibleSlots = new Set(slots);
   ctx.refs.previewMediaMenu.hidden = slots.length === 0;
   if (slots.length === 0) ctx.refs.previewMediaMenu.open = false;
-  for (const row of ctx.refs.previewMediaRows as HTMLElement[]) {
-    const slot = row.dataset.previewMediaSlot as PreviewMediaSlot;
+  for (const row of ctx.refs.previewMediaRows) {
+    const slot = parsePreviewMediaSlot(row.dataset.previewMediaSlot);
+    if (!slot) {
+      row.hidden = true;
+      continue;
+    }
     row.hidden = !visibleSlots.has(slot);
   }
-  for (const status of ctx.refs.previewMediaStatuses as HTMLElement[]) {
-    const slot = status.dataset.previewMediaStatus as PreviewMediaSlot;
+  for (const status of ctx.refs.previewMediaStatuses) {
+    const slot = parsePreviewMediaSlot(status.dataset.previewMediaStatus);
+    if (!slot) continue;
     const loading = ctx.state.previewMediaLoading.has(slot);
     const error = ctx.state.previewMediaErrors.get(slot);
-    const entry = ctx.state.previewMediaInputs.get(slot) as
-      | PreviewMediaEntry
-      | undefined;
+    const entry = ctx.state.previewMediaInputs.get(slot);
     status.textContent = loading
       ? ctx.deps.t("viewer.preview.media.loading", "Opening…")
       : (error ??
@@ -61,9 +64,12 @@ function syncPreviewMediaUi(
       .closest<HTMLElement>("[data-preview-media-slot]")
       ?.setAttribute("aria-busy", String(loading));
   }
-  for (const button of ctx.refs
-    .previewMediaClearButtons as HTMLButtonElement[]) {
-    const slot = button.dataset.previewMediaClear as PreviewMediaSlot;
+  for (const button of ctx.refs.previewMediaClearButtons) {
+    const slot = parsePreviewMediaSlot(button.dataset.previewMediaClear);
+    if (!slot) {
+      button.disabled = true;
+      continue;
+    }
     button.disabled =
       !ctx.state.previewMediaInputs.has(slot) &&
       !ctx.state.previewMediaLoading.has(slot);
@@ -82,7 +88,7 @@ async function importPreviewMedia(
   input: HTMLInputElement,
 ): Promise<void> {
   const row = input.closest<HTMLElement>("[data-preview-media-slot]");
-  const slot = row?.dataset.previewMediaSlot as PreviewMediaSlot | undefined;
+  const slot = parsePreviewMediaSlot(row?.dataset.previewMediaSlot);
   const file = input.files?.[0];
   input.value = "";
   if (!slot || !file) return;
@@ -151,9 +157,7 @@ async function createPreviewMediaFrame(
   height: number,
   progress: number,
 ): Promise<ImageBitmap | null> {
-  const entry = ctx.state.previewMediaInputs.get(slot) as
-    | PreviewMediaEntry
-    | undefined;
+  const entry = ctx.state.previewMediaInputs.get(slot);
   if (!entry) return null;
   return createPreviewMediaFrameFromEntry(entry, width, height, progress);
 }

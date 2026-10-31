@@ -1,16 +1,25 @@
+import type {
+  PlaybackRunState,
+  PlaybackRunMode,
+  PlaybackRunPhase,
+} from "./state.js";
+export type { PlaybackRunMode, PlaybackRunPhase } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-export type PlaybackRunMode = "cache" | "live";
-export type PlaybackRunPhase =
-  | "idle"
-  | "starting"
-  | "live"
-  | "preparing-frame-cache"
-  | "preparing-video-cache"
-  | "cached-frame-playback"
-  | "cached-video-playback"
-  | "paused-preparation"
-  | "recovering";
+type PlaybackPhaseInputs = {
+  sandboxRecoveryPending?: boolean;
+  playing?: boolean;
+  previewCacheWarmActive?: boolean;
+  previewCacheEnabled?: boolean;
+  previewFrameCacheComplete?: boolean;
+  previewVideoCache?: {
+    preparePromise?: Promise<unknown> | null;
+    preparing?: boolean;
+    recording?: boolean;
+    finalizing?: boolean;
+    playbackActive?: boolean;
+  };
+};
 
 export type PlaybackRunToken = {
   generation: number;
@@ -95,7 +104,7 @@ export function syncPlaybackRunState(ctx: ViewerAppContext): PlaybackRunPhase {
 }
 
 export function resolvePlaybackRunPhase(
-  state: any,
+  state: PlaybackPhaseInputs,
   currentPhase: PlaybackRunPhase = "idle",
 ): PlaybackRunPhase {
   if (state.sandboxRecoveryPending || currentPhase === "recovering") {
@@ -131,21 +140,22 @@ export function resolvePlaybackRunPhase(
   return "live";
 }
 
-function resolvePlaybackRunMode(state: any): PlaybackRunMode {
+function resolvePlaybackRunMode(state: {
+  previewCacheEnabled?: boolean;
+}): PlaybackRunMode {
   return state.previewCacheEnabled === false ? "live" : "cache";
 }
 
-function ensurePlaybackRunState(state: any) {
+function ensurePlaybackRunState(state: {
+  playbackRun?: PlaybackRunState;
+  previewCacheEnabled?: boolean;
+  currentTemplate?: { id: string } | null;
+}): PlaybackRunState {
   state.playbackRun ??= {
     generation: 0,
     mode: resolvePlaybackRunMode(state),
     phase: "idle",
     templateId: state.currentTemplate?.id ?? null,
   };
-  return state.playbackRun as {
-    generation: number;
-    mode: PlaybackRunMode;
-    phase: PlaybackRunPhase;
-    templateId: string | null;
-  };
+  return state.playbackRun;
 }

@@ -1,3 +1,7 @@
+import type { PreviewMediaEntry } from "../src/apps/viewer/preview-media/frame-source.js";
+import type { PreviewMediaSlot } from "../src/apps/viewer/preview-media/model.js";
+import type { PlaybackRunState } from "../src/apps/viewer/playback/state.js";
+import type { GraphEditorViewport } from "../src/apps/viewer/graph-editor/state.js";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { createViewerState } from "../src/apps/viewer/app/state.js";
 import {
@@ -21,6 +25,17 @@ describe("viewer state contracts", () => {
       state.currentTemplate,
     ).toEqualTypeOf<EditorTemplateSource | null>();
     expectTypeOf(state.selectedLayers).toEqualTypeOf<string[]>();
+    expectTypeOf(state.previewMediaInputs).toEqualTypeOf<
+      Map<PreviewMediaSlot, PreviewMediaEntry>
+    >();
+    expectTypeOf(state.previewMediaLoadGeneration).toEqualTypeOf<
+      Map<PreviewMediaSlot, number>
+    >();
+    expectTypeOf(state.playbackRun).toEqualTypeOf<PlaybackRunState>();
+    expectTypeOf(
+      state.graphEditorViewport,
+    ).toEqualTypeOf<GraphEditorViewport | null>();
+    expectTypeOf(state.canvasIsolationGroupId).toEqualTypeOf<string | null>();
   });
 
   it("isolates editor state across viewer sessions", () => {
@@ -31,11 +46,17 @@ describe("viewer state contracts", () => {
     first.historyPast.push(captureEditorSnapshot(first, "change", "source", 0));
     first.editorDraft.revision += 1;
     first.selectedLayers.push("title");
+    first.previewMediaLoadGeneration.set("source", 1);
+    first.playbackRun.generation += 1;
+    first.canvasMotionPathContextLayerIds.push("title");
     expect(second.controls).toEqual({});
     expect(second.editorOverrides.size).toBe(0);
     expect(second.historyPast).toEqual([]);
     expect(second.editorDraft.revision).toBe(0);
     expect(second.selectedLayers).toEqual([]);
+    expect(second.previewMediaLoadGeneration.size).toBe(0);
+    expect(second.playbackRun.generation).toBe(0);
+    expect(second.canvasMotionPathContextLayerIds).toEqual([]);
   });
 
   it("parses restored selection and controls before writing typed state", () => {

@@ -1,3 +1,5 @@
+import type { GraphEditorViewport } from "./state.js";
+export type { GraphEditorViewport } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getKeyframeSelectionBounds,
@@ -17,14 +19,6 @@ export const GRAPH_EDITOR_VIEWBOX = {
   marginTop: 18,
   width: 1000,
 } as const;
-
-export type GraphEditorViewport = {
-  templateId: string;
-  timeEnd: number;
-  timeStart: number;
-  valueMax: number;
-  valueMin: number;
-};
 
 export function createGraphEditorModel(ctx: ViewerAppContext, timeline) {
   const template = ctx.state.currentTemplate;

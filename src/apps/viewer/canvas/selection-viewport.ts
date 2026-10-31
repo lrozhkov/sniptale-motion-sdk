@@ -1,16 +1,17 @@
+import type { CanvasSelectionViewport } from "./viewport-state.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 export function readCanvasSelectionViewport(
   ctx: ViewerAppContext,
   useCached: boolean,
-) {
+): CanvasSelectionViewport {
   if (useCached && ctx.state.canvasSelectionViewport) {
     return ctx.state.canvasSelectionViewport;
   }
   const canvasRect = snapshotRect(ctx.refs.canvas.getBoundingClientRect());
-  const stageRect = snapshotRect(
-    ctx.refs.canvas.parentElement.getBoundingClientRect(),
-  );
+  const stage = ctx.refs.canvas.parentElement;
+  if (!stage) throw new Error("Viewer canvas has no parent.");
+  const stageRect = snapshotRect(stage.getBoundingClientRect());
   const viewport = { canvasRect, stageRect };
   ctx.state.canvasSelectionViewport = viewport;
   return viewport;

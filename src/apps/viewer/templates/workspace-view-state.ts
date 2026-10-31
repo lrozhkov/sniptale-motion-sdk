@@ -1,19 +1,6 @@
+import type { CompositionWorkspaceView } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isLayerGroup } from "../layers/hierarchy.js";
-
-type CompositionWorkspaceView = {
-  canvasIsolationGroupId: string | null;
-  expandedSceneIds: string[];
-  expandedTimelineRowIds: string[];
-  graphEditorEnabled: boolean;
-  graphEditorViewport: any;
-  previewScrollLeft: number;
-  previewScrollTop: number;
-  previewZoom: string;
-  timelineOffset: number;
-  timelineScrollTop: number;
-  timelineZoom: number;
-};
 
 export function captureCompositionWorkspaceView(ctx: ViewerAppContext): void {
   const templateId = ctx.state.currentTemplate?.id;
@@ -43,9 +30,7 @@ export function restoreCompositionWorkspaceView(
   if (!template) {
     return false;
   }
-  const view = ctx.state.compositionWorkspaceViews.get(template.id) as
-    | CompositionWorkspaceView
-    | undefined;
+  const view = ctx.state.compositionWorkspaceViews.get(template.id);
   if (!view) {
     ctx.setPreviewZoom("fit");
     ctx.refs.timelineZoomInput.value = "1";
@@ -78,7 +63,7 @@ export function restoreCompositionWorkspaceView(
 
 function resolveStoredIsolationId(
   ctx: ViewerAppContext,
-  template,
+  template: unknown,
   isolationId: string | null,
 ): string | null {
   if (!isolationId) {
