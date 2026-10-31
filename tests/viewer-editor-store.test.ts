@@ -227,6 +227,19 @@ describe("viewer editor history transactions", () => {
     expect(ctx.state.assets.get("image")).toBe(replacement);
   });
 
+  it("rejects malformed asset history before changing editor state", () => {
+    const ctx = createStoreContext();
+    installEditorStoreOwner(ctx);
+    installEditorHistoryControllerOwner(ctx);
+    const snapshot = ctx.captureEditorSnapshot("invalid assets");
+    snapshot.assetEntries = [["image", { id: "image", blob: {} }]];
+    const override = ctx.state.editorOverrides.get("template");
+    const assets = new Map(ctx.state.assets);
+    expect(ctx.restoreEditorSnapshotData(snapshot)).toBe(false);
+    expect(ctx.state.editorOverrides.get("template")).toBe(override);
+    expect(ctx.state.assets).toEqual(assets);
+  });
+
   it("restores structural groups and canonical multi-selection together", () => {
     const ctx = createStoreContext();
     installEditorStoreOwner(ctx);

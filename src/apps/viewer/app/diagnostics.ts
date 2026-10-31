@@ -5,7 +5,11 @@ function setPackStatus(ctx: ViewerAppContext, text: string, variant: string) {
   ctx.refs.packStatus.title = text;
   ctx.refs.packStatus.className = `status-chip ${variant}`;
 }
-function logDiagnostic(ctx: ViewerAppContext, message: string, level = "info") {
+export function logDiagnostic(
+  ctx: ViewerAppContext,
+  message: string,
+  level = "info",
+) {
   const row = document.createElement("div");
   row.className = `diagnostic ${level}`;
   row.textContent = `${new Date().toLocaleTimeString()} · ${message}`;

@@ -139,7 +139,7 @@ describe("viewer app support owners", () => {
     const first = createViewerState();
     const second = createViewerState();
 
-    first.assets.set("asset", {});
+    first.assets.set("asset", { id: "asset" });
     first.pending.set("request", {
       expire: vi.fn(),
       reject: vi.fn(),

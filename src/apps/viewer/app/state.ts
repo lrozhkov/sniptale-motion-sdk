@@ -1,3 +1,4 @@
+import { createViewerAssetState } from "../assets/state.js";
 import { createCanvasTransformState } from "../canvas/transform-state.js";
 import { createPreviewAudioState } from "../playback/audio-state.js";
 import { createViewerTransportState } from "../transport/state.js";
@@ -41,8 +42,7 @@ export function createViewerState() {
     actionsMenuOpen: false,
     assetBitmapTransfers: 0,
     assetEnvelopeTransfers: 0,
-    assets: new Map(),
-    baseAssets: new Map(),
+    ...createViewerAssetState(),
     appliedPreviewScale: 1,
     averageFullRenderMs: 0,
     averagePreviewLatencyMs: 0,
@@ -106,7 +106,6 @@ export function createViewerState() {
     renderCount: 0,
     renderInFlight: false,
     renderQueued: false,
-    renderAssetSelection: null,
     rendererContractReads: createEmptyBindingReads(),
     rendererContractCoverageReady: false,
     rendererContractCoverageLockedForTest: false,

@@ -1,3 +1,4 @@
+import type { SerializedSvgVectorSource } from "../../../shared/svg-vector-source.js";
 import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
 import type { EditorTemplate } from "../templates/model.js";
 
@@ -62,3 +63,24 @@ export function createViewerRenderingState(): ViewerRenderingState {
     sandboxRenderAssetsId: null,
   };
 }
+
+export type TransferredAsset = {
+  cacheKey: string;
+  id: string;
+  bitmap?: ImageBitmap;
+  height?: number;
+  width?: number;
+  kind?: string | null | undefined;
+  mimeType?: string | undefined;
+  path?: string | null | undefined;
+  svgText?: string | null | undefined;
+  svgVector?: SerializedSvgVectorSource | undefined;
+};
+export type RenderAssetTransfer = {
+  cacheKeys: string[];
+  envelope: {
+    assets?: Record<string, TransferredAsset>;
+    renderAssetsId: string;
+  };
+  transfer: ImageBitmap[];
+};

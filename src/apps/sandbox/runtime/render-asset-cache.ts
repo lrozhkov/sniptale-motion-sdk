@@ -9,14 +9,14 @@ type BitmapLike = {
 type CachedRenderAsset = {
   bitmap: BitmapLike;
   cacheKey: string;
-  height?: number;
+  height?: number | undefined;
   id: string;
-  kind?: string;
-  mimeType?: string;
-  path?: string;
-  svgText?: string;
-  svgVector?: ReturnType<typeof parseSerializedSvgVector>;
-  width?: number;
+  kind?: string | undefined;
+  mimeType?: string | undefined;
+  path?: string | undefined;
+  svgText?: string | undefined;
+  svgVector?: ReturnType<typeof parseSerializedSvgVector> | undefined;
+  width?: number | undefined;
 };
 
 export function createRenderAssetCache() {
@@ -42,9 +42,9 @@ export function createRenderAssetCache() {
         }
         return currentSelection.assets;
       }
-      const assets: Record<string, CachedRenderAsset> = {};
+      const resolvedAssets = new Map<string, CachedRenderAsset>();
       if (value == null) {
-        return assets;
+        return Object.fromEntries(resolvedAssets);
       }
       if (!isRecord(value)) {
         throw new Error("Expected render assets to be an object.");
@@ -63,7 +63,7 @@ export function createRenderAssetCache() {
             bitmap: incomingBitmap,
           } as CachedRenderAsset;
           entries.set(asset.cacheKey, next);
-          assets[assetId] = next;
+          resolvedAssets.set(assetId, next);
           continue;
         }
         if (!cached) {
@@ -72,8 +72,9 @@ export function createRenderAssetCache() {
         if (cached.id !== asset.id) {
           throw new Error(`Cached render asset id mismatch for ${assetId}.`);
         }
-        assets[assetId] = cached;
+        resolvedAssets.set(assetId, cached);
       }
+      const assets = Object.fromEntries(resolvedAssets);
       if (selectionId) {
         currentSelection = { assets, id: selectionId };
       }

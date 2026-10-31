@@ -1,3 +1,5 @@
+import type { ViewerAsset } from "../assets/state.js";
+import type { RenderAssetTransfer } from "../rendering/state.js";
 import type {
   TimelineRowTree,
   TimelineScene,
@@ -25,6 +27,15 @@ export interface ViewerAppContext {
   previewContext: CanvasRenderingContext2D;
   refs: ReturnType<typeof createViewerRefs>;
   state: ReturnType<typeof createViewerState>;
+  logDiagnostic(message: string, level?: string): void;
+  dataUrlToBlob(dataUrl: string, fallbackMimeType?: string): Blob;
+  createAssetBitmap(asset: ViewerAsset): Promise<ImageBitmap>;
+  rasterizeSvgAsset(asset: ViewerAsset): Promise<ImageBitmap>;
+  createRenderAssets(template: {
+    assets?: unknown;
+    id?: unknown;
+    effectId?: unknown;
+  }): Promise<RenderAssetTransfer>;
   createTimelineRowTree(template: unknown): TimelineRowTree;
   normalizeScenes(scenes: unknown, duration?: number): TimelineScene[];
   getTrackKeyframesForParent(

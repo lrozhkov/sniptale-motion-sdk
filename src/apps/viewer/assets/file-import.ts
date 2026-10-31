@@ -1,17 +1,29 @@
+import type { ViewerAsset } from "./state.js";
+import {
+  calculateSvgRasterSize,
+  createAssetBitmap,
+} from "../rendering/assets.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-async function rasterizeSvgAsset(ctx: ViewerAppContext, asset) {
+export async function rasterizeSvgAsset(
+  ctx: ViewerAppContext,
+  asset: ViewerAsset,
+): Promise<ImageBitmap> {
   const dataUrl = `data:image/svg+xml;base64,${btoa(asset.svgText ?? "")}`;
   const image = new Image();
-  await new Promise((resolve, reject) => {
-    image.onload = resolve;
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
     image.onerror = () =>
       reject(new Error(`Failed to load SVG asset ${asset.id}.`));
     image.src = dataUrl;
   });
-  const size = ctx.getSvgRasterSize(asset, image);
-  const canvas = ctx.createFrameBuffer(size.width, size.height);
+  const size = calculateSvgRasterSize(asset, image);
+  const canvas: HTMLCanvasElement = ctx.createFrameBuffer(
+    size.width,
+    size.height,
+  );
   const context = canvas.getContext("2d");
+  if (!context) throw new Error("SVG Canvas 2D context is unavailable.");
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   return await createImageBitmap(canvas);
@@ -37,9 +49,9 @@ async function replaceSelectedAssetFile(ctx: ViewerAppContext) {
 
 async function createAuthorAssetFromFile(
   ctx: ViewerAppContext,
-  file,
-  options: any = {},
-) {
+  file: File,
+  options: { assetId?: string } = {},
+): Promise<ViewerAsset> {
   const mimeType = ctx.deps.normalizeAuthorAssetMimeType(file);
   if (!ctx.deps.SUPPORTED_AUTHOR_ASSET_TYPES.has(mimeType)) {
     throw new Error(
@@ -58,7 +70,7 @@ async function createAuthorAssetFromFile(
     const svgText = await file.text();
     ctx.deps.validateAuthorSvgAsset(svgText, file.name);
     const blob = new Blob([svgText], { type: mimeType });
-    const asset = {
+    const asset: ViewerAsset = {
       blob,
       height: null,
       id,
@@ -68,16 +80,16 @@ async function createAuthorAssetFromFile(
       svgText,
       width: null,
     };
-    const bitmap = await ctx.createAssetBitmap(asset);
+    const bitmap = await createAssetBitmap(ctx, asset);
     asset.width = bitmap.width;
     asset.height = bitmap.height;
     bitmap.close?.();
     return asset;
   }
   const bitmap = await createImageBitmap(file);
-  const asset = {
+  const asset: ViewerAsset = {
     blob: file,
-    dataUrl: await ctx.fileToDataUrl(file),
+    dataUrl: await fileToDataUrl(ctx, file),
     height: bitmap.height,
     id,
     kind: "image",
@@ -90,8 +102,8 @@ async function createAuthorAssetFromFile(
   return asset;
 }
 
-function fileToDataUrl(ctx: ViewerAppContext, file) {
-  return new Promise((resolve, reject) => {
+function fileToDataUrl(_ctx: ViewerAppContext, file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result ?? ""));
     reader.onerror = () => reject(new Error(`failed to read ${file.name}`));
@@ -99,13 +111,13 @@ function fileToDataUrl(ctx: ViewerAppContext, file) {
   });
 }
 
-function dataUrlToBlob(
-  ctx: ViewerAppContext,
-  dataUrl,
+export function dataUrlToBlob(
+  _ctx: ViewerAppContext,
+  dataUrl: string,
   fallbackMimeType = "application/octet-stream",
 ) {
-  const [header, base64 = ""] = String(dataUrl).split(",");
-  const mimeMatch = /^data:([^;]+);base64$/i.exec(header);
+  const [header, base64 = ""] = dataUrl.split(",");
+  const mimeMatch = /^data:([^;]+);base64$/i.exec(header ?? "");
   const mimeType = mimeMatch?.[1] ?? fallbackMimeType;
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);

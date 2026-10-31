@@ -1,6 +1,13 @@
+import { readViewerAsset, type ViewerAsset } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function addAssetLayer(ctx: ViewerAppContext, asset, options: any = {}) {
+function addAssetLayer(
+  ctx: ViewerAppContext,
+  asset: ViewerAsset,
+  options: { canvasPoint?: { x: number; y: number } } = {},
+) {
+  const source = ctx.state.currentTemplate;
+  if (!source) return;
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -37,7 +44,7 @@ function addAssetLayer(ctx: ViewerAppContext, asset, options: any = {}) {
       ctx.upsertTrackKeyframe(timeline, layer.id, "y", layer.y, 0);
       ctx.setEditorOverride({ assets, clips, layers });
       ctx.state.timelineOverrides.set(
-        ctx.state.currentTemplate.id,
+        source.id,
         ctx.deps.normalizeTimeline(timeline, template.duration),
       );
       ctx.selectLayer(layer.id);
@@ -51,7 +58,7 @@ function addAssetLayer(ctx: ViewerAppContext, asset, options: any = {}) {
   );
 }
 
-function replaceAsset(ctx: ViewerAppContext, asset) {
+function replaceAsset(ctx: ViewerAppContext, asset: ViewerAsset) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -90,12 +97,20 @@ function replaceAsset(ctx: ViewerAppContext, asset) {
   );
 }
 
-function prepareImportedAssets(ctx: ViewerAppContext, assets) {
-  const prepared = new Map<string, any>();
-  for (const asset of assets) {
-    if (!asset?.id || typeof asset.id !== "string") {
-      throw new Error("Imported asset is missing a valid id.");
+export function prepareImportedAssets(
+  ctx: { dataUrlToBlob(dataUrl: string, mimeType: string): Blob },
+  assets: unknown,
+): Map<string, ViewerAsset> {
+  if (!Array.isArray(assets))
+    throw new Error("Imported assets must be an array.");
+  const prepared = new Map<string, ViewerAsset>();
+  for (const value of assets) {
+    const asset = readViewerAsset(value);
+    if (!asset) {
+      throw new Error("Imported asset has invalid metadata.");
     }
+    if (prepared.has(asset.id))
+      throw new Error(`Duplicate imported asset "${asset.id}".`);
     const mimeType =
       typeof asset.mimeType === "string"
         ? asset.mimeType
@@ -111,20 +126,18 @@ function prepareImportedAssets(ctx: ViewerAppContext, assets) {
         `Asset "${asset.id}" has no materialized content. Select its referenced file together with the Effect document.`,
       );
     }
-    const registeredAsset = {
+    const registeredAsset: ViewerAsset = {
       blob,
-      byteLength: Number(asset.byteLength) || blob.size,
+      byteLength: asset.byteLength ?? blob.size,
       dataUrl: typeof asset.dataUrl === "string" ? asset.dataUrl : null,
-      height: Number.isFinite(Number(asset.height))
-        ? Number(asset.height)
-        : null,
+      height: asset.height ?? null,
       id: asset.id,
       kind: typeof asset.kind === "string" ? asset.kind : null,
       mimeType,
       path: typeof asset.path === "string" ? asset.path : null,
       sha256: typeof asset.sha256 === "string" ? asset.sha256 : null,
       svgText: typeof asset.svgText === "string" ? asset.svgText : null,
-      width: Number.isFinite(Number(asset.width)) ? Number(asset.width) : null,
+      width: asset.width ?? null,
     };
     prepared.set(asset.id, registeredAsset);
   }
@@ -133,7 +146,7 @@ function prepareImportedAssets(ctx: ViewerAppContext, assets) {
 
 async function verifyImportedAssets(
   ctx: ViewerAppContext,
-  assets: Map<string, any>,
+  assets: ReadonlyMap<string, ViewerAsset>,
 ): Promise<void> {
   for (const asset of assets.values()) {
     try {
@@ -141,6 +154,7 @@ async function verifyImportedAssets(
         const bitmap = await ctx.createAssetBitmap(asset);
         bitmap.close();
       } else if (asset.kind === "audio") {
+        if (!asset.blob) throw new Error("Audio content is missing.");
         await verifyMediaBlob(asset.blob);
       }
     } catch {

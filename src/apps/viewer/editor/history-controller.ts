@@ -1,3 +1,4 @@
+import { readViewerAsset, type ViewerAsset } from "../assets/state.js";
 import { invalidateCanvasDragPreview } from "../canvas/drag-preview.js";
 import type { ViewerAppContext } from "../app/context.js";
 
@@ -86,6 +87,8 @@ function restoreEditorSnapshotData(ctx: ViewerAppContext, snapshot): boolean {
   ) {
     return false;
   }
+  const snapshotAssets = readSnapshotAssets(snapshot.assetEntries);
+  if (!snapshotAssets) return false;
   const previousAssetScopeIds = getEditorAssetScopeIds(ctx);
   ctx.deps.restoreEditorSnapshotState(ctx.state, snapshot, {
     fallbackControls: ctx.deps.buildControlsWithDefaults(
@@ -93,7 +96,12 @@ function restoreEditorSnapshotData(ctx: ViewerAppContext, snapshot): boolean {
     ),
   });
   invalidateCanvasDragPreview(ctx.state, ctx.refs?.canvasSelectionBox);
-  restoreEditorSnapshotAssets(ctx, snapshot, previousAssetScopeIds);
+  restoreEditorSnapshotAssets(
+    ctx,
+    snapshot,
+    previousAssetScopeIds,
+    snapshotAssets,
+  );
   return true;
 }
 
@@ -161,23 +169,41 @@ function getEditorAssetScopeIds(ctx: ViewerAppContext): string[] {
   ].filter((assetId): assetId is string => typeof assetId === "string");
 }
 
+function readSnapshotAssets(value: unknown): Map<string, ViewerAsset> | null {
+  const entries = new Map<string, ViewerAsset>();
+  if (value === undefined) return entries;
+  if (!Array.isArray(value)) return null;
+  for (const entry of value) {
+    if (
+      !Array.isArray(entry) ||
+      entry.length !== 2 ||
+      typeof entry[0] !== "string"
+    )
+      return null;
+    const asset = readViewerAsset(entry[1]);
+    if (!asset || asset.id !== entry[0] || entries.has(entry[0])) return null;
+    entries.set(entry[0], asset);
+  }
+  return entries;
+}
+
 function restoreEditorSnapshotAssets(
   ctx: ViewerAppContext,
   snapshot,
   previousAssetScopeIds: string[],
+  snapshotEntries: ReadonlyMap<string, ViewerAsset>,
 ): void {
-  const snapshotEntries = new Map(
-    Array.isArray(snapshot.assetEntries) ? snapshot.assetEntries : [],
-  );
   const scopeIds = new Set([
     ...previousAssetScopeIds,
     ...(Array.isArray(snapshot.assetScopeIds) ? snapshot.assetScopeIds : []),
   ]);
   for (const assetId of scopeIds) {
     if (snapshotEntries.has(assetId)) {
-      ctx.state.assets.set(assetId, snapshotEntries.get(assetId));
+      const asset = snapshotEntries.get(assetId);
+      if (asset) ctx.state.assets.set(assetId, asset);
     } else if (ctx.state.baseAssets.has(assetId)) {
-      ctx.state.assets.set(assetId, ctx.state.baseAssets.get(assetId));
+      const asset = ctx.state.baseAssets.get(assetId);
+      if (asset) ctx.state.assets.set(assetId, asset);
     } else {
       ctx.state.assets.delete(assetId);
     }

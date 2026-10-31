@@ -1,7 +1,9 @@
+import { createViewerAssetState } from "../src/apps/viewer/assets/state";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   calculateSvgRasterSize,
+  createRenderAssets,
   installRenderingAssetsOwner,
 } from "../src/apps/viewer/rendering/assets";
 
@@ -179,3 +181,93 @@ function svgNode(
     tagName,
   };
 }
+
+describe("render asset preparation failure", () => {
+  it("closes prepared bitmaps on a later decode failure without committing cache state", async () => {
+    const close = vi.fn();
+    const bitmap = { close, width: 10, height: 10 } as unknown as ImageBitmap;
+    const state = {
+      ...createViewerAssetState(),
+      sandboxAssetCacheKeys: new Set<string>(),
+      sandboxRenderAssetsId: null,
+    };
+    state.assets.set("first", { id: "first" });
+    state.assets.set("second", { id: "second" });
+    const createAssetBitmap = vi
+      .fn()
+      .mockResolvedValueOnce(bitmap)
+      .mockRejectedValueOnce(new Error("decode failed"));
+    await expect(
+      createRenderAssets(
+        { state, createAssetBitmap, logDiagnostic: vi.fn() },
+        { id: "template", assets: ["first", "second"] },
+      ),
+    ).rejects.toThrow("decode failed");
+    expect(close).toHaveBeenCalledOnce();
+    expect(state.sandboxAssetCacheKeys.size).toBe(0);
+    expect(state.sandboxRenderAssetsId).toBeNull();
+  });
+
+  it("transports prototype-like asset IDs as own entries", async () => {
+    const bitmap = {
+      close: vi.fn(),
+      width: 10,
+      height: 10,
+    } as unknown as ImageBitmap;
+    const state = {
+      ...createViewerAssetState(),
+      sandboxAssetCacheKeys: new Set<string>(),
+      sandboxRenderAssetsId: null,
+    };
+    state.assets.set("__proto__", { id: "__proto__" });
+    const result = await createRenderAssets(
+      {
+        state,
+        createAssetBitmap: vi.fn(async () => bitmap),
+        logDiagnostic: vi.fn(),
+      },
+      { id: "template", assets: ["__proto__"] },
+    );
+    expect(Object.hasOwn(result.envelope.assets ?? {}, "__proto__")).toBe(true);
+    expect(result.envelope.assets?.["__proto__"]?.bitmap).toBe(bitmap);
+    expect(Object.getPrototypeOf(result.envelope.assets)).toBe(
+      Object.prototype,
+    );
+  });
+
+  it("does not coerce malformed asset references or route objects", async () => {
+    const coercion = vi.fn(() => {
+      throw new Error("must not coerce");
+    });
+    const state = {
+      ...createViewerAssetState(),
+      sandboxAssetCacheKeys: new Set<string>(),
+      sandboxRenderAssetsId: null,
+    };
+    const result = await createRenderAssets(
+      { state, createAssetBitmap: vi.fn(), logDiagnostic: vi.fn() },
+      {
+        id: { toString: coercion },
+        assets: ["missing", { toString: coercion }, null, 42],
+      },
+    );
+    expect(result.transfer).toEqual([]);
+    expect(coercion).not.toHaveBeenCalled();
+    expect(state.renderAssetSelection?.routeId).toBe("effect");
+  });
+
+  it("uses finite intrinsic dimensions when optional SVG metadata is invalid", () => {
+    expect(
+      calculateSvgRasterSize(
+        { width: NaN, height: Infinity },
+        { naturalWidth: 200, naturalHeight: 100 },
+      ),
+    ).toEqual({ width: 1600, height: 800 });
+    expect(
+      calculateSvgRasterSize(
+        { width: -1, height: 0 },
+        { naturalWidth: 0, naturalHeight: 0 },
+      ),
+    ).toEqual({ width: 1800, height: 1800 });
+  });
+});

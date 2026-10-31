@@ -58,6 +58,36 @@ describe("sandbox render asset cache", () => {
     ).toThrow("Missing cached bitmap for asset mark.");
   });
 
+  it("retains prototype-like IDs through bitmap and descriptor-only selections", () => {
+    const cache = createRenderAssetCache();
+    const bitmap = createBitmap();
+    const first = cache.resolve(
+      Object.fromEntries([
+        [
+          "__proto__",
+          createAsset({ bitmap, cacheKey: "prototype-v1", id: "__proto__" }),
+        ],
+      ]),
+      "selection-1",
+    );
+    expect(Object.hasOwn(first, "__proto__")).toBe(true);
+    expect(first["__proto__"]?.bitmap).toBe(bitmap);
+    expect(Object.getPrototypeOf(first)).toBe(Object.prototype);
+    const second = cache.resolve(
+      Object.fromEntries([
+        [
+          "__proto__",
+          createAsset({ cacheKey: "prototype-v1", id: "__proto__" }),
+        ],
+      ]),
+      "selection-2",
+    );
+    expect(second["__proto__"]?.bitmap).toBe(bitmap);
+    expect(cache.resolve(undefined, "selection-2")).toBe(second);
+    cache.close();
+    expect(bitmap.close).toHaveBeenCalledOnce();
+  });
+
   it("validates asset payloads at the sandbox boundary", () => {
     const cache = createRenderAssetCache();
 

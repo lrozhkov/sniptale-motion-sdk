@@ -1,3 +1,5 @@
+import type { ViewerAsset, RenderAssetSelection } from "../assets/state.js";
+import type { RenderAssetTransfer, TransferredAsset } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { serializeSvgTextVectorAsset } from "../../../shared/svg-vector-source.js";
 
@@ -6,14 +8,22 @@ const assetCacheKeys = new WeakMap<object, string>();
 let assetCacheKeySequence = 0;
 let renderAssetSelectionSequence = 0;
 
-type RenderAssetSelection = {
-  assetIds: string[];
-  assetSources: Array<any | null>;
-  id: string;
-  routeId: string;
+type RenderAssetsContext = {
+  state: Pick<
+    ViewerAppContext["state"],
+    | "assets"
+    | "renderAssetSelection"
+    | "sandboxAssetCacheKeys"
+    | "sandboxRenderAssetsId"
+  >;
+  createAssetBitmap(asset: ViewerAsset): Promise<ImageBitmap>;
+  logDiagnostic(message: string, severity: string): void;
 };
-
-async function createRenderAssets(ctx: ViewerAppContext, template) {
+type AssetTemplate = { assets?: unknown; effectId?: unknown; id?: unknown };
+export async function createRenderAssets(
+  ctx: RenderAssetsContext,
+  template: AssetTemplate,
+): Promise<RenderAssetTransfer> {
   const selection = resolveRenderAssetSelection(ctx, template);
   if (ctx.state.sandboxRenderAssetsId === selection.id) {
     return {
@@ -22,75 +32,94 @@ async function createRenderAssets(ctx: ViewerAppContext, template) {
       transfer: [],
     };
   }
-  const assets: Record<string, any> = {};
+  const assets = new Map<string, TransferredAsset>();
   const cacheKeys: string[] = [];
   const transfer: ImageBitmap[] = [];
-  for (let index = 0; index < selection.assetIds.length; index += 1) {
-    const id = selection.assetIds[index];
-    const asset = selection.assetSources[index];
-    if (!asset) {
-      ctx.logDiagnostic(`${template.id}: unknown asset ${id}.`, "error");
-      continue;
+  try {
+    for (let index = 0; index < selection.assetIds.length; index += 1) {
+      const id = selection.assetIds[index];
+      const asset = selection.assetSources[index];
+      if (id === undefined) continue;
+      if (!asset) {
+        ctx.logDiagnostic(
+          `${getRouteId(template)}: unknown asset ${id}.`,
+          "error",
+        );
+        continue;
+      }
+      if (asset.kind === "audio" || asset.mimeType?.startsWith("audio/")) {
+        continue;
+      }
+      const cacheKey = getAssetCacheKey(asset);
+      const sessionCacheKey = getSessionAssetCacheKey(template, cacheKey);
+      const cachedBySandbox =
+        ctx.state.sandboxAssetCacheKeys.has(sessionCacheKey);
+      const bitmap: ImageBitmap | null = cachedBySandbox
+        ? null
+        : await ctx.createAssetBitmap(asset);
+      if (bitmap) transfer.push(bitmap);
+      const svgVector =
+        !cachedBySandbox &&
+        asset.mimeType === "image/svg+xml" &&
+        typeof asset.svgText === "string"
+          ? serializeSvgTextVectorAsset({
+              id: asset.id,
+              svgText: asset.svgText,
+              ...(asset.width == null ? {} : { width: asset.width }),
+              ...(asset.height == null ? {} : { height: asset.height }),
+            })
+          : undefined;
+      if (bitmap) {
+        cacheKeys.push(sessionCacheKey);
+      }
+      assets.set(
+        id,
+        bitmap
+          ? {
+              bitmap,
+              cacheKey,
+              height: asset.height ?? bitmap.height,
+              id: asset.id,
+              kind: asset.kind,
+              mimeType: asset.mimeType,
+              path: asset.path,
+              svgText: asset.svgText,
+              svgVector,
+              width: asset.width ?? bitmap.width,
+            }
+          : { cacheKey, id: asset.id },
+      );
     }
-    if (
-      asset.kind === "audio" ||
-      String(asset.mimeType ?? "").startsWith("audio/")
-    ) {
-      continue;
-    }
-    const cacheKey = getAssetCacheKey(asset);
-    const sessionCacheKey = getSessionAssetCacheKey(template, cacheKey);
-    const cachedBySandbox =
-      ctx.state.sandboxAssetCacheKeys.has(sessionCacheKey);
-    const bitmap = cachedBySandbox ? null : await ctx.createAssetBitmap(asset);
-    const svgVector =
-      !cachedBySandbox &&
-      asset.mimeType === "image/svg+xml" &&
-      typeof asset.svgText === "string"
-        ? serializeSvgTextVectorAsset(asset)
-        : undefined;
-    if (bitmap) {
-      transfer.push(bitmap);
-      cacheKeys.push(sessionCacheKey);
-    }
-    assets[id] = bitmap
-      ? {
-          bitmap,
-          cacheKey,
-          height: asset.height ?? bitmap.height,
-          id: asset.id,
-          kind: asset.kind,
-          mimeType: asset.mimeType,
-          path: asset.path,
-          svgText: asset.svgText,
-          svgVector,
-          width: asset.width ?? bitmap.width,
-        }
-      : { cacheKey, id: asset.id };
+  } catch (error) {
+    for (const bitmap of transfer) bitmap.close();
+    throw error;
   }
   return {
     cacheKeys,
-    envelope: { assets, renderAssetsId: selection.id },
+    envelope: {
+      assets: Object.fromEntries(assets),
+      renderAssetsId: selection.id,
+    },
     transfer,
   };
 }
 
 function resolveRenderAssetSelection(
-  ctx: ViewerAppContext,
+  ctx: RenderAssetsContext,
   template: {
     assets?: unknown;
     effectId?: unknown;
     id?: unknown;
   },
 ): RenderAssetSelection {
-  const routeId = String(template.effectId ?? template.id ?? "effect");
+  const routeId = getRouteId(template);
   const assetIds = Array.isArray(template.assets)
-    ? template.assets.map(String)
+    ? template.assets.filter((id): id is string => typeof id === "string")
     : [];
   const assetSources = assetIds.map(
     (assetId) => ctx.state.assets.get(assetId) ?? null,
   );
-  const cached = ctx.state.renderAssetSelection as RenderAssetSelection | null;
+  const cached = ctx.state.renderAssetSelection;
   if (
     cached?.routeId === routeId &&
     cached.assetIds.length === assetIds.length &&
@@ -112,8 +141,18 @@ function resolveRenderAssetSelection(
   return selection;
 }
 
-function getSessionAssetCacheKey(template: any, cacheKey: string): string {
-  return `${template?.effectId ?? template?.id ?? "effect"}:${cacheKey}`;
+function getRouteId(template: AssetTemplate): string {
+  return typeof template.effectId === "string"
+    ? template.effectId
+    : typeof template.id === "string"
+      ? template.id
+      : "effect";
+}
+function getSessionAssetCacheKey(
+  template: AssetTemplate,
+  cacheKey: string,
+): string {
+  return `${getRouteId(template)}:${cacheKey}`;
 }
 
 function getAssetCacheKey(asset: object): string {
@@ -126,7 +165,10 @@ function getAssetCacheKey(asset: object): string {
   return cacheKey;
 }
 
-function commitRenderAssetTransfers(ctx: ViewerAppContext, renderAssets) {
+function commitRenderAssetTransfers(
+  ctx: ViewerAppContext,
+  renderAssets: RenderAssetTransfer,
+) {
   for (const cacheKey of renderAssets?.cacheKeys ?? []) {
     if (!ctx.state.sandboxAssetCacheKeys.has(cacheKey)) {
       ctx.state.sandboxAssetCacheKeys.add(cacheKey);
@@ -149,7 +191,10 @@ function resetRenderAssetCache(ctx: ViewerAppContext) {
   ctx.state.sandboxRenderAssetsId = null;
 }
 
-async function createAssetBitmap(ctx: ViewerAppContext, asset) {
+export async function createAssetBitmap(
+  ctx: ViewerAppContext,
+  asset: ViewerAsset,
+): Promise<ImageBitmap> {
   let sourcePromise = assetBitmapSourceCache.get(asset);
   if (!sourcePromise) {
     sourcePromise = createAssetBitmapSource(ctx, asset).catch((error) => {
@@ -161,15 +206,26 @@ async function createAssetBitmap(ctx: ViewerAppContext, asset) {
   return await createImageBitmap(await sourcePromise);
 }
 
-async function createAssetBitmapSource(ctx: ViewerAppContext, asset) {
-  return asset.mimeType === "image/svg+xml"
-    ? await ctx.rasterizeSvgAsset(asset)
-    : await createImageBitmap(asset.blob);
+async function createAssetBitmapSource(
+  ctx: ViewerAppContext,
+  asset: ViewerAsset,
+): Promise<ImageBitmap> {
+  if (asset.mimeType === "image/svg+xml")
+    return await ctx.rasterizeSvgAsset(asset);
+  if (!asset.blob)
+    throw new Error(`Asset ${asset.id} has no materialized content.`);
+  return await createImageBitmap(asset.blob);
 }
 
-export function calculateSvgRasterSize(asset, image) {
-  const sourceWidth = Math.max(1, asset.width ?? image.naturalWidth ?? 512);
-  const sourceHeight = Math.max(1, asset.height ?? image.naturalHeight ?? 512);
+export function calculateSvgRasterSize(
+  asset: {
+    width?: number | null | undefined;
+    height?: number | null | undefined;
+  },
+  image: { naturalWidth: number; naturalHeight: number },
+) {
+  const sourceWidth = positiveDimension(asset.width, image.naturalWidth);
+  const sourceHeight = positiveDimension(asset.height, image.naturalHeight);
   const longEdge = Math.max(sourceWidth, sourceHeight);
   const scale = Math.min(8, 1800 / longEdge);
   return {
@@ -178,7 +234,20 @@ export function calculateSvgRasterSize(asset, image) {
   };
 }
 
-function getSvgRasterSize(_ctx: ViewerAppContext, asset, image) {
+function positiveDimension(
+  metadata: number | null | undefined,
+  natural: number,
+): number {
+  if (typeof metadata === "number" && Number.isFinite(metadata) && metadata > 0)
+    return metadata;
+  return Number.isFinite(natural) && natural > 0 ? natural : 512;
+}
+
+function getSvgRasterSize(
+  _ctx: ViewerAppContext,
+  asset: ViewerAsset,
+  image: HTMLImageElement,
+) {
   return calculateSvgRasterSize(asset, image);
 }
 

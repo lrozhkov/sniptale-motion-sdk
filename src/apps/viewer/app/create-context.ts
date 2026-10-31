@@ -1,3 +1,6 @@
+import { logDiagnostic } from "./diagnostics.js";
+import { dataUrlToBlob, rasterizeSvgAsset } from "../assets/file-import.js";
+import { createAssetBitmap, createRenderAssets } from "../rendering/assets.js";
 import { createTimelineRowTree } from "../timeline/model/row-tree.js";
 import { normalizeScenes } from "../templates/fallbacks.js";
 import { getTrackKeyframesForParent } from "../timeline/view/property-track.js";
@@ -32,6 +35,21 @@ export function createViewerContext(): ViewerAppContext {
     lastPlaybackRenderTs: 0,
     lastPlaybackTs: 0,
     lastPlaybackUiTs: 0,
+    logDiagnostic(message, level) {
+      logDiagnostic(ctx, message, level);
+    },
+    dataUrlToBlob(dataUrl, fallbackMimeType) {
+      return dataUrlToBlob(ctx, dataUrl, fallbackMimeType);
+    },
+    createAssetBitmap(asset) {
+      return createAssetBitmap(ctx, asset);
+    },
+    rasterizeSvgAsset(asset) {
+      return rasterizeSvgAsset(ctx, asset);
+    },
+    createRenderAssets(template) {
+      return createRenderAssets(ctx, template);
+    },
     createTimelineRowTree(template) {
       return createTimelineRowTree(ctx, template);
     },
