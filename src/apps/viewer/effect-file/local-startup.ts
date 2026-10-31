@@ -27,6 +27,8 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
       },
     );
     if (!result.ok || !result.templateId) continue;
+    if (effect.studio)
+      ctx.state.studio.sources.set(result.templateId, effect.studio);
     imported += 1;
     firstImportedTemplateId ??= result.templateId;
     const template = ctx.state.templates.find(

@@ -1,3 +1,4 @@
+import type { StudioEffectSelection } from "./revision-contract.js";
 export const STUDIO_CATALOG_ROUTE = "/__sniptale/local-effects";
 export const STUDIO_SESSION_PARAMETER = "studioSession";
 export const STUDIO_SESSION_HEADER = "x-sniptale-session";
@@ -6,6 +7,7 @@ export const MAX_STUDIO_EFFECTS = 64;
 export const MAX_STUDIO_SOURCE_BYTES = 40_000_000;
 
 export type LocalEffectSource = {
+  studio?: StudioEffectSelection;
   default: boolean;
   source: string;
   sourceName: string;

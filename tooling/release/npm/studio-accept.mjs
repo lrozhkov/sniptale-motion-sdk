@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export async function acceptInstalledStudio({
@@ -131,7 +131,6 @@ async function checkBrowser(ready, evidence) {
       element.value = "0.2";
       element.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await expect.poll(async () => hash(await canvas.screenshot())).toBeTruthy();
     const before = hash(await canvas.screenshot());
     await page.locator("#timeSlider").evaluate((element) => {
       element.value = "2.5";
@@ -141,10 +140,76 @@ async function checkBrowser(ready, evidence) {
       .poll(async () => hash(await canvas.screenshot()))
       .not.toBe(before);
     await canvas.screenshot({ path: join(evidence, "studio-preview.png") });
+    const originalFile = join(
+      ready.project,
+      "effects/standalone/effect.sniptale-effect.json",
+    );
+    const original = await readFile(originalFile, "utf8");
+    const color = page.locator('#controlsPanel [data-css-color-role="value"]');
+    await page.locator('[data-sidebar-tab="tune"]').click();
+    await color.fill("#e14b50");
+    await color.press("Tab");
+    await expect(page.locator("#exportEffectFileButton")).toBeEnabled();
+    await page.locator("#appActionsButton").click();
+    const [savedResponse] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/__sniptale/studio/revisions") &&
+          response.request().method() === "POST",
+      ),
+      page.locator("#saveStudioRevisionButton").click(),
+    ]);
+    assert.equal(savedResponse.status(), 201);
+    const saved = await savedResponse.json();
+    assert.equal(saved.ok, true);
+    const revisionId = saved.revision.revisionId;
+    const persisted = JSON.parse(
+      await readFile(
+        join(
+          ready.project,
+          "effects/standalone/revisions",
+          revisionId,
+          "effect.sniptale-effect.json",
+        ),
+        "utf8",
+      ),
+    );
+    assert.equal(
+      persisted.controls.find((control) => control.id === "accent")
+        .defaultValue,
+      "#e14b50",
+    );
+    assert.equal(await readFile(originalFile, "utf8"), original);
+    await page.locator("#appActionsButton").click();
+    await page.locator("#openStudioRevisionsButton").click();
+    await expect(page.locator("#studioRevisionsDialog")).toBeVisible();
+    await expect(page.locator("#studioRevisionSelect")).toHaveValue(revisionId);
+    await page
+      .locator("#studioRevisionsDialog")
+      .screenshot({ path: join(evidence, "studio-revisions.png") });
+    const [adopted] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/__sniptale/studio/selection") &&
+          response.request().method() === "POST",
+      ),
+      page.locator("#adoptStudioRevisionButton").click(),
+    ]);
+    assert.equal(adopted.status(), 200);
+    await expect(color).toHaveValue("#e14b50");
+    assert.equal(await readFile(originalFile, "utf8"), original);
+    const reopened = await browser.newPage({
+      viewport: { width: 1640, height: 1060 },
+    });
+    await reopened.goto(ready.url, { waitUntil: "domcontentloaded" });
+    await expect(reopened.locator("#packStatus")).toHaveClass(/ready/);
+    await expect(
+      reopened.locator('#controlsPanel [data-css-color-role="value"]'),
+    ).toHaveValue("#e14b50");
     assert.deepEqual(errors, []);
     await writeFile(
       join(evidence, "studio-browser.json"),
-      `${JSON.stringify({ status: "passed", browser: browser.version(), sourceRepositoryRequired: false, testApiAvailable: false, cases: ["catalog", "separate-origins", "render-after-scrub"] }, null, 2)}\n`,
+      `${JSON.stringify({ status: "passed", browser: browser.version(), sourceRepositoryRequired: false, testApiAvailable: false, cases: ["catalog", "separate-origins", "render-after-scrub", "save-revision", "explicit-adoption", "reopen-adopted"] }, null, 2)}\n`,
     );
   } finally {
     await browser.close();

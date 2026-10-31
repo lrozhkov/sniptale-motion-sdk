@@ -1,3 +1,4 @@
+import { parseStudioEffectSelection } from "../../../shared/studio/revision-contract.js";
 import {
   MAX_STUDIO_EFFECTS,
   MAX_STUDIO_SOURCE_BYTES,
@@ -105,7 +106,18 @@ export function parseLocalEffectCatalog(value: unknown): LocalEffectCatalog {
       errors.push(`Local effect discovery entry ${index} is invalid.`);
       continue;
     }
+    const studio =
+      item.studio === undefined
+        ? undefined
+        : parseStudioEffectSelection(item.studio);
+    if (studio === null) {
+      errors.push(
+        `Local effect discovery entry ${index} has invalid Studio metadata.`,
+      );
+      continue;
+    }
     effects.push({
+      ...(studio ? { studio } : {}),
       default: item.default,
       source: item.source,
       sourceName: item.sourceName,

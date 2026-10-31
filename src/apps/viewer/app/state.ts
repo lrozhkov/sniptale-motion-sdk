@@ -1,3 +1,4 @@
+import { createViewerStudioState } from "../studio/state.js";
 import { createViewerAssetState } from "../assets/state.js";
 import { createCanvasTransformState } from "../canvas/transform-state.js";
 import { createPreviewAudioState } from "../playback/audio-state.js";
@@ -22,6 +23,7 @@ import {
 
 export function createViewerState() {
   return {
+    ...createViewerStudioState(),
     ...createCanvasTransformState(),
     ...createPreviewAudioState(),
     ...createViewerTransportState(),

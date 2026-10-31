@@ -20,6 +20,37 @@ export const messages = {
     },
   },
   viewer: {
+    studio: {
+      close: { ru: "Закрыть", en: "Close" },
+      save: { ru: "Сохранить ревизию проекта", en: "Save project revision" },
+      revisions: { ru: "Ревизии проекта", en: "Project revisions" },
+      source: { ru: "Исходный документ", en: "Source document" },
+      document: { ru: "Документ", en: "Document" },
+      adopt: {
+        ru: "Принять выбранный документ",
+        en: "Adopt selected document",
+      },
+      adoptionHelp: {
+        ru: "Выбранный документ будет использован при следующем открытии. Текущие правки останутся в редакторе; исходный файл не перезаписывается.",
+        en: "Adoption selects the document for the next opening. Current changes stay in the editor; the source file is never replaced.",
+      },
+      saved: {
+        ru: "Ревизия сохранена; исходный файл не перезаписан.",
+        en: "Revision saved; the source file was not replaced.",
+      },
+      savedWithSourceChange: {
+        ru: "Исходник изменился. Новая ревизия и внешний исходник сохранены отдельно.",
+        en: "The source changed. The new revision and the external source were preserved separately.",
+      },
+      adopted: {
+        ru: "Выбор сохранён для следующего открытия. Текущие правки оставлены в редакторе.",
+        en: "Selection saved for the next opening. Current editor changes were retained.",
+      },
+      failed: {
+        ru: "Операция проекта не выполнена. Перед повтором проверьте список сохранённых ревизий.",
+        en: "Project operation failed. Check saved revisions before retrying.",
+      },
+    },
     domMotion: {
       loaded: { ru: "HTML-сцены загружены", en: "HTML motion scenes loaded" },
       liveOnly: {

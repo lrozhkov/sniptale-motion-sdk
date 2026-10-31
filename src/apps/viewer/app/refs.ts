@@ -28,6 +28,24 @@ export function createViewerRefs() {
       "#expandTimelineRowsButton",
       "button",
     ),
+    saveStudioRevisionButton: requireHtml(
+      "#saveStudioRevisionButton",
+      "button",
+    ),
+    openStudioRevisionsButton: requireHtml(
+      "#openStudioRevisionsButton",
+      "button",
+    ),
+    adoptStudioRevisionButton: requireHtml(
+      "#adoptStudioRevisionButton",
+      "button",
+    ),
+    closeStudioRevisionsButton: requireHtml(
+      "#closeStudioRevisionsButton",
+      "button",
+    ),
+    studioRevisionsDialog: requireHtml("#studioRevisionsDialog", "dialog"),
+    studioRevisionSelect: requireHtml("#studioRevisionSelect", "select"),
     exportEffectFileButton: requireHtml("#exportEffectFileButton", "button"),
     exportJsonButton: requireHtml("#exportJsonButton", "button"),
     exportMp4Button: requireHtml("#exportMp4Button", "button"),

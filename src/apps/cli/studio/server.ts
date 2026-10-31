@@ -1,3 +1,8 @@
+import {
+  STUDIO_REVISIONS_ROUTE,
+  STUDIO_SELECTION_ROUTE,
+} from "../../../shared/studio/revision-contract.js";
+import { handleStudioRevisionRequest } from "./revision-api.js";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import {
   createServer,
@@ -130,10 +135,6 @@ async function handleRequest(
     send(response, 403, "Forbidden.");
     return;
   }
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    send(response, 405, "Method not allowed.");
-    return;
-  }
   const rawPath = (request.url ?? "/").split("?")[0] ?? "/";
   let path: string;
   try {
@@ -151,7 +152,11 @@ async function handleRequest(
     send(response, 400, "Invalid path.");
     return;
   }
-  if (path === STUDIO_CATALOG_ROUTE) {
+  if (
+    path === STUDIO_CATALOG_ROUTE ||
+    path === STUDIO_REVISIONS_ROUTE ||
+    path === STUDIO_SELECTION_ROUTE
+  ) {
     const supplied = request.headers[STUDIO_SESSION_HEADER];
     if (
       !catalogOrigin ||
@@ -160,6 +165,20 @@ async function handleRequest(
       !timingSafeEqual(Buffer.from(supplied), Buffer.from(token))
     ) {
       send(response, 403, "Forbidden.");
+      return;
+    }
+    if (path !== STUDIO_CATALOG_ROUTE) {
+      await handleStudioRevisionRequest(
+        request,
+        response,
+        path,
+        project,
+        origin,
+      );
+      return;
+    }
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      send(response, 405, "Method not allowed.");
       return;
     }
     if (request.method === "HEAD") {
@@ -172,6 +191,10 @@ async function handleRequest(
       JSON.stringify(await readStudioCatalog(project)),
       "application/json; charset=utf-8",
     );
+    return;
+  }
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    send(response, 405, "Method not allowed.");
     return;
   }
   const name = path === "/" ? "index.html" : path.slice(1);

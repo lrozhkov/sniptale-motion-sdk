@@ -232,6 +232,26 @@
                     Import .effect
                   </button>
                   <button
+                    id="saveStudioRevisionButton"
+                    type="button"
+                    role="menuitem"
+                    hidden
+                    data-i18n="viewer.studio.save"
+                    data-i18n-fallback="Save project revision"
+                  >
+                    Save project revision
+                  </button>
+                  <button
+                    id="openStudioRevisionsButton"
+                    type="button"
+                    role="menuitem"
+                    hidden
+                    data-i18n="viewer.studio.revisions"
+                    data-i18n-fallback="Project revisions"
+                  >
+                    Project revisions
+                  </button>
+                  <button
                     id="exportEffectFileButton"
                     type="button"
                     role="menuitem"
@@ -1353,6 +1373,55 @@
       </div>
     </main>
 
+    <dialog
+      id="studioRevisionsDialog"
+      class="editor-reset-dialog"
+      aria-labelledby="studioRevisionsTitle"
+      aria-describedby="studioRevisionsDescription"
+    >
+      <form method="dialog" class="editor-reset-form">
+        <h2
+          id="studioRevisionsTitle"
+          data-i18n="viewer.studio.revisions"
+          data-i18n-fallback="Project revisions"
+        >
+          Project revisions
+        </h2>
+        <p
+          id="studioRevisionsDescription"
+          data-i18n="viewer.studio.adoptionHelp"
+          data-i18n-fallback="Adoption selects the document for the next opening. Current editor changes stay in the viewer; the source file is never replaced."
+        >
+          Adoption selects the document for the next opening. Current editor
+          changes stay in the viewer; the source file is never replaced.
+        </p>
+        <label
+          ><span
+            data-i18n="viewer.studio.document"
+            data-i18n-fallback="Document"
+            >Document</span
+          ><select id="studioRevisionSelect"></select
+        ></label>
+        <div class="editor-reset-actions">
+          <button
+            id="adoptStudioRevisionButton"
+            type="button"
+            data-i18n="viewer.studio.adopt"
+            data-i18n-fallback="Adopt selected document"
+          >
+            Adopt selected document
+          </button>
+          <button
+            id="closeStudioRevisionsButton"
+            type="button"
+            data-i18n="viewer.studio.close"
+            data-i18n-fallback="Close"
+          >
+            Close
+          </button>
+        </div>
+      </form>
+    </dialog>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
