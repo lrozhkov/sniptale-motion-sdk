@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   PLAYBACK_VIDEO_CACHE_SCHEMA_VERSION,
@@ -44,11 +44,30 @@ describe("viewer persistent playback video cache", () => {
       "cache-key",
     );
 
+    if (!record) throw new Error("Expected a valid browser cache record.");
     expect(record).toMatchObject({
       bytes: blob.size,
       rangeEndFrame: 91,
       rangeStartFrame: 30,
     });
+    const coercion = vi.fn(() => 30);
+    for (const fps of ["30", false, null, Infinity, { valueOf: coercion }]) {
+      expect(
+        normalizePlaybackVideoCacheRecord({ ...record, fps }, "cache-key"),
+      ).toBeNull();
+    }
+    expect(
+      normalizePlaybackVideoCacheRecord(
+        {
+          ...record,
+          segments: [
+            { ...record.segments[0], startFrame: { valueOf: coercion } },
+          ],
+        },
+        "cache-key",
+      ),
+    ).toBeNull();
+    expect(coercion).not.toHaveBeenCalled();
     expect(
       normalizePlaybackVideoCacheRecord(
         { ...record, key: "foreign-key" },

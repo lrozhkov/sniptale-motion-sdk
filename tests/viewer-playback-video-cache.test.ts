@@ -303,6 +303,44 @@ describe("viewer playback video cache", () => {
     expect(video.hidden).toBe(true);
   });
 
+  it("discards a finalized segment after its cache generation was invalidated", async () => {
+    const { bitmap, ctx, encoder, video } = createContext();
+    let finish!: (blob: Blob) => void;
+    let started!: () => void;
+    const finalizing = new Promise<Blob>((resolve) => {
+      finish = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    encoder.finalize.mockImplementationOnce(() => {
+      started();
+      return finalizing;
+    });
+    await capturePlaybackVideoCacheFrame(ctx, {
+      fps: 10,
+      result: { bitmap },
+      time: 0,
+    });
+    const pending = capturePlaybackVideoCacheFrame(ctx, {
+      fps: 10,
+      result: { bitmap },
+      time: 0.1,
+    });
+    await entered;
+    await invalidatePlaybackVideoCache(ctx);
+    ctx.state.previewVideoCache.key = "newer-cache";
+    finish(new Blob(["obsolete-video"]));
+    await expect(pending).resolves.toMatchObject({
+      cancelled: true,
+      captured: true,
+    });
+    expect(ctx.state.previewVideoCache.key).toBe("newer-cache");
+    expect(ctx.state.previewVideoCache.ready).toBe(false);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(video.play).not.toHaveBeenCalled();
+  });
+
   it("continues with the exact frame cache when video encoding fails", async () => {
     const { bitmap, ctx, encoder } = createContext();
     encoder.addFrame.mockRejectedValueOnce(new Error("encoder failed"));

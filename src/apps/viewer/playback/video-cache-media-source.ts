@@ -11,18 +11,21 @@ export async function attachPlaybackVideoCacheSource(
   blobs: Blob[],
   codec: string,
 ): Promise<{ mediaSource: MediaSource | null; url: string }> {
-  if (blobs.length === 0) {
+  const firstBlob = blobs[0];
+  if (!firstBlob) {
     throw new Error("Playback video cache has no segments.");
   }
-  const video = ctx.refs.cachedPreviewVideo as HTMLVideoElement;
+  const video = ctx.refs.cachedPreviewVideo;
   if (blobs.length === 1) {
-    const url = URL.createObjectURL(blobs[0]);
+    const url = URL.createObjectURL(firstBlob);
     video.src = url;
     video.load();
     return { mediaSource: null, url };
   }
   const mimeType =
-    MEDIA_SOURCE_MIME_TYPES[codec as keyof typeof MEDIA_SOURCE_MIME_TYPES];
+    codec === "avc" || codec === "vp8" || codec === "vp9"
+      ? MEDIA_SOURCE_MIME_TYPES[codec]
+      : null;
   if (
     !mimeType ||
     typeof MediaSource === "undefined" ||

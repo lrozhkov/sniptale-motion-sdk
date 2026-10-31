@@ -1,4 +1,4 @@
-import type { PlaybackVideoCacheRange } from "./video-cache-key.js";
+import type { PlaybackVideoCacheRange } from "./video-cache-model.js";
 
 export const PLAYBACK_VIDEO_CACHE_SEGMENT_SECONDS = 2;
 

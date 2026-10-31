@@ -1,3 +1,4 @@
+import { resolveRenderTemplateSnapshot } from "../rendering/model-cache.js";
 import { createViewerRefs } from "./refs.js";
 import { createViewerState } from "./state.js";
 import { viewerAppDependencies } from "./dependencies.js";
@@ -37,6 +38,9 @@ export function createViewerContext(): ViewerAppContext {
     },
     getEffectiveTemplate(template) {
       return getEffectiveTemplate(ctx, template);
+    },
+    getRenderTemplateSnapshot(template) {
+      return resolveRenderTemplateSnapshot(ctx, template);
     },
     getEffectiveTimeline(template) {
       return getEffectiveTimeline(ctx, template);

@@ -1,3 +1,8 @@
+import type { PlaybackVideoCacheState } from "../src/apps/viewer/playback/video-cache-state.js";
+import type {
+  RenderTemplateSnapshot,
+  RenderOptions,
+} from "../src/apps/viewer/rendering/state.js";
 import type { PreviewMediaEntry } from "../src/apps/viewer/preview-media/frame-source.js";
 import type { PreviewMediaSlot } from "../src/apps/viewer/preview-media/model.js";
 import type { PlaybackRunState } from "../src/apps/viewer/playback/state.js";
@@ -25,6 +30,16 @@ describe("viewer state contracts", () => {
       state.currentTemplate,
     ).toEqualTypeOf<EditorTemplateSource | null>();
     expectTypeOf(state.selectedLayers).toEqualTypeOf<string[]>();
+    expectTypeOf(
+      state.previewVideoCache,
+    ).toEqualTypeOf<PlaybackVideoCacheState>();
+    expectTypeOf(
+      state.renderTemplateSnapshot,
+    ).toEqualTypeOf<RenderTemplateSnapshot | null>();
+    expectTypeOf(
+      state.queuedRenderOptions,
+    ).toEqualTypeOf<RenderOptions | null>();
+    expectTypeOf(state.renderIdleWaiters).toEqualTypeOf<(() => void)[]>();
     expectTypeOf(state.previewMediaInputs).toEqualTypeOf<
       Map<PreviewMediaSlot, PreviewMediaEntry>
     >();

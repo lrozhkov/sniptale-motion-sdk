@@ -1,3 +1,4 @@
+import type { RenderOptions } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolveViewerRenderFailureMessage } from "./errors.js";
 import { resolveViewerRenderTimeoutMs } from "./timeouts.js";
@@ -17,7 +18,7 @@ import { beginViewerRenderProfile } from "./render-profile-state.js";
 import { beginDirectLiveRenderProfile } from "./direct-live-policy.js";
 export async function renderCurrentFrame(
   ctx: ViewerAppContext,
-  options: any = {},
+  options: RenderOptions = {},
 ) {
   if (ctx.state.currentTemplate?.domMotion) {
     await ctx.renderDomMotionFrame();

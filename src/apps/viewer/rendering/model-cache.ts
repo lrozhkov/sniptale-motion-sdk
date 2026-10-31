@@ -1,11 +1,15 @@
+import type { ViewerRenderingState } from "./state.js";
+import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-type RenderTemplateSnapshot = {
-  editorOverride: unknown;
-  template: unknown;
-  timelineOverride: unknown;
-  value: any;
+type RenderModelSource = {
+  clips?: unknown;
+  duration?: unknown;
+  layers?: unknown;
+  scenes?: unknown;
+  timeline?: unknown;
 };
+type RenderModelState = Pick<ViewerRenderingState, "sandboxRenderModelId">;
 
 const renderModelIds = new WeakMap<object, string>();
 let renderModelSequence = 0;
@@ -13,14 +17,13 @@ let renderModelSequence = 0;
 export function resolveRenderTemplateSnapshot(
   ctx: ViewerAppContext,
   template: { id: string } | null = ctx.state.currentTemplate,
-): any {
+): EditorTemplate | null {
   if (!template) {
     return null;
   }
   const editorOverride = ctx.state.editorOverrides.get(template.id);
   const timelineOverride = ctx.state.timelineOverrides.get(template.id);
-  const cached = ctx.state
-    .renderTemplateSnapshot as RenderTemplateSnapshot | null;
+  const cached = ctx.state.renderTemplateSnapshot;
   if (
     cached?.template === template &&
     cached.editorOverride === editorOverride &&
@@ -34,13 +37,13 @@ export function resolveRenderTemplateSnapshot(
     template,
     timelineOverride,
     value,
-  } satisfies RenderTemplateSnapshot;
+  };
   return value;
 }
 
 export function createRenderModelEnvelope(
-  state: any,
-  effectiveTemplate: any,
+  state: RenderModelState,
+  effectiveTemplate: RenderModelSource | null | undefined,
 ): Record<string, unknown> {
   if (!effectiveTemplate || typeof effectiveTemplate !== "object") {
     throw new Error("Expected an effective template for rendering.");
@@ -67,7 +70,7 @@ export function createRenderModelEnvelope(
 }
 
 export function commitRenderModelEnvelope(
-  state: any,
+  state: RenderModelState,
   envelope: Record<string, unknown>,
 ): void {
   if (typeof envelope.renderModelId === "string") {
@@ -75,7 +78,7 @@ export function commitRenderModelEnvelope(
   }
 }
 
-export function resetRenderModelCache(state: any): void {
+export function resetRenderModelCache(state: RenderModelState): void {
   state.sandboxRenderModelId = null;
 }
 
@@ -84,7 +87,7 @@ export function installRenderingModelCacheOwner(ctx: ViewerAppContext): void {
     undefined,
     ctx,
   );
-  ctx.createRenderModelEnvelope = (effectiveTemplate: any) =>
+  ctx.createRenderModelEnvelope = (effectiveTemplate: RenderModelSource) =>
     createRenderModelEnvelope(ctx.state, effectiveTemplate);
   ctx.commitRenderModelEnvelope = (envelope: Record<string, unknown>) =>
     commitRenderModelEnvelope(ctx.state, envelope);

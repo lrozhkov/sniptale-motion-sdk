@@ -1,8 +1,14 @@
+export type PlaybackVideoCacheRange = {
+  endFrame: number;
+  endTime: number;
+  startFrame: number;
+  startTime: number;
+};
+
 export const PLAYBACK_VIDEO_CACHE_SCHEMA_VERSION = 2;
 export const PLAYBACK_VIDEO_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 14;
 export const PLAYBACK_VIDEO_CACHE_MAX_BYTES = 512 * 1024 * 1024;
 export const PLAYBACK_VIDEO_CACHE_MAX_RECORDS = 12;
-const PLAYBACK_VIDEO_CACHE_CODECS = new Set(["avc", "vp8", "vp9"]);
 const PLAYBACK_VIDEO_CACHE_MIME_TYPES = new Set(["video/mp4", "video/webm"]);
 
 export type PlaybackVideoCacheCodec = "avc" | "vp8" | "vp9";
@@ -55,18 +61,21 @@ export function normalizePlaybackVideoCacheRecord(
   const width = finiteInteger(value.width);
   const height = finiteInteger(value.height);
   const segments = normalizeSegments(value.segments, value.mimeType);
+  const first = segments?.[0];
+  const last = segments?.at(-1);
+  const createdAt = finiteNumber(value.createdAt);
+  const accessedAt = finiteNumber(value.accessedAt);
   if (
     value.schemaVersion !== PLAYBACK_VIDEO_CACHE_SCHEMA_VERSION ||
     value.key !== expectedKey ||
-    typeof value.codec !== "string" ||
-    !PLAYBACK_VIDEO_CACHE_CODECS.has(value.codec) ||
+    !isPlaybackVideoCacheCodec(value.codec) ||
     typeof value.contentKey !== "string" ||
     value.contentKey === "" ||
     typeof value.mimeType !== "string" ||
     !PLAYBACK_VIDEO_CACHE_MIME_TYPES.has(value.mimeType) ||
     typeof value.templateId !== "string" ||
-    !Number.isFinite(value.createdAt) ||
-    !Number.isFinite(value.accessedAt) ||
+    createdAt === null ||
+    accessedAt === null ||
     rangeStartFrame === null ||
     rangeStartFrame < 0 ||
     rangeEndFrame === null ||
@@ -85,10 +94,12 @@ export function normalizePlaybackVideoCacheRecord(
     height === null ||
     height <= 0 ||
     !segments ||
-    segments[0].startFrame !== rangeStartFrame ||
-    Math.abs(segments[0].startTime - rangeStartTime) >= 0.0001 ||
-    segments.at(-1)?.endFrame !== rangeEndFrame ||
-    Math.abs((segments.at(-1)?.endTime ?? 0) - rangeEndTime) >= 0.0001 ||
+    !first ||
+    !last ||
+    first.startFrame !== rangeStartFrame ||
+    Math.abs(first.startTime - rangeStartTime) >= 0.0001 ||
+    last.endFrame !== rangeEndFrame ||
+    Math.abs(last.endTime - rangeEndTime) >= 0.0001 ||
     !codecMatchesMimeType(value.codec, value.mimeType) ||
     !segmentsAreContiguous(segments)
   ) {
@@ -96,11 +107,11 @@ export function normalizePlaybackVideoCacheRecord(
   }
   const bytes = segments.reduce((total, segment) => total + segment.bytes, 0);
   return {
-    accessedAt: Number(value.accessedAt),
+    accessedAt,
     bytes,
-    codec: value.codec as PlaybackVideoCacheCodec,
+    codec: value.codec,
     contentKey: value.contentKey,
-    createdAt: Number(value.createdAt),
+    createdAt,
     duration,
     fps,
     height,
@@ -129,8 +140,8 @@ function normalizeSegments(
     return null;
   }
   const segments: PlaybackVideoCacheRecordSegment[] = [];
-  for (let index = 0; index < value.length; index += 1) {
-    const item = value[index];
+  const entries: unknown[] = value;
+  for (const [index, item] of entries.entries()) {
     if (!isRecord(item) || !(item.blob instanceof Blob)) {
       return null;
     }
@@ -172,24 +183,32 @@ function normalizeSegments(
 function segmentsAreContiguous(
   segments: PlaybackVideoCacheRecordSegment[],
 ): boolean {
-  return segments.every(
-    (segment, index) =>
-      index === 0 ||
-      (segments[index - 1].endFrame === segment.startFrame &&
-        Math.abs(segments[index - 1].endTime - segment.startTime) < 0.0001),
-  );
+  return segments.every((segment, index) => {
+    if (index === 0) return true;
+    const previous = segments[index - 1];
+    return (
+      previous !== undefined &&
+      previous.endFrame === segment.startFrame &&
+      Math.abs(previous.endTime - segment.startTime) < 0.0001
+    );
+  });
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function finiteNumber(value: unknown): number | null {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function finiteInteger(value: unknown): number | null {
   const number = finiteNumber(value);
   return number !== null && Number.isInteger(number) ? number : null;
+}
+
+function isPlaybackVideoCacheCodec(
+  value: unknown,
+): value is PlaybackVideoCacheCodec {
+  return value === "avc" || value === "vp8" || value === "vp9";
 }

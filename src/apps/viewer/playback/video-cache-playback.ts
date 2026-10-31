@@ -1,3 +1,4 @@
+import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { invalidatePlaybackVideoCache } from "./video-cache-reset.js";
 import { setCachedVideoTime } from "./video-cache-surface.js";
@@ -9,7 +10,7 @@ export function activateCachedVideoPlayback(
   time: number,
 ): void {
   const cache = ctx.state.previewVideoCache;
-  const video = ctx.refs.cachedPreviewVideo as HTMLVideoElement;
+  const video = ctx.refs.cachedPreviewVideo;
   cache.playbackActive = true;
   cache.lastPlaybackTime = resolveCachedVideoTime(cache, time);
   ctx.syncPreviewQualityBadge?.(1);
@@ -26,7 +27,7 @@ export function syncPlaybackVideoCache(
   finished = false,
 ): boolean {
   const cache = ctx.state.previewVideoCache;
-  const video = ctx.refs.cachedPreviewVideo as HTMLVideoElement;
+  const video = ctx.refs.cachedPreviewVideo;
   if (!cache.playbackActive) {
     return false;
   }
@@ -59,7 +60,7 @@ export function stopPlaybackVideoCache(
   discardRecording = true,
 ): void {
   const cache = ctx.state.previewVideoCache;
-  const video = ctx.refs.cachedPreviewVideo as HTMLVideoElement;
+  const video = ctx.refs.cachedPreviewVideo;
   video.pause();
   video.hidden = true;
   cache.playbackActive = false;
@@ -78,7 +79,13 @@ export function hidePlaybackVideoCacheSurface(ctx: ViewerAppContext): void {
   }
 }
 
-function resolveCachedVideoTime(cache, time: number): number {
+function resolveCachedVideoTime(
+  cache: Pick<
+    PlaybackVideoCacheState,
+    "rangeStartTime" | "rangeEndTime" | "duration"
+  >,
+  time: number,
+): number {
   const rangeStart = Math.max(0, Number(cache.rangeStartTime) || 0);
   const rangeEnd = Math.max(
     rangeStart,

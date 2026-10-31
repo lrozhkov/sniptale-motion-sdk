@@ -1,15 +1,10 @@
+import type { PlaybackVideoCacheRange } from "./video-cache-model.js";
+export type { PlaybackVideoCacheRange } from "./video-cache-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolvePreviewCacheFrameRange } from "./cache-range.js";
 
 const FULL_HD_PIXELS = 1920 * 1080;
 const PLAYBACK_VIDEO_CACHE_KEY_VERSION = 3;
-
-export type PlaybackVideoCacheRange = {
-  endFrame: number;
-  endTime: number;
-  startFrame: number;
-  startTime: number;
-};
 
 export function isPlaybackVideoCacheEligible(
   ctx: ViewerAppContext,

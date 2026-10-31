@@ -1,6 +1,10 @@
+import type { RenderOptions } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-export function mergeQueuedRenderOptions(current, next) {
+export function mergeQueuedRenderOptions(
+  current: RenderOptions | null | undefined,
+  next: RenderOptions | null | undefined,
+): RenderOptions {
   if (current?.forceFull || next?.forceFull) {
     return { forceFull: true };
   }
@@ -10,16 +14,20 @@ export function mergeQueuedRenderOptions(current, next) {
   };
 }
 
-export function waitForRenderIdle(ctx: ViewerAppContext) {
+export function waitForRenderIdle(
+  ctx: Pick<ViewerAppContext, "state">,
+): Promise<void> {
   if (!ctx.state.renderInFlight && !ctx.state.renderQueued) {
     return Promise.resolve();
   }
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     ctx.state.renderIdleWaiters.push(resolve);
   });
 }
 
-export function resolveRenderIdleWaiters(ctx: ViewerAppContext) {
+export function resolveRenderIdleWaiters(
+  ctx: Pick<ViewerAppContext, "state">,
+): void {
   if (
     ctx.state.renderInFlight ||
     ctx.state.renderQueued ||

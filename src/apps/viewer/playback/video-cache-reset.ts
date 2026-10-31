@@ -1,13 +1,13 @@
+import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { cancelPreviewCacheWarm } from "./cache-warm.js";
-import type { PlaybackVideoCacheEncoder } from "./video-cache-encoder.js";
 
 export async function invalidatePlaybackVideoCache(
   ctx: ViewerAppContext,
 ): Promise<void> {
   const cache = ctx.state.previewVideoCache;
-  const encoder = cache.encoder as PlaybackVideoCacheEncoder | null;
-  const pendingCancellation = cache.cancelPromise as Promise<unknown> | null;
+  const encoder = cache.encoder;
+  const pendingCancellation = cache.cancelPromise;
   const url = cache.url;
   const cancellation =
     encoder || pendingCancellation
@@ -23,7 +23,7 @@ export async function invalidatePlaybackVideoCache(
   if (url) {
     URL.revokeObjectURL(url);
   }
-  const video = ctx.refs.cachedPreviewVideo as HTMLVideoElement;
+  const video = ctx.refs.cachedPreviewVideo;
   video.pause();
   video.removeAttribute("src");
   video.load();
@@ -63,7 +63,7 @@ export async function invalidatePlaybackVideoCache(
     url: null,
     width: 0,
     height: 0,
-  });
+  } satisfies Partial<PlaybackVideoCacheState>);
   cancelPreviewCacheWarm(ctx.state);
   ctx.state.previewCacheWarmPrepared = false;
   ctx.state.previewFrameCacheBytes = 0;

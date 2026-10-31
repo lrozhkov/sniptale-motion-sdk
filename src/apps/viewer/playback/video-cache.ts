@@ -1,3 +1,5 @@
+import type { PlaybackVideoCacheState } from "./video-cache-state.js";
+import type { PlaybackVideoCacheMode } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { fallBackToExactFrameCache } from "./video-cache-fallback.js";
 import {
@@ -29,16 +31,13 @@ export {
 } from "./video-cache-playback.js";
 export { capturePlaybackVideoCacheFrame } from "./video-cache-recording.js";
 
-type PlaybackVideoCacheMode = "playback" | "recording" | "unavailable";
-
 const MIN_VIDEO_CACHE_FPS = 6;
 
 export function beginPlaybackVideoCache(
   ctx: ViewerAppContext,
 ): Promise<PlaybackVideoCacheMode> {
   const cache = ctx.state.previewVideoCache;
-  const activePreparation =
-    cache.preparePromise as Promise<PlaybackVideoCacheMode> | null;
+  const activePreparation = cache.preparePromise;
   if (activePreparation) {
     return activePreparation;
   }
@@ -58,7 +57,7 @@ async function preparePlaybackVideoCache(
   ctx: ViewerAppContext,
 ): Promise<PlaybackVideoCacheMode> {
   const template = ctx.state.currentTemplate;
-  if (!isPlaybackVideoCacheEligible(ctx, template)) {
+  if (!template || !isPlaybackVideoCacheEligible(ctx, template)) {
     return "unavailable";
   }
   const cache = ctx.state.previewVideoCache;
@@ -154,7 +153,7 @@ async function preparePlaybackVideoCache(
     segmentPlan,
     storageKey,
     width: rasterSize.width,
-  });
+  } satisfies Partial<PlaybackVideoCacheState>);
   const restored = await restorePersistentPlaybackVideoCache(
     ctx,
     identity,

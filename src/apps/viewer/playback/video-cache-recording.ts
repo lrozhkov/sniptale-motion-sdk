@@ -1,3 +1,5 @@
+import type { PreviewCacheWarmStep } from "./cache-warm.js";
+import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import type { PlaybackVideoCacheEncoder } from "./video-cache-encoder.js";
 import { fallBackToExactFrameCache } from "./video-cache-fallback.js";
@@ -15,7 +17,7 @@ export async function capturePlaybackVideoCacheFrame(
   options: { fps: number; result: any; time: number },
 ) {
   const cache = ctx.state.previewVideoCache;
-  const encoder = cache.encoder as PlaybackVideoCacheEncoder | null;
+  const encoder = cache.encoder;
   if (!cache.recording || !encoder) {
     return null;
   }
@@ -77,9 +79,14 @@ export async function capturePlaybackVideoCacheFrame(
         await fallBackToExactFrameCache(ctx, cache.key);
         return { failed: true };
       }
+      const nextIndex = cache.pendingSegmentIndexes[cache.pendingSegmentCursor];
+      if (nextIndex === undefined) {
+        await nextEncoder.cancel();
+        await fallBackToExactFrameCache(ctx, cache.key);
+        return { failed: true };
+      }
       cache.encoder = nextEncoder;
-      cache.segmentIndex =
-        cache.pendingSegmentIndexes[cache.pendingSegmentCursor];
+      cache.segmentIndex = nextIndex;
       return { ...step, captured: true };
     }
     return await finalizeSegmentedPlaybackCache(ctx, step, generation);
@@ -90,7 +97,7 @@ export async function capturePlaybackVideoCacheFrame(
 }
 
 async function createNextSegmentEncoder(
-  cache,
+  cache: PlaybackVideoCacheState,
 ): Promise<PlaybackVideoCacheEncoder | null> {
   const { createPlaybackVideoCacheEncoder } =
     await import("./video-cache-encoder.js");
@@ -109,19 +116,23 @@ async function createNextSegmentEncoder(
 
 async function finalizeSegmentedPlaybackCache(
   ctx: ViewerAppContext,
-  step,
+  step: PreviewCacheWarmStep,
   generation: number,
 ) {
   const cache = ctx.state.previewVideoCache;
   cache.recording = false;
   cache.finalizing = true;
-  const segments = cache.segmentPlan.map(
-    (segment: PlaybackVideoCacheSegment) => ({
-      ...segment,
-      blob: cache.segmentBlobs[segment.index],
-    }),
-  ) as PlaybackVideoCacheSegmentBlob[];
-  if (segments.some((segment) => !(segment.blob instanceof Blob))) {
+  const segments: PlaybackVideoCacheSegmentBlob[] = [];
+  for (const segment of cache.segmentPlan) {
+    const blob = cache.segmentBlobs[segment.index];
+    if (!(blob instanceof Blob)) {
+      await fallBackToExactFrameCache(ctx, cache.key);
+      return { failed: true };
+    }
+    segments.push({ ...segment, blob });
+  }
+  const first = segments[0];
+  if (!first || !cache.codec) {
     await fallBackToExactFrameCache(ctx, cache.key);
     return { failed: true };
   }
@@ -145,10 +156,10 @@ async function finalizeSegmentedPlaybackCache(
     encoder: null,
     finalizing: false,
     mediaSource: source.mediaSource,
-    mimeType: segments[0].blob.type || null,
+    mimeType: first.blob.type || null,
     ready: true,
     url: source.url,
-  });
+  } satisfies Partial<PlaybackVideoCacheState>);
   ctx.state.previewCacheWarmActive = false;
   ctx.state.previewCacheWarmPrepared = true;
   ctx.state.previewFrameCacheBytes = bytes;
@@ -174,7 +185,7 @@ async function finalizeSegmentedPlaybackCache(
 }
 
 function resolveActiveSegment(
-  cache,
+  cache: PlaybackVideoCacheState,
   frameIndex: number,
   fps: number,
 ): PlaybackVideoCacheSegment {

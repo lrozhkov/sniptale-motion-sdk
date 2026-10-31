@@ -20,6 +20,9 @@ export interface ViewerAppContext {
   setEditorOverride(patch: unknown): void;
   getEffectiveDuration(template?: unknown): number;
   getEffectiveTemplate(template?: unknown): EditorTemplate | null;
+  getRenderTemplateSnapshot(
+    template?: { id: string } | null,
+  ): EditorTemplate | null;
   getEffectiveTimeline(template?: EditorTimelineSource | null): EditorTimeline;
   [viewerAction: string]: any;
 }

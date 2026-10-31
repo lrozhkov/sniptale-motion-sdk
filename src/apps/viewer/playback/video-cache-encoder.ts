@@ -65,7 +65,7 @@ export async function createPlaybackVideoCacheEncoder(options: {
   const candidate = await resolvePlaybackCacheCodec({
     bitrate,
     height: options.height,
-    preferredCodec: options.preferredCodec,
+    preferredCodec: options.preferredCodec ?? null,
     width: options.width,
   });
   if (!candidate) {

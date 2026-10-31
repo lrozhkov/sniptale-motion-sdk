@@ -1,9 +1,27 @@
+import type { PreviewCacheWarmStep } from "./cache-warm.js";
+import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import { beginPreviewCacheWarm } from "./cache-warm.js";
 import type { PlaybackVideoCacheSegment } from "./video-cache-segments.js";
 
+type SegmentWarmState = {
+  previewCacheWarmActive?: boolean;
+  previewCacheWarmRenderTime?: number;
+  previewCacheWarmStartTime?: number;
+  previewCacheWarmTargetFrames?: number;
+  previewCacheWarmVisitedFrames?: number;
+  previewCacheWarmPrepared?: boolean;
+  previewCacheWarmCapacityLimited?: boolean;
+};
+type SegmentWarmCache = Partial<
+  Pick<
+    PlaybackVideoCacheState,
+    "pendingSegmentCursor" | "pendingSegmentIndexes" | "segmentIndex"
+  >
+>;
+
 export function beginPlaybackVideoSegmentWarm(
-  state: any,
-  cache: any,
+  state: SegmentWarmState,
+  cache: SegmentWarmCache,
   options: {
     currentTime: number;
     duration: number;
@@ -13,9 +31,20 @@ export function beginPlaybackVideoSegmentWarm(
   },
 ): boolean {
   const pending = [...options.pendingSegmentIndexes];
-  if (pending.length === 0) {
-    return false;
+  const selected: PlaybackVideoCacheSegment[] = [];
+  for (const index of pending) {
+    const segment = Number.isInteger(index)
+      ? options.segments[index]
+      : undefined;
+    if (!segment) return false;
+    selected.push(segment);
   }
+  const firstIndex = pending[0];
+  const first = selected[0];
+  const rangeStart = options.segments[0];
+  const rangeEnd = options.segments.at(-1);
+  if (firstIndex === undefined || !first || !rangeStart || !rangeEnd)
+    return false;
   beginPreviewCacheWarm(
     state,
     {
@@ -23,49 +52,45 @@ export function beginPlaybackVideoSegmentWarm(
       duration: options.duration,
       fps: options.fps,
       range: {
-        end: options.segments.at(-1)?.endTime,
-        start: options.segments[0]?.startTime,
+        end: rangeEnd.endTime,
+        start: rangeStart.startTime,
       },
     },
     true,
   );
   cache.pendingSegmentCursor = 0;
   cache.pendingSegmentIndexes = pending;
-  cache.segmentIndex = pending[0];
-  const first = options.segments[pending[0]];
+  cache.segmentIndex = firstIndex;
   state.previewCacheWarmRenderTime = first.startFrame / options.fps;
   state.previewCacheWarmStartTime = state.previewCacheWarmRenderTime;
-  state.previewCacheWarmTargetFrames = pending.reduce(
-    (total, index) =>
-      total +
-      Math.max(
-        0,
-        options.segments[index].endFrame - options.segments[index].startFrame,
-      ),
+  state.previewCacheWarmTargetFrames = selected.reduce(
+    (total, segment) =>
+      total + Math.max(0, segment.endFrame - segment.startFrame),
     0,
   );
   return true;
 }
 
 export function advancePlaybackVideoSegmentWarm(
-  state: any,
-  cache: any,
+  state: SegmentWarmState,
+  cache: SegmentWarmCache,
   options: {
     currentFrame: number;
     fps: number;
     segments: PlaybackVideoCacheSegment[];
   },
-) {
+): PreviewCacheWarmStep | null {
   if (!state.previewCacheWarmActive) {
     return null;
   }
   const pending = Array.isArray(cache.pendingSegmentIndexes)
-    ? (cache.pendingSegmentIndexes as number[])
+    ? cache.pendingSegmentIndexes
     : options.segments.map((segment) => segment.index);
   cache.pendingSegmentIndexes = pending;
   const cursor = Math.max(0, Number(cache.pendingSegmentCursor) || 0);
   const segmentIndex = pending[cursor];
-  const segment = options.segments[segmentIndex];
+  const segment =
+    segmentIndex === undefined ? undefined : options.segments[segmentIndex];
   if (!segment) {
     state.previewCacheWarmActive = false;
     state.previewCacheWarmPrepared = false;
@@ -90,14 +115,18 @@ export function advancePlaybackVideoSegmentWarm(
     state.previewCacheWarmActive = false;
     state.previewCacheWarmCapacityLimited = false;
     state.previewCacheWarmPrepared = true;
-    state.previewCacheWarmRenderTime = state.previewCacheWarmStartTime;
-    return {
-      finished: true,
-      prepared: true,
-      time: state.previewCacheWarmStartTime,
-    };
+    const startTime = Number(state.previewCacheWarmStartTime) || 0;
+    state.previewCacheWarmRenderTime = startTime;
+    return { finished: true, prepared: true, time: startTime };
   }
-  const nextSegment = options.segments[pending[nextCursor]];
+  const nextIndex = pending[nextCursor];
+  const nextSegment =
+    nextIndex === undefined ? undefined : options.segments[nextIndex];
+  if (!nextSegment) {
+    state.previewCacheWarmActive = false;
+    state.previewCacheWarmPrepared = false;
+    return null;
+  }
   const time = nextSegment.startFrame / options.fps;
   state.previewCacheWarmRenderTime = time;
   return { finished: false, prepared: false, time };

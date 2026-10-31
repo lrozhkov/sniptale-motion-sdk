@@ -1,3 +1,5 @@
+import type { PlaybackVideoCacheRecordSegment } from "./video-cache-model.js";
+import type { PlaybackVideoCacheState } from "./video-cache-state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   PLAYBACK_VIDEO_CACHE_MAX_BYTES,
@@ -65,11 +67,12 @@ export async function restorePersistentPlaybackVideoCache(
     ) {
       return { mode: "miss" };
     }
-    const reusable = identity.segments.map((segment, index) =>
-      recordSegmentMatches(record.segments[index], segment)
-        ? record.segments[index].blob
-        : null,
-    );
+    const reusable = identity.segments.map((segment, index) => {
+      const stored = record.segments[index];
+      return stored && recordSegmentMatches(stored, segment)
+        ? stored.blob
+        : null;
+    });
     const pendingSegmentIndexes = reusable
       .map((blob, index) => (blob ? -1 : index))
       .filter((index) => index >= 0);
@@ -95,7 +98,7 @@ export async function restorePersistentPlaybackVideoCache(
           segmentBlobs: reusable,
           segmentPlan: identity.segments,
           storageKey: identity.key,
-        });
+        } satisfies Partial<PlaybackVideoCacheState>);
         ctx.syncPlaybackCacheButton?.();
         ctx.syncPreviewQualityBadge?.(1);
       }
@@ -156,7 +159,7 @@ export async function restorePersistentPlaybackVideoCache(
       url: source.url,
       width: record.width,
       height: record.height,
-    });
+    } satisfies Partial<PlaybackVideoCacheState>);
     ctx.state.previewCacheWarmActive = false;
     ctx.state.previewCacheWarmPrepared = true;
     ctx.state.previewCacheWarmTargetFrames = 0;
@@ -194,6 +197,7 @@ export function persistPlaybackVideoCache(
   const key = cache.key;
   const storageKey = cache.storageKey;
   const codec = cache.codec;
+  const first = segments[0];
   const bytes = segments.reduce(
     (total, segment) => total + segment.blob.size,
     0,
@@ -203,7 +207,7 @@ export function persistPlaybackVideoCache(
     !key ||
     !storageKey ||
     (codec !== "avc" && codec !== "vp8" && codec !== "vp9") ||
-    segments.length === 0 ||
+    !first ||
     bytes <= 0
   ) {
     return;
@@ -229,7 +233,7 @@ export function persistPlaybackVideoCache(
     fps: Math.max(1, Number(cache.fps) || 30),
     height: Math.max(1, Number(cache.height) || 1),
     key: storageKey,
-    mimeType: segments[0].blob.type || "video/mp4",
+    mimeType: first.blob.type || "video/mp4",
     rangeEndFrame: Math.max(
       rangeStartFrame + 1,
       Number(cache.rangeEndFrame) || rangeStartFrame + 1,
@@ -278,7 +282,7 @@ export function persistPlaybackVideoCache(
 }
 
 function recordSegmentMatches(
-  record,
+  record: PlaybackVideoCacheRecordSegment | undefined,
   expected: PlaybackVideoCacheSegment,
 ): boolean {
   return Boolean(

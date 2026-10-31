@@ -1,3 +1,4 @@
+import { createViewerState } from "../src/apps/viewer/app/state.js";
 import { describe, expect, it } from "vitest";
 
 import { createPlaybackVideoCacheSegmentPlan } from "../src/apps/viewer/playback/video-cache-segments";
@@ -65,6 +66,30 @@ describe("viewer playback video cache segments", () => {
       },
     ]);
   });
+
+  it.each([[-1], [0.5], [2], [0, 2]])(
+    "rejects an invalid pending plan before warming: %j",
+    (...pending) => {
+      const state = createViewerState();
+      const cache = state.previewVideoCache;
+      const before = structuredClone(cache);
+      const segments = createPlaybackVideoCacheSegmentPlan(
+        { startFrame: 0, endFrame: 8, startTime: 0, endTime: 1 },
+        8,
+      );
+      expect(
+        beginPlaybackVideoSegmentWarm(state, cache, {
+          currentTime: 0,
+          duration: 1,
+          fps: 8,
+          pendingSegmentIndexes: pending,
+          segments,
+        }),
+      ).toBe(false);
+      expect(cache).toEqual(before);
+      expect(state.previewCacheWarmActive).toBe(false);
+    },
+  );
 
   it("skips reusable middle segments during partial regeneration", () => {
     const segments = createPlaybackVideoCacheSegmentPlan(
