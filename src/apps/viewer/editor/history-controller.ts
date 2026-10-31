@@ -106,9 +106,9 @@ function restoreEditorSnapshotData(ctx: ViewerAppContext, snapshot): boolean {
 }
 
 async function undoEditorEdit(ctx: ViewerAppContext) {
-  if (ctx.state.editorHistoryBusy || ctx.state.historyPast.length === 0) {
-    return false;
-  }
+  if (ctx.state.editorHistoryBusy) return false;
+  ctx.state.pointerDragCleanup?.();
+  if (ctx.state.historyPast.length === 0) return false;
   const current = ctx.captureEditorSnapshot("redo-base");
   const snapshot = ctx.state.historyPast.pop();
   ctx.state.editorHistoryBusy = true;
@@ -130,9 +130,9 @@ async function undoEditorEdit(ctx: ViewerAppContext) {
 }
 
 async function redoEditorEdit(ctx: ViewerAppContext) {
-  if (ctx.state.editorHistoryBusy || ctx.state.historyFuture.length === 0) {
-    return false;
-  }
+  if (ctx.state.editorHistoryBusy) return false;
+  ctx.state.pointerDragCleanup?.();
+  if (ctx.state.historyFuture.length === 0) return false;
   const current = ctx.captureEditorSnapshot("undo-base");
   const snapshot = ctx.state.historyFuture.pop();
   ctx.state.editorHistoryBusy = true;

@@ -7,6 +7,8 @@ import type {
 import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
 import type { EditorTimeline } from "../../editor/model-types.js";
 
+export type TimelineRangeEditMode = "move" | "start" | "end";
+
 export type TimelineWindow = {
   start: number;
   end: number;

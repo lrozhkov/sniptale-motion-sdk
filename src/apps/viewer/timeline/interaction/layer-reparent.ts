@@ -1,14 +1,58 @@
 import type { ViewerAppContext } from "../../app/context.js";
-import { getLayerLeafIds } from "../../layers/hierarchy.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { TimelineLayerGestureActions } from "./pointer-contract.js";
+import {
+  createLayerHierarchyIndex,
+  normalizeLayerSelectionRoots,
+  getLayerLeafIds,
+} from "../../layers/hierarchy.js";
 import {
   type LayerReparentPosition,
+  type LayerReparentResult,
   reparentLayerSelection,
 } from "../../layers/reparent.js";
 
+type LayerReparentContext = Pick<
+  ViewerAppContext,
+  | "bindPointerDrag"
+  | "getEffectiveTemplate"
+  | "setEditorOverride"
+  | "logDiagnostic"
+> & {
+  state: Pick<
+    ViewerAppContext["state"],
+    | "currentTemplate"
+    | "selectedLayers"
+    | "dragMoved"
+    | "editorOverrides"
+    | "timelineOverrides"
+    | "pointerDragCleanup"
+  >;
+  deps: Pick<ViewerAppContext["deps"], "t">;
+  beginTimelineLayerReparent: TimelineLayerGestureActions["beginTimelineLayerReparent"];
+  selectLayer(id: string): void;
+  beginEditorCommand(command: {
+    type: "reparentLayers";
+    payload: {
+      layerIds: string[];
+      position: LayerReparentPosition;
+      targetLayerId: string;
+    };
+  }): void;
+  setSelectedLayers(
+    ids: string[],
+    template: NonNullable<ReturnType<ViewerAppContext["getEffectiveTemplate"]>>,
+  ): void;
+  renderTimelineEditor(
+    source: ViewerAppContext["state"]["currentTemplate"],
+  ): void;
+  renderCurrentFrame(): Promise<unknown>;
+};
+
 function appendTimelineLayerDragGrip(
-  ctx: ViewerAppContext,
-  label,
-  layerId,
+  ctx: LayerReparentContext,
+  label: HTMLElement,
+  layerId: string,
 ): void {
   const grip = document.createElement("button");
   grip.type = "button";
@@ -24,17 +68,25 @@ function appendTimelineLayerDragGrip(
   label.append(grip);
 }
 
-function beginTimelineLayerReparent(ctx: ViewerAppContext, event, layerId) {
+function beginTimelineLayerReparent(
+  ctx: LayerReparentContext,
+  event: PointerEvent,
+  layerId: string,
+) {
   if (event.button !== 0) {
     return false;
   }
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
+  const source = ctx.state.currentTemplate;
+  const target = event.currentTarget;
+  if (!source || !(target instanceof HTMLElement)) return false;
+  ctx.state.pointerDragCleanup?.();
+  const template = ctx.getEffectiveTemplate(source);
   if (!template) {
     return false;
   }
-  const hierarchy = ctx.getLayerHierarchy(template);
+  const hierarchy = createLayerHierarchyIndex(template.layers);
   const movingRootIds = ctx.state.selectedLayers.includes(layerId)
-    ? ctx.getSelectedLayerRootIds(template)
+    ? normalizeLayerSelectionRoots(hierarchy, ctx.state.selectedLayers)
     : [layerId];
   const movingLeafIds = getLayerLeafIds(hierarchy, movingRootIds);
   if (
@@ -56,9 +108,16 @@ function beginTimelineLayerReparent(ctx: ViewerAppContext, event, layerId) {
   }
   const start = { x: event.clientX, y: event.clientY };
   let dropTarget: HTMLElement | null = null;
-  let dropPlan: any = null;
+  let dropPlan: LayerReparentResult | null = null;
+  const editorRevision = ctx.state.editorOverrides.get(source.id);
+  const timelineRevision = ctx.state.timelineOverrides.get(source.id);
+  const isCurrent = () =>
+    ctx.state.currentTemplate === source &&
+    ctx.state.editorOverrides.get(source.id) === editorRevision &&
+    ctx.state.timelineOverrides.get(source.id) === timelineRevision;
   let dropPosition: LayerReparentPosition | null = null;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
+    if (!isCurrent()) return;
     if (
       !ctx.state.dragMoved &&
       Math.abs(moveEvent.clientX - start.x) +
@@ -69,14 +128,15 @@ function beginTimelineLayerReparent(ctx: ViewerAppContext, event, layerId) {
     }
     ctx.state.dragMoved = true;
     clearLayerDropTarget(dropTarget);
-    dropTarget =
+    const candidate =
       document
         .elementFromPoint(moveEvent.clientX, moveEvent.clientY)
         ?.closest<HTMLElement>(".layer-lane[data-layer-id]") ?? null;
+    dropTarget = candidate instanceof HTMLElement ? candidate : null;
     dropPosition = dropTarget
       ? getLayerDropPosition(dropTarget, moveEvent.clientY)
       : null;
-    if (!dropTarget || !dropPosition) {
+    if (!dropTarget?.dataset.layerId || !dropPosition) {
       dropPlan = null;
       return;
     }
@@ -92,9 +152,16 @@ function beginTimelineLayerReparent(ctx: ViewerAppContext, event, layerId) {
       dropTarget.classList.add("drop-invalid");
     }
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+  ctx.bindPointerDrag(event.pointerId, target, onMove, (endEvent) => {
     clearLayerDropTarget(dropTarget);
-    if (!ctx.state.dragMoved || !dropPlan?.ok || !dropPosition || !dropTarget) {
+    if (
+      endEvent.type === "pointercancel" ||
+      !isCurrent() ||
+      !ctx.state.dragMoved ||
+      !dropPlan?.ok ||
+      !dropPosition ||
+      !dropTarget?.dataset.layerId
+    ) {
       return;
     }
     ctx.beginEditorCommand({
@@ -137,13 +204,17 @@ function clearLayerDropTarget(target: HTMLElement | null): void {
   );
 }
 
-export function installTimelineLayerReparentOwner(ctx: ViewerAppContext): void {
-  ctx.appendTimelineLayerDragGrip = appendTimelineLayerDragGrip.bind(
-    undefined,
-    ctx,
-  );
-  ctx.beginTimelineLayerReparent = beginTimelineLayerReparent.bind(
-    undefined,
-    ctx,
-  );
+export function createTimelineLayerReparentActions(
+  getContext: () => LayerReparentContext,
+): TimelineLayerGestureActions {
+  return {
+    appendTimelineLayerDragGrip: bindViewerAction(
+      appendTimelineLayerDragGrip,
+      getContext,
+    ),
+    beginTimelineLayerReparent: bindViewerAction(
+      beginTimelineLayerReparent,
+      getContext,
+    ),
+  };
 }

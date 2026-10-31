@@ -1,3 +1,4 @@
+import { createViewerInteractionState } from "../src/apps/viewer/app/interaction-state.js";
 import { describe, expect, it, vi } from "vitest";
 import type { ViewerAppContext } from "../src/apps/viewer/app/context";
 import { selectTemplate } from "../src/apps/viewer/templates/selection";
@@ -7,7 +8,10 @@ import { readEditorTemplateSource } from "../src/apps/viewer/templates/source";
 function fixture() {
   const current = readEditorTemplateSource({ id: "current", duration: 1 });
   const next = readEditorTemplateSource({ id: "next", duration: 1 });
-  const state = createViewerTemplateState();
+  const state = {
+    ...createViewerTemplateState(),
+    ...createViewerInteractionState(),
+  };
   state.currentTemplate = current;
   state.templates = [current, next];
   const flush = vi.fn(async () => {});
@@ -34,6 +38,24 @@ describe("template selection authority after draft flush", () => {
     expect(beforeReset).not.toHaveBeenCalled();
     expect(state.currentTemplate).toBe(current);
     expect(state.templateSelectionPending).toBe(false);
+  });
+
+  it("finishes the active gesture before flushing the old document draft", async () => {
+    const { ctx, state, flush, current } = fixture();
+    let finalGesture = 0;
+    const cancel = vi.fn(() => {
+      finalGesture = 1;
+      state.pointerDragCleanup = null;
+    });
+    state.pointerDragCleanup = cancel;
+    flush.mockImplementation(async () => {
+      expect(finalGesture).toBe(1);
+    });
+    expect(await selectTemplate(ctx, "next", { canSelect: () => false })).toBe(
+      false,
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(state.currentTemplate).toBe(current);
   });
 
   it("rejects an older selection without releasing the newer selection's lock", async () => {

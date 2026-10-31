@@ -75,7 +75,7 @@ function beginGraphKeyframeDrag(
   if (!startPointer) return;
   const startValue = originalValues.get(keyframeRefKey(primary)) ?? 0;
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent: PointerEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pointer = mapPointer(moveEvent);
     if (!pointer) return;
     const desiredTime = ctx.snapTime(graphXToTime(pointer.x, model.viewport));

@@ -149,6 +149,7 @@ export async function selectTemplate(
   ctx.state.templateSelectionGeneration = generation;
   ctx.state.templateSelectionPending = true;
   try {
+    ctx.state.pointerDragCleanup?.();
     if (ctx.state.currentTemplate) {
       ctx.captureCompositionWorkspaceView?.();
       await ctx.flushEditorDraft?.();

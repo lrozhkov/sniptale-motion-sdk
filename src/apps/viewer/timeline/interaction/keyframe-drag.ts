@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { TimelinePointerActions } from "./pointer-contract.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { createTimelineDragPreview } from "./drag-preview.js";
 import {
@@ -17,6 +19,7 @@ function beginKeyframeDrag(
   }
   const target = event.currentTarget;
   if (!(target instanceof HTMLElement) || !target.parentElement) return;
+  ctx.state.pointerDragCleanup?.();
   event.preventDefault();
   event.stopPropagation();
   ctx.prepareKeyframeSelectionForPointer(event, trackId, keyframeId);
@@ -67,7 +70,7 @@ function beginKeyframeDrag(
     return;
   }
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent: PointerEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     const rawDelta = ctx.timelineDeltaFromPixels(pointerDelta, rect, template);
     const primary = snapshot.entries.at(-1);
@@ -131,8 +134,8 @@ function beginKeyframeDrag(
   );
 }
 
-export function installInteractionKeyframeDragOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginKeyframeDrag = beginKeyframeDrag.bind(undefined, ctx);
+export function createKeyframeDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<TimelinePointerActions, "beginKeyframeDrag"> {
+  return { beginKeyframeDrag: bindViewerAction(beginKeyframeDrag, getContext) };
 }

@@ -11,12 +11,6 @@ import { installInspectorMotionPathPointOwner } from "../inspector/motion-path-p
 import { installInspectorLayerPropertiesOwner } from "../inspector/layer-properties.js";
 import { installInspectorLayerSelectionOwner } from "../inspector/layer-selection.js";
 import { installInspectorTimingOwner } from "../inspector/timing.js";
-import { installInteractionPhaseSceneDragOwner } from "../timeline/interaction/phase-scene-drag.js";
-import { installInteractionClipDragOwner } from "../timeline/interaction/clip-drag.js";
-import { installInteractionTrackDragOwner } from "../timeline/interaction/track-drag.js";
-import { installInteractionKeyframeSegmentDragOwner } from "../timeline/interaction/keyframe-segment-drag.js";
-import { installInteractionKeyframeDragOwner } from "../timeline/interaction/keyframe-drag.js";
-import { installTimelineLayerReparentOwner } from "../timeline/interaction/layer-reparent.js";
 import { installCanvasSelectionGeometryOwner } from "../canvas/selection-geometry.js";
 import { installCanvasTransformHandlesOwner } from "../canvas/transform-handles.js";
 import { installCanvasSelectionTargetOwner } from "../canvas/selection-target.js";
@@ -43,8 +37,6 @@ import { installCanvasSelectionLevelOwner } from "../canvas/selection-level.js";
 import { installCanvasIsolationBreadcrumbOwner } from "../canvas/isolation-breadcrumb.js";
 import { installCanvasMarqueeOwner } from "../canvas/marquee.js";
 import { installTimelineNavigationOwners } from "../timeline/navigation/install.js";
-import { installInteractionMarqueeOwner } from "../timeline/interaction/marquee.js";
-import { installTimelinePlaybackRangeOwner } from "../timeline/interaction/playback-range.js";
 import { installLayersFactoryOwner } from "../layers/factory.js";
 import { installLayersClipboardOwner } from "../layers/clipboard.js";
 import { installLayersOrderOwner } from "../layers/order.js";
@@ -100,7 +92,6 @@ import { installRenderingRasterSizeOwner } from "../rendering/raster-size.js";
 import { installRenderingModelCacheOwner } from "../rendering/model-cache.js";
 import { installAppMiscOwner } from "./misc.js";
 import { installLayersOperationsOwner } from "../layers/operations.js";
-import { installInteractionDragOwner } from "../timeline/interaction/drag.js";
 import { installInspectorOverviewOwner } from "../inspector/overview.js";
 import { installInspectorLayerOverviewOwner } from "../inspector/layer-overview.js";
 import { installInspectorContextHeaderOwner } from "../inspector/context-header.js";
@@ -108,7 +99,6 @@ import { installInspectorEffectOverviewOwner } from "../inspector/effect-overvie
 import { installInspectorFieldsOwner } from "../inspector/fields.js";
 import { installPanelsValidationOwner } from "../panels/validation.js";
 import { installAppDiagnosticsOwner } from "./diagnostics.js";
-import { installAppPointerDragOwner } from "./pointer-drag.js";
 import { installPreviewMediaSessionOwner } from "../preview-media/session.js";
 export function startViewerApp(): void {
   const ctx = createViewerContext();
@@ -119,7 +109,6 @@ export function startViewerApp(): void {
   installAppShellOwner(ctx);
   installAppShellLayoutOwner(ctx);
   installAppShellPanelsOwner(ctx);
-  installAppPointerDragOwner(ctx);
   installTemplatesControllerOwner(ctx);
   installTransportRuntimeRecoveryOwner(ctx);
   installTransportControllerOwner(ctx);
@@ -147,7 +136,6 @@ export function startViewerApp(): void {
   installRenderingExportFrameOwner(ctx);
   installAppMiscOwner(ctx);
   installLayersOperationsOwner(ctx);
-  installInteractionDragOwner(ctx);
   installInspectorContextHeaderOwner(ctx);
   installInspectorEffectOverviewOwner(ctx);
   installInspectorLayerOverviewOwner(ctx);
@@ -166,12 +154,6 @@ export function startViewerApp(): void {
   installInspectorLayerPropertiesOwner(ctx);
   installInspectorLayerSelectionOwner(ctx);
   installInspectorTimingOwner(ctx);
-  installInteractionPhaseSceneDragOwner(ctx);
-  installInteractionClipDragOwner(ctx);
-  installInteractionTrackDragOwner(ctx);
-  installInteractionKeyframeSegmentDragOwner(ctx);
-  installInteractionKeyframeDragOwner(ctx);
-  installTimelineLayerReparentOwner(ctx);
   installCanvasSelectionHudOwner(ctx);
   installCanvasSelectionTargetOwner(ctx);
   installCanvasSelectionLevelOwner(ctx);
@@ -198,8 +180,6 @@ export function startViewerApp(): void {
   installCanvasSelectionTransformOwner(ctx);
   installCanvasSelectionTransformKeyboardOwner(ctx);
   installTimelineNavigationOwners(ctx);
-  installInteractionMarqueeOwner(ctx);
-  installTimelinePlaybackRangeOwner(ctx);
   installLayersFactoryOwner(ctx);
   installLayersClipboardOwner(ctx);
   installLayersOrderOwner(ctx);

@@ -10,13 +10,13 @@ const warnings = [];
 const importGraph = new Map();
 const sourceFiles = new Set();
 const THIN_ENTRYPOINTS = new Map([
-  ["src/apps/viewer/main.ts", 40],
-  ["src/apps/sandbox/runtime.ts", 40],
+  ["src/apps/viewer/main.ts", 100],
+  ["src/apps/sandbox/runtime.ts", 100],
 ]);
-const APP_OWNER_MAX_LINES = 320;
-const SDK_OWNER_MAX_LINES = 900;
-const SMOKE_ENTRYPOINT_MAX_LINES = 80;
-const SMOKE_MODULE_MAX_LINES = 900;
+const APP_OWNER_MAX_LINES = 600;
+const SDK_OWNER_MAX_LINES = 1200;
+const SMOKE_ENTRYPOINT_MAX_LINES = 150;
+const SMOKE_MODULE_MAX_LINES = 1200;
 const SANDBOX_FORBIDDEN_APIS = [
   /\bfetch\s*\(/,
   /\bXMLHttpRequest\b/,

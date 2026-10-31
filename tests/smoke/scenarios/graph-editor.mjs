@@ -1,3 +1,4 @@
+import { assertActiveGestureUndo } from "./pointer-ownership.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
@@ -94,6 +95,7 @@ export async function assertGraphEditorFlow({
       await curve.getAttribute("d"),
       /NaN|undefined|Infinity/,
     );
+    await assertActiveGestureUndo(page, point);
     const beforeZoom = await curve.getAttribute("d");
     await page.locator(".graph-editor-icon-action").nth(1).click();
     await expect(curve).not.toHaveAttribute("d", beforeZoom);
@@ -135,6 +137,8 @@ export async function assertGraphEditorFlow({
             "lazy-open",
             "keyframe-drag",
             "bezier-curve",
+            "undo-active-pointer",
+            "redo",
             "zoom",
             "pan",
             "source-switch",

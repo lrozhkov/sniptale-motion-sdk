@@ -12,6 +12,7 @@ export async function resetEditorToSource(
   if (!template || !base) {
     return false;
   }
+  ctx.state.pointerDragCleanup?.();
   if (!options.discardHistory && !ctx.hasEditorContentChanges()) {
     return false;
   }

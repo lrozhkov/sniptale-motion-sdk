@@ -29,15 +29,17 @@ describe("viewer timeline interaction preview geometry", () => {
       [".keyframe-segment-range[data-track-id]", [segment]],
     ]);
     const timeline = {
+      duration: 10,
       phases: [{ duration: 1.5, id: "reveal", start: 2 }],
       tracks: [
         {
           id: "card.lift",
           keyframes: [
-            { id: "lift-a", phaseId: "reveal", time: 2.25 },
-            { id: "lift-b", phaseId: "reveal", time: 3.25 },
+            { id: "lift-a", phaseId: "reveal", time: 2.25, value: 0 },
+            { id: "lift-b", phaseId: "reveal", time: 3.25, value: 0 },
           ],
           layerId: "card",
+          property: "x",
         },
       ],
     };
@@ -107,23 +109,26 @@ describe("viewer timeline interaction preview geometry", () => {
       ctx,
       { id: "template" },
       {
-        phases: [{ id: "auto" }],
+        duration: 8,
+        phases: [{ id: "auto", start: NaN, duration: NaN }],
         tracks: [
           {
             id: "card.x",
             keyframes: [
-              { id: "a", phaseId: "auto", time: 1 },
-              { id: "b", phaseId: "auto", time: 3 },
+              { id: "a", phaseId: "auto", time: 1, value: 0 },
+              { id: "b", phaseId: "auto", time: 3, value: 0 },
             ],
             layerId: "card",
+            property: "x",
           },
           {
             id: "grid.x",
             keyframes: [
-              { id: "c", phaseId: "auto", time: 5 },
-              { id: "d", phaseId: "auto", time: 7 },
+              { id: "c", phaseId: "auto", time: 5, value: 0 },
+              { id: "d", phaseId: "auto", time: 7, value: 0 },
             ],
             layerId: "grid",
+            property: "x",
           },
         ],
       },

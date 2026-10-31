@@ -46,7 +46,7 @@ function beginGraphSelectionScale(
   const startX = event.clientX;
   const mapPointer = createGraphPointerMapper(svg);
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent: PointerEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pointer = mapPointer(moveEvent);
     if (!pointer) return;
     const requested = ctx.snapTime(graphXToTime(pointer.x, model.viewport));

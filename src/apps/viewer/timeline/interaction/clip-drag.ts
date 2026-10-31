@@ -1,16 +1,24 @@
+import type { TimelineRangeEditMode } from "../model/move-plan-model.js";
+import type { EffectClip } from "../../../../sdk/types.js";
+import type { EditorTemplate } from "../../templates/model.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { TimelinePointerActions } from "./pointer-contract.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { createTimelineDragPreview } from "./drag-preview.js";
 
 function beginClipDrag(
   ctx: ViewerAppContext,
-  event,
-  layerId,
-  mode,
-  measureElement = null,
+  event: PointerEvent,
+  layerId: string,
+  mode: TimelineRangeEditMode,
+  measureElement: HTMLElement | null = null,
 ) {
   if (event.button !== 0) {
     return;
   }
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement)) return;
+  ctx.state.pointerDragCleanup?.();
   if (event.altKey || event.shiftKey) {
     ctx.beginTimelineMarqueeSelection(event, { allowBlockStart: true });
     return;
@@ -28,13 +36,14 @@ function beginClipDrag(
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const clips = ctx.deps.deepClone(effectiveTemplate?.clips ?? []);
   const clip = clips.find((item) => item.layerId === layerId);
-  if (!template || !clip || clip.locked) {
+  if (!template || !effectiveTemplate || !clip || clip.locked) {
     return;
   }
   const duration = ctx.getEffectiveDuration(template);
   const sceneWindow = getClipSceneWindow(effectiveTemplate, clip, duration);
   const body =
-    measureElement ?? event.currentTarget.closest(".timeline-lane-body");
+    measureElement ?? target.closest<HTMLElement>(".timeline-lane-body");
+  if (!body) return;
   const rect = body.getBoundingClientRect();
   const startX = event.clientX;
   const original = { duration: clip.duration, start: clip.start };
@@ -77,7 +86,7 @@ function beginClipDrag(
   const maxDelta =
     clipMovePlan?.maxDelta ?? duration - (original.start + original.duration);
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     if (
       !preview.activate(Math.abs(pointerDelta), () =>
@@ -156,12 +165,16 @@ function beginClipDrag(
       () => ctx.showTimelineSnapIndicator(clip.start + clip.duration),
     );
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
     preview.finalize(),
   );
 }
 
-function getClipSceneWindow(effectiveTemplate, clip, duration) {
+function getClipSceneWindow(
+  effectiveTemplate: EditorTemplate,
+  clip: EffectClip,
+  duration: number,
+): { start: number; end: number } {
   const scene = clip?.sceneId
     ? (effectiveTemplate?.scenes ?? []).find((item) => item.id === clip.sceneId)
     : null;
@@ -175,6 +188,8 @@ function getClipSceneWindow(effectiveTemplate, clip, duration) {
   };
 }
 
-export function installInteractionClipDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginClipDrag = beginClipDrag.bind(undefined, ctx);
+export function createClipDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<TimelinePointerActions, "beginClipDrag"> {
+  return { beginClipDrag: bindViewerAction(beginClipDrag, getContext) };
 }

@@ -1,4 +1,5 @@
 export type ViewerInteractionState = {
+  pointerDragCleanup: (() => void) | null;
   timelineDragSession: object | null;
   dragMoved: boolean;
   dragSuppressClickKey: string | null;
@@ -13,6 +14,7 @@ export type ViewerInteractionState = {
 
 export function createViewerInteractionState(): ViewerInteractionState {
   return {
+    pointerDragCleanup: null,
     timelineDragSession: null,
     dragMoved: false,
     dragSuppressClickKey: null,

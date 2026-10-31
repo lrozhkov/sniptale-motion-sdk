@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { KeyframeSelectionRef } from "../model/selection-model.js";
+import type {
+  TimelineRect,
+  MarqueeSelection,
+  MarqueeSelectionOptions,
+  TimelineSelectionGestureActions,
+} from "./pointer-contract.js";
 import { parseKeyframeSelectionRef } from "../model/selection-validation.js";
 import { keyframeRefKey } from "../model/keyframe-reference.js";
 import type { ViewerAppContext } from "../../app/context.js";
@@ -9,16 +17,19 @@ import {
 
 function beginTimelineMarqueeSelection(
   ctx: ViewerAppContext,
-  event,
-  options: any = {},
+  event: PointerEvent,
+  options: { allowBlockStart?: boolean } = {},
 ) {
   if (
     event.button !== 0 ||
     (!options.allowBlockStart &&
+      event.target instanceof Element &&
       event.target.closest(".keyframe-point, .timeline-block"))
   ) {
     return;
   }
+  if (!(event.currentTarget instanceof Element)) return;
+  ctx.state.pointerDragCleanup?.();
   event.preventDefault();
   event.stopPropagation();
   const tracksRect = ctx.refs.timelineTracks.getBoundingClientRect();
@@ -47,7 +58,7 @@ function beginTimelineMarqueeSelection(
   ctx.state.selectedPhases = [];
   ctx.state.selectedScenes = [];
   ctx.state.selectedItem = { type: "effect" };
-  const update = (moveEvent) => {
+  const update = (moveEvent: MouseEvent) => {
     const current = {
       clientX: moveEvent.clientX,
       clientY: moveEvent.clientY,
@@ -78,7 +89,7 @@ function beginTimelineMarqueeSelection(
       selectionKind,
     });
   };
-  const stop = (endEvent) => {
+  const stop = (endEvent: MouseEvent) => {
     if (endEvent?.type === "pointercancel") {
       marquee.remove();
       ctx.state.selectedClips = previousSelection.clips;
@@ -116,8 +127,8 @@ function beginTimelineMarqueeSelection(
 
 function updateMarqueeTimelineSelection(
   ctx: ViewerAppContext,
-  selectionRect,
-  options: any = {},
+  selectionRect: TimelineRect,
+  options: MarqueeSelectionOptions = {},
 ) {
   const additive = Boolean(options.additive);
   const selectionKind = options.selectionKind ?? "auto";
@@ -127,10 +138,10 @@ function updateMarqueeTimelineSelection(
     phases: [],
     scenes: [],
   };
-  const keyframeRefs = [];
-  const clipIds = [];
-  const phaseIds = [];
-  const sceneIds = [];
+  const keyframeRefs: KeyframeSelectionRef[] = [];
+  const clipIds: string[] = [];
+  const phaseIds: string[] = [];
+  const sceneIds: string[] = [];
   if (selectionKind === "auto" || selectionKind === "keyframes") {
     collectMarqueeKeyframes(ctx, selectionRect, keyframeRefs);
   }
@@ -190,11 +201,19 @@ function updateMarqueeTimelineSelection(
   syncMarqueeSelectionClasses(ctx);
 }
 
-function resolveMarqueeBlockSelection(hits, previous, additive) {
+function resolveMarqueeBlockSelection(
+  hits: Pick<MarqueeSelection, "clips" | "phases" | "scenes">,
+  previous: MarqueeSelection,
+  additive: boolean,
+) {
   const selectedType =
-    ["clips", "phases", "scenes"].find((type) => hits[type].length > 0) ??
+    (["clips", "phases", "scenes"] as const).find(
+      (type) => hits[type].length > 0,
+    ) ??
     (additive
-      ? ["clips", "phases", "scenes"].find((type) => previous[type]?.length > 0)
+      ? (["clips", "phases", "scenes"] as const).find(
+          (type) => previous[type]?.length > 0,
+        )
       : null);
   return {
     clips:
@@ -212,13 +231,14 @@ function resolveMarqueeBlockSelection(hits, previous, additive) {
   };
 }
 
-function syncMarqueeSelectionClasses(ctx): void {
+function syncMarqueeSelectionClasses(ctx: ViewerAppContext): void {
   const keyframes = new Set(
     ctx.state.selectedKeyframes.map((ref) => keyframeRefKey(ref)),
   );
   ctx.refs.timelineTracks
     .querySelectorAll(".keyframe-point")
     .forEach((point) => {
+      if (!(point instanceof HTMLElement)) return;
       const ref = parseKeyframeSelectionRef(point.dataset);
       point.classList.toggle(
         "selected",
@@ -242,19 +262,21 @@ function syncMarqueeSelectionClasses(ctx): void {
       selector: ".scene-block",
     },
   ]) {
-    ctx.refs.timelineTracks
-      .querySelectorAll(selector)
-      .forEach((block) =>
-        block.classList.toggle(
-          "selected",
-          selected.has(block.dataset[property]),
-        ),
+    ctx.refs.timelineTracks.querySelectorAll(selector).forEach((block) => {
+      if (!(block instanceof HTMLElement)) return;
+      block.classList.toggle(
+        "selected",
+        selected.has(block.dataset[property] ?? ""),
       );
+    });
   }
 }
 
-function mergeKeyframeRefs(left, right) {
-  const refs = new Map();
+function mergeKeyframeRefs(
+  left: readonly KeyframeSelectionRef[],
+  right: readonly KeyframeSelectionRef[],
+) {
+  const refs = new Map<string, KeyframeSelectionRef>();
   for (const ref of [...left, ...right]) {
     if (ref?.trackId && ref?.keyframeId) {
       refs.set(keyframeRefKey(ref), ref);
@@ -263,7 +285,7 @@ function mergeKeyframeRefs(left, right) {
   return [...refs.values()];
 }
 
-function mergeIds(left, right): string[] {
+function mergeIds(left: readonly string[], right: readonly string[]): string[] {
   return [...new Set([...left, ...right].filter(Boolean))];
 }
 
@@ -278,15 +300,26 @@ function addKeyframeAtPlayheadForSelection(ctx: ViewerAppContext) {
   }
 }
 
-export function installInteractionMarqueeOwner(ctx: ViewerAppContext): void {
-  ctx.beginTimelineMarqueeSelection = beginTimelineMarqueeSelection.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateMarqueeTimelineSelection = updateMarqueeTimelineSelection.bind(
-    undefined,
-    ctx,
-  );
-  ctx.addKeyframeAtPlayheadForSelection =
-    addKeyframeAtPlayheadForSelection.bind(undefined, ctx);
+export function createTimelineMarqueeActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  TimelineSelectionGestureActions,
+  | "beginTimelineMarqueeSelection"
+  | "updateMarqueeTimelineSelection"
+  | "addKeyframeAtPlayheadForSelection"
+> {
+  return {
+    beginTimelineMarqueeSelection: bindViewerAction(
+      beginTimelineMarqueeSelection,
+      getContext,
+    ),
+    updateMarqueeTimelineSelection: bindViewerAction(
+      updateMarqueeTimelineSelection,
+      getContext,
+    ),
+    addKeyframeAtPlayheadForSelection: bindViewerAction(
+      addKeyframeAtPlayheadForSelection,
+      getContext,
+    ),
+  };
 }

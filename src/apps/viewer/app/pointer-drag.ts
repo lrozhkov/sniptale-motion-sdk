@@ -1,123 +1,104 @@
-import type { ViewerAppContext } from "./context.js";
+import { bindViewerAction } from "./bind-action.js";
+import type { PointerDragActions } from "./pointer-contract.js";
+import type { PointerDragContext } from "./pointer-context.js";
+import {
+  getDragClickTargetKey,
+  clearDragClickSuppression,
+  shouldSuppressDragClick,
+} from "./pointer-click.js";
 
 function bindPointerDrag(
-  ctx: ViewerAppContext,
-  pointerId,
-  target,
-  onMove,
-  onEnd = null,
-) {
+  ctx: PointerDragContext,
+  pointerId: number | null | undefined,
+  target: unknown,
+  onMove: (event: MouseEvent) => void,
+  onEnd: ((event: MouseEvent) => void) | null = null,
+): void {
+  if (!(target instanceof Element)) return;
+  const activePointerId = pointerId ?? null;
+  if (activePointerId !== null && !Number.isSafeInteger(activePointerId))
+    return;
+  ctx.state.pointerDragCleanup?.();
+  clearDragClickSuppression(ctx);
   ctx.state.dragMoved = false;
-  const editorFingerprintAtStart = ctx.getEditorContentFingerprint?.() ?? null;
-  const usePointerEvents = pointerId !== undefined && pointerId !== null;
-  if (usePointerEvents) {
-    target.setPointerCapture?.(pointerId);
-  }
-  const onPointerMove = (event) => onMove(event);
-  const onMouseMove = (event) => onMove(event);
-  const finish = (event) => {
-    if (ctx.state.dragMoved) {
+  const source = ctx.state.currentTemplate;
+  const initialFingerprint = ctx.getEditorContentFingerprint?.() ?? null;
+  let finished = false;
+
+  const onPointerMove = (event: PointerEvent) => {
+    if (!finished && event.pointerId === activePointerId) onMove(event);
+  };
+  const onMouseMove = (event: MouseEvent) => {
+    if (!finished) onMove(event);
+  };
+  const onPointerEnd = (event: PointerEvent) => {
+    if (event.pointerId === activePointerId) finish(event);
+  };
+  const onMouseEnd = (event: MouseEvent) => finish(event);
+  const cancel = () => finish(new MouseEvent("pointercancel"));
+  const finish = (event: MouseEvent) => {
+    if (finished) return;
+    finished = true;
+    const moved = ctx.state.dragMoved;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerEnd);
+    window.removeEventListener("pointercancel", onPointerEnd);
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseEnd);
+    window.removeEventListener("blur", cancel);
+    if (ctx.state.pointerDragCleanup === cancel)
+      ctx.state.pointerDragCleanup = null;
+    if (activePointerId !== null) {
+      try {
+        if (target.hasPointerCapture(activePointerId))
+          target.releasePointerCapture(activePointerId);
+      } catch {
+        // The target can detach before pointer capture is released.
+      }
+    }
+    if (moved && ctx.state.currentTemplate === source) {
       ctx.state.dragSuppressClickKey = getDragClickTargetKey(target);
       ctx.state.dragSuppressClickTarget = target;
       ctx.state.dragSuppressClickUntil = performance.now() + 250;
     }
-    if (
-      usePointerEvents &&
-      (!target.hasPointerCapture || target.hasPointerCapture(pointerId))
-    ) {
-      target.releasePointerCapture?.(pointerId);
-    }
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("pointerup", finish);
-    window.removeEventListener("pointercancel", finish);
-    window.removeEventListener("mouseup", finish);
     try {
       onEnd?.(event);
     } finally {
       if (
-        ctx.state.dragMoved &&
-        editorFingerprintAtStart !== null &&
-        editorFingerprintAtStart !== ctx.getEditorContentFingerprint?.()
+        moved &&
+        ctx.state.currentTemplate === source &&
+        initialFingerprint !== null &&
+        initialFingerprint !== ctx.getEditorContentFingerprint?.()
       ) {
         ctx.markEditorChanged?.("pointer-drag-end", { immediate: true });
       }
     }
   };
-  if (usePointerEvents) {
+  ctx.state.pointerDragCleanup = cancel;
+  window.addEventListener("blur", cancel);
+  if (activePointerId !== null) {
     window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", finish, { once: true });
-    window.addEventListener("pointercancel", finish, { once: true });
+    window.addEventListener("pointerup", onPointerEnd);
+    window.addEventListener("pointercancel", onPointerEnd);
+    try {
+      target.setPointerCapture(activePointerId);
+    } catch {
+      // Window listeners also handle a drag when capture is unavailable.
+    }
   } else {
     window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", finish, { once: true });
+    window.addEventListener("mouseup", onMouseEnd);
   }
 }
 
-function shouldSuppressDragClick(ctx: ViewerAppContext, event): boolean {
-  if (performance.now() >= ctx.state.dragSuppressClickUntil) {
-    clearDragClickSuppression(ctx);
-    return false;
-  }
-  const targetMatches =
-    ctx.state.dragSuppressClickTarget === event?.currentTarget ||
-    ctx.state.dragSuppressClickTarget === event?.target;
-  const keyMatches =
-    Boolean(ctx.state.dragSuppressClickKey) &&
-    [event?.currentTarget, event?.target].some(
-      (target) =>
-        getDragClickTargetKey(target) === ctx.state.dragSuppressClickKey,
-    );
-  if (!targetMatches && !keyMatches) {
-    return false;
-  }
-  clearDragClickSuppression(ctx);
-  return true;
-}
-
-function clearDragClickSuppression(ctx: ViewerAppContext): void {
-  ctx.state.dragSuppressClickKey = null;
-  ctx.state.dragSuppressClickTarget = null;
-  ctx.state.dragSuppressClickUntil = 0;
-}
-
-function getDragClickTargetKey(target): string | null {
-  if (typeof Element === "undefined" || !(target instanceof Element)) {
-    return null;
-  }
-  const dataset = (target as HTMLElement).dataset ?? {};
-  const roleClass = [
-    "keyframe-point",
-    "clip-block",
-    "phase-block",
-    "scene-block",
-    "timeline-edge",
-    "timeline-lane-body",
-    "timeline-lane-label",
-    "graph-keyframe-point",
-    "graph-bezier-handle",
-    "graph-selection-range-handle",
-  ].find((className) => target.classList.contains(className));
-  const identity = [
-    target.id,
-    dataset.trackId,
-    dataset.keyframeId,
-    dataset.layerId,
-    dataset.phaseId,
-    dataset.sceneId,
-    dataset.handle,
-    dataset.rangeEdge,
-    target.classList.contains("start") ? "start" : "",
-    target.classList.contains("end") ? "end" : "",
-  ]
-    .filter(Boolean)
-    .join(":");
-  return roleClass || identity
-    ? `${target.tagName}:${roleClass ?? "element"}:${identity}`
-    : null;
-}
-
-export function installAppPointerDragOwner(ctx: ViewerAppContext): void {
-  ctx.bindPointerDrag = bindPointerDrag.bind(undefined, ctx);
-  ctx.shouldSuppressDragClick = shouldSuppressDragClick.bind(undefined, ctx);
+export function createPointerDragActions(
+  getContext: () => PointerDragContext,
+): PointerDragActions {
+  return {
+    bindPointerDrag: bindViewerAction(bindPointerDrag, getContext),
+    shouldSuppressDragClick: bindViewerAction(
+      shouldSuppressDragClick,
+      getContext,
+    ),
+  };
 }

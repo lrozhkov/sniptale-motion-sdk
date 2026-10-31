@@ -1,3 +1,9 @@
+import type {
+  TimelineLayerGestureActions,
+  TimelineSelectionGestureActions,
+  TimelinePointerActions,
+} from "../timeline/interaction/pointer-contract.js";
+import type { PointerDragActions } from "./pointer-contract.js";
 import type { GraphEditorActions } from "../graph-editor/contract.js";
 import type { KeyframeEditActions } from "../timeline/interaction/keyframe-contract.js";
 import type { TimelineRowTreeActions } from "../timeline/model/row-tree-contract.js";
@@ -34,6 +40,10 @@ export interface ViewerAppContext
     Mp4ExportActions,
     KeyframeEditActions,
     GraphEditorActions,
+    PointerDragActions,
+    TimelineLayerGestureActions,
+    TimelineSelectionGestureActions,
+    TimelinePointerActions,
     TimelineModelActions,
     TimelineSelectionActions,
     InspectorOwnershipActions,

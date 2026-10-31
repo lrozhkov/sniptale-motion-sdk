@@ -1,3 +1,8 @@
+import { createTimelineLayerReparentActions } from "../timeline/interaction/layer-reparent.js";
+import { createTimelineMarqueeActions } from "../timeline/interaction/marquee.js";
+import { createTimelinePlaybackRangeActions } from "../timeline/interaction/playback-range.js";
+import { createTimelinePointerActions } from "../timeline/interaction/pointer-actions.js";
+import { createPointerDragActions } from "./pointer-drag.js";
 import { createLazyGraphEditorActions } from "../graph-editor/lazy.js";
 import { createKeyframeActions } from "../timeline/interaction/keyframe-actions.js";
 import { createTimelineActions } from "../timeline/actions.js";
@@ -49,6 +54,17 @@ export function createViewerContext(): ViewerAppContext {
   const ctx: ViewerAppContext = {
     ...createLazyExportFeatures(() => ctx),
     ...createTimelineActions(() => ctx),
+    ...createTimelinePointerActions(() => ctx),
+    ...createTimelineLayerReparentActions(() => ({
+      ...ctx,
+      beginEditorCommand: (command) => ctx.beginEditorCommand(command),
+      setSelectedLayers: (ids, template) =>
+        ctx.setSelectedLayers(ids, template),
+      renderTimelineEditor: (source) => ctx.renderTimelineEditor(source),
+    })),
+    ...createTimelineMarqueeActions(() => ctx),
+    ...createTimelinePlaybackRangeActions(() => ctx),
+    ...createPointerDragActions(() => ctx),
     ...createKeyframeActions(() => ctx),
     ...createLazyGraphEditorActions(
       () => ctx,

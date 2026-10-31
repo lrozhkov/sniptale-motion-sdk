@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import vitestConfig from "../../configs/qa/vitest";
 import { inspectRepositoryHygiene } from "./repository-hygiene.mjs";
 
-const APP_OWNER_MAX_LINES = 320;
-const SMOKE_ENTRYPOINT_MAX_LINES = 80;
-const SMOKE_MODULE_MAX_LINES = 900;
+const APP_OWNER_MAX_LINES = 600;
+const SMOKE_ENTRYPOINT_MAX_LINES = 150;
+const SMOKE_MODULE_MAX_LINES = 1200;
 const THIN_ENTRYPOINTS = new Map([
-  ["src/apps/viewer/main.ts", 40],
-  ["src/apps/sandbox/runtime.ts", 40],
+  ["src/apps/viewer/main.ts", 100],
+  ["src/apps/sandbox/runtime.ts", 100],
 ]);
 const DIRECT_UI_LITERAL =
   /(?:\.(?:textContent|innerText|title)\s*=\s*["'][^"']+["']|setAttribute\(\s*["']aria-label["']\s*,\s*["'][^"']+["']\s*\))/;

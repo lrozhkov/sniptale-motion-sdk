@@ -1,20 +1,25 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { TimelineSelectionGestureActions } from "./pointer-contract.js";
+import type { TimelinePlaybackRange } from "../viewport.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { invalidatePlaybackCacheRangeCoverage } from "../../playback/cache-warm-controller.js";
 import { normalizeTimelinePlaybackRange } from "../viewport.js";
 
-function beginRulerScrub(ctx: ViewerAppContext, event) {
+function beginRulerScrub(ctx: ViewerAppContext, event: PointerEvent) {
   if (event.button !== 0) {
     return;
   }
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement)) return;
+  ctx.state.pointerDragCleanup?.();
   event.preventDefault();
   if (ctx.state.playing) {
     ctx.togglePlayback();
   }
-  const target = event.currentTarget;
   const startX = event.clientX;
   const startTime = ctx.timelineTimeFromEvent(event, target);
   let moved = false;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const nextTime = ctx.timelineTimeFromEvent(moveEvent, target);
     moved = moved || Math.abs(moveEvent.clientX - startX) > 3;
     if (!moved) {
@@ -27,7 +32,7 @@ function beginRulerScrub(ctx: ViewerAppContext, event) {
     };
     ctx.updateTimelinePlaybackRangeOverlay();
   };
-  const stop = (upEvent) => {
+  const stop = (upEvent: MouseEvent) => {
     if (upEvent?.type === "pointercancel") {
       ctx.state.playbackRangeDraft = null;
       ctx.updateTimelinePlaybackRangeOverlay();
@@ -50,7 +55,10 @@ function getActivePlaybackRange(ctx: ViewerAppContext) {
   return ctx.state.playbackRangeDraft ?? ctx.state.playbackRange;
 }
 
-function setPlaybackRange(ctx: ViewerAppContext, range) {
+function setPlaybackRange(
+  ctx: ViewerAppContext,
+  range: Partial<TimelinePlaybackRange> | null | undefined,
+) {
   const duration = ctx.getEffectiveDuration(ctx.state.currentTemplate);
   const previousRange = ctx.state.playbackRange;
   const nextRange = normalizeTimelinePlaybackRange(range, duration);
@@ -71,11 +79,14 @@ function clearPlaybackRange(ctx: ViewerAppContext) {
   ctx.updateTimelinePlaybackRangeOverlay();
 }
 
-function playbackRangesMatch(left, right): boolean {
+function playbackRangesMatch(
+  left: TimelinePlaybackRange | null,
+  right: TimelinePlaybackRange | null,
+): boolean {
   return (
     left === right ||
-    (Boolean(left) &&
-      Boolean(right) &&
+    (left !== null &&
+      right !== null &&
       left.start === right.start &&
       left.end === right.end)
   );
@@ -107,15 +118,27 @@ function updateTimelinePlaybackRangeOverlay(ctx: ViewerAppContext) {
   }
 }
 
-export function installTimelinePlaybackRangeOwner(ctx: ViewerAppContext): void {
-  Object.assign(ctx, {
-    beginRulerScrub: beginRulerScrub.bind(undefined, ctx),
-    clearPlaybackRange: clearPlaybackRange.bind(undefined, ctx),
-    getActivePlaybackRange: getActivePlaybackRange.bind(undefined, ctx),
-    setPlaybackRange: setPlaybackRange.bind(undefined, ctx),
-    updateTimelinePlaybackRangeOverlay: updateTimelinePlaybackRangeOverlay.bind(
-      undefined,
-      ctx,
+export function createTimelinePlaybackRangeActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  TimelineSelectionGestureActions,
+  | "beginRulerScrub"
+  | "getActivePlaybackRange"
+  | "setPlaybackRange"
+  | "clearPlaybackRange"
+  | "updateTimelinePlaybackRangeOverlay"
+> {
+  return {
+    beginRulerScrub: bindViewerAction(beginRulerScrub, getContext),
+    clearPlaybackRange: bindViewerAction(clearPlaybackRange, getContext),
+    getActivePlaybackRange: bindViewerAction(
+      getActivePlaybackRange,
+      getContext,
     ),
-  });
+    setPlaybackRange: bindViewerAction(setPlaybackRange, getContext),
+    updateTimelinePlaybackRangeOverlay: bindViewerAction(
+      updateTimelinePlaybackRangeOverlay,
+      getContext,
+    ),
+  };
 }

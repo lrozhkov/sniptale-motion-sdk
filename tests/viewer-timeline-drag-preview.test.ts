@@ -1,4 +1,4 @@
-import { installInteractionKeyframeDragOwner } from "../src/apps/viewer/timeline/interaction/keyframe-drag.js";
+import { createKeyframeDragActions } from "../src/apps/viewer/timeline/interaction/keyframe-drag.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTimelineDragPreview } from "../src/apps/viewer/timeline/interaction/drag-preview";
 
@@ -118,7 +118,10 @@ describe("viewer timeline drag preview", () => {
     ) => {
       onMove = callback;
     };
-    installInteractionKeyframeDragOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyframeDragActions(() => ctx),
+    );
     ctx.beginKeyframeDrag(
       {
         button: 0,

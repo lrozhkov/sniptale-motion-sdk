@@ -1,6 +1,6 @@
-import type { ViewerAppContext } from "../../app/context.js";
+import type { TimelineRect } from "./pointer-contract.js";
 
-function rectsIntersect(ctx: ViewerAppContext, a, b) {
+export function rectsIntersect(a: TimelineRect, b: TimelineRect): boolean {
   return (
     a.left <= b.right &&
     a.right >= b.left &&
@@ -9,7 +9,10 @@ function rectsIntersect(ctx: ViewerAppContext, a, b) {
   );
 }
 
-function rectContainsRectCenter(ctx: ViewerAppContext, a, b) {
+export function rectContainsRectCenter(
+  a: TimelineRect,
+  b: Pick<DOMRectReadOnly, "left" | "top" | "width" | "height">,
+): boolean {
   const centerX = b.left + b.width / 2;
   const centerY = b.top + b.height / 2;
   return (
@@ -18,9 +21,4 @@ function rectContainsRectCenter(ctx: ViewerAppContext, a, b) {
     centerY >= a.top &&
     centerY <= a.bottom
   );
-}
-
-export function installInteractionDragOwner(ctx: ViewerAppContext): void {
-  ctx.rectsIntersect = rectsIntersect.bind(undefined, ctx);
-  ctx.rectContainsRectCenter = rectContainsRectCenter.bind(undefined, ctx);
 }

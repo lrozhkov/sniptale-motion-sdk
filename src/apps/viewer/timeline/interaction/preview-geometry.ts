@@ -1,9 +1,16 @@
+import type {
+  EffectClip,
+  EffectScene,
+  TimelinePhase,
+} from "../../../../sdk/types.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type { EditorTimelineSource } from "../../editor/timeline-source.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 export function syncTimelineInteractionGeometry(
   ctx: ViewerAppContext,
-  template,
-  timeline,
+  template: EditorTimelineSource,
+  timeline: EditorTimeline,
 ): void {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {
@@ -11,28 +18,26 @@ export function syncTimelineInteractionGeometry(
   }
   const duration = ctx.getEffectiveDuration(template);
   const scenes = ctx.normalizeScenes(effectiveTemplate.scenes ?? [], duration);
-  const sceneById = new Map<string, any>(
-    scenes.map((scene) => [scene.id, scene]),
-  );
-  const clipByLayerId = new Map<string, any>(
+  const sceneById = new Map(scenes.map((scene) => [scene.id, scene]));
+  const clipByLayerId = new Map(
     (effectiveTemplate.clips ?? []).map((clip) => [clip.layerId, clip]),
   );
-  const phaseById = new Map<string, any>(
+  const phaseById = new Map(
     (timeline.phases ?? []).map((phase) => [phase.id, phase]),
   );
-  const trackById = new Map<string, any>(
+  const trackById = new Map(
     (timeline.tracks ?? []).map((track) => [track.id, track]),
   );
 
   for (const element of timelineElements(ctx, ".scene-block[data-scene-id]")) {
-    const scene = sceneById.get(element.dataset.sceneId);
+    const scene = sceneById.get(element.dataset.sceneId ?? "");
     if (scene) {
       setTimelineRange(ctx, element, scene.start, scene.duration, duration);
     }
   }
 
   for (const element of timelineElements(ctx, ".clip-block[data-layer-id]")) {
-    const clip = clipByLayerId.get(element.dataset.layerId);
+    const clip = clipByLayerId.get(element.dataset.layerId ?? "");
     if (!clip) {
       continue;
     }
@@ -58,7 +63,7 @@ export function syncTimelineInteractionGeometry(
   }
 
   for (const element of timelineElements(ctx, ".phase-block[data-phase-id]")) {
-    const phase = phaseById.get(element.dataset.phaseId);
+    const phase = phaseById.get(element.dataset.phaseId ?? "");
     if (!phase) {
       continue;
     }
@@ -72,7 +77,7 @@ export function syncTimelineInteractionGeometry(
     ctx,
     ".keyframe-point[data-track-id][data-keyframe-id]",
   )) {
-    const track = trackById.get(element.dataset.trackId);
+    const track = trackById.get(element.dataset.trackId ?? "");
     const keyframe = track?.keyframes?.find(
       (item) => item.id === element.dataset.keyframeId,
     );
@@ -98,7 +103,7 @@ export function syncTimelineInteractionGeometry(
     ctx,
     ".keyframe-segment-range[data-track-id]",
   )) {
-    const track = trackById.get(element.dataset.trackId);
+    const track = trackById.get(element.dataset.trackId ?? "");
     const from = track?.keyframes?.find(
       (item) => item.id === element.dataset.fromKeyframeId,
     );
@@ -118,7 +123,12 @@ export function syncTimelineInteractionGeometry(
   }
 }
 
-function resolveClipPreviewInterval(ctx, clip, scene, duration) {
+function resolveClipPreviewInterval(
+  ctx: ViewerAppContext,
+  clip: EffectClip,
+  scene: EffectScene | null | undefined,
+  duration: number,
+) {
   if (scene) {
     return ctx.getSceneClampedClipInterval(clip, scene);
   }
@@ -132,7 +142,12 @@ function resolveClipPreviewInterval(ctx, clip, scene, duration) {
   return { effectiveEnd, effectiveStart, rawEnd, rawStart };
 }
 
-function resolvePhasePreviewBounds(ctx, timeline, phase, layerId) {
+function resolvePhasePreviewBounds(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  phase: TimelinePhase,
+  layerId: string | undefined,
+) {
   const start = Number(phase.start);
   const duration = Number(phase.duration);
   if (Number.isFinite(start) && Number.isFinite(duration) && duration > 0) {
@@ -167,11 +182,11 @@ function resolvePhasePreviewBounds(ctx, timeline, phase, layerId) {
 }
 
 function setTimelineRange(
-  ctx,
+  ctx: ViewerAppContext,
   element: HTMLElement,
-  start,
-  duration,
-  totalDuration,
+  start: number,
+  duration: number,
+  totalDuration: number,
   minimumWidth = 0.4,
 ): void {
   setStyleValue(

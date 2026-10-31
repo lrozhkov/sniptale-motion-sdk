@@ -67,7 +67,7 @@ function beginGraphEditorPan(
   if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) return;
   const original = { ...model.viewport };
   const preview = createGraphViewportPreview(ctx, model.template);
-  const onMove = (moveEvent: PointerEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const dx = moveEvent.clientX - start.x;
     const dy = moveEvent.clientY - start.y;
     if (!ctx.state.dragMoved && Math.abs(dx) + Math.abs(dy) <= 2) {

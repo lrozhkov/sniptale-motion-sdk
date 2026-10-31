@@ -56,7 +56,7 @@ function beginGraphBezierHandleDrag(
   const start = { x: event.clientX, y: event.clientY };
   const mapPointer = createGraphPointerMapper(svg);
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent: PointerEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pointer = mapPointer(moveEvent);
     if (!pointer) return;
     const normalized = resolveNormalizedHandle(

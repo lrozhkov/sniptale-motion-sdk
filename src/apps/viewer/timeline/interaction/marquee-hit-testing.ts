@@ -1,4 +1,10 @@
-export function resolveMarqueeSelectionKind(event) {
+import type { ViewerAppContext } from "../../app/context.js";
+import type { KeyframeSelectionRef } from "../model/selection-model.js";
+import { parseKeyframeSelectionRef } from "../model/selection-validation.js";
+import type { TimelineRect, MarqueeSelectionKind } from "./pointer-contract.js";
+export function resolveMarqueeSelectionKind(
+  event: Pick<MouseEvent, "target">,
+): MarqueeSelectionKind {
   const target = event.target instanceof Element ? event.target : null;
   if (target?.closest(".keyframe-point, .property-track-lane")) {
     return "keyframes";
@@ -15,33 +21,41 @@ export function resolveMarqueeSelectionKind(event) {
   return "auto";
 }
 
-export function collectMarqueeKeyframes(ctx, selectionRect, output): void {
+export function collectMarqueeKeyframes(
+  ctx: ViewerAppContext,
+  selectionRect: TimelineRect,
+  output: KeyframeSelectionRef[],
+): void {
   ctx.refs.timelineTracks
     .querySelectorAll(".keyframe-point")
     .forEach((point) => {
-      if (ctx.rectsIntersect(selectionRect, point.getBoundingClientRect())) {
-        output.push({
-          keyframeId: point.dataset.keyframeId,
-          trackId: point.dataset.trackId,
-        });
+      if (!(point instanceof HTMLElement)) return;
+      const ref = parseKeyframeSelectionRef(point.dataset);
+      if (
+        ref &&
+        ctx.rectsIntersect(selectionRect, point.getBoundingClientRect())
+      ) {
+        output.push(ref);
       }
     });
 }
 
 export function collectMarqueeBlockIds(
-  ctx,
-  selectionRect,
-  selector,
-  property,
-  output,
+  ctx: ViewerAppContext,
+  selectionRect: TimelineRect,
+  selector: string,
+  property: string,
+  output: string[],
 ): void {
   ctx.refs.timelineTracks.querySelectorAll(selector).forEach((block) => {
+    if (!(block instanceof HTMLElement)) return;
+    const id = block.dataset[property];
     const selected = ctx.rectContainsRectCenter(
       selectionRect,
       block.getBoundingClientRect(),
     );
-    if (selected && block.dataset[property]) {
-      output.push(block.dataset[property]);
+    if (selected && id) {
+      output.push(id);
     }
   });
 }

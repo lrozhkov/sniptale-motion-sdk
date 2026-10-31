@@ -1,17 +1,24 @@
+import type { TimelineRangeEditMode } from "../model/move-plan-model.js";
+import { getSegmentDragLimits } from "../model/keyframe-segment-limits.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { TimelinePointerActions } from "./pointer-contract.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { createTimelineDragPreview } from "./drag-preview.js";
 
 function beginKeyframeSegmentDrag(
   ctx: ViewerAppContext,
-  event,
-  trackId,
-  fromKeyframeId,
-  toKeyframeId,
-  mode,
+  event: PointerEvent,
+  trackId: string,
+  fromKeyframeId: string,
+  toKeyframeId: string,
+  mode: TimelineRangeEditMode,
 ) {
   if (event.button !== 0) {
     return;
   }
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement)) return;
+  ctx.state.pointerDragCleanup?.();
   event.preventDefault();
   event.stopPropagation();
   const template = ctx.state.currentTemplate;
@@ -35,8 +42,8 @@ function beginKeyframeSegmentDrag(
   const previous = fromIndex > 0 ? keyframes[fromIndex - 1] : null;
   const next = toIndex < keyframes.length - 1 ? keyframes[toIndex + 1] : null;
   const body =
-    event.currentTarget.closest(".timeline-lane-body") ??
-    event.currentTarget.parentElement;
+    target.closest<HTMLElement>(".timeline-lane-body") ?? target.parentElement;
+  if (!body) return;
   const rect = body.getBoundingClientRect();
   const startX = event.clientX;
   const minGap = 1 / Math.max(1, Number(ctx.refs.fpsInput.value) || 30);
@@ -44,7 +51,7 @@ function beginKeyframeSegmentDrag(
     fromTime: fromKeyframe.time,
     toTime: toKeyframe.time,
   };
-  const limits = ctx.getSegmentDragLimits(
+  const limits = getSegmentDragLimits(
     original,
     previous,
     next,
@@ -61,7 +68,7 @@ function beginKeyframeSegmentDrag(
   );
   ctx.setSidebarGroup("inspect");
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     if (
       !preview.activate(Math.abs(pointerDelta), () =>
@@ -131,57 +138,18 @@ function beginKeyframeSegmentDrag(
         ),
     );
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
     preview.finalize(),
   );
 }
 
-function getSegmentDragLimits(
-  ctx: ViewerAppContext,
-  original,
-  previous,
-  next,
-  minGap,
-  duration,
-  mode,
-) {
-  const previousLimit = previous ? previous.time + minGap : 0;
-  const nextLimit = next ? next.time - minGap : duration;
-  if (mode === "move") {
-    const min = previousLimit - original.fromTime;
-    const max = nextLimit - original.toTime;
-    return {
-      fromMax: original.fromTime + max,
-      fromMin: original.fromTime + min,
-      max,
-      min,
-      toMax: original.toTime + max,
-      toMin: original.toTime + min,
-    };
-  }
-  if (mode === "start") {
-    return {
-      fromMax: original.toTime - minGap,
-      fromMin: previousLimit,
-      max: original.toTime - minGap - original.fromTime,
-      min: previousLimit - original.fromTime,
-      toMax: original.toTime,
-      toMin: original.toTime,
-    };
-  }
+export function createKeyframeSegmentDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<TimelinePointerActions, "beginKeyframeSegmentDrag"> {
   return {
-    fromMax: original.fromTime,
-    fromMin: original.fromTime,
-    max: nextLimit - original.toTime,
-    min: original.fromTime + minGap - original.toTime,
-    toMax: nextLimit,
-    toMin: original.fromTime + minGap,
+    beginKeyframeSegmentDrag: bindViewerAction(
+      beginKeyframeSegmentDrag,
+      getContext,
+    ),
   };
-}
-
-export function installInteractionKeyframeSegmentDragOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginKeyframeSegmentDrag = beginKeyframeSegmentDrag.bind(undefined, ctx);
-  ctx.getSegmentDragLimits = getSegmentDragLimits.bind(undefined, ctx);
 }
