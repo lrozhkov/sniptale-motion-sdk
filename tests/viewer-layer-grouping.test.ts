@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { installLayersClipboardOwner } from "../src/apps/viewer/layers/clipboard";
 import { createLayerEditorCapabilityActions } from "../src/apps/viewer/layers/editor-capabilities";
 import { installLayersFactoryOwner } from "../src/apps/viewer/layers/factory";
-import { installLayersGroupingOwner } from "../src/apps/viewer/layers/grouping";
+import { createLayerGroupingActions } from "../src/apps/viewer/layers/grouping";
 import { createLayerHierarchyActions } from "../src/apps/viewer/layers/hierarchy-controller";
 import { installLayersPropertiesOwner } from "../src/apps/viewer/layers/properties";
 
@@ -14,7 +14,10 @@ describe("viewer structural layer grouping", () => {
       ctx,
       createLayerHierarchyActions(() => ctx),
     );
-    installLayersGroupingOwner(ctx);
+    Object.assign(
+      ctx,
+      createLayerGroupingActions(() => ctx),
+    );
 
     expect(ctx.groupSelectedLayers()).toBe(true);
     expect(ctx.getEffectiveTemplate().layers).toEqual([

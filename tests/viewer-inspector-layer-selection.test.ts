@@ -23,7 +23,14 @@ describe("viewer multi-layer inspector", () => {
         type: "text",
       },
     ];
-    const template = { layers, timeline: { phases: [], tracks: [] } };
+    const template = {
+      id: "template",
+      duration: 5,
+      layers,
+      clips: [],
+      scenes: [],
+      timeline: { duration: 5, phases: [], tracks: [] },
+    };
     const ctx: any = {
       canEditLayerProperty: () => true,
       canTransformLayerProperty: () => true,
@@ -72,5 +79,13 @@ describe("viewer multi-layer inspector", () => {
     expect(
       model.commonFields.find((field) => field.property === "opacity").values,
     ).toEqual([1, 0.6]);
+    for (const ids of [[], ["missing"], ["card", "missing"]]) {
+      ctx.getCanvasSelectionTarget = () => ({
+        kind: "selection",
+        layerIds: ids,
+        rootLayerIds: ids,
+      });
+      expect(createLayerSelectionInspectorModel(ctx, template)).toBeNull();
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { assertInspectorSvgFlow } from "./inspector-svg.mjs";
 import { assertCanvasTransformFlow } from "./canvas-transform.mjs";
 import { assertCanvasMotionPathFlow } from "./canvas-motion-path.mjs";
 import { assertGraphEditorFlow } from "./graph-editor.mjs";
@@ -8,4 +9,5 @@ export async function runSmokeScenarios(runtime) {
   await assertGraphEditorFlow(runtime);
   await assertCanvasMotionPathFlow(runtime);
   await assertCanvasTransformFlow(runtime);
+  await assertInspectorSvgFlow(runtime);
 }

@@ -1,3 +1,8 @@
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getTemplateArtifactTypeLabel,
@@ -14,7 +19,7 @@ import {
 
 function renderSelectionCrumb(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ) {
   ctx.refs.selectionCrumb.innerHTML = "";
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -42,7 +47,10 @@ function renderSelectionCrumb(
   ctx.refs.selectionCrumb.append(type, title, meta, hint);
 }
 
-function getSelectionCrumbModel(ctx: ViewerAppContext, template) {
+function getSelectionCrumbModel(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+) {
   const item = ctx.state.selectedItem ?? { type: "effect" };
   if (item.type === "scene") {
     const scene = ctx
@@ -55,7 +63,7 @@ function getSelectionCrumbModel(ctx: ViewerAppContext, template) {
       meta: scene
         ? `${ctx.formatSeconds(scene.start)}-${ctx.formatSeconds(scene.start + scene.duration)}`
         : item.sceneId,
-      title: scene?.label ?? item.sceneId,
+      title: ctx.deps.translateText(scene?.label, item.sceneId),
       type: ctx.deps.t("viewer.selection.types.scene", "Scene"),
     };
   }
@@ -189,7 +197,9 @@ function getSelectionCrumbModel(ctx: ViewerAppContext, template) {
       meta: keyframe
         ? getKeyframeEasingLabel(ctx, keyframe.easing)
         : item.keyframeId,
-      title: getKeyframeDisplayLabel(ctx, track, keyframe),
+      title: track
+        ? getKeyframeDisplayLabel(ctx, track, keyframe)
+        : item.trackId,
       type: ctx.deps.t("viewer.selection.types.keyframe", "Keyframe"),
     };
   }
@@ -227,11 +237,19 @@ function getSelectionCrumbModel(ctx: ViewerAppContext, template) {
   };
 }
 
-function formatTemplateType(ctx: ViewerAppContext, template): string {
+function formatTemplateType(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+): string {
   return getTemplateBundleKindLabel(ctx.deps.t, template);
 }
 
-function formatSelectionMessage(ctx, key, fallback, values) {
+function formatSelectionMessage(
+  ctx: ViewerAppContext,
+  key: string,
+  fallback: string,
+  values: Readonly<Record<string, string | number>>,
+) {
   let message = ctx.deps.t(key, fallback);
   for (const [name, value] of Object.entries(values)) {
     message = message.replace(`{${name}}`, String(value));
@@ -239,7 +257,10 @@ function formatSelectionMessage(ctx, key, fallback, values) {
   return message;
 }
 
-function appendAssetUsageInspector(ctx: ViewerAppContext, layers) {
+function appendAssetUsageInspector(
+  ctx: ViewerAppContext,
+  layers: readonly EffectLayer[],
+) {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
   heading.textContent = ctx.deps.t("viewer.inspector.usage", "Usage");
@@ -274,13 +295,23 @@ function appendAssetUsageInspector(ctx: ViewerAppContext, layers) {
   ctx.appendInspectorNode(list);
 }
 
-export function installInspectorSelectionSummaryOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderSelectionCrumb = renderSelectionCrumb.bind(undefined, ctx);
-  ctx.getSelectionCrumbModel = getSelectionCrumbModel.bind(undefined, ctx);
-  ctx.appendAssetUsageInspector = appendAssetUsageInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorSelectionSummaryActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorOverviewActions,
+  | "renderSelectionCrumb"
+  | "getSelectionCrumbModel"
+  | "appendAssetUsageInspector"
+> {
+  return {
+    renderSelectionCrumb: bindViewerAction(renderSelectionCrumb, getContext),
+    getSelectionCrumbModel: bindViewerAction(
+      getSelectionCrumbModel,
+      getContext,
+    ),
+    appendAssetUsageInspector: bindViewerAction(
+      appendAssetUsageInspector,
+      getContext,
+    ),
+  };
 }

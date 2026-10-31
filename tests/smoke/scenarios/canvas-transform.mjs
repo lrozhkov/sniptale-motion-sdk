@@ -184,6 +184,22 @@ export async function assertCanvasTransformFlow({
     await expect.poll(() => style("width")).not.toBe(groupWidth);
     await page.keyboard.press(`${modifier}+z`);
     await expect.poll(() => style("width")).toBe(groupWidth);
+    const opacity = page.locator(
+      '#inspectorPanel input[data-selection-property="opacity"]',
+    );
+    await expect(opacity).toHaveValue("1");
+    await opacity.fill("0.5");
+    await opacity.press("Tab");
+    await expect(opacity).toHaveValue("0.5");
+    await page.locator("#undoEditorButton").click();
+    await expect(opacity).toHaveValue("1");
+    await expect(page.locator("#redoEditorButton")).toBeEnabled();
+    await opacity.fill("");
+    await opacity.press("Tab");
+    await expect(opacity).toHaveValue("1");
+    await expect(page.locator("#redoEditorButton")).toBeEnabled();
+    await page.locator("#redoEditorButton").click();
+    await expect(opacity).toHaveValue("0.5");
     const left = await style("left");
     const box = await selection.boundingBox();
     assert.ok(box);
@@ -220,6 +236,7 @@ export async function assertCanvasTransformFlow({
     assert.equal(card.blendMode, "screen");
     for (const id of ["card", "title"]) {
       const layer = exported.layers.find((candidate) => candidate.id === id);
+      assert.equal(layer.opacity, 0.5);
       assert.ok(typeof layer?.x === "number" && layer.x > 0);
       assert.ok(typeof layer?.y === "number" && layer.y > 0);
     }
@@ -256,6 +273,9 @@ export async function assertCanvasTransformFlow({
             "inspector-select-value",
             "multi-selection",
             "group-keyboard-scale",
+            "group-common-number-and-undo",
+            "group-invalid-number-preserves-redo",
+            "group-common-number-redo",
             "group-pointer-move",
             "group-keyboard-rotation-and-undo",
             "export-and-cli-validation",

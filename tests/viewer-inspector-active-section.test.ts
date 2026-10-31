@@ -15,6 +15,10 @@ describe("viewer inspector active section", () => {
       setInspectorAppendSection: vi.fn(),
     } as any;
     const template = {
+      id: "template",
+      duration: 2,
+      scenes: [],
+      timeline: { duration: 2, phases: [], tracks: [] },
       clips: [{ duration: 2, layerId: "logo", start: 0 }],
       layers: [{ id: "logo", name: "Logo", type: "svgAsset" }],
     };

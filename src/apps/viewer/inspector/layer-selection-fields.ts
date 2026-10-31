@@ -1,6 +1,15 @@
+import {
+  readInspectorNumber,
+  type InspectorNumberField,
+} from "./field-model.js";
+import type { LayerSelectionInspectorModel } from "./layer-selection-model.js";
+import type { CanvasPropertyUpdates } from "../canvas/contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-export function appendSelectionCommonProperties(ctx, model): void {
+export function appendSelectionCommonProperties(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+): void {
   const primary = model.commonFields.filter((field) => !field.advanced);
   const advanced = model.commonFields.filter((field) => field.advanced);
   if (primary.length > 0) {
@@ -25,12 +34,20 @@ export function appendSelectionCommonProperties(ctx, model): void {
   }
 }
 
-function appendCommonFields(ctx, model, body, fields): void {
+function appendCommonFields(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+  body: HTMLElement,
+  fields: LayerSelectionInspectorModel["commonFields"],
+): void {
   for (const field of fields) {
-    const first = Number(field.values[0]) || 0;
-    const mixed = field.values.some(
-      (value) => Math.abs((Number(value) || 0) - first) > 0.0001,
-    );
+    const first = field.values[0];
+    const mixed =
+      first === undefined ||
+      !Number.isFinite(first) ||
+      field.values.some(
+        (value) => !Number.isFinite(value) || Math.abs(value - first) > 0.0001,
+      );
     body.append(
       createSelectionNumberField(ctx, {
         disabled: !model.propertyEditable,
@@ -39,19 +56,19 @@ function appendCommonFields(ctx, model, body, fields): void {
         mixed,
         onChange: (value) =>
           updateSelectionCommonProperty(ctx, model, field.property, value),
-        value: mixed ? null : first,
+        value: mixed ? null : (first ?? null),
       }),
     );
   }
 }
 
 function updateSelectionCommonProperty(
-  ctx,
-  model,
-  property,
-  requestedValue,
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+  property: string,
+  requestedValue: number,
 ): void {
-  const value = Number(requestedValue);
+  const value = requestedValue;
   if (!Number.isFinite(value)) {
     return;
   }
@@ -61,16 +78,32 @@ function updateSelectionCommonProperty(
   });
   ctx.updateLayerPropertyBatchAtTime(
     model.time,
-    Object.fromEntries(
-      model.layerIds.map((layerId) => [layerId, { [property]: value }]),
+    Object.fromEntries<CanvasPropertyUpdates>(
+      model.layerIds.map(
+        (layerId) => [layerId, { [property]: value }] as const,
+      ),
     ),
     { keyframe: true },
   );
 }
 
 export function createSelectionNumberField(
-  ctx,
-  { disabled, field = null, label, mixed = false, onChange, value },
+  ctx: ViewerAppContext,
+  {
+    disabled,
+    field = null,
+    label,
+    mixed = false,
+    onChange,
+    value,
+  }: {
+    disabled: boolean;
+    field?: InspectorNumberField | null;
+    label: string;
+    mixed?: boolean;
+    onChange: (value: number) => void;
+    value: number | null;
+  },
 ) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row without-keyframe";
@@ -86,17 +119,29 @@ export function createSelectionNumberField(
       ? ""
       : String(ctx.roundInspectorNumber(value));
   input.step = String(field?.step ?? 0.1);
+  if (field) input.dataset.selectionProperty = field.property;
   if (field) {
     input.min = String(field.min);
     input.max = String(field.max);
   }
   input.setAttribute("aria-label", label);
-  input.addEventListener("change", () => onChange(input.value));
+  input.addEventListener("change", () => {
+    const next = readInspectorNumber(
+      input.valueAsNumber,
+      field ?? { min: -Infinity, max: Infinity },
+    );
+    if (next === null) {
+      input.value =
+        value === null ? "" : String(ctx.roundInspectorNumber(value));
+      return;
+    }
+    onChange(next);
+  });
   row.append(name, input);
   return row;
 }
 
-function createInspectorPropertyGroup(label, bodyClass) {
+function createInspectorPropertyGroup(label: string, bodyClass: string) {
   const root = document.createElement("section");
   root.className = "inspector-property-group";
   const heading = document.createElement("div");

@@ -1,8 +1,16 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
+import type { ViewerSelection } from "../timeline/model/selection-model.js";
+import type { EditorTemplateSource } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getTemplateBundleKindLabel } from "../templates/bundle-kind.js";
 import { getKeyframeDisplayLabel } from "./keyframe-labels.js";
 
-function getInspectorContext(ctx: ViewerAppContext, item, template) {
+function getInspectorContext(
+  ctx: ViewerAppContext,
+  item: ViewerSelection,
+  template: EditorTemplateSource,
+) {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {
     return { kind: "", title: "" };
@@ -53,7 +61,7 @@ function getInspectorContext(ctx: ViewerAppContext, item, template) {
       .find((entry) => entry.id === item.sceneId);
     return {
       kind: ctx.deps.t("viewer.inspector.context.scene", "Scene"),
-      title: scene?.label ?? item.sceneId,
+      title: ctx.deps.translateText(scene?.label, item.sceneId),
     };
   }
   if (item.type === "phase") {
@@ -81,9 +89,10 @@ function getInspectorContext(ctx: ViewerAppContext, item, template) {
     const track = effectiveTemplate.timeline.tracks.find(
       (entry) => entry.id === item.trackId,
     );
-    const keyframe = track?.keyframes?.find(
-      (entry) => entry.id === item.keyframeId,
-    );
+    const keyframe =
+      item.type === "keyframe"
+        ? track?.keyframes.find((entry) => entry.id === item.keyframeId)
+        : null;
     return {
       kind: ctx.deps.t(
         item.type === "keyframe"
@@ -109,7 +118,11 @@ function getInspectorContext(ctx: ViewerAppContext, item, template) {
   };
 }
 
-function renderInspectorContext(ctx: ViewerAppContext, item, template) {
+function renderInspectorContext(
+  ctx: ViewerAppContext,
+  item: ViewerSelection,
+  template: EditorTemplateSource,
+) {
   const context = getInspectorContext(ctx, item, template);
   if (ctx.refs.inspectorContext) {
     ctx.refs.inspectorContext.hidden = !context.title;
@@ -123,8 +136,13 @@ function renderInspectorContext(ctx: ViewerAppContext, item, template) {
   }
 }
 
-export function installInspectorContextHeaderOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderInspectorContext = renderInspectorContext.bind(undefined, ctx);
+export function createInspectorContextHeaderActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorOverviewActions, "renderInspectorContext"> {
+  return {
+    renderInspectorContext: bindViewerAction(
+      renderInspectorContext,
+      getContext,
+    ),
+  };
 }

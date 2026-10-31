@@ -1,15 +1,19 @@
+import type { ViewerSelection } from "../timeline/model/selection-model.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
+import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 export function appendLayerSelectionOverview(
   ctx: ViewerAppContext,
-  item,
-  effectiveTemplate,
+  item: Extract<ViewerSelection, { layerId: string }>,
+  effectiveTemplate: EditorTemplate,
 ) {
   if (ctx.isLayerSelectionInspector?.(effectiveTemplate)) {
     ctx.appendLayerMultiSelectionOverview(effectiveTemplate);
     return;
   }
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   const layer = effectiveTemplate.layers.find(
     (entry) => entry.id === item.layerId,
   );
@@ -52,10 +56,10 @@ export function appendLayerSelectionOverview(
 
 export function appendClipSelectionOverview(
   ctx: ViewerAppContext,
-  item,
-  effectiveTemplate,
+  item: Extract<ViewerSelection, { layerId: string }>,
+  effectiveTemplate: EditorTemplate,
 ) {
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   const clip = effectiveTemplate.clips.find(
     (entry) => entry.layerId === item.layerId,
   );
@@ -110,15 +114,20 @@ export function appendClipSelectionOverview(
   }
 }
 
-export function installInspectorLayerOverviewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendLayerSelectionOverview = appendLayerSelectionOverview.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendClipSelectionOverview = appendClipSelectionOverview.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorLayerOverviewActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorOverviewActions,
+  "appendLayerSelectionOverview" | "appendClipSelectionOverview"
+> {
+  return {
+    appendLayerSelectionOverview: bindViewerAction(
+      appendLayerSelectionOverview,
+      getContext,
+    ),
+    appendClipSelectionOverview: bindViewerAction(
+      appendClipSelectionOverview,
+      getContext,
+    ),
+  };
 }

@@ -744,6 +744,7 @@ export const messages = {
         valid: { en: "Valid", ru: "Корректно" },
         visible: { en: "Visible", ru: "Виден" },
       },
+      svgPartBrowser: { en: "SVG Part Browser", ru: "Части SVG" },
       usage: { en: "Usage", ru: "Использование" },
       ownershipDetails: {
         bodyMoves: { en: "Body moves", ru: "Тело перемещает" },

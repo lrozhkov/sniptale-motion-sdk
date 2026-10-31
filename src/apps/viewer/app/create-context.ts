@@ -1,3 +1,11 @@
+import { createLayerGroupingActions } from "../layers/grouping.js";
+import { createInspectorSvgPartActions } from "../inspector/svg-part-fields.js";
+import { createInspectorOverviewActions } from "../inspector/overview.js";
+import { createInspectorEffectOverviewActions } from "../inspector/effect-overview.js";
+import { createInspectorContextHeaderActions } from "../inspector/context-header.js";
+import { createInspectorLayerOverviewActions } from "../inspector/layer-overview.js";
+import { createInspectorSelectionSummaryActions } from "../inspector/selection-summary.js";
+import { createInspectorLayerSelectionActions } from "../inspector/layer-selection.js";
 import { createInspectorFieldActions } from "../inspector/fields.js";
 import { createInspectorTimingActions } from "../inspector/timing.js";
 import { createInspectorKeyframeSelectionActions } from "../inspector/keyframe-selection.js";
@@ -94,6 +102,15 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createLayerGroupingActions(() => ctx),
+    ...createInspectorSvgPartActions(() => ctx),
+    ...createInspectorOverviewActions(() => ctx),
+    ...createInspectorEffectOverviewActions(() => ctx),
+    ...createInspectorContextHeaderActions(() => ctx),
+    ...createInspectorLayerOverviewActions(() => ctx),
+    ...createInspectorSelectionSummaryActions(() => ctx),
+    ...createInspectorLayerSelectionActions(() => ctx),
+
     ...createInspectorFieldActions(() => ctx),
     ...createInspectorTimingActions(() => ctx),
     ...createInspectorKeyframeSelectionActions(() => ctx),

@@ -1,3 +1,4 @@
+import { sha256EffectV1Bytes } from "../effect-v1/asset-integrity.js";
 import type { DemoPackIssue } from "./common.js";
 import { MAX_ASSET_BYTES } from "../protocol.js";
 import { isSafeSvgText } from "../svg-safety.js";
@@ -157,9 +158,14 @@ async function readAsset(
       svgText = await blob.text();
       validateSvgText(svgText, item.path, errors);
     }
+    const bytes =
+      svgText === null
+        ? new Uint8Array(await blob.arrayBuffer())
+        : new TextEncoder().encode(svgText);
     return {
       blob,
-      byteLength: blob.size,
+      byteLength: bytes.byteLength,
+      sha256: await sha256EffectV1Bytes(bytes),
       dataUrl: mimeType === "image/svg+xml" ? null : await blobToDataUrl(blob),
       height: typeof item.height === "number" ? item.height : undefined,
       id: item.id,

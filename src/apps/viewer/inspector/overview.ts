@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getKeyframeEasingLabel } from "./keyframe-labels.js";
 
@@ -20,7 +22,7 @@ function renderInspector(ctx: ViewerAppContext) {
   ctx.syncInspectorTabs(item);
   ctx.renderInspectorContext(item, template);
   ctx.prepareInspectorSections();
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   const valid = t("viewer.inspector.values.valid", "Valid");
   const outOfRange = t("viewer.inspector.values.outOfRange", "Out of range");
   if (item.type === "layer") {
@@ -40,7 +42,10 @@ function renderInspector(ctx: ViewerAppContext) {
       .find((entry) => entry.id === item.sceneId);
     ctx.setInspectorAppendSection("summary");
     ctx.appendInspectorRows(t("viewer.inspector.context.scene", "Scene"), [
-      [t("viewer.inspector.fields.name", "Name"), scene?.label ?? item.sceneId],
+      [
+        t("viewer.inspector.fields.name", "Name"),
+        ctx.deps.translateText(scene?.label, item.sceneId),
+      ],
       [
         t("viewer.inspector.fields.start", "Start"),
         ctx.formatSeconds(scene?.start ?? 0),
@@ -262,6 +267,10 @@ function renderInspector(ctx: ViewerAppContext) {
   ctx.renderEffectOverview(template, effectiveTemplate);
 }
 
-export function installInspectorOverviewOwner(ctx: ViewerAppContext): void {
-  ctx.renderInspector = renderInspector.bind(undefined, ctx);
+export function createInspectorOverviewActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorOverviewActions, "renderInspector"> {
+  return {
+    renderInspector: bindViewerAction(renderInspector, getContext),
+  };
 }

@@ -1,3 +1,7 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { LayerSelectionInspectorModel } from "./layer-selection-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createLayerSelectionInspectorModel,
@@ -8,7 +12,10 @@ import {
   createSelectionNumberField,
 } from "./layer-selection-fields.js";
 
-function appendLayerMultiSelectionOverview(ctx: ViewerAppContext, template) {
+function appendLayerMultiSelectionOverview(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+) {
   const model = createLayerSelectionInspectorModel(ctx, template);
   if (!model) {
     return;
@@ -26,7 +33,10 @@ function appendLayerMultiSelectionOverview(ctx: ViewerAppContext, template) {
   }
 }
 
-function appendSelectionSummary(ctx, model): void {
+function appendSelectionSummary(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+): void {
   const typeCount = new Set(model.layers.map((layer) => layer.type)).size;
   ctx.appendInspectorRows(
     model.groupLayer?.name ??
@@ -60,7 +70,10 @@ function appendSelectionSummary(ctx, model): void {
   );
 }
 
-function appendSelectionActions(ctx, model): void {
+function appendSelectionActions(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+): void {
   const group = createInspectorPropertyGroup(
     ctx.deps.t("viewer.inspector.selection.structure", "Structure"),
     "inspector-selection-actions",
@@ -68,14 +81,12 @@ function appendSelectionActions(ctx, model): void {
   group.body.classList.add("inspector-selection-action-row");
   group.body.append(
     createSelectionActionButton(
-      ctx,
       ctx.deps.t("viewer.layers.group", "Group"),
       "Ctrl/Cmd+G",
       !model.grouping.canGroup,
       () => ctx.groupSelectedLayers(),
     ),
     createSelectionActionButton(
-      ctx,
       ctx.deps.t("viewer.layers.ungroup", "Ungroup"),
       "Ctrl/Cmd+Shift+G",
       !model.grouping.canUngroup,
@@ -85,7 +96,10 @@ function appendSelectionActions(ctx, model): void {
   ctx.appendInspectorNode(group.root);
 }
 
-function appendSelectionFrame(ctx, model): void {
+function appendSelectionFrame(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+): void {
   const group = createInspectorPropertyGroup(
     ctx.deps.t("viewer.inspector.selection.frame", "Selection frame"),
     "inspector-property-grid paired inspector-selection-frame",
@@ -94,24 +108,24 @@ function appendSelectionFrame(ctx, model): void {
     [
       "left",
       ctx.deps.t("viewer.inspector.selection.left", "Left"),
-      model.bounds?.x,
+      model.bounds?.x ?? null,
     ],
     [
       "top",
       ctx.deps.t("viewer.inspector.selection.top", "Top"),
-      model.bounds?.y,
+      model.bounds?.y ?? null,
     ],
     [
       "width",
       ctx.deps.t("viewer.inspector.selection.width", "Width"),
-      model.bounds?.width,
+      model.bounds?.width ?? null,
     ],
     [
       "height",
       ctx.deps.t("viewer.inspector.selection.height", "Height"),
-      model.bounds?.height,
+      model.bounds?.height ?? null,
     ],
-  ]) {
+  ] as const) {
     const sizeProperty = property === "width" || property === "height";
     group.body.append(
       createSelectionNumberField(ctx, {
@@ -130,7 +144,10 @@ function appendSelectionFrame(ctx, model): void {
   ctx.appendInspectorNode(group.root);
 }
 
-function appendSelectionAlignment(ctx, model): void {
+function appendSelectionAlignment(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+): void {
   const group = createInspectorPropertyGroup(
     ctx.deps.t("viewer.inspector.selection.layout", "Align & distribute"),
     "inspector-selection-layout",
@@ -144,10 +161,9 @@ function appendSelectionAlignment(ctx, model): void {
     ["top", "alignTop", "Top"],
     ["vertical-center", "alignVerticalCenter", "Middle"],
     ["bottom", "alignBottom", "Bottom"],
-  ]) {
+  ] as const) {
     align.append(
       createSelectionActionButton(
-        ctx,
         ctx.deps.t(`viewer.inspector.selection.${key}`, fallback),
         "",
         !model.frameMoveEditable,
@@ -159,7 +175,6 @@ function appendSelectionAlignment(ctx, model): void {
   distribute.className = "inspector-selection-action-row";
   distribute.append(
     createSelectionActionButton(
-      ctx,
       ctx.deps.t(
         "viewer.inspector.selection.distributeHorizontal",
         "Equal horizontal gaps",
@@ -169,7 +184,6 @@ function appendSelectionAlignment(ctx, model): void {
       () => ctx.distributeLayerSelection("horizontal"),
     ),
     createSelectionActionButton(
-      ctx,
       ctx.deps.t(
         "viewer.inspector.selection.distributeVertical",
         "Equal vertical gaps",
@@ -183,7 +197,12 @@ function appendSelectionAlignment(ctx, model): void {
   ctx.appendInspectorNode(group.root);
 }
 
-function createSelectionActionButton(_ctx, label, shortcut, disabled, action) {
+function createSelectionActionButton(
+  label: string,
+  shortcut: string,
+  disabled: boolean,
+  action: () => void,
+) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "secondary compact";
@@ -194,7 +213,7 @@ function createSelectionActionButton(_ctx, label, shortcut, disabled, action) {
   return button;
 }
 
-function createInspectorPropertyGroup(label, bodyClass) {
+function createInspectorPropertyGroup(label: string, bodyClass: string) {
   const root = document.createElement("section");
   root.className = "inspector-property-group";
   const heading = document.createElement("div");
@@ -206,7 +225,10 @@ function createInspectorPropertyGroup(label, bodyClass) {
   return { body, root };
 }
 
-function createSelectionUnavailableNote(ctx, model) {
+function createSelectionUnavailableNote(
+  ctx: ViewerAppContext,
+  model: LayerSelectionInspectorModel,
+) {
   const note = document.createElement("p");
   note.className = "inspector-capability-note";
   note.textContent = model.frameMoveEditable
@@ -221,13 +243,20 @@ function createSelectionUnavailableNote(ctx, model) {
   return note;
 }
 
-export function installInspectorLayerSelectionOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.isLayerSelectionInspector = isLayerSelectionInspector.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendLayerMultiSelectionOverview =
-    appendLayerMultiSelectionOverview.bind(undefined, ctx);
+export function createInspectorLayerSelectionActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorOverviewActions,
+  "isLayerSelectionInspector" | "appendLayerMultiSelectionOverview"
+> {
+  return {
+    isLayerSelectionInspector: bindViewerAction(
+      isLayerSelectionInspector,
+      getContext,
+    ),
+    appendLayerMultiSelectionOverview: bindViewerAction(
+      appendLayerMultiSelectionOverview,
+      getContext,
+    ),
+  };
 }

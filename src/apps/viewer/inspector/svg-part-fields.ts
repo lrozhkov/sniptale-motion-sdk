@@ -1,12 +1,35 @@
+import { bindViewerAction } from "../app/bind-action.js";
 import type { ViewerAppContext } from "../app/context.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { ViewerAsset } from "../assets/state.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
 
-function appendSvgPartPicker(ctx: ViewerAppContext, layer, target = null) {
-  const asset = ctx.state.assets.get(layer.assetId);
-  const parts = ctx.parseSvgPartsForInspector(asset);
-  if (parts.length === 0) {
-    return;
-  }
-  const selectedIds = new Set(ctx.parseCsvList(layer.svgPartIds));
+type SvgPaintState = {
+  fill: string | null;
+  stroke: string | null;
+  groupIds: string[];
+};
+export type InspectorSvgPart = {
+  groupIds: string[];
+  id: string;
+  kind: string;
+  paint: "stroke" | "fill" | "shape";
+  swatch: string;
+};
+const MAX_VISIBLE_PARTS = 48;
+
+function appendSvgPartPicker(
+  ctx: ViewerAppContext,
+  layer: EffectLayer,
+  target: HTMLElement | null = null,
+): void {
+  const asset =
+    typeof layer.assetId === "string"
+      ? ctx.state.assets.get(layer.assetId)
+      : undefined;
+  const parts = parseSvgPartsForInspector(asset);
+  if (parts.length === 0) return;
+  const selectedIds = new Set(parseSvgPartIdList(layer.svgPartIds));
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
   heading.textContent = ctx.deps.t(
@@ -29,22 +52,26 @@ function appendSvgPartPicker(ctx: ViewerAppContext, layer, target = null) {
     ]
       .filter(Boolean)
       .join("\n");
-    button.innerHTML = `<span class="svg-part-swatch" style="background:${ctx.escapeCssColor(part.swatch)}"></span><strong>${ctx.escapeHtml(part.id)}</strong><small>${ctx.escapeHtml(part.kind)}</small>`;
+    const swatch = document.createElement("span");
+    swatch.className = "svg-part-swatch";
+    swatch.style.backgroundColor = resolveSvgSwatch(part.swatch);
+    const name = document.createElement("strong");
+    name.textContent = part.id;
+    const kind = document.createElement("small");
+    kind.textContent = part.kind;
+    button.append(swatch, name, kind);
     button.addEventListener("click", () => {
       const current = new Set(
-        ctx.parseCsvList(
+        parseSvgPartIdList(
           ctx
             .getEffectiveTemplate(ctx.state.currentTemplate)
             ?.layers.find((item) => item.id === layer.id)?.svgPartIds ??
             layer.svgPartIds,
         ),
       );
-      if (current.has(part.id)) {
-        current.delete(part.id);
-      } else {
-        current.add(part.id);
-      }
-      const value = Array.from(current).join(", ");
+      if (current.has(part.id)) current.delete(part.id);
+      else current.add(part.id);
+      const value = [...current].join(", ");
       ctx.beginEditorCommand({
         payload: { layerId: layer.id, property: "svgPartIds", value },
         type: "updateLayerProperty",
@@ -53,52 +80,58 @@ function appendSvgPartPicker(ctx: ViewerAppContext, layer, target = null) {
     });
     picker.append(button);
   }
-  if (target) {
-    target.append(heading, picker);
-  } else {
-    ctx.appendInspectorNode(heading, picker);
-  }
+  if (target) target.append(heading, picker);
+  else ctx.appendInspectorNode(heading, picker);
 }
 
-function parseSvgPartsForInspector(ctx: ViewerAppContext, asset) {
+export function parseSvgPartsForInspector(
+  asset: Pick<ViewerAsset, "mimeType" | "svgText"> | undefined,
+): InspectorSvgPart[] {
   if (
-    !asset?.svgText ||
+    typeof asset?.svgText !== "string" ||
+    !asset.svgText ||
     asset.mimeType !== "image/svg+xml" ||
     typeof DOMParser === "undefined"
-  ) {
+  )
     return [];
-  }
   try {
     const doc = new DOMParser().parseFromString(asset.svgText, "image/svg+xml");
-    if (doc.querySelector("parsererror")) {
+    const root = doc.documentElement;
+    if (
+      doc.querySelector("parsererror") ||
+      root.namespaceURI !== "http://www.w3.org/2000/svg" ||
+      root.localName !== "svg"
+    )
       return [];
-    }
-    const parts = [];
-    ctx.walkSvgInspectorNodes(doc.documentElement, parts, {
+    const parts: InspectorSvgPart[] = [];
+    walkSvgInspectorNodes(root, parts, {
       groupIds: [],
-      fill: null,
-      stroke: null,
+      fill: normalizeSvgPaint(root.getAttribute("fill") ?? "#000"),
+      stroke: normalizeSvgPaint(root.getAttribute("stroke")),
     });
-    return parts.slice(0, 48);
+    return parts;
   } catch {
     return [];
   }
 }
 
-function walkSvgInspectorNodes(ctx: ViewerAppContext, node, parts, inherited) {
-  for (const child of Array.from(node.children ?? []) as any[]) {
+function walkSvgInspectorNodes(
+  node: Element,
+  parts: InspectorSvgPart[],
+  inherited: SvgPaintState,
+): void {
+  for (const child of Array.from(node.children)) {
+    if (parts.length >= MAX_VISIBLE_PARTS) return;
     const tag = child.tagName.toLowerCase();
-    if (tag === "defs" || tag === "clippath") {
-      continue;
-    }
+    if (tag === "defs" || tag === "clippath") continue;
     const groupIds =
       tag === "g" && child.id
         ? [...inherited.groupIds, child.id]
         : inherited.groupIds;
-    const state = {
-      fill: ctx.normalizeSvgPaint(child.getAttribute("fill") ?? inherited.fill),
+    const state: SvgPaintState = {
+      fill: normalizeSvgPaint(child.getAttribute("fill") ?? inherited.fill),
       groupIds,
-      stroke: ctx.normalizeSvgPaint(
+      stroke: normalizeSvgPaint(
         child.getAttribute("stroke") ?? inherited.stroke,
       ),
     };
@@ -111,86 +144,49 @@ function walkSvgInspectorNodes(ctx: ViewerAppContext, node, parts, inherited) {
         "line",
         "polyline",
         "polygon",
-      ].includes(tag)
+      ].includes(tag) &&
+      (state.fill || state.stroke || tag === "line" || tag === "polyline")
     ) {
+      const prefix = groupIds.at(-1);
       const id =
-        child.id || ctx.createGeneratedSvgInspectorPartId(state, tag, parts);
-      const paint = state.stroke ? "stroke" : state.fill ? "fill" : "shape";
-      if (state.fill || state.stroke || tag === "line" || tag === "polyline") {
-        parts.push({
-          groupIds: state.groupIds,
-          id,
-          kind: tag,
-          paint,
-          swatch: state.stroke || state.fill || "#9aa5ae",
-        });
-      }
+        child.id || `${prefix ? `${prefix}.` : ""}${tag}-${parts.length}`;
+      parts.push({
+        groupIds,
+        id,
+        kind: tag,
+        paint: state.stroke ? "stroke" : state.fill ? "fill" : "shape",
+        swatch: state.stroke || state.fill || "#9aa5ae",
+      });
     }
-    ctx.walkSvgInspectorNodes(child, parts, state);
+    walkSvgInspectorNodes(child, parts, state);
   }
 }
 
-function createGeneratedSvgInspectorPartId(
-  ctx: ViewerAppContext,
-  state,
-  tag,
-  parts,
-) {
-  const prefix = state.groupIds.length
-    ? `${state.groupIds[state.groupIds.length - 1]}.`
-    : "";
-  return `${prefix}${tag}-${parts.length}`;
+function normalizeSvgPaint(value: string | null): string | null {
+  if (!value || value === "none") return null;
+  return value.startsWith("url(") ? "#f4fbff" : value;
 }
 
-function normalizeSvgPaint(ctx: ViewerAppContext, value) {
-  if (!value || value === "none") {
-    return null;
-  }
-  return String(value).startsWith("url(") ? "#f4fbff" : String(value);
+export function parseSvgPartIdList(value: unknown): string[] {
+  return typeof value === "string"
+    ? value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
 }
 
-function parseCsvList(ctx: ViewerAppContext, value) {
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+export function resolveSvgSwatch(value: unknown): string {
+  const text = typeof value === "string" ? value.trim() : "";
+  return /^#[0-9a-f]{3,8}$/i.test(text) || /^rgba?\([\d\s,%.]+\)$/i.test(text)
+    ? text
+    : "#9aa5ae";
 }
 
-function escapeHtml(ctx: ViewerAppContext, value) {
-  return String(value).replace(
-    /[&<>"']/g,
-    (char) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[char],
-  );
-}
-
-function escapeCssColor(ctx: ViewerAppContext, value) {
-  const text = String(value || "").trim();
-  if (/^#[0-9a-f]{3,8}$/i.test(text) || /^rgba?\([\d\s,%.]+\)$/i.test(text)) {
-    return text;
-  }
-  return "#9aa5ae";
-}
-
-export function installInspectorSvgPartFieldsOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendSvgPartPicker = appendSvgPartPicker.bind(undefined, ctx);
-  ctx.parseSvgPartsForInspector = parseSvgPartsForInspector.bind(
-    undefined,
-    ctx,
-  );
-  ctx.walkSvgInspectorNodes = walkSvgInspectorNodes.bind(undefined, ctx);
-  ctx.createGeneratedSvgInspectorPartId =
-    createGeneratedSvgInspectorPartId.bind(undefined, ctx);
-  ctx.normalizeSvgPaint = normalizeSvgPaint.bind(undefined, ctx);
-  ctx.parseCsvList = parseCsvList.bind(undefined, ctx);
-  ctx.escapeHtml = escapeHtml.bind(undefined, ctx);
-  ctx.escapeCssColor = escapeCssColor.bind(undefined, ctx);
+export function createInspectorSvgPartActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorOverviewActions, "appendSvgPartPicker"> {
+  return {
+    appendSvgPartPicker: bindViewerAction(appendSvgPartPicker, getContext),
+  };
 }

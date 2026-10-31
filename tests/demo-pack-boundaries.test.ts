@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadDemoPack } from "../src/sdk/validator.js";
 import { readTemplates } from "../src/sdk/demo-pack-validator/templates.js";
@@ -92,6 +93,47 @@ describe("demo pack receiving boundaries", () => {
       ]),
     );
   });
+
+  it.each(["", "\uFEFF"])(
+    "materializes exportable SVG integrity from content with prefix %j",
+    async (prefix) => {
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
+      const body = prefix + svg;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response(body, {
+              headers: { "content-type": "image/svg+xml" },
+            }),
+        ),
+      );
+      const errors: DemoPackIssue[] = [];
+      const assets = await readAssets(
+        "/pack/",
+        {
+          assets: [
+            {
+              id: "mark",
+              path: "mark.svg",
+              kind: "svg",
+              mimeType: "image/svg+xml",
+              size: Buffer.byteLength(body),
+            },
+          ],
+        },
+        errors,
+      );
+      expect(errors).toEqual([]);
+      const asset = assets.get("mark");
+      expect(asset?.svgText).toBe(svg);
+      expect(asset).toMatchObject({
+        byteLength: Buffer.byteLength(svg),
+        sha256: createHash("sha256").update(svg).digest("hex"),
+      });
+    },
+  );
 
   it("does not fetch assets with invalid receiving metadata", async () => {
     const fetcher = vi.fn();

@@ -1,3 +1,8 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  LayerGroupingActions,
+  LayerGroupingState,
+} from "./grouping-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isLayerGroup } from "./hierarchy.js";
 import {
@@ -7,7 +12,7 @@ import {
   ungroupLayerSelection,
 } from "./hierarchy-operations.js";
 
-function getLayerGroupingState(ctx: ViewerAppContext) {
+function getLayerGroupingState(ctx: ViewerAppContext): LayerGroupingState {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return { canGroup: false, canUngroup: false, groupReason: "no-template" };
@@ -90,18 +95,22 @@ function ungroupSelectedLayers(ctx: ViewerAppContext) {
 
 function getGroupingFailureMessage(ctx: ViewerAppContext, reason: string) {
   const key = `viewer.layers.groupingErrors.${reason}`;
-  const fallbacks = {
-    "different-parents": "Selected layers must have the same parent.",
-    "invalid-hierarchy": "Repair the layer hierarchy before grouping.",
-    "non-contiguous": "Selected layers must be adjacent in stacking order.",
-    "selection-too-small": "Select at least two layers.",
-    "too-deep": "The resulting group would be nested too deeply.",
-  };
-  return ctx.deps.t(key, fallbacks[reason] ?? "Layers cannot be grouped.");
+  const fallbacks = new Map<string, string>([
+    ["different-parents", "Selected layers must have the same parent."],
+    ["invalid-hierarchy", "Repair the layer hierarchy before grouping."],
+    ["non-contiguous", "Selected layers must be adjacent in stacking order."],
+    ["selection-too-small", "Select at least two layers."],
+    ["too-deep", "The resulting group would be nested too deeply."],
+  ]);
+  return ctx.deps.t(key, fallbacks.get(reason) ?? "Layers cannot be grouped.");
 }
 
-export function installLayersGroupingOwner(ctx: ViewerAppContext): void {
-  ctx.getLayerGroupingState = getLayerGroupingState.bind(undefined, ctx);
-  ctx.groupSelectedLayers = groupSelectedLayers.bind(undefined, ctx);
-  ctx.ungroupSelectedLayers = ungroupSelectedLayers.bind(undefined, ctx);
+export function createLayerGroupingActions(
+  getContext: () => ViewerAppContext,
+): LayerGroupingActions {
+  return {
+    getLayerGroupingState: bindViewerAction(getLayerGroupingState, getContext),
+    groupSelectedLayers: bindViewerAction(groupSelectedLayers, getContext),
+    ungroupSelectedLayers: bindViewerAction(ungroupSelectedLayers, getContext),
+  };
 }

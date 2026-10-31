@@ -1,7 +1,19 @@
+import type { EditorTemplate } from "../templates/model.js";
+import type {
+  EffectLayer,
+  EffectLayerEditorTransformProperty,
+} from "../../../sdk/types.js";
+import type { InspectorLocalizedNumberField } from "./field-model.js";
+type CommonPropertyField =
+  | (InspectorLocalizedNumberField<EffectLayerEditorTransformProperty> & {
+      transform: true;
+      advanced?: boolean;
+    })
+  | (InspectorLocalizedNumberField & { transform?: false; advanced?: boolean });
 import type { ViewerAppContext } from "../app/context.js";
 import { resolveCanvasSelectionBounds } from "../canvas/selection-bounds.js";
 
-const COMMON_PROPERTY_FIELDS = [
+const COMMON_PROPERTY_FIELDS: readonly CommonPropertyField[] = [
   {
     labelFallback: "Rotation",
     labelKey: "viewer.inspector.fields.rotation",
@@ -52,12 +64,15 @@ export function isLayerSelectionInspector(
   ctx: ViewerAppContext,
   template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
 ) {
-  return (
-    template && ctx.getCanvasSelectionTarget(template)?.kind === "selection"
+  return Boolean(
+    template && ctx.getCanvasSelectionTarget(template)?.kind === "selection",
   );
 }
 
-export function createLayerSelectionInspectorModel(ctx, template) {
+export function createLayerSelectionInspectorModel(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+) {
   const target = ctx.getCanvasSelectionTarget(template);
   if (target?.kind !== "selection") {
     return null;
@@ -66,7 +81,9 @@ export function createLayerSelectionInspectorModel(ctx, template) {
   const resolution = { time, timeline: template.timeline };
   const layers = target.layerIds
     .map((layerId) => template.layers.find((layer) => layer.id === layerId))
-    .filter(Boolean);
+    .filter((layer): layer is EffectLayer => layer !== undefined);
+  if (layers.length === 0 || layers.length !== target.layerIds.length)
+    return null;
   const primaryRoot =
     target.rootLayerIds.length === 1
       ? template.layers.find((layer) => layer.id === target.rootLayerIds[0])
@@ -87,7 +104,7 @@ export function createLayerSelectionInspectorModel(ctx, template) {
       .length,
   };
   const spatiallyAvailable =
-    Boolean(bounds) &&
+    bounds !== null &&
     bounds.entries.length === layers.length &&
     stats.hidden === 0 &&
     stats.inactive === 0 &&
@@ -116,7 +133,9 @@ export function createLayerSelectionInspectorModel(ctx, template) {
       ),
     ).map((field) => ({
       ...field,
-      label: ctx.deps.t(field.labelKey, field.labelFallback),
+      label: field.labelKey
+        ? ctx.deps.t(field.labelKey, field.labelFallback)
+        : field.labelFallback,
       values: layers.map((layer) =>
         ctx.getResolvedLayerProperty(layer, field.property, resolution),
       ),
@@ -133,3 +152,7 @@ export function createLayerSelectionInspectorModel(ctx, template) {
     time,
   };
 }
+
+export type LayerSelectionInspectorModel = NonNullable<
+  ReturnType<typeof createLayerSelectionInspectorModel>
+>;

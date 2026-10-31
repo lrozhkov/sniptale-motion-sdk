@@ -1,13 +1,19 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorOverviewActions } from "./overview-contract.js";
+import type {
+  EditorTemplate,
+  EditorTemplateSource,
+} from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getTemplateArtifactTypeLabel } from "../templates/artifact-type.js";
 import { getTemplateBundleKindLabel } from "../templates/bundle-kind.js";
 
 function renderEffectOverview(
   ctx: ViewerAppContext,
-  template,
-  effectiveTemplate,
+  template: EditorTemplateSource,
+  effectiveTemplate: EditorTemplate,
 ) {
-  const t = (key, fallback) => ctx.deps.t(key, fallback);
+  const t = (key: string, fallback: string) => ctx.deps.t(key, fallback);
   const valid = t("viewer.inspector.values.valid", "Valid");
   const bundleKind = getTemplateBundleKindLabel(ctx.deps.t, effectiveTemplate);
   const artifactType = getTemplateArtifactTypeLabel(
@@ -52,8 +58,10 @@ function renderEffectOverview(
   ]);
 }
 
-export function installInspectorEffectOverviewOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.renderEffectOverview = renderEffectOverview.bind(undefined, ctx);
+export function createInspectorEffectOverviewActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorOverviewActions, "renderEffectOverview"> {
+  return {
+    renderEffectOverview: bindViewerAction(renderEffectOverview, getContext),
+  };
 }
