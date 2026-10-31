@@ -160,7 +160,9 @@ export function resolveEffectSdkCommit(injected?: string): string {
   }).trim();
 }
 
-async function assertSafeCorpusOutputRoot(outputRoot: string): Promise<void> {
+export async function assertSafeCorpusOutputRoot(
+  outputRoot: string,
+): Promise<void> {
   const pathFromRoot = relative(DEFAULT_CORPUS_ROOT, outputRoot);
   if (
     pathFromRoot.startsWith("..") ||

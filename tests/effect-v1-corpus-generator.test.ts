@@ -6,7 +6,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -33,6 +34,31 @@ afterAll(() => {
 });
 
 describe("Effect v1 corpus generator", () => {
+  it("leaves an existing handoff byte-exact when the CLI checks determinism", async () => {
+    await generateEffectV1Corpus({
+      effectSdkCommit: FIXED_TEST_SDK_COMMIT,
+      outputRoot: output,
+    });
+    const before = await snapshot(output);
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      ["--import", "tsx", "tooling/effect-v1/corpus/verify.ts"],
+      {
+        cwd: resolve(import.meta.dirname, ".."),
+        env: { ...process.env, TSX_DISABLE_CACHE: "1" },
+      },
+    );
+    expect(stdout).toContain(
+      "Verified 14 deterministic archives and 18 corpus files.",
+    );
+    expect(await snapshot(output)).toEqual(before);
+    expect(
+      (await readdir(DEFAULT_CORPUS_ROOT)).filter((name) =>
+        name.startsWith(".determinism-"),
+      ),
+    ).toEqual([]);
+  });
+
   it("creates the exact deterministic 14-case handoff closure", async () => {
     const first = await generateEffectV1Corpus({
       effectSdkCommit: FIXED_TEST_SDK_COMMIT,
@@ -77,8 +103,9 @@ describe("Effect v1 corpus generator", () => {
   });
 
   it("rejects a symlinked output ancestor before recursive replacement", async () => {
+    mkdirSync(resolve(".tmp/tests"), { recursive: true });
     const external = mkdtempSync(
-      resolve(tmpdir(), "sniptale-corpus-external-"),
+      resolve(".tmp/tests/sniptale-corpus-external-"),
     );
     const sentinel = resolve(external, "sentinel.txt");
     const link = resolve(testRoot, "linked-output");

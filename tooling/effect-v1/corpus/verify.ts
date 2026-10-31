@@ -6,7 +6,7 @@ import type {
   BundleAssetDeclaration,
   VerifiedManifest,
 } from "./verification-model.js";
-import { readFile, readdir } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -928,23 +928,37 @@ async function snapshot(root: string): Promise<Map<string, string>> {
 }
 
 async function runCli(): Promise<void> {
-  const { DEFAULT_CORPUS_ROOT, generateEffectV1Corpus } =
-    await import("./generate.js");
-  const runGenerator = () =>
-    generateEffectV1Corpus({ effectSdkCommit: FIXED_TEST_SDK_COMMIT });
-  await runGenerator();
-  const outputRoot = DEFAULT_CORPUS_ROOT;
-  const first = await snapshot(outputRoot);
-  await runGenerator();
-  const second = await snapshot(outputRoot);
-  assertEqual([...second], [...first], "two-run corpus determinism");
-  const verification = await verifyGeneratedCorpus(
-    outputRoot,
-    FIXED_TEST_SDK_COMMIT,
+  const {
+    DEFAULT_CORPUS_ROOT,
+    generateEffectV1Corpus,
+    assertSafeCorpusOutputRoot,
+  } = await import("./generate.js");
+  await assertSafeCorpusOutputRoot(DEFAULT_CORPUS_ROOT);
+  await mkdir(DEFAULT_CORPUS_ROOT, { recursive: true });
+  const outputRoot = await mkdtemp(
+    resolve(DEFAULT_CORPUS_ROOT, ".determinism-"),
   );
-  process.stdout.write(
-    `Verified ${verification.archives} deterministic archives and ${verification.files} corpus files.\n`,
-  );
+  try {
+    const runGenerator = () =>
+      generateEffectV1Corpus({
+        effectSdkCommit: FIXED_TEST_SDK_COMMIT,
+        outputRoot,
+      });
+    await runGenerator();
+    const first = await snapshot(outputRoot);
+    await runGenerator();
+    const second = await snapshot(outputRoot);
+    assertEqual([...second], [...first], "two-run corpus determinism");
+    const verification = await verifyGeneratedCorpus(
+      outputRoot,
+      FIXED_TEST_SDK_COMMIT,
+    );
+    process.stdout.write(
+      `Verified ${verification.archives} deterministic archives and ${verification.files} corpus files.\n`,
+    );
+  } finally {
+    await rm(outputRoot, { recursive: true, force: true });
+  }
 }
 
 function projectExpectation(item: RecordedExpectation) {
