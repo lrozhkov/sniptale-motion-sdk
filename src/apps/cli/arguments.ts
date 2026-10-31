@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 import type { Locale } from "../../shared/i18n/config.js";
 import { MotionCliError } from "./errors.js";
+import { BROWSER_CHANNELS } from "./browser/runtime.js";
 
 export function parseCliArguments(argv: string[]) {
   const command = argv[0]?.startsWith("-") ? "help" : (argv[0] ?? "help");
@@ -17,6 +18,9 @@ export function parseCliArguments(argv: string[]) {
       ? { "asset-root": { type: "string" as const } }
       : {}),
     ...(command === "export" ? { output: { type: "string" as const } } : {}),
+    ...(command === "doctor"
+      ? { "browser-channel": { type: "string" as const } }
+      : {}),
   } as const;
   let parsed;
   try {
@@ -51,14 +55,22 @@ export function parseCliArguments(argv: string[]) {
       "doctor",
       "docs",
       "studio",
+      "browser",
     ].includes(command)
   ) {
     throw new MotionCliError("ARGUMENTS", `Unknown command: ${command}`);
   }
-  const minimum = ["new", "validate", "export"].includes(command) ? 1 : 0;
-  const maximum = ["init", "new", "validate", "export", "studio"].includes(
-    command,
-  )
+  const minimum = ["new", "validate", "export", "browser"].includes(command)
+    ? 1
+    : 0;
+  const maximum = [
+    "init",
+    "new",
+    "validate",
+    "export",
+    "studio",
+    "browser",
+  ].includes(command)
     ? 1
     : 0;
   if (
@@ -71,6 +83,14 @@ export function parseCliArguments(argv: string[]) {
       `Unexpected arguments for ${command}; use ${command} --help.`,
     );
   }
+  const browserChannel = BROWSER_CHANNELS.find(
+    (channel) => channel === parsed.values["browser-channel"],
+  );
+  if (parsed.values["browser-channel"] !== undefined && !browserChannel)
+    throw new MotionCliError(
+      "ARGUMENTS",
+      "--browser-channel must be chrome, msedge or chromium.",
+    );
   return {
     command,
     values: {
@@ -78,6 +98,7 @@ export function parseCliArguments(argv: string[]) {
       help: parsed.values.help === true,
       json: parsed.values.json === true,
       version: parsed.values.version === true,
+      browserChannel,
       kind:
         typeof parsed.values.kind === "string" ? parsed.values.kind : undefined,
       output:

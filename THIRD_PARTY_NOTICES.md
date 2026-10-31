@@ -232,6 +232,26 @@ Locked package tarball: https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.
 
 MPL corresponding source: https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz
 
+## `playwright-core` 1.64.1
+
+License expression: `Apache-2.0`
+
+Installed package: `node_modules/playwright-core`
+
+License input: `node_modules/playwright-core/LICENSE`
+
+Redistributed license: [`LICENSES/dependencies/playwright-core-1.64.1.txt`](LICENSES/dependencies/playwright-core-1.64.1.txt)
+
+License SHA-256: `45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb`
+
+Package repository: https://github.com/microsoft/playwright.git
+
+Locked package tarball: https://registry.npmjs.org/playwright-core/-/playwright-core-1.64.1.tgz
+
+Upstream notice: [`LICENSES/dependencies/playwright-core-1.64.1.NOTICE.txt`](LICENSES/dependencies/playwright-core-1.64.1.NOTICE.txt)
+
+Notice SHA-256: `6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d`
+
 ## `react` 19.2.7
 
 License expression: `MIT`

@@ -40,6 +40,7 @@ const bundled = await build({
   bundle: true,
   metafile: true,
   legalComments: "eof",
+  external: ["playwright-core"],
 });
 for (const input of Object.keys(bundled.metafile.inputs)) {
   if (
@@ -50,7 +51,11 @@ for (const input of Object.keys(bundled.metafile.inputs)) {
 }
 for (const entry of Object.values(bundled.metafile.outputs)) {
   for (const dependency of entry.imports) {
-    if (!dependency.external || !dependency.path.startsWith("node:")) {
+    if (
+      !dependency.external ||
+      (!dependency.path.startsWith("node:") &&
+        dependency.path !== "playwright-core")
+    ) {
       throw new Error(
         `CLI runtime dependency is not bundled: ${dependency.path}`,
       );
@@ -58,6 +63,25 @@ for (const entry of Object.values(bundled.metafile.outputs)) {
   }
 }
 await chmod(join(stage, "bin/sniptale-motion.mjs"), 0o755);
+const driverManifest = JSON.parse(
+  await readFile(
+    join(repo, "node_modules/playwright-core/package.json"),
+    "utf8",
+  ),
+);
+if (
+  driverManifest.name !== "playwright-core" ||
+  driverManifest.version !== rootManifest.dependencies["playwright-core"] ||
+  Object.keys(driverManifest.dependencies ?? {}).length
+)
+  throw new Error(
+    "Browser driver identity or dependency closure differs from the package contract.",
+  );
+await cp(
+  join(repo, "node_modules/playwright-core"),
+  join(stage, "node_modules/playwright-core"),
+  { recursive: true },
+);
 for (const item of [
   "apps",
   "sdk",
@@ -83,6 +107,10 @@ const manifest = {
   homepage: rootManifest.homepage,
   type: "module",
   engines: rootManifest.engines,
+  dependencies: {
+    "playwright-core": rootManifest.dependencies["playwright-core"],
+  },
+  bundledDependencies: ["playwright-core"],
   bin: { "sniptale-motion": "bin/sniptale-motion.mjs" },
   files: [
     "bin",

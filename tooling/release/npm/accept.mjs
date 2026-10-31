@@ -69,7 +69,10 @@ try {
   );
   assert.equal(installedManifest.name, "@sniptale/motion");
   assert.equal(installedManifest.version, inventory.version);
-  assert.equal(Object.keys(installedManifest.dependencies ?? {}).length, 0);
+  assert.deepEqual(Object.keys(installedManifest.dependencies ?? {}), [
+    "playwright-core",
+  ]);
+  assert.deepEqual(installedManifest.bundledDependencies, ["playwright-core"]);
   assert.equal(
     installedManifest.scripts,
     undefined,
@@ -155,6 +158,36 @@ try {
       true,
     );
   }
+  const withoutBrowser = {
+    ...process.env,
+    PLAYWRIGHT_BROWSERS_PATH: join(workspace, "missing-browser"),
+  };
+  const missingBrowser = await run(
+    "doctor-without-browser",
+    process.execPath,
+    [cli, "doctor", "--browser-channel", "chromium", "--json"],
+    project,
+    0,
+    withoutBrowser,
+  );
+  assert.equal(missingBrowser.browser.status, "unavailable");
+  assert.equal(
+    missingBrowser.browser.nextCommand,
+    "sniptale-motion browser install",
+  );
+  assert.equal(
+    (
+      await run(
+        "validate-without-browser",
+        process.execPath,
+        [cli, "validate", "exports/standalone.sniptale-effect.json", "--json"],
+        project,
+        0,
+        withoutBrowser,
+      )
+    ).ok,
+    true,
+  );
   await acceptInstalledStudio({
     cli,
     project,
@@ -249,7 +282,14 @@ try {
   await rm(temporary, { recursive: true, force: true });
 }
 
-async function run(label, command, args, cwd = workspace, expected = 0) {
+async function run(
+  label,
+  command,
+  args,
+  cwd = workspace,
+  expected = 0,
+  env = process.env,
+) {
   const log = join(evidence, `${label}.stdout`);
   const errorLog = join(evidence, `${label}.stderr`);
   const stdout = await open(log, "wx");
@@ -258,6 +298,7 @@ async function run(label, command, args, cwd = workspace, expected = 0) {
   try {
     result = spawnSync(command, args, {
       cwd,
+      env,
       stdio: ["ignore", stdout.fd, stderr.fd],
       timeout: 60_000,
     });

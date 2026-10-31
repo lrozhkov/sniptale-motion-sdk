@@ -95,6 +95,10 @@ describe("installed Motion CLI contracts", () => {
     ["wat"],
     ["doctor", "--json", "--json"],
     ["doctor", "--locale", "fr"],
+    ["doctor", "--browser-channel", "firefox"],
+    ["browser"],
+    ["browser", "chrome"],
+    ["browser", "install", "--force"],
   ])("rejects invalid arguments: %j", async (...args) => {
     const result = await invoke(
       await fixture(),

@@ -15,6 +15,8 @@ import { parseCliArguments } from "./arguments.js";
 import { MotionCliError } from "./errors.js";
 import { initProject, newEffect } from "./project.js";
 import { exportMotionEffect } from "./export.js";
+import { inspectMotionBrowser } from "./browser/runtime.js";
+import { installMotionBrowser } from "./browser/install.js";
 
 export async function runMotionCli(
   argv: string[],
@@ -109,6 +111,14 @@ export async function runMotionCli(
         messages,
       );
       return 0;
+    } else if (args.command === "browser") {
+      if (args.positional !== "install")
+        throw new MotionCliError(
+          "ARGUMENTS",
+          "Use browser install to install separate Chromium.",
+        );
+      await installMotionBrowser(context, args.locale);
+      result = { ok: true, browser: "chromium", installation: "completed" };
     } else if (args.command === "docs") {
       const text = await readFile(
         join(context.packageRoot, "README.md"),
@@ -125,7 +135,13 @@ export async function runMotionCli(
         node: process.version,
         platform: process.platform,
         architecture: process.arch,
-        browser: { status: "not-required", message: messages.browser },
+        browser: await inspectMotionBrowser({
+          locale: args.locale,
+          ...(context.signal ? { signal: context.signal } : {}),
+          ...(args.values.browserChannel
+            ? { channel: args.values.browserChannel }
+            : {}),
+        }),
       };
     }
     if (args.values.json) context.stdout(`${JSON.stringify(result)}\n`);

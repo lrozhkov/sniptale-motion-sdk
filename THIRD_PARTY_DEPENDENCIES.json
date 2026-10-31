@@ -176,6 +176,23 @@
       "correspondingSourceUrl": "https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz"
     },
     {
+      "packageName": "playwright-core",
+      "version": "1.64.1",
+      "packagePath": "node_modules/playwright-core",
+      "licenseExpression": "Apache-2.0",
+      "licenseSourceKind": "installed-file",
+      "licenseSource": "node_modules/playwright-core/LICENSE",
+      "archivePath": "LICENSES/dependencies/playwright-core-1.64.1.txt",
+      "sha256": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb",
+      "sourceUrl": "https://github.com/microsoft/playwright.git",
+      "packageResolved": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.64.1.tgz",
+      "notice": {
+        "source": "node_modules/playwright-core/NOTICE",
+        "archivePath": "LICENSES/dependencies/playwright-core-1.64.1.NOTICE.txt",
+        "sha256": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d"
+      }
+    },
+    {
       "packageName": "react",
       "version": "19.2.7",
       "packagePath": "node_modules/react",
