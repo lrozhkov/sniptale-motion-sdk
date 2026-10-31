@@ -117,7 +117,7 @@ export function beginCanvasSelectionTransformCommand(
 
 export function scheduleCanvasSelectionTransform(
   ctx: ViewerAppContext,
-  preview,
+  preview: ReturnType<typeof createCanvasDragPreview>,
   snapshot: CanvasSelectionGestureSnapshot,
   result: CanvasSelectionTransformResult,
 ): void {
@@ -131,10 +131,14 @@ export function scheduleCanvasSelectionTransform(
 
 export function finalizeCanvasSelectionTransform(
   ctx: ViewerAppContext,
-  preview,
+  preview: ReturnType<typeof createCanvasDragPreview>,
   snapshot: CanvasSelectionGestureSnapshot,
   result: CanvasSelectionTransformResult,
 ): void {
+  if (!preview.isCurrent()) {
+    preview.finalize();
+    return;
+  }
   if (ctx.state.dragMoved) {
     preview.finalize(() =>
       applyCanvasSelectionTransform(ctx, snapshot, result, { render: false }),

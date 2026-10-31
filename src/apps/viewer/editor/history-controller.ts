@@ -1,3 +1,4 @@
+import { invalidateCanvasDragPreview } from "../canvas/drag-preview.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function commitHistory(
@@ -91,6 +92,7 @@ function restoreEditorSnapshotData(ctx: ViewerAppContext, snapshot): boolean {
       ctx.state.currentTemplate,
     ),
   });
+  invalidateCanvasDragPreview(ctx.state, ctx.refs?.canvasSelectionBox);
   restoreEditorSnapshotAssets(ctx, snapshot, previousAssetScopeIds);
   return true;
 }

@@ -56,6 +56,7 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
   const preview = createCanvasDragPreview(ctx, { box, layer, layerId });
   let latestRotation = originalRotation;
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const angle = Math.atan2(
       moveEvent.clientY - pivot.y,
       moveEvent.clientX - pivot.x,
@@ -95,6 +96,10 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event) {
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updateLayerPropertyAtTime(
@@ -169,6 +174,7 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
     y: original.y,
   };
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
@@ -206,6 +212,10 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event) {
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updateLayerPropertiesAtTime(layerId, time, latest, {

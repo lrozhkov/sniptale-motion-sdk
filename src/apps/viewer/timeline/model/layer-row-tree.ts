@@ -1,3 +1,20 @@
+import type { ViewerAppContext } from "../../app/context.js";
+import type { EditorTemplate } from "../../templates/model.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type {
+  EffectClip,
+  EffectLayer,
+  TimelinePhase,
+} from "../../../../sdk/types.js";
+import type {
+  TimelineScene,
+  TimelineLayerRow,
+  TimelineLayerLeafRow,
+  TimelineTrackRow,
+  TimelinePhaseRow,
+  TimelinePhaseParent,
+  TimelineTrackParent,
+} from "./row-tree-model.js";
 import {
   createLayerHierarchyIndex,
   getLayerLeafIds,
@@ -5,16 +22,28 @@ import {
 } from "../../layers/hierarchy.js";
 
 export function buildTimelineLayerForest(
-  ctx,
-  timeline,
-  scene,
-  { effectiveTemplate, firstSceneId, globalLayerIds, globalScope },
-) {
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  {
+    effectiveTemplate,
+    firstSceneId,
+    globalLayerIds,
+    globalScope,
+  }: {
+    effectiveTemplate: EditorTemplate;
+    firstSceneId: string | null;
+    globalLayerIds: ReadonlySet<string>;
+    globalScope: boolean;
+  },
+): TimelineLayerRow[] {
   const layers = effectiveTemplate.layers ?? [];
   const clips = effectiveTemplate.clips ?? [];
   const hierarchy = createLayerHierarchyIndex(layers);
-  const clipsByLayer = new Map(clips.map((clip) => [clip.layerId, clip]));
-  const layerRows = new Map<string, any>();
+  const clipsByLayer = new Map<string, EffectClip>(
+    clips.map((clip) => [clip.layerId, clip]),
+  );
+  const layerRows = new Map<string, TimelineLayerLeafRow>();
   for (const layer of layers) {
     if (isLayerGroup(layer) || globalLayerIds.has(layer.id) !== globalScope) {
       continue;
@@ -32,7 +61,7 @@ export function buildTimelineLayerForest(
   const forest = [...(hierarchy.childrenByParentId.get(null) ?? [])]
     .reverse()
     .map((layer) => buildStructuralRow(layer, null))
-    .filter(Boolean);
+    .filter((row): row is TimelineLayerRow => row !== null);
   const knownLayerIds = new Set(layers.map((layer) => layer.id));
   for (const clip of [...clips].reverse()) {
     if (
@@ -54,14 +83,17 @@ export function buildTimelineLayerForest(
   assignTimelineDepth(forest, globalScope ? 0 : 1);
   return forest;
 
-  function buildStructuralRow(layer, parentId) {
+  function buildStructuralRow(
+    layer: EffectLayer,
+    parentId: string | null,
+  ): TimelineLayerRow | null {
     if (!isLayerGroup(layer)) {
       return layerRows.get(layer.id) ?? null;
     }
     const children = [...(hierarchy.childrenByParentId.get(layer.id) ?? [])]
       .reverse()
       .map((child) => buildStructuralRow(child, layer.id))
-      .filter(Boolean);
+      .filter((row): row is TimelineLayerRow => row !== null);
     if (children.length === 0) {
       return null;
     }
@@ -79,11 +111,21 @@ export function buildTimelineLayerForest(
 }
 
 function buildLayerRow(
-  ctx,
-  timeline,
-  scene,
-  { clip, firstSceneId, layer, layerId },
-) {
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  {
+    clip,
+    firstSceneId,
+    layer,
+    layerId,
+  }: {
+    clip: EffectClip | null;
+    firstSceneId: string | null;
+    layer: EffectLayer | null;
+    layerId: string;
+  },
+): TimelineLayerLeafRow | null {
   const ownedClip = clip;
   if (ownedClip && !ctx.clipBelongsToScene(ownedClip, scene)) {
     clip = null;
@@ -122,7 +164,13 @@ function buildLayerRow(
   };
 }
 
-function buildPhaseRow(ctx, timeline, scene, phase, parent) {
+function buildPhaseRow(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  phase: TimelinePhase,
+  parent: TimelinePhaseParent,
+): TimelinePhaseRow {
   return {
     expansionId:
       parent.type === "layerPhase"
@@ -138,7 +186,12 @@ function buildPhaseRow(ctx, timeline, scene, phase, parent) {
   };
 }
 
-export function buildTrackRowsForParent(ctx, timeline, scene, parent) {
+export function buildTrackRowsForParent(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  parent: TimelineTrackParent,
+): TimelineTrackRow[] {
   return (timeline.tracks ?? [])
     .map((track) => ({
       keyframes: ctx.getTrackKeyframesForParent(track, scene, timeline, parent),
@@ -178,11 +231,17 @@ export function buildTrackRowsForParent(ctx, timeline, scene, parent) {
     });
 }
 
-export function buildTimelinePhaseRow(ctx, timeline, scene, phase, parent) {
+export function buildTimelinePhaseRow(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  scene: TimelineScene,
+  phase: TimelinePhase,
+  parent: TimelinePhaseParent,
+): TimelinePhaseRow {
   return buildPhaseRow(ctx, timeline, scene, phase, parent);
 }
 
-function assignTimelineDepth(rows, depth): void {
+function assignTimelineDepth(rows: TimelineLayerRow[], depth: number): void {
   for (const row of rows) {
     row.depth = depth;
     if (row.kind === "group") {
@@ -201,7 +260,7 @@ function assignTimelineDepth(rows, depth): void {
   }
 }
 
-function collectVisibleLeafIds(rows): string[] {
+function collectVisibleLeafIds(rows: readonly TimelineLayerRow[]): string[] {
   return rows.flatMap((row) =>
     row.kind === "group" ? collectVisibleLeafIds(row.children) : [row.layerId],
   );

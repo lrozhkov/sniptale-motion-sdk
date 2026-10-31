@@ -29,6 +29,7 @@ function beginEditablePathPointDrag(
   const preview = createCanvasDragPreview(ctx);
   let latest = original;
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
@@ -57,6 +58,10 @@ function beginEditablePathPointDrag(
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updatePathPoint(layerId, pointIndex, latest, { render: false });

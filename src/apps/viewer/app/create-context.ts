@@ -1,3 +1,6 @@
+import { createTimelineRowTree } from "../timeline/model/row-tree.js";
+import { normalizeScenes } from "../templates/fallbacks.js";
+import { getTrackKeyframesForParent } from "../timeline/view/property-track.js";
 import { renderCurrentFrame } from "../rendering/service.js";
 import { getSelectedKeyframeRefs } from "../timeline/interaction/keyframes.js";
 import { resolveRenderTemplateSnapshot } from "../rendering/model-cache.js";
@@ -29,6 +32,15 @@ export function createViewerContext(): ViewerAppContext {
     lastPlaybackRenderTs: 0,
     lastPlaybackTs: 0,
     lastPlaybackUiTs: 0,
+    createTimelineRowTree(template) {
+      return createTimelineRowTree(ctx, template);
+    },
+    normalizeScenes(scenes, duration) {
+      return normalizeScenes(ctx, scenes, duration);
+    },
+    getTrackKeyframesForParent(track, scene, timeline, parent) {
+      return getTrackKeyframesForParent(ctx, track, scene, timeline, parent);
+    },
     renderCurrentFrame(options) {
       return renderCurrentFrame(ctx, options);
     },

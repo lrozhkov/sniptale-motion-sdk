@@ -1,3 +1,4 @@
+import { createCanvasDragPreview } from "../src/apps/viewer/canvas/drag-preview.js";
 import { installPanelsPresetsOwner } from "../src/apps/viewer/panels/presets.js";
 import { normalizePresets } from "../src/apps/viewer/editor/model.js";
 import { createStarterDocument } from "../src/apps/cli/starter.js";
@@ -185,6 +186,22 @@ describe("viewer editor history transactions", () => {
       expect(ctx.state.timelineOverrides.get(document.id)).toEqual(timeline);
       expect(ctx.applyEditorCommand).toHaveBeenCalledTimes(calls);
     }
+  });
+
+  it("invalidates an active canvas operation when restoring a snapshot", () => {
+    const ctx = createStoreContext();
+    ctx.refs.canvasSelectionBox = { dataset: {} };
+    ctx.renderCurrentFrame = vi.fn(async () => undefined);
+    installEditorStoreOwner(ctx);
+    installEditorHistoryControllerOwner(ctx);
+    const snapshot = ctx.captureEditorSnapshot("before");
+    const preview = createCanvasDragPreview(ctx);
+    expect(preview.isCurrent()).toBe(true);
+    expect(ctx.restoreEditorSnapshotData(snapshot)).toBe(true);
+    expect(preview.isCurrent()).toBe(false);
+    expect(ctx.state.canvasTransformDragActive).toBe(false);
+    expect(ctx.refs.canvasSelectionBox.dataset.transforming).toBeUndefined();
+    preview.finalize();
   });
 
   it("stores only asset deltas and restores the loaded base asset", () => {

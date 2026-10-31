@@ -60,6 +60,7 @@ function beginCanvasLayerDrag(
   const preview = createCanvasDragPreview(ctx, { box, layer, layerId });
   let latest = { ...original };
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
@@ -95,6 +96,10 @@ function beginCanvasLayerDrag(
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updateLayerPositionAtTime(layerId, time, latest.x, latest.y, {

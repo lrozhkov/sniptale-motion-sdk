@@ -37,6 +37,7 @@ function beginCanvasSelectionDrag(ctx: ViewerAppContext, event) {
     translation: { x: 0, y: 0 },
   });
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
@@ -94,6 +95,7 @@ function beginCanvasSelectionScaleDrag(ctx: ViewerAppContext, event, handle) {
     scale: 1,
   });
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const point = ctx.getCanvasPointFromEvent(moveEvent);
     const current = { x: point.x - fixed.x, y: point.y - fixed.y };
     const rawFactor =
@@ -148,6 +150,7 @@ function beginCanvasSelectionRotationDrag(ctx: ViewerAppContext, event) {
   const preview = beginCanvasSelectionPreview(ctx, snapshot);
   let latest = transformCanvasSelection(snapshot.entries, { pivot });
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const angle = Math.atan2(
       moveEvent.clientY - pagePivot.y,
       moveEvent.clientX - pagePivot.x,

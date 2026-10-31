@@ -130,7 +130,6 @@ export function createViewerState() {
     timelineFullEditorRenderCount: 0,
     timelineIncrementalRenderCount: 0,
     timelineModelBuildCount: 0,
-    timelineRenderSnapshot: null,
     timelineRenderedRowCount: 0,
     timelineTotalRowCount: 0,
     timelineVirtualRendering: false,

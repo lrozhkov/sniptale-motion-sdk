@@ -1,3 +1,4 @@
+import { readTimelineRenderSnapshot } from "../snapshot.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
   findTimelineItemRowIndex,
@@ -121,9 +122,8 @@ function createTimelineOrderedRows(ctx: ViewerAppContext, tree) {
 
 function getTimelineOrderedRows(ctx: ViewerAppContext, template) {
   const tree =
-    ctx.state.timelineRenderSnapshot?.templateId === template.id
-      ? ctx.state.timelineRenderSnapshot.tree
-      : ctx.createTimelineRowTree(template);
+    readTimelineRenderSnapshot(ctx.state, template)?.tree ??
+    ctx.createTimelineRowTree(template);
   const rows = createTimelineOrderedRows(ctx, tree);
   ctx.state.timelineVirtualRows = rows;
   ctx.state.timelineTotalRowCount = rows.length;

@@ -1,3 +1,4 @@
+import { invalidateCanvasDragPreview } from "../canvas/drag-preview.js";
 import { readEditorTemplateSource } from "./source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resetPlaybackRunState } from "../playback/run-state.js";
@@ -12,8 +13,7 @@ export function resetTemplateSelectionState(
   ctx.state.currentTemplate = template;
   resetPlaybackRunState(ctx);
   ctx.syncPlaybackButtons?.();
-  ctx.state.canvasTransformDragActive = false;
-  ctx.state.canvasTransformPreview = null;
+  invalidateCanvasDragPreview(ctx.state, ctx.refs?.canvasSelectionBox);
   ctx.state.canvasIsolationGroupId = null;
   ctx.state.canvasMotionPathContextLayerIds = [];
   ctx.state.collapsedLayerPanelGroupIds = new Set();

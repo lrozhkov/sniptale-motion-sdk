@@ -1,3 +1,4 @@
+import { readTimelineRenderSnapshot } from "../snapshot.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderTimelineStructure(
@@ -47,11 +48,9 @@ function renderTimelineSurface(
   const scrollLeft = ctx.refs.timelineTracks.scrollLeft;
   const scrollTop = ctx.refs.timelineTracks.scrollTop;
   ctx.reconcileTimelineSelection(template);
-  const snapshot =
-    options.reuseModel &&
-    ctx.state.timelineRenderSnapshot?.templateId === template.id
-      ? ctx.state.timelineRenderSnapshot
-      : null;
+  const snapshot = options.reuseModel
+    ? readTimelineRenderSnapshot(ctx.state, template)
+    : null;
   const timeline = snapshot?.timeline ?? ctx.getEffectiveTimeline(template);
   if (options.ruler) {
     ctx.renderTimelineRuler(template, timeline);

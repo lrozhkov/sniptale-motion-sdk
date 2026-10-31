@@ -1,3 +1,10 @@
+import type {
+  TimelineRowTree,
+  TimelineScene,
+  TimelineTrackParent,
+} from "../timeline/model/row-tree-model.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
 import type { RenderOptions } from "../rendering/state.js";
 import type { KeyframeSelectionRef } from "../timeline/model/selection-model.js";
 import type { createViewerRefs } from "./refs.js";
@@ -18,6 +25,14 @@ export interface ViewerAppContext {
   previewContext: CanvasRenderingContext2D;
   refs: ReturnType<typeof createViewerRefs>;
   state: ReturnType<typeof createViewerState>;
+  createTimelineRowTree(template: unknown): TimelineRowTree;
+  normalizeScenes(scenes: unknown, duration?: number): TimelineScene[];
+  getTrackKeyframesForParent(
+    track: MotionPathTrack,
+    scene: TimelineScene,
+    timeline: EditorTimeline,
+    parent: TimelineTrackParent,
+  ): TimelineKeyframe<unknown>[];
   renderCurrentFrame(options?: RenderOptions): Promise<void>;
   getSelectedKeyframeRefs(): KeyframeSelectionRef[];
   getEditorOverride(template?: unknown): Record<string, unknown>;

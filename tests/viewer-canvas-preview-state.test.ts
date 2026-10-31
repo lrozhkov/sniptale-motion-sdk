@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createViewerState } from "../src/apps/viewer/app/state.js";
-import { createCanvasDragPreview } from "../src/apps/viewer/canvas/drag-preview.js";
+import {
+  createCanvasDragPreview,
+  invalidateCanvasDragPreview,
+} from "../src/apps/viewer/canvas/drag-preview.js";
 import type { EffectLayer } from "../src/sdk/types.js";
 import type { CanvasTransformValues } from "../src/apps/viewer/canvas/transform-state.js";
 
@@ -39,6 +42,50 @@ const options = {
 };
 
 describe("canvas preview state ownership", () => {
+  it("keeps the new handle active when neither operation has a preview object", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const ctx = context();
+    const old = createCanvasDragPreview(ctx);
+    const update = vi.fn();
+    old.scheduleUpdate(update);
+    const current = createCanvasDragPreview(ctx);
+    frames.shift()?.(0);
+    expect(update).not.toHaveBeenCalled();
+    expect(old.isCurrent()).toBe(false);
+    expect(current.isCurrent()).toBe(true);
+    old.finalize();
+    expect(ctx.state.canvasTransformDragActive).toBe(true);
+    expect(ctx.refs.canvasSelectionBox.dataset.transforming).toBe("true");
+    current.finalize();
+    expect(ctx.state.canvasTransformDragActive).toBe(false);
+  });
+
+  it("invalidates callbacks and clears the DOM flag after a source or history restore", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const ctx = context();
+    const old = createCanvasDragPreview(ctx);
+    const update = vi.fn();
+    old.scheduleUpdate(update);
+    invalidateCanvasDragPreview(ctx.state, ctx.refs.canvasSelectionBox);
+    frames.shift()?.(0);
+    old.finalize(update);
+    expect(update).not.toHaveBeenCalled();
+    expect(old.isCurrent()).toBe(false);
+    expect(ctx.state.canvasTransformDragActive).toBe(false);
+    expect(ctx.state.canvasTransformPreview).toBeNull();
+    expect(ctx.refs.canvasSelectionBox.dataset.transforming).toBeUndefined();
+  });
+
   it("does not update or finalize a replacement preview for the same layer", () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {

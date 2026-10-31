@@ -31,9 +31,14 @@ export type CanvasTransformPreview = TransformPreviewBase &
       }
   );
 export type CanvasTransformState = {
+  canvasTransformGeneration: number;
   canvasTransformDragActive: boolean;
   canvasTransformPreview: CanvasTransformPreview | null;
 };
 export function createCanvasTransformState(): CanvasTransformState {
-  return { canvasTransformDragActive: false, canvasTransformPreview: null };
+  return {
+    canvasTransformGeneration: 0,
+    canvasTransformDragActive: false,
+    canvasTransformPreview: null,
+  };
 }

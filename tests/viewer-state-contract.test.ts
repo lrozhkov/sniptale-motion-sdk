@@ -1,3 +1,9 @@
+import type { TimelineRenderSnapshot } from "../src/apps/viewer/timeline/state.js";
+import type {
+  TimelineRowTree,
+  TimelineTrackRow,
+} from "../src/apps/viewer/timeline/model/row-tree-model.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
 import type { CanvasTransformPreview } from "../src/apps/viewer/canvas/transform-state.js";
 import type { KeyframeClipboardEntry } from "../src/apps/viewer/timeline/state.js";
 import type { RendererBindingReads } from "../src/apps/viewer/app/binding-reads.js";
@@ -37,6 +43,15 @@ describe("viewer state contracts", () => {
       state.currentTemplate,
     ).toEqualTypeOf<EditorTemplateSource | null>();
     expectTypeOf(state.selectedLayers).toEqualTypeOf<string[]>();
+    expectTypeOf(
+      state.timelineRenderSnapshot,
+    ).toEqualTypeOf<TimelineRenderSnapshot | null>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createTimelineRowTree"]>
+    >().toEqualTypeOf<TimelineRowTree>();
+    expectTypeOf<
+      TimelineTrackRow["keyframes"][number]["value"]
+    >().toBeUnknown();
     expectTypeOf(
       state.canvasTransformPreview,
     ).toEqualTypeOf<CanvasTransformPreview | null>();

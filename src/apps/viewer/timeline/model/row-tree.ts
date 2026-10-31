@@ -1,3 +1,9 @@
+import type {
+  TimelineRowTree,
+  TimelineScene,
+  TimelineLayerRow,
+} from "./row-tree-model.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
   buildTimelineLayerForest,
@@ -5,17 +11,30 @@ import {
   buildTrackRowsForParent,
 } from "./layer-row-tree.js";
 
-function getTimelineRowExpansionId(_ctx: ViewerAppContext, type, id) {
+function getTimelineRowExpansionId(
+  _ctx: ViewerAppContext,
+  type: string,
+  id: string,
+) {
   return `${type}:${id}`;
 }
 
-function isTimelineRowExpanded(ctx: ViewerAppContext, type, id) {
+function isTimelineRowExpanded(
+  ctx: ViewerAppContext,
+  type: string,
+  id: string,
+) {
   return ctx.state.expandedTimelineRowIds.has(
     ctx.getTimelineRowExpansionId(type, id),
   );
 }
 
-function setTimelineRowExpanded(ctx: ViewerAppContext, type, id, expanded) {
+function setTimelineRowExpanded(
+  ctx: ViewerAppContext,
+  type: string,
+  id: string,
+  expanded: boolean,
+) {
   const rowId = ctx.getTimelineRowExpansionId(type, id);
   if (expanded) {
     ctx.state.expandedTimelineRowIds.add(rowId);
@@ -24,12 +43,16 @@ function setTimelineRowExpanded(ctx: ViewerAppContext, type, id, expanded) {
   }
 }
 
-function toggleTimelineRowExpansion(ctx: ViewerAppContext, type, id) {
+function toggleTimelineRowExpansion(
+  ctx: ViewerAppContext,
+  type: string,
+  id: string,
+) {
   ctx.setTimelineRowExpanded(type, id, !ctx.isTimelineRowExpanded(type, id));
   ctx.renderTimelineStructure(ctx.state.currentTemplate);
 }
 
-function setAllTimelineRowsExpanded(ctx: ViewerAppContext, expanded) {
+function setAllTimelineRowsExpanded(ctx: ViewerAppContext, expanded: boolean) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -77,16 +100,19 @@ function createInitialTimelineRowIdSet(
   return rowIds;
 }
 
-function createTimelineRowTree(ctx: ViewerAppContext, template) {
+export function createTimelineRowTree(
+  ctx: ViewerAppContext,
+  template: unknown,
+): TimelineRowTree {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   if (!effectiveTemplate) {
-    return { scenes: [] };
+    return { globalLayers: [], globalScene: null, scenes: [] };
   }
-  const timeline = ctx.getEffectiveTimeline(template);
-  const duration = ctx.getEffectiveDuration(template);
+  const timeline = effectiveTemplate.timeline;
+  const duration = effectiveTemplate.duration;
   const scenes = ctx.normalizeScenes(effectiveTemplate.scenes ?? [], duration);
   const firstSceneId = scenes[0]?.id ?? null;
-  const globalScene = {
+  const globalScene: TimelineScene = {
     duration,
     enabled: true,
     id: "__global__",
@@ -140,12 +166,20 @@ function createTimelineRowTree(ctx: ViewerAppContext, template) {
   };
 }
 
-function isScenePhase(ctx, timeline, phaseId) {
+function isScenePhase(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+  phaseId: string,
+): boolean {
   const owners = ctx.getPhaseTrackLayerIds(timeline, phaseId);
   return owners.size === 0 || owners.has("__scene__");
 }
 
-function addExpandedLayerRows(ctx, rowIds: Set<string>, rows): void {
+function addExpandedLayerRows(
+  ctx: ViewerAppContext,
+  rowIds: Set<string>,
+  rows: readonly TimelineLayerRow[],
+): void {
   for (const row of rows) {
     rowIds.add(
       ctx.getTimelineRowExpansionId(

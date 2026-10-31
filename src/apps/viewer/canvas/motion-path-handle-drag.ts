@@ -50,6 +50,7 @@ function beginMotionPathTangentDrag(
   };
   let latest = original;
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
@@ -96,6 +97,10 @@ function beginMotionPathTangentDrag(
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updateCanvasMotionPathTangent(

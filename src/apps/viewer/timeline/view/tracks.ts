@@ -1,9 +1,11 @@
+import { readTimelineRenderSnapshot } from "../snapshot.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderTimelineTracks(
   ctx: ViewerAppContext,
-  template,
-  timeline,
+  template: { id: string },
+  timeline: EditorTimeline,
   options: { reuseModel?: boolean } = {},
 ) {
   const startedAt = performance.now();
@@ -21,19 +23,21 @@ function renderTimelineTracks(
   range.dataset.playbackRange = "tracks";
   range.hidden = true;
   ctx.refs.timelineTracks.append(range);
-  const cached =
-    options.reuseModel &&
-    ctx.state.timelineRenderSnapshot?.templateId === template.id
-      ? ctx.state.timelineRenderSnapshot
-      : null;
+  const cached = options.reuseModel
+    ? readTimelineRenderSnapshot(ctx.state, template)
+    : null;
   const effectiveTemplate =
     cached?.effectiveTemplate ?? ctx.getEffectiveTemplate(template);
+  if (!effectiveTemplate) return;
   const duration = cached?.duration ?? effectiveTemplate.duration ?? 1;
   const ownershipLinks = ctx.buildSelectedOwnershipLinks(effectiveTemplate);
   const tree = cached?.tree ?? ctx.createTimelineRowTree(template);
   if (!cached) {
     ctx.state.timelineModelBuildCount += 1;
     ctx.state.timelineRenderSnapshot = {
+      sourceTemplate: template,
+      editorOverride: ctx.state.editorOverrides.get(template.id),
+      timelineOverride: ctx.state.timelineOverrides.get(template.id),
       duration,
       effectiveTemplate,
       templateId: template.id,
@@ -42,15 +46,16 @@ function renderTimelineTracks(
     };
   }
   ctx.beginTimelineVirtualRender(tree, scrollTop);
-  ctx.renderGlobalTimelineGroup(
-    template,
-    effectiveTemplate,
-    timeline,
-    tree.globalScene,
-    tree.globalLayers,
-    ownershipLinks,
-    duration,
-  );
+  if (tree.globalScene)
+    ctx.renderGlobalTimelineGroup(
+      template,
+      effectiveTemplate,
+      timeline,
+      tree.globalScene,
+      tree.globalLayers,
+      ownershipLinks,
+      duration,
+    );
   for (const scene of tree.scenes) {
     ctx.renderSceneTimelineGroup(
       template,

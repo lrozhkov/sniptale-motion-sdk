@@ -89,6 +89,7 @@ function beginMotionPathPointDrag(
   const preview = createCanvasDragPreview(ctx);
   let latest = createOffsetUpdates(snapshot, { x: 0, y: 0 });
   const onMove = (moveEvent) => {
+    if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
     if (
@@ -129,6 +130,10 @@ function beginMotionPathPointDrag(
     });
   };
   ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () => {
+    if (!preview.isCurrent()) {
+      preview.finalize();
+      return;
+    }
     if (ctx.state.dragMoved) {
       preview.finalize(() => {
         ctx.updateCanvasMotionPathPointPositions(latest, { render: false });

@@ -1,3 +1,9 @@
+import type {
+  TimelineTrackParent,
+  TimelineScene,
+} from "../model/row-tree-model.js";
+import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function renderTimelinePropertyTrackLane(
@@ -184,12 +190,12 @@ function createTimelineKeyframePoint(
   return point;
 }
 
-function getTrackKeyframesForParent(
+export function getTrackKeyframesForParent(
   ctx: ViewerAppContext,
-  track,
-  scene,
-  timeline,
-  parent,
+  track: MotionPathTrack,
+  scene: TimelineScene,
+  timeline: EditorTimeline,
+  parent: TimelineTrackParent,
 ) {
   return (track.keyframes ?? []).filter((keyframe) => {
     if (!ctx.keyframeBelongsToScene(track, keyframe, scene, timeline)) {

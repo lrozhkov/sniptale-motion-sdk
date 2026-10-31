@@ -7,6 +7,16 @@ import type { ViewerAppContext } from "../app/context.js";
 
 const DEFERRED_INTERACTIVE_RENDER_DELAY_MS = 120;
 
+export function invalidateCanvasDragPreview(
+  state: CanvasTransformState,
+  selectionBox?: Pick<HTMLElement, "dataset">,
+): void {
+  state.canvasTransformGeneration = (state.canvasTransformGeneration ?? 0) + 1;
+  state.canvasTransformDragActive = false;
+  state.canvasTransformPreview = null;
+  if (selectionBox) delete selectionBox.dataset.transforming;
+}
+
 export function activateCanvasDrag(
   ctx: ViewerAppContext,
   distance: number,
@@ -113,15 +123,19 @@ export function createCanvasDragPreview(
       templateId: ctx.state.currentTemplate?.id ?? null,
     };
   }
+  const generation = (ctx.state.canvasTransformGeneration ?? 0) + 1;
+  ctx.state.canvasTransformGeneration = generation;
   const ownedPreview = ctx.state.canvasTransformPreview;
   const ownedTemplate = ctx.state.currentTemplate;
   let finalized = false;
   const isCurrentPreview = () =>
     !finalized &&
+    ctx.state.canvasTransformGeneration === generation &&
     ctx.state.canvasTransformPreview === ownedPreview &&
     ctx.state.currentTemplate === ownedTemplate;
   ctx.refs.canvasSelectionBox.dataset.transforming = "true";
   return {
+    isCurrent: isCurrentPreview,
     finalize(finalUpdate: (() => void) | null = null) {
       if (frame) {
         cancelAnimationFrame(frame);
