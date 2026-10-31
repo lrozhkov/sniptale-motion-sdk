@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   findCollisionFreeKeyframeOffset,
-  installInteractionKeyframeClipboardOwner,
+  createKeyframeClipboardActions,
 } from "../src/apps/viewer/timeline/interaction/keyframe-clipboard";
 
 describe("viewer keyframe clipboard", () => {
@@ -60,7 +60,10 @@ describe("viewer keyframe clipboard", () => {
 
   it("copies opaque keyframe values without sharing the source payload", () => {
     const ctx = createContext();
-    installInteractionKeyframeClipboardOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyframeClipboardActions(() => ctx),
+    );
     const value = { nested: [true, ""], zero: 0 };
     ctx.state.timelineOverrides.set("template", {
       duration: 4,
@@ -75,7 +78,10 @@ describe("viewer keyframe clipboard", () => {
 
   it("keeps an existing clipboard when part of the selected source is missing", () => {
     const ctx = createContext();
-    installInteractionKeyframeClipboardOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyframeClipboardActions(() => ctx),
+    );
     expect(ctx.copySelectedKeyframes()).toBe(true);
     const previous = ctx.state.keyframeClipboard;
     ctx.state.selectedKeyframes.push({
@@ -89,7 +95,10 @@ describe("viewer keyframe clipboard", () => {
 
   it("duplicates and deletes the whole selection with one command each", () => {
     const ctx = createContext();
-    installInteractionKeyframeClipboardOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyframeClipboardActions(() => ctx),
+    );
 
     expect(ctx.duplicateSelectedKeyframes()).toBe(true);
     expect(ctx.beginEditorCommand).toHaveBeenLastCalledWith(

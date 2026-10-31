@@ -1,8 +1,14 @@
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import type { KeyframePatch } from "./keyframe-contract.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { KeyframeEditActions } from "./keyframe-contract.js";
+import { keyframeRefKey } from "../model/keyframe-reference.js";
 import type { KeyframeSelectionRef } from "../model/selection-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { getPairedMotionPathKeyframeRef } from "../model/motion-path-mutations.js";
 
-function findSelectedKeyframe(ctx: ViewerAppContext, timeline) {
+function findSelectedKeyframe(ctx: ViewerAppContext, timeline: EditorTimeline) {
   const selected = ctx.getPrimaryKeyframeSelection();
   if (!selected) {
     return null;
@@ -15,7 +21,7 @@ function findSelectedKeyframe(ctx: ViewerAppContext, timeline) {
 }
 function updateSelectedKeyframe(
   ctx: ViewerAppContext,
-  patch,
+  patch: KeyframePatch,
   trackId = ctx.getPrimaryKeyframeSelection()?.trackId,
   keyframeId = ctx.getPrimaryKeyframeSelection()?.keyframeId,
   options: { history?: boolean } = {},
@@ -93,7 +99,7 @@ function updateSelectedKeyframe(
   ctx.renderTimelineEditor(template);
   return ctx.renderCurrentFrame();
 }
-function addKeyframeAtPlayhead(ctx: ViewerAppContext, trackId) {
+function addKeyframeAtPlayhead(ctx: ViewerAppContext, trackId: string) {
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const track = timeline.tracks.find((item) => item.id === trackId);
@@ -140,8 +146,8 @@ function addKeyframeAtPlayhead(ctx: ViewerAppContext, trackId) {
 }
 function resolveTrackValueForNewKeyframe(
   ctx: ViewerAppContext,
-  track,
-  time,
+  track: MotionPathTrack,
+  time: number,
   timeline = ctx.getEffectiveTimeline(ctx.state.currentTemplate),
 ) {
   const keyframes = Array.isArray(track?.keyframes) ? track.keyframes : [];
@@ -161,17 +167,30 @@ export function getSelectedKeyframeRefs(
   const refs = ctx.state.selectedKeyframes;
   const unique = new Map<string, KeyframeSelectionRef>();
   for (const ref of refs) {
-    unique.set(`${ref.trackId}:${ref.keyframeId}`, ref);
+    unique.set(keyframeRefKey(ref), ref);
   }
   return Array.from(unique.values());
 }
-export function installInteractionKeyframesOwner(ctx: ViewerAppContext): void {
-  ctx.findSelectedKeyframe = findSelectedKeyframe.bind(undefined, ctx);
-  ctx.updateSelectedKeyframe = updateSelectedKeyframe.bind(undefined, ctx);
-  ctx.addKeyframeAtPlayhead = addKeyframeAtPlayhead.bind(undefined, ctx);
-  ctx.resolveTrackValueForNewKeyframe = resolveTrackValueForNewKeyframe.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getSelectedKeyframeRefs = getSelectedKeyframeRefs.bind(undefined, ctx);
+
+export function createKeyframeEditActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  KeyframeEditActions,
+  | "findSelectedKeyframe"
+  | "updateSelectedKeyframe"
+  | "addKeyframeAtPlayhead"
+  | "resolveTrackValueForNewKeyframe"
+> {
+  return {
+    findSelectedKeyframe: bindViewerAction(findSelectedKeyframe, getContext),
+    updateSelectedKeyframe: bindViewerAction(
+      updateSelectedKeyframe,
+      getContext,
+    ),
+    addKeyframeAtPlayhead: bindViewerAction(addKeyframeAtPlayhead, getContext),
+    resolveTrackValueForNewKeyframe: bindViewerAction(
+      resolveTrackValueForNewKeyframe,
+      getContext,
+    ),
+  };
 }

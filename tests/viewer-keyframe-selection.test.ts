@@ -1,3 +1,4 @@
+import { createKeyframeBatchActions } from "../src/apps/viewer/timeline/interaction/keyframe-batch";
 import { createKeyframeSelectionActions } from "../src/apps/viewer/timeline/model/keyframe-selection-state.js";
 import { createViewerSelectionState } from "../src/apps/viewer/timeline/model/selection-model.js";
 import { describe, expect, it, vi } from "vitest";
@@ -8,9 +9,19 @@ import {
   resolveKeyframeSelection,
 } from "../src/apps/viewer/timeline/model/keyframe-selection";
 import { createTimelineSelectionStateActions } from "../src/apps/viewer/timeline/model/selection-state";
-import { installInteractionKeyframesOwner } from "../src/apps/viewer/timeline/interaction/keyframes";
+import { getSelectedKeyframeRefs } from "../src/apps/viewer/timeline/interaction/keyframes";
 
 describe("viewer keyframe selection authority", () => {
+  it("does not collapse distinct canonical references when reading the selection", () => {
+    const ctx = createSelectionContext();
+    const refs = [
+      { trackId: "a:b", keyframeId: "c" },
+      { trackId: "a", keyframeId: "b:c" },
+    ];
+    ctx.state.selectedKeyframes = refs;
+    expect(getSelectedKeyframeRefs(ctx)).toEqual(refs);
+  });
+
   it("rejects malformed reference values through the selection action", () => {
     const ctx = createSelectionContext();
     Object.assign(
@@ -138,6 +149,44 @@ describe("viewer keyframe selection authority", () => {
     });
   });
 
+  it("moves the whole selection through the batch action and keeps the primary playhead", () => {
+    const ctx = createSelectionContext();
+    const source = { id: "source" };
+    ctx.state.currentTemplate = source;
+    ctx.state.timelineOverrides = new Map();
+    ctx.state.selectedKeyframes = [
+      { trackId: "opacity", keyframeId: "a" },
+      { trackId: "scale", keyframeId: "x" },
+    ];
+    ctx.getSelectedKeyframeRefs = () => getSelectedKeyframeRefs(ctx);
+    ctx.getEffectiveDuration = () => 3;
+    ctx.snapTime = (time: number) => time;
+    ctx.beginEditorCommand = vi.fn();
+    ctx.setSelectedKeyframes = vi.fn();
+    ctx.renderTimelineEditor = vi.fn();
+    ctx.renderCurrentFrame = vi.fn();
+    ctx.deps.normalizeTimeline = (timeline: unknown) => timeline;
+    ctx.refs = {
+      fpsInput: { value: "30" },
+      timeSlider: { value: "0" },
+      timeOutput: { textContent: "" },
+    };
+    ctx.formatSeconds = (time: number) => String(time);
+    const actions = createKeyframeBatchActions(() => ctx);
+    expect(actions.moveSelectedKeyframesBySeconds(0.5)).toBe(true);
+    expect(
+      ctx.state.timelineOverrides
+        .get(source.id)
+        .tracks.map((track: { keyframes: { time: number }[] }) =>
+          track.keyframes.map((frame) => frame.time),
+        ),
+    ).toEqual([[0.5, 1], [2.5]]);
+    expect(ctx.refs.timeSlider.value).toBe("2.5");
+    expect(ctx.refs.timeOutput.textContent).toBe("2.5");
+    expect(ctx.beginEditorCommand).toHaveBeenCalledTimes(1);
+    expect(ctx.renderCurrentFrame).toHaveBeenCalledTimes(1);
+  });
+
   it("does not resurrect a keyframe from selectedItem fallback state", () => {
     const ctx: any = {
       state: {
@@ -149,7 +198,7 @@ describe("viewer keyframe selection authority", () => {
         selectedKeyframes: [],
       },
     };
-    installInteractionKeyframesOwner(ctx);
+    ctx.getSelectedKeyframeRefs = () => getSelectedKeyframeRefs(ctx);
 
     expect(ctx.getSelectedKeyframeRefs()).toEqual([]);
   });

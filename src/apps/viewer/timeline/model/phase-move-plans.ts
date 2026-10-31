@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "./keyframe-reference.js";
 import { bindViewerAction } from "../../app/bind-action.js";
 import type { EditorTemplate } from "../../templates/model.js";
 
@@ -40,7 +41,10 @@ function createPhaseMovePlan(
   if (includeLinkedKeys) {
     (timeline.tracks ?? []).forEach((track) => {
       (track.keyframes ?? []).forEach((keyframe) => {
-        const key = `${track.id}:${keyframe.id}`;
+        const key = keyframeRefKey({
+          trackId: track.id,
+          keyframeId: keyframe.id,
+        });
         const phaseId =
           typeof keyframe?.phaseId === "string"
             ? keyframe.phaseId

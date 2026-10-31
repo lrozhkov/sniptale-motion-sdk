@@ -1,9 +1,12 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { KeyframeEditActions } from "./keyframe-contract.js";
+import { keyframeRefKey } from "../model/keyframe-reference.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function nudgeSelectedKeyframesByFrames(
   ctx: ViewerAppContext,
-  direction,
-  frames,
+  direction: number,
+  frames: number,
 ) {
   const selectedRefs = ctx.getSelectedKeyframeRefs();
   if (selectedRefs.length === 0) {
@@ -13,17 +16,18 @@ function nudgeSelectedKeyframesByFrames(
   const delta =
     (Math.sign(direction || 0) * Math.max(1, Number(frames) || 1)) / fps;
   return ctx.moveSelectedKeyframesBySeconds(delta, {
-    coalesceKey: `nudge-keyframes:${selectedRefs
-      .map((item) => `${item.trackId}:${item.keyframeId}`)
-      .sort()
-      .join("|")}`,
+    coalesceKey: `nudge-keyframes:${JSON.stringify(selectedRefs.map(keyframeRefKey).sort())}`,
     type: "nudgeKeyframes",
   });
 }
 
-export function installTimelineKeyframeNudgeOwner(ctx: ViewerAppContext): void {
-  ctx.nudgeSelectedKeyframesByFrames = nudgeSelectedKeyframesByFrames.bind(
-    undefined,
-    ctx,
-  );
+export function createKeyframeNudgeActions(
+  getContext: () => ViewerAppContext,
+): Pick<KeyframeEditActions, "nudgeSelectedKeyframesByFrames"> {
+  return {
+    nudgeSelectedKeyframesByFrames: bindViewerAction(
+      nudgeSelectedKeyframesByFrames,
+      getContext,
+    ),
+  };
 }

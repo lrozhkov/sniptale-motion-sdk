@@ -1,7 +1,13 @@
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type { TimelineMotionPath } from "../../../../sdk/types.js";
+import type { KeyframeSelectionRef } from "./selection-model.js";
+import { keyframeRefKey } from "./keyframe-reference.js";
 import {
   getMotionPathLayerProperty,
-  type TimelineMotionPath,
+  type MotionPathTrack,
 } from "../../../../shared/timeline/motion-path.js";
+
+type MotionPathTimeline = Pick<EditorTimeline, "tracks" | "motionPaths">;
 
 export type InsertedKeyframeMapping = {
   fromKeyframeId: string;
@@ -9,9 +15,12 @@ export type InsertedKeyframeMapping = {
   trackId: string;
 };
 
-export function expandMotionPathKeyframeSelection(timeline, refs): any[] {
+export function expandMotionPathKeyframeSelection(
+  timeline: MotionPathTimeline,
+  refs: readonly KeyframeSelectionRef[],
+): KeyframeSelectionRef[] {
   const expanded = new Map(
-    refs.map((ref) => [`${ref.trackId}:${ref.keyframeId}`, { ...ref }]),
+    refs.map((ref) => [keyframeRefKey(ref), { ...ref }]),
   );
   for (const path of timeline.motionPaths ?? []) {
     const tracks = getSpatialTracks(timeline, path.layerId);
@@ -28,11 +37,11 @@ export function expandMotionPathKeyframeSelection(timeline, refs): any[] {
         trackId: tracks.y.id,
       };
       if (
-        expanded.has(`${xRef.trackId}:${xRef.keyframeId}`) ||
-        expanded.has(`${yRef.trackId}:${yRef.keyframeId}`)
+        expanded.has(keyframeRefKey(xRef)) ||
+        expanded.has(keyframeRefKey(yRef))
       ) {
-        expanded.set(`${xRef.trackId}:${xRef.keyframeId}`, xRef);
-        expanded.set(`${yRef.trackId}:${yRef.keyframeId}`, yRef);
+        expanded.set(keyframeRefKey(xRef), xRef);
+        expanded.set(keyframeRefKey(yRef), yRef);
       }
     }
   }
@@ -40,10 +49,10 @@ export function expandMotionPathKeyframeSelection(timeline, refs): any[] {
 }
 
 export function getPairedMotionPathKeyframeRef(
-  timeline,
+  timeline: MotionPathTimeline,
   trackId: string,
   keyframeId: string,
-) {
+): KeyframeSelectionRef | null {
   for (const path of timeline.motionPaths ?? []) {
     const tracks = getSpatialTracks(timeline, path.layerId);
     if (!tracks) {
@@ -62,8 +71,8 @@ export function getPairedMotionPathKeyframeRef(
 }
 
 export function removeDeletedMotionPathPoints(
-  timeline,
-  selectedKeys: Set<string>,
+  timeline: MotionPathTimeline,
+  selectedKeys: ReadonlySet<string>,
 ): TimelineMotionPath[] {
   return (timeline.motionPaths ?? [])
     .map((path) => {
@@ -73,21 +82,34 @@ export function removeDeletedMotionPathPoints(
       }
       const points = path.points.filter(
         (point) =>
-          !selectedKeys.has(`${tracks.x.id}:${point.xKeyframeId}`) &&
-          !selectedKeys.has(`${tracks.y.id}:${point.yKeyframeId}`),
+          !selectedKeys.has(
+            keyframeRefKey({
+              trackId: tracks.x.id,
+              keyframeId: point.xKeyframeId,
+            }),
+          ) &&
+          !selectedKeys.has(
+            keyframeRefKey({
+              trackId: tracks.y.id,
+              keyframeId: point.yKeyframeId,
+            }),
+          ),
       );
       return points.length >= 2 ? { ...path, points } : null;
     })
-    .filter((path): path is TimelineMotionPath => Boolean(path));
+    .filter((path): path is TimelineMotionPath => path !== null);
 }
 
 export function duplicateInsertedMotionPathPoints(
-  timeline,
-  mappings: InsertedKeyframeMapping[],
+  timeline: MotionPathTimeline,
+  mappings: readonly InsertedKeyframeMapping[],
 ): TimelineMotionPath[] {
   const insertedBySource = new Map(
     mappings.map((mapping) => [
-      `${mapping.trackId}:${mapping.fromKeyframeId}`,
+      keyframeRefKey({
+        trackId: mapping.trackId,
+        keyframeId: mapping.fromKeyframeId,
+      }),
       mapping.toKeyframeId,
     ]),
   );
@@ -98,10 +120,10 @@ export function duplicateInsertedMotionPathPoints(
     }
     const inserted = path.points.flatMap((point) => {
       const xKeyframeId = insertedBySource.get(
-        `${tracks.x.id}:${point.xKeyframeId}`,
+        keyframeRefKey({ trackId: tracks.x.id, keyframeId: point.xKeyframeId }),
       );
       const yKeyframeId = insertedBySource.get(
-        `${tracks.y.id}:${point.yKeyframeId}`,
+        keyframeRefKey({ trackId: tracks.y.id, keyframeId: point.yKeyframeId }),
       );
       return xKeyframeId && yKeyframeId
         ? [
@@ -127,7 +149,7 @@ export function duplicateInsertedMotionPathPoints(
   });
 }
 
-function getSpatialTracks(timeline, layerId: string) {
+function getSpatialTracks(timeline: MotionPathTimeline, layerId: string) {
   const x = (timeline.tracks ?? []).find(
     (track) =>
       getMotionPathLayerProperty(track)?.layerId === layerId &&
@@ -141,7 +163,7 @@ function getSpatialTracks(timeline, layerId: string) {
   return x && y ? { x, y } : null;
 }
 
-function getKeyframeTime(track, keyframeId: string): number {
+function getKeyframeTime(track: MotionPathTrack, keyframeId: string): number {
   return Number(
     track.keyframes?.find((keyframe) => keyframe.id === keyframeId)?.time,
   );

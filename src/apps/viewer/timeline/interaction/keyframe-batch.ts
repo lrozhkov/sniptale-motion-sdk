@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { KeyframeEditActions } from "./keyframe-contract.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
   createKeyframeAlignPlan,
@@ -5,17 +7,18 @@ import {
   createKeyframeMovePlan,
   createKeyframeQuantizePlan,
   createKeyframeScalePlan,
-  createKeyframeTimeSnapshot,
-  keyframeRefKey,
-  type KeyframeTimePlan,
-  type KeyframeTimeSnapshot,
 } from "../model/keyframe-transform.js";
-import { expandMotionPathKeyframeSelection } from "../model/motion-path-mutations.js";
+import {
+  createSelectionOperation,
+  applyKeyframeTimePlan,
+  reportKeyframeTimePlanFailure,
+} from "./keyframe-time-operation.js";
+import type { KeyframeMoveOptions } from "./keyframe-contract.js";
 
 function moveSelectedKeyframesBySeconds(
   ctx: ViewerAppContext,
-  requestedDelta,
-  options: any = {},
+  requestedDelta: number,
+  options: KeyframeMoveOptions = {},
 ): boolean {
   const operation = createSelectionOperation(ctx);
   if (!operation) {
@@ -30,7 +33,9 @@ function moveSelectedKeyframesBySeconds(
     operation,
     createKeyframeMovePlan(operation.snapshot, delta),
     {
-      coalesceKey: options.coalesceKey,
+      ...(options.coalesceKey === undefined
+        ? {}
+        : { coalesceKey: options.coalesceKey }),
       payload: { delta },
       type: options.type ?? "moveKeyframes",
     },
@@ -39,7 +44,7 @@ function moveSelectedKeyframesBySeconds(
 
 function scaleSelectedKeyframeTimes(
   ctx: ViewerAppContext,
-  factor,
+  factor: number,
   pivot: "center" | "end" | "start" = "start",
 ): boolean {
   const operation = createSelectionOperation(ctx);
@@ -64,7 +69,7 @@ function scaleSelectedKeyframeTimes(
 function setKeyframeSelectionRangeProperty(
   ctx: ViewerAppContext,
   property: "duration" | "end" | "start",
-  rawValue,
+  rawValue: string | number,
 ): boolean {
   const operation = createSelectionOperation(ctx);
   if (!operation) {
@@ -171,128 +176,41 @@ function quantizeSelectedKeyframes(ctx: ViewerAppContext): boolean {
     : false;
 }
 
-function createSelectionOperation(ctx) {
-  const template = ctx.state.currentTemplate;
-  if (!template) {
-    return null;
-  }
-  const timeline = ctx.getEffectiveTimeline(template);
-  const refs = expandMotionPathKeyframeSelection(
-    timeline,
-    ctx.getSelectedKeyframeRefs(),
-  );
-  const snapshot = createKeyframeTimeSnapshot(
-    timeline,
-    refs,
-    ctx.getEffectiveDuration(template),
-    1 / Math.max(1, Number(ctx.refs.fpsInput.value) || 30),
-  );
-  return snapshot ? { snapshot, template, timeline } : null;
-}
-
-function applyKeyframeTimePlan(
-  ctx,
-  operation: {
-    snapshot: KeyframeTimeSnapshot;
-    template: any;
-    timeline: any;
-  },
-  plan: KeyframeTimePlan,
-  command: { coalesceKey?: string; payload: any; type: string },
-): boolean {
-  if (plan.ok === false) {
-    return plan.reason === "no-change"
-      ? false
-      : reportKeyframeTimePlanFailure(ctx, plan.reason);
-  }
-  ctx.beginEditorCommand(
-    {
-      payload: {
-        keyframes: operation.snapshot.refs,
-        ...command.payload,
-      },
-      type: command.type,
-    },
-    command.coalesceKey ? { coalesceKey: command.coalesceKey } : {},
-  );
-  for (const entry of operation.snapshot.entries) {
-    const track = operation.timeline.tracks.find(
-      (item) => item.id === entry.trackId,
-    );
-    const keyframe = track?.keyframes.find(
-      (item) => item.id === entry.keyframeId,
-    );
-    if (keyframe) {
-      keyframe.time = plan.updates[keyframeRefKey(entry)];
-    }
-  }
-  for (const track of operation.timeline.tracks) {
-    track.keyframes.sort((left, right) => left.time - right.time);
-  }
-  ctx.state.timelineOverrides.set(
-    operation.template.id,
-    ctx.deps.normalizeTimeline(
-      operation.timeline,
-      ctx.getEffectiveDuration(operation.template),
+export function createKeyframeBatchActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  KeyframeEditActions,
+  | "moveSelectedKeyframesBySeconds"
+  | "scaleSelectedKeyframeTimes"
+  | "setKeyframeSelectionRangeProperty"
+  | "alignSelectedKeyframes"
+  | "distributeSelectedKeyframes"
+  | "quantizeSelectedKeyframes"
+> {
+  return {
+    moveSelectedKeyframesBySeconds: bindViewerAction(
+      moveSelectedKeyframesBySeconds,
+      getContext,
     ),
-  );
-  ctx.setSelectedKeyframes(operation.snapshot.refs, { render: false });
-  const primary = operation.snapshot.entries.at(-1);
-  if (primary) {
-    const primaryTime = plan.updates[keyframeRefKey(primary)];
-    ctx.refs.timeSlider.value = String(primaryTime);
-    ctx.refs.timeOutput.textContent = ctx.formatSeconds(primaryTime);
-  }
-  ctx.renderTimelineEditor(operation.template);
-  void ctx.renderCurrentFrame();
-  return true;
-}
-
-function reportKeyframeTimePlanFailure(ctx, reason): false {
-  const [key, fallback] =
-    reason === "collision"
-      ? [
-          "viewer.timeline.keyframeTimeCollision",
-          "The operation would overlap keyframes on the same track.",
-        ]
-      : reason === "out-of-range"
-        ? [
-            "viewer.timeline.keyframeTimeOutOfRange",
-            "The operation would move keyframes outside the composition.",
-          ]
-        : reason === "invalid-scale"
-          ? [
-              "viewer.timeline.keyframeScaleInvalid",
-              "Keyframe scale must be greater than zero.",
-            ]
-          : [
-              "viewer.timeline.keyframeSelectionInsufficient",
-              "Select more keyframes for this operation.",
-            ];
-  ctx.logDiagnostic(ctx.deps.t(key, fallback), "error");
-  return false;
-}
-
-export function installInteractionKeyframeBatchOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.moveSelectedKeyframesBySeconds = moveSelectedKeyframesBySeconds.bind(
-    undefined,
-    ctx,
-  );
-  ctx.scaleSelectedKeyframeTimes = scaleSelectedKeyframeTimes.bind(
-    undefined,
-    ctx,
-  );
-  ctx.setKeyframeSelectionRangeProperty =
-    setKeyframeSelectionRangeProperty.bind(undefined, ctx);
-  ctx.alignSelectedKeyframes = alignSelectedKeyframes.bind(undefined, ctx);
-  ctx.distributeSelectedKeyframes = distributeSelectedKeyframes.bind(
-    undefined,
-    ctx,
-  );
-  ctx.quantizeSelectedKeyframes = quantizeSelectedKeyframes.bind(
-    undefined,
-    ctx,
-  );
+    scaleSelectedKeyframeTimes: bindViewerAction(
+      scaleSelectedKeyframeTimes,
+      getContext,
+    ),
+    setKeyframeSelectionRangeProperty: bindViewerAction(
+      setKeyframeSelectionRangeProperty,
+      getContext,
+    ),
+    alignSelectedKeyframes: bindViewerAction(
+      alignSelectedKeyframes,
+      getContext,
+    ),
+    distributeSelectedKeyframes: bindViewerAction(
+      distributeSelectedKeyframes,
+      getContext,
+    ),
+    quantizeSelectedKeyframes: bindViewerAction(
+      quantizeSelectedKeyframes,
+      getContext,
+    ),
+  };
 }

@@ -1,3 +1,5 @@
+import type { ViewerSelection } from "../timeline/model/selection-model.js";
+import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { ViewerAppContext } from "./context.js";
 import { syncTablistButtons } from "./tablist.js";
 
@@ -23,13 +25,27 @@ const DEFAULT_INSPECTOR_TAB_BY_TYPE = {
   track: "timing",
 };
 
-function getInspectorSelectionKey(item, selectedLayers: string[] = []) {
-  if (!item || item.type === "effect") {
-    return "effect";
+function getInspectorSelectionKey(
+  item: ViewerSelection | null | undefined,
+  selectedLayers: readonly string[] = [],
+): string {
+  if (!item || item.type === "effect") return "effect";
+  switch (item.type) {
+    case "keyframe":
+      return `keyframe:${keyframeRefKey(item)}`;
+    case "layer":
+      return JSON.stringify(["layer", item.layerId, selectedLayers]);
+    case "clip":
+      return JSON.stringify(["clip", item.layerId]);
+    case "scene":
+      return JSON.stringify(["scene", item.sceneId]);
+    case "phase":
+      return JSON.stringify(["phase", item.phaseId]);
+    case "track":
+      return JSON.stringify(["track", item.trackId]);
+    case "asset":
+      return JSON.stringify(["asset", item.assetId]);
   }
-  const layerSelection =
-    item.type === "layer" ? `:${selectedLayers.join(",")}` : "";
-  return `${item.type}:${item.layerId ?? item.sceneId ?? item.phaseId ?? item.trackId ?? item.assetId ?? ""}:${item.keyframeId ?? ""}${layerSelection}`;
 }
 
 function syncSidebarHeading(ctx: ViewerAppContext) {

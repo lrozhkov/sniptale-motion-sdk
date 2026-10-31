@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createKeyframeSelectionInspectorModel } from "../src/apps/viewer/inspector/keyframe-selection-model";
-import { installInteractionKeyframePropertiesOwner } from "../src/apps/viewer/timeline/interaction/keyframe-properties";
+import { createKeyframePropertyActions } from "../src/apps/viewer/timeline/interaction/keyframe-properties";
 
 describe("viewer multi-keyframe inspector", () => {
   it("reports mixed values, ownership, and range capabilities", () => {
@@ -31,7 +31,10 @@ describe("viewer multi-keyframe inspector", () => {
 
   it("updates every selected numeric keyframe with one command", () => {
     const ctx = createContext();
-    installInteractionKeyframePropertiesOwner(ctx);
+    Object.assign(
+      ctx,
+      createKeyframePropertyActions(() => ctx),
+    );
 
     expect(ctx.updateSelectedKeyframesBatch({ value: 0.75 })).toBe(true);
     expect(ctx.beginEditorCommand).toHaveBeenCalledOnce();

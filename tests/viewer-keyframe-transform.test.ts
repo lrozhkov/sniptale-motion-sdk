@@ -7,9 +7,25 @@ import {
   createKeyframeQuantizePlan,
   createKeyframeScalePlan,
   createKeyframeTimeSnapshot,
+  createKeyframeTimePlan,
 } from "../src/apps/viewer/timeline/model/keyframe-transform";
 
 describe("viewer keyframe time transforms", () => {
+  it("keeps an unselected key with a delimiter-colliding identity in collision checks", () => {
+    const snapshot = createKeyframeTimeSnapshot(
+      {
+        tracks: [
+          { id: "a:b", keyframes: [{ id: "c", time: 0 }] },
+          { id: "a", keyframes: [{ id: "b:c", time: 1 }] },
+        ],
+      },
+      [{ trackId: "a:b", keyframeId: "c" }],
+      4,
+      1 / 30,
+    );
+    expect(snapshot?.unselectedTimesByTrack.get("a")).toEqual([1]);
+  });
+
   it("moves the immutable selection with one clamped delta", () => {
     const timeline = {
       tracks: [
@@ -29,10 +45,10 @@ describe("viewer keyframe time transforms", () => {
 
     expect(createKeyframeMovePlan(snapshot, 10)).toEqual({
       ok: true,
-      updates: {
-        "opacity:a": 3,
-        "scale:x": 4,
-      },
+      updates: [
+        { trackId: "opacity", keyframeId: "a", time: 3 },
+        { trackId: "scale", keyframeId: "x", time: 4 },
+      ],
     });
     expect(snapshot.entries.map((entry) => entry.time)).toEqual([1, 2]);
   });
@@ -53,19 +69,19 @@ describe("viewer keyframe time transforms", () => {
 
     expect(createKeyframeScalePlan(snapshot, 0.5, "start")).toEqual({
       ok: true,
-      updates: {
-        "opacity:a": 1,
-        "opacity:b": 2,
-        "scale:x": 1.75,
-      },
+      updates: [
+        { trackId: "opacity", keyframeId: "a", time: 1 },
+        { trackId: "opacity", keyframeId: "b", time: 2 },
+        { trackId: "scale", keyframeId: "x", time: 1.75 },
+      ],
     });
     expect(createKeyframeDistributePlan(snapshot)).toEqual({
       ok: true,
-      updates: {
-        "opacity:a": 1,
-        "opacity:b": 3,
-        "scale:x": 2,
-      },
+      updates: [
+        { trackId: "opacity", keyframeId: "a", time: 1 },
+        { trackId: "opacity", keyframeId: "b", time: 3 },
+        { trackId: "scale", keyframeId: "x", time: 2 },
+      ],
     });
   });
 
@@ -88,6 +104,51 @@ describe("viewer keyframe time transforms", () => {
     });
   });
 
+  it("requires each selected reference exactly once and copies accepted input", () => {
+    const snapshot = createSnapshot([
+      { keyframeId: "a", trackId: "opacity" },
+      { keyframeId: "x", trackId: "scale" },
+    ]);
+    if (!snapshot) throw new Error("Expected a selection snapshot");
+    const updates = snapshot.entries.map((entry) => ({
+      ...entry,
+      time: entry.time + 0.2,
+    }));
+    expect(createKeyframeTimePlan(snapshot, updates.slice(1))).toEqual({
+      ok: false,
+      reason: "out-of-range",
+    });
+    expect(
+      createKeyframeTimePlan(snapshot, [
+        ...updates,
+        { trackId: "other", keyframeId: "a", time: 1 },
+      ]),
+    ).toEqual({ ok: false, reason: "out-of-range" });
+    expect(
+      createKeyframeTimePlan(
+        snapshot,
+        updates.map(() => ({ trackId: "opacity", keyframeId: "a", time: 2 })),
+      ),
+    ).toEqual({ ok: false, reason: "collision" });
+    expect(
+      createKeyframeTimePlan(
+        snapshot,
+        updates.map((entry) => ({ ...entry, trackId: "foreign" })),
+      ),
+    ).toEqual({ ok: false, reason: "out-of-range" });
+    const plan = createKeyframeTimePlan(snapshot, updates);
+    const first = updates[0];
+    if (!first) throw new Error("Expected an update");
+    first.time = 100;
+    expect(plan).toEqual({
+      ok: true,
+      updates: [
+        { trackId: "opacity", keyframeId: "a", time: 1.2 },
+        { trackId: "scale", keyframeId: "x", time: 2.2 },
+      ],
+    });
+  });
+
   it("quantizes through one supplied frame policy", () => {
     const timeline = createTimeline();
     timeline.tracks[0].keyframes[0].time = 1.017;
@@ -104,7 +165,7 @@ describe("viewer keyframe time transforms", () => {
       ),
     ).toEqual({
       ok: true,
-      updates: { "opacity:a": 31 / 30 },
+      updates: [{ trackId: "opacity", keyframeId: "a", time: 31 / 30 }],
     });
   });
 });

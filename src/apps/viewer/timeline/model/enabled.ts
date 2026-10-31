@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "./keyframe-reference.js";
 import type { TimelineEnabledToggleOptions } from "./timing-contract.js";
 import { bindViewerAction } from "../../app/bind-action.js";
 import type { ViewerAppContext } from "../../app/context.js";
@@ -103,7 +104,9 @@ function toggleTimelineKeyframeEnabled(
   if (!template || !keyframe) {
     return;
   }
-  ctx.commitHistory(`keyframe-enabled:${trackId}:${keyframeId}`);
+  ctx.commitHistory(
+    `keyframe-enabled:${keyframeRefKey({ trackId, keyframeId })}`,
+  );
   keyframe.enabled = keyframe.enabled === false;
   ctx.state.timelineOverrides.set(
     template.id,

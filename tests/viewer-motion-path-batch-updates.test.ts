@@ -24,6 +24,47 @@ describe("motion path batch updates", () => {
     expect(readKeyframe(timeline, "beta.y", "beta-y-a").value).toBe(31);
   });
 
+  it("does not merge spatial updates whose delimiter-joined identities collide", () => {
+    const ctx = createContext();
+    const timeline = createTimeline();
+    timeline.motionPaths[0].points = [
+      {
+        ...timeline.motionPaths[0].points[0],
+        xKeyframeId: "a:b",
+        yKeyframeId: "c",
+      },
+      {
+        ...timeline.motionPaths[0].points[0],
+        xKeyframeId: "a",
+        yKeyframeId: "b:c",
+      },
+    ];
+    timeline.tracks[0].keyframes = [
+      { id: "a:b", time: 0, value: 1 },
+      { id: "a", time: 1, value: 2 },
+    ];
+    timeline.tracks[1].keyframes = [
+      { id: "c", time: 0, value: 3 },
+      { id: "b:c", time: 1, value: 4 },
+    ];
+    ctx.getEffectiveTimeline = () => structuredClone(timeline);
+    expect(
+      updateCanvasMotionPathPointPositions(
+        ctx,
+        [
+          createUpdate("alpha", "a:b", "c", 10, 20),
+          createUpdate("alpha", "a", "b:c", 30, 40),
+        ],
+        { inspector: false, render: false, selection: false, timeline: false },
+      ),
+    ).toBe(true);
+    const result = ctx.state.timelineOverrides.get("fixture");
+    expect(readKeyframe(result, "alpha.x", "a:b").value).toBe(10);
+    expect(readKeyframe(result, "alpha.y", "c").value).toBe(20);
+    expect(readKeyframe(result, "alpha.x", "a").value).toBe(30);
+    expect(readKeyframe(result, "alpha.y", "b:c").value).toBe(40);
+  });
+
   it("blocks the complete batch before mutating when one point is locked", () => {
     const ctx = createContext({ lockedLayerId: "beta" });
 

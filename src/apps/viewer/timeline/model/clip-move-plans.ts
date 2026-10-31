@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "./keyframe-reference.js";
 import { bindViewerAction } from "../../app/bind-action.js";
 import type { EditorTemplate } from "../../templates/model.js";
 import type { EditorTimeline } from "../../editor/model-types.js";
@@ -98,7 +99,10 @@ function createClipMovePlan(
       const window = windows.find((item) => item.layerId === layerId);
       (track.keyframes ?? []).forEach((keyframe) => {
         const time = Number(keyframe.time) || 0;
-        const key = `${track.id}:${keyframe.id}`;
+        const key = keyframeRefKey({
+          trackId: track.id,
+          keyframeId: keyframe.id,
+        });
         if (
           seenKeyframes.has(key) ||
           (window && !ctx.isTimeInsideRange(time, window.start, window.end)) ||

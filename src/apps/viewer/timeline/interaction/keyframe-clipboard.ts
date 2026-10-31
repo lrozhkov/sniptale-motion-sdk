@@ -1,3 +1,6 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { KeyframeEditActions } from "./keyframe-contract.js";
+import { keyframeRefKey } from "../model/keyframe-reference.js";
 import type { KeyframeClipboardEntry } from "../state.js";
 import type { EditorTimeline } from "../../editor/model-types.js";
 import type { KeyframeSelectionRef } from "../model/selection-model.js";
@@ -72,14 +75,14 @@ function deleteSelectedKeyframes(ctx: ViewerAppContext): boolean {
     return false;
   }
   const timeline = ctx.getEffectiveTimeline(template);
-  const selectedKeys = new Set<string>(
-    refs.map((ref) => `${ref.trackId}:${ref.keyframeId}`),
-  );
+  const selectedKeys = new Set<string>(refs.map((ref) => keyframeRefKey(ref)));
   const existingCount = timeline.tracks.reduce(
     (count, track) =>
       count +
       track.keyframes.filter((keyframe) =>
-        selectedKeys.has(`${track.id}:${keyframe.id}`),
+        selectedKeys.has(
+          keyframeRefKey({ trackId: track.id, keyframeId: keyframe.id }),
+        ),
       ).length,
     0,
   );
@@ -92,7 +95,10 @@ function deleteSelectedKeyframes(ctx: ViewerAppContext): boolean {
   });
   for (const track of timeline.tracks) {
     track.keyframes = track.keyframes.filter(
-      (keyframe) => !selectedKeys.has(`${track.id}:${keyframe.id}`),
+      (keyframe) =>
+        !selectedKeys.has(
+          keyframeRefKey({ trackId: track.id, keyframeId: keyframe.id }),
+        ),
     );
   }
   timeline.motionPaths = removeDeletedMotionPathPoints(timeline, selectedKeys);
@@ -277,14 +283,28 @@ function reportKeyframePlacementFailure(ctx: ViewerAppContext): false {
   return false;
 }
 
-export function installInteractionKeyframeClipboardOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.copySelectedKeyframes = copySelectedKeyframes.bind(undefined, ctx);
-  ctx.pasteKeyframesAtPlayhead = pasteKeyframesAtPlayhead.bind(undefined, ctx);
-  ctx.duplicateSelectedKeyframes = duplicateSelectedKeyframes.bind(
-    undefined,
-    ctx,
-  );
-  ctx.deleteSelectedKeyframes = deleteSelectedKeyframes.bind(undefined, ctx);
+export function createKeyframeClipboardActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  KeyframeEditActions,
+  | "copySelectedKeyframes"
+  | "pasteKeyframesAtPlayhead"
+  | "duplicateSelectedKeyframes"
+  | "deleteSelectedKeyframes"
+> {
+  return {
+    copySelectedKeyframes: bindViewerAction(copySelectedKeyframes, getContext),
+    pasteKeyframesAtPlayhead: bindViewerAction(
+      pasteKeyframesAtPlayhead,
+      getContext,
+    ),
+    duplicateSelectedKeyframes: bindViewerAction(
+      duplicateSelectedKeyframes,
+      getContext,
+    ),
+    deleteSelectedKeyframes: bindViewerAction(
+      deleteSelectedKeyframes,
+      getContext,
+    ),
+  };
 }

@@ -1,20 +1,17 @@
-import {
-  keyframeRefKey,
-  type KeyframeTimeSnapshot,
-} from "../timeline/model/keyframe-transform.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+import { type KeyframeTimePlan } from "../timeline/model/keyframe-transform.js";
 
 export function applyGraphTimePlan(
-  timeline,
-  snapshot: KeyframeTimeSnapshot,
-  plan,
+  timeline: EditorTimeline,
+  plan: Extract<KeyframeTimePlan, { ok: true }>,
 ): void {
-  for (const entry of snapshot.entries) {
+  for (const entry of plan.updates) {
     const track = timeline.tracks.find((item) => item.id === entry.trackId);
     const keyframe = track?.keyframes.find(
       (item) => item.id === entry.keyframeId,
     );
     if (keyframe) {
-      keyframe.time = plan.updates[keyframeRefKey(entry)];
+      keyframe.time = entry.time;
     }
   }
   for (const track of timeline.tracks) {

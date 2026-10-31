@@ -45,6 +45,27 @@ import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 
 describe("viewer state contracts", () => {
+  it("keeps keyframe edit results and payloads typed at the application boundary", () => {
+    expectTypeOf<
+      ReturnType<ViewerAppContext["copySelectedKeyframes"]>
+    >().toBeBoolean();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["moveSelectedKeyframesBySeconds"]>
+    >().toBeBoolean();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["updateSelectedKeyframe"]>
+    >().toEqualTypeOf<Promise<void> | undefined>();
+    expectTypeOf<
+      Parameters<ViewerAppContext["updateSelectedKeyframe"]>[0]["value"]
+    >().toBeUnknown();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["resolveTrackValueForNewKeyframe"]>
+    >().toBeUnknown();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["findSelectedKeyframe"]>
+    >().not.toBeAny();
+  });
+
   it("keeps viewport geometry and row scope typed at the application boundary", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["getTimelineViewport"]>

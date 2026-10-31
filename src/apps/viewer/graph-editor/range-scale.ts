@@ -62,7 +62,7 @@ function beginGraphSelectionScale(ctx: ViewerAppContext, event, model, edge) {
       return;
     }
     preview.scheduleUpdate(() => {
-      applyGraphTimePlan(timeline, snapshot, plan);
+      applyGraphTimePlan(timeline, plan);
       commitInteractiveGraphTimeline(ctx, template, timeline);
     });
   };

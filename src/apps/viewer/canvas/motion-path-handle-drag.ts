@@ -1,3 +1,4 @@
+import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
 
@@ -159,7 +160,7 @@ function handleMotionPathTangentKeydown(
       type: "updateMotionPathTangent",
     },
     {
-      coalesceKey: `keyboard-motion-tangent:${layerId}:${xKeyframeId}:${yKeyframeId}:${side}`,
+      coalesceKey: `keyboard-motion-tangent:${JSON.stringify([motionPathPointKey({ layerId, xKeyframeId, yKeyframeId }), side])}`,
     },
   );
   const tangent = point[`${side}Tangent`];

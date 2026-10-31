@@ -1,3 +1,4 @@
+import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
 import { prepareCanvasGesture } from "./gesture.js";
@@ -200,10 +201,7 @@ function handleMotionPathPointKeydown(
     xKeyframeId: item.xKeyframeId,
     yKeyframeId: item.yKeyframeId,
   }));
-  const selectionKey = snapshot
-    .map((item) => `${item.layerId}:${item.xKeyframeId}:${item.yKeyframeId}`)
-    .sort()
-    .join("|");
+  const selectionKey = JSON.stringify(snapshot.map(motionPathPointKey).sort());
   ctx.beginEditorCommand(
     {
       payload: { points: snapshot.map(toPointRef) },

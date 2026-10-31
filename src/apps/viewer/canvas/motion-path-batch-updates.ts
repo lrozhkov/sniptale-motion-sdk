@@ -1,7 +1,9 @@
+import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createCanvasMotionPathModel,
   findCanvasMotionPathPoint,
+  type CanvasMotionPathPoint,
 } from "./motion-path-model.js";
 import {
   getCanvasMotionPathPointEditBlockReason,
@@ -18,7 +20,12 @@ export type CanvasMotionPathPointPositionUpdate = {
 export function updateCanvasMotionPathPointPositions(
   ctx: ViewerAppContext,
   sourceUpdates: CanvasMotionPathPointPositionUpdate[],
-  options: any = {},
+  options: {
+    inspector?: boolean;
+    render?: boolean;
+    selection?: boolean;
+    timeline?: boolean;
+  } = {},
 ): boolean {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
@@ -32,7 +39,7 @@ export function updateCanvasMotionPathPointPositions(
     ReturnType<typeof createCanvasMotionPathModel>
   >();
   const resolved: Array<{
-    point: any;
+    point: CanvasMotionPathPoint;
     position: { x: number; y: number };
   }> = [];
   for (const update of updates) {
@@ -107,10 +114,7 @@ function dedupePositionUpdates(
 ): CanvasMotionPathPointPositionUpdate[] {
   const byPoint = new Map<string, CanvasMotionPathPointPositionUpdate>();
   for (const update of updates) {
-    byPoint.set(
-      `${update.layerId}:${update.xKeyframeId}:${update.yKeyframeId}`,
-      update,
-    );
+    byPoint.set(motionPathPointKey(update), update);
   }
   return [...byPoint.values()];
 }

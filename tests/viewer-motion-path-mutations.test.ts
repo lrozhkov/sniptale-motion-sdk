@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "../src/apps/viewer/timeline/model/keyframe-reference";
 import { describe, expect, it } from "vitest";
 import {
   duplicateInsertedMotionPathPoints,
@@ -18,6 +19,27 @@ describe("motion path keyframe mutations", () => {
       { keyframeId: "x-a", trackId: "box.x" },
       { keyframeId: "y-a", trackId: "box.y" },
     ]);
+  });
+
+  it("keeps delimiter-colliding foreign references out of paired path mutations", () => {
+    const timeline = createTimeline();
+    timeline.tracks[0].id = "a:b";
+    timeline.tracks[0].keyframes[0].id = "c";
+    timeline.motionPaths[0].points[0].xKeyframeId = "c";
+    const refs = [{ trackId: "a", keyframeId: "b:c" }];
+    expect(expandMotionPathKeyframeSelection(timeline, refs)).toEqual(refs);
+    expect(
+      removeDeletedMotionPathPoints(
+        timeline,
+        new Set(refs.map(keyframeRefKey)),
+      ),
+    ).toEqual(timeline.motionPaths);
+    expect(
+      duplicateInsertedMotionPathPoints(timeline, [
+        { trackId: "a", fromKeyframeId: "b:c", toKeyframeId: "x-copy" },
+        { trackId: "box.y", fromKeyframeId: "y-a", toKeyframeId: "y-copy" },
+      ]),
+    ).toEqual(timeline.motionPaths);
   });
 
   it("finds the paired coordinate key in either direction", () => {
@@ -41,7 +63,7 @@ describe("motion path keyframe mutations", () => {
     expect(
       removeDeletedMotionPathPoints(
         timeline,
-        new Set(["box.x:x-b"]),
+        new Set([keyframeRefKey({ trackId: "box.x", keyframeId: "x-b" })]),
       )[0].points.map((point) => point.xKeyframeId),
     ).toEqual(["x-a", "x-c"]);
   });

@@ -1,8 +1,8 @@
+import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createKeyframeMovePlan,
   createKeyframeTimeSnapshot,
-  keyframeRefKey,
 } from "../timeline/model/keyframe-transform.js";
 import { expandMotionPathKeyframeSelection } from "../timeline/model/motion-path-mutations.js";
 import { clampTrackNumericValue } from "../layers/property-range.js";
@@ -81,12 +81,7 @@ function beginGraphKeyframeDrag(
         ? movePlan
         : {
             ok: true as const,
-            updates: Object.fromEntries(
-              snapshot.entries.map((entry) => [
-                keyframeRefKey(entry),
-                entry.time,
-              ]),
-            ),
+            updates: snapshot.entries,
           };
     if (
       !activateTimelineDrag(
@@ -110,7 +105,7 @@ function beginGraphKeyframeDrag(
       : 0;
     preview.scheduleUpdate(
       () => {
-        applyGraphTimePlan(timeline, snapshot, plan);
+        applyGraphTimePlan(timeline, plan);
         if (canMoveValue) {
           for (const entry of snapshot.entries) {
             const track = timeline.tracks.find(
@@ -130,7 +125,11 @@ function beginGraphKeyframeDrag(
         commitInteractiveGraphTimeline(ctx, template, timeline);
       },
       () => {
-        const nextTime = plan.updates[keyframeRefKey(primary)];
+        const nextTime = plan.updates.find(
+          (entry) =>
+            entry.trackId === primary.trackId &&
+            entry.keyframeId === primary.keyframeId,
+        )?.time;
         if (nextTime !== undefined) ctx.showTimelineSnapIndicator(nextTime);
       },
     );

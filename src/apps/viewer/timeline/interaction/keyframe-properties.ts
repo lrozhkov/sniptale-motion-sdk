@@ -1,3 +1,5 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { KeyframeEditActions } from "./keyframe-contract.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
   clampTrackNumericValue,
@@ -6,7 +8,10 @@ import {
 import { resolveKeyframeSelection } from "../model/keyframe-selection.js";
 import { expandMotionPathKeyframeSelection } from "../model/motion-path-mutations.js";
 
-function updateSelectedKeyframesBatch(ctx: ViewerAppContext, patch): boolean {
+function updateSelectedKeyframesBatch(
+  ctx: ViewerAppContext,
+  patch: Parameters<KeyframeEditActions["updateSelectedKeyframesBatch"]>[0],
+): boolean {
   const template = ctx.state.currentTemplate;
   if (!template || !patch || typeof patch !== "object") {
     return false;
@@ -87,7 +92,7 @@ function updateSelectedKeyframesBatch(ctx: ViewerAppContext, patch): boolean {
   return true;
 }
 
-function reportKeyframePropertyFailure(ctx): false {
+function reportKeyframePropertyFailure(ctx: ViewerAppContext): false {
   ctx.logDiagnostic(
     ctx.deps.t(
       "viewer.inspector.keyframeSelection.valueUnavailable",
@@ -98,11 +103,13 @@ function reportKeyframePropertyFailure(ctx): false {
   return false;
 }
 
-export function installInteractionKeyframePropertiesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.updateSelectedKeyframesBatch = updateSelectedKeyframesBatch.bind(
-    undefined,
-    ctx,
-  );
+export function createKeyframePropertyActions(
+  getContext: () => ViewerAppContext,
+): Pick<KeyframeEditActions, "updateSelectedKeyframesBatch"> {
+  return {
+    updateSelectedKeyframesBatch: bindViewerAction(
+      updateSelectedKeyframesBatch,
+      getContext,
+    ),
+  };
 }

@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getMotionPathLayerProperty } from "../../../shared/timeline/motion-path.js";
 import {
@@ -176,10 +177,6 @@ function updateMotionPathContextLayerIds(
   ctx.state.canvasMotionPathContextLayerIds = [
     ...new Set([...(current ?? []), ...selectedLayerContext, layerId]),
   ];
-}
-
-function keyframeRefKey(ref): string {
-  return `${ref.trackId}:${ref.keyframeId}`;
 }
 
 export function installCanvasMotionPathSelectionOwner(

@@ -1,8 +1,16 @@
+import { keyframeRefKey } from "./keyframe-reference.js";
 import { parseKeyframeSelectionRef } from "./selection-validation.js";
 import type { TimelineKeyframe } from "../../../../sdk/types.js";
 import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
 import type { KeyframeSelectionRef } from "./selection-model.js";
 export type { KeyframeSelectionRef } from "./selection-model.js";
+
+export type KeyframeIdentityTimeline = {
+  tracks?: readonly {
+    id: string;
+    keyframes?: readonly { id: string }[];
+  }[];
+};
 
 type SelectionTimeline =
   | { tracks?: readonly MotionPathTrack[] }
@@ -15,10 +23,10 @@ export type ResolvedKeyframeSelection = KeyframeSelectionRef & {
 };
 
 export function canonicalizeKeyframeSelection(
-  timeline: SelectionTimeline,
+  timeline: KeyframeIdentityTimeline | null | undefined,
   refs: unknown,
 ): KeyframeSelectionRef[] {
-  const trackById = new Map<string, MotionPathTrack>(
+  const trackById = new Map(
     (timeline?.tracks ?? []).map((track) => [String(track.id), track]),
   );
   const result: KeyframeSelectionRef[] = [];
@@ -35,7 +43,7 @@ export function canonicalizeKeyframeSelection(
     ) {
       continue;
     }
-    const key = JSON.stringify([trackId, keyframeId]);
+    const key = keyframeRefKey(ref);
     if (!seen.has(key)) {
       seen.add(key);
       result.push({ keyframeId, trackId });

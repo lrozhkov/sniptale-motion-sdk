@@ -6,14 +6,20 @@ import {
 import {
   createKeyframeMovePlan,
   createKeyframeTimeSnapshot,
-  keyframeRefKey,
 } from "../model/keyframe-transform.js";
 import { expandMotionPathKeyframeSelection } from "../model/motion-path-mutations.js";
 
-function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
+function beginKeyframeDrag(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+  trackId: string,
+  keyframeId: string,
+) {
   if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) {
     return;
   }
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement) || !target.parentElement) return;
   event.preventDefault();
   event.stopPropagation();
   ctx.prepareKeyframeSelectionForPointer(event, trackId, keyframeId);
@@ -29,7 +35,7 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
   );
   ctx.renderInspector();
   ctx.renderCurveEditor(timeline);
-  const body = event.currentTarget.parentElement;
+  const body = target.parentElement;
   const rect = body.getBoundingClientRect();
   const startX = event.clientX;
   const selectedRefs = ctx.getSelectedKeyframeRefs();
@@ -50,7 +56,7 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
           }
         : null;
     })
-    .filter(Boolean);
+    .filter((entry) => entry !== null);
   if (originals.length === 0) {
     return;
   }
@@ -64,7 +70,7 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
     return;
   }
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     const rawDelta = ctx.timelineDeltaFromPixels(pointerDelta, rect, template);
     const primary = snapshot.entries.at(-1);
@@ -93,17 +99,20 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
     let primaryTime = primary?.time ?? 0;
     preview.scheduleUpdate(
       () => {
-        for (const entry of snapshot.entries) {
+        for (const entry of plan.updates) {
           const selectedTrack = timeline.tracks.find(
             (item) => item.id === entry.trackId,
           );
           const keyframe = selectedTrack?.keyframes.find(
             (item) => item.id === entry.keyframeId,
           );
-          const nextTime = plan.updates[keyframeRefKey(entry)];
+          const nextTime = entry.time;
           if (keyframe && nextTime !== undefined) {
             keyframe.time = nextTime;
-            if (entry === primary) {
+            if (
+              entry.trackId === primary?.trackId &&
+              entry.keyframeId === primary.keyframeId
+            ) {
               primaryTime = keyframe.time;
             }
           }
@@ -120,7 +129,7 @@ function beginKeyframeDrag(ctx: ViewerAppContext, event, trackId, keyframeId) {
       () => ctx.showTimelineSnapIndicator(primaryTime),
     );
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
     preview.finalize(),
   );
 }

@@ -1,3 +1,4 @@
+import type { KeyframeEditActions } from "../timeline/interaction/keyframe-contract.js";
 import type { TimelineRowTreeActions } from "../timeline/model/row-tree-contract.js";
 import type { TimelineVirtualizationActions } from "../timeline/virtualization/contract.js";
 import type { TimelineViewportActions } from "../timeline/interaction/viewport-contract.js";
@@ -30,6 +31,7 @@ import type { EditorTimeline } from "../editor/model-types.js";
 export interface ViewerAppContext
   extends
     Mp4ExportActions,
+    KeyframeEditActions,
     TimelineModelActions,
     TimelineSelectionActions,
     InspectorOwnershipActions,

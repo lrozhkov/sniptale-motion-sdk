@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "./keyframe-reference.js";
 import { bindViewerAction } from "../../app/bind-action.js";
 import type { EditorTemplate } from "../../templates/model.js";
 import type { EditorTimeline } from "../../editor/model-types.js";
@@ -103,7 +104,7 @@ function keyframeLinkKey(
   trackId: string,
   keyframeId: string,
 ): string {
-  return `${trackId}:${keyframeId}`;
+  return keyframeRefKey({ trackId, keyframeId });
 }
 
 function keyframeBelongsToSelectedPhase(

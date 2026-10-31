@@ -1,3 +1,4 @@
+import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { GraphEditorViewport } from "./state.js";
 export type { GraphEditorViewport } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -131,12 +132,10 @@ export function createFittedGraphViewport(
   duration: number,
   mode: "all" | "selection" = "selection",
 ): GraphEditorViewport {
-  const selected = new Set(
-    selectedRefs.map((ref) => `${ref.trackId}:${ref.keyframeId}`),
-  );
+  const selected = new Set(selectedRefs.map((ref) => keyframeRefKey(ref)));
   const selectedPoints = tracks.flatMap((track) => {
     const selectedOnTrack = track.points.some((point) =>
-      selected.has(`${track.id}:${point.id}`),
+      selected.has(keyframeRefKey({ trackId: track.id, keyframeId: point.id })),
     );
     if (track.curvePoints?.length && (mode === "all" || selectedOnTrack)) {
       return track.curvePoints.map((point) => ({
@@ -146,7 +145,11 @@ export function createFittedGraphViewport(
     }
     return track.points
       .filter(
-        (point) => mode === "all" || selected.has(`${track.id}:${point.id}`),
+        (point) =>
+          mode === "all" ||
+          selected.has(
+            keyframeRefKey({ trackId: track.id, keyframeId: point.id }),
+          ),
       )
       .map((point) => ({ ...point, trackId: track.id }));
   });

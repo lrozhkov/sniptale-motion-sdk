@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import {
   activateTimelineDrag,
   createTimelineDragPreview,
@@ -11,7 +10,6 @@ describe("viewer timeline drag preview", () => {
   it("starts history only after crossing the drag threshold", () => {
     const ctx = { state: { dragMoved: false } } as any;
     const startCommand = vi.fn();
-
     expect(activateTimelineDrag(ctx, 2, startCommand)).toBe(false);
     expect(activateTimelineDrag(ctx, 3, startCommand)).toBe(true);
     expect(activateTimelineDrag(ctx, 4, startCommand)).toBe(true);
@@ -19,45 +17,9 @@ describe("viewer timeline drag preview", () => {
   });
 
   it("coalesces updates and settles quality after the drag", () => {
-    const frames: FrameRequestCallback[] = [];
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-      frames.push(callback);
-      return frames.length;
-    });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    const calls: string[] = [];
-    const renders: any[] = [];
-    const ctx = {
-      getEffectiveDuration: () => 3,
-      getEffectiveTemplate: () => ({ clips: [], scenes: [] }),
-      getEffectiveTimeline: () => ({ phases: [], tracks: [] }),
-      normalizeScenes: () => [],
-      pausePlayback: vi.fn(() => {
-        ctx.state.playing = false;
-      }),
-      refs: {
-        timelineTracks: {
-          querySelectorAll: () => [],
-        },
-      },
-      renderCurrentFrame(options) {
-        renders.push(options);
-      },
-      renderCurveEditor: () => calls.push("curve"),
-      renderSelectionCrumb: () => calls.push("crumb"),
-      settlePreviewAfterInteraction: () => calls.push("settle"),
-      renderTimelineEditor: () => calls.push("editor"),
-      state: {
-        dragMoved: true,
-        playing: true,
-        timelineDragActive: false,
-      },
-      updateCanvasSelectionBox: () => calls.push("selection"),
-      updateTimelinePlayhead: () => calls.push("playhead"),
-    } as any;
+    const { ctx, source, frames, calls, renders } = createPreviewFixture();
     const updates: number[] = [];
-    const preview = createTimelineDragPreview(ctx, { id: "template" });
-
+    const preview = createTimelineDragPreview(ctx, source);
     expect(ctx.pausePlayback).toHaveBeenCalledWith({
       preservePreparation: true,
       renderCurrentFrame: false,
@@ -67,15 +29,136 @@ describe("viewer timeline drag preview", () => {
     preview.scheduleUpdate(() => updates.push(2));
     expect(frames).toHaveLength(1);
     expect(updates).toEqual([]);
-
-    frames[0](0);
+    frames[0]?.(0);
     expect(updates).toEqual([2]);
     expect(calls).toEqual(["curve", "crumb", "playhead", "selection"]);
     expect(renders).toEqual([{ interactive: true }]);
-
     preview.finalize();
     expect(calls.slice(-2)).toEqual(["editor", "settle"]);
     expect(renders).toEqual([{ interactive: true }]);
     expect(ctx.state.timelineDragActive).toBe(false);
   });
+
+  it("discards a pending update when the source is replaced with the same identity", () => {
+    const { ctx, source, frames, renders, calls } = createPreviewFixture();
+    const preview = createTimelineDragPreview(ctx, source);
+    const update = vi.fn();
+    preview.scheduleUpdate(update);
+    ctx.state.currentTemplate = { ...source };
+    frames[0]?.(0);
+    preview.finalize();
+    expect(update).not.toHaveBeenCalled();
+    expect(renders).toEqual([]);
+    expect(calls).toEqual([]);
+    expect(ctx.state.timelineDragActive).toBe(false);
+  });
+
+  it.each(["editorOverrides", "timelineOverrides"])(
+    "discards pending work after a foreign %s replacement",
+    (owner) => {
+      const { ctx, source, frames, calls, renders } = createPreviewFixture();
+      const preview = createTimelineDragPreview(ctx, source);
+      const update = vi.fn();
+      preview.scheduleUpdate(update);
+      ctx.state[owner].set(source.id, {});
+      frames[0]?.(0);
+      preview.finalize();
+      expect(update).not.toHaveBeenCalled();
+      expect(calls).toEqual([]);
+      expect(renders).toEqual([]);
+      expect(ctx.state.timelineDragActive).toBe(false);
+    },
+  );
+
+  it("accepts consecutive updates of its own override revisions", () => {
+    const { ctx, source, frames } = createPreviewFixture();
+    const preview = createTimelineDragPreview(ctx, source);
+    const update = vi.fn(() => {
+      ctx.state.timelineOverrides.set(source.id, {});
+      ctx.state.editorOverrides.set(source.id, {});
+    });
+    preview.scheduleUpdate(update);
+    frames[0]?.(0);
+    preview.scheduleUpdate(update);
+    frames[1]?.(0);
+    preview.finalize();
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(ctx.state.timelineDragActive).toBe(false);
+  });
+
+  it("ignores a dequeued frame and further updates after finalization", () => {
+    const { ctx, source, frames, renders, calls } = createPreviewFixture();
+    const preview = createTimelineDragPreview(ctx, source);
+    const update = vi.fn();
+    preview.scheduleUpdate(update);
+    const oldFrame = frames[0];
+    preview.finalize();
+    expect(update).toHaveBeenCalledTimes(1);
+    calls.splice(0);
+    oldFrame?.(0);
+    preview.scheduleUpdate(update);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(frames).toHaveLength(1);
+    expect(calls).toEqual([]);
+    expect(renders).toEqual([]);
+  });
+
+  it("does not let an old finalizer clear a newer drag session", () => {
+    const { ctx, source, frames } = createPreviewFixture();
+    const first = createTimelineDragPreview(ctx, source);
+    const oldUpdate = vi.fn();
+    first.scheduleUpdate(oldUpdate);
+    const oldFrame = frames[0];
+    const second = createTimelineDragPreview(ctx, source);
+    first.finalize();
+    oldFrame?.(0);
+    expect(oldUpdate).not.toHaveBeenCalled();
+    expect(ctx.state.timelineDragActive).toBe(true);
+    const update = vi.fn();
+    second.scheduleUpdate(update);
+    frames.at(-1)?.(0);
+    expect(update).toHaveBeenCalledTimes(1);
+    second.finalize();
+    expect(ctx.state.timelineDragActive).toBe(false);
+  });
 });
+
+function createPreviewFixture() {
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  const source = { id: "template" };
+  const calls: string[] = [];
+  const renders: unknown[] = [];
+  const ctx = {
+    getEffectiveDuration: () => 3,
+    getEffectiveTemplate: () => ({ clips: [], scenes: [] }),
+    getEffectiveTimeline: () => ({ phases: [], tracks: [] }),
+    normalizeScenes: () => [],
+    pausePlayback: vi.fn(() => {
+      ctx.state.playing = false;
+    }),
+    refs: { timelineTracks: { querySelectorAll: () => [] } },
+    renderCurrentFrame(options?: unknown) {
+      renders.push(options);
+    },
+    renderCurveEditor: () => calls.push("curve"),
+    renderSelectionCrumb: () => calls.push("crumb"),
+    settlePreviewAfterInteraction: () => calls.push("settle"),
+    renderTimelineEditor: () => calls.push("editor"),
+    state: {
+      currentTemplate: source,
+      editorOverrides: new Map(),
+      timelineOverrides: new Map(),
+      dragMoved: true,
+      playing: true,
+      timelineDragActive: false,
+    },
+    updateCanvasSelectionBox: () => calls.push("selection"),
+    updateTimelinePlayhead: () => calls.push("playhead"),
+  } as any;
+  return { ctx, source, frames, calls, renders };
+}

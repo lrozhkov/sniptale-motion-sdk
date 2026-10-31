@@ -1,3 +1,4 @@
+import type { EditorTimelineSource } from "../../editor/timeline-source.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { syncTimelineInteractionGeometry } from "./preview-geometry.js";
 
@@ -20,7 +21,10 @@ export function activateTimelineDrag(
   return true;
 }
 
-export function createTimelineDragPreview(ctx: ViewerAppContext, template) {
+export function createTimelineDragPreview(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource,
+) {
   let frame = 0;
   let finalized = false;
   let pendingUpdate: DragUpdate | null = null;
@@ -31,18 +35,57 @@ export function createTimelineDragPreview(ctx: ViewerAppContext, template) {
       renderCurrentFrame: false,
     });
   }
+  const session = {};
+  ctx.state.timelineDragSession = session;
   ctx.state.timelineDragActive = true;
+  let editorRevision = ctx.state.editorOverrides.get(template.id);
+  let timelineRevision = ctx.state.timelineOverrides.get(template.id);
+  const ownsSession = () =>
+    ctx.state.timelineDragSession === session &&
+    ctx.state.currentTemplate === template;
+  const isCurrent = () =>
+    ownsSession() &&
+    ctx.state.editorOverrides.get(template.id) === editorRevision &&
+    ctx.state.timelineOverrides.get(template.id) === timelineRevision;
+  const release = () => {
+    if (ctx.state.timelineDragSession === session) {
+      ctx.state.timelineDragSession = null;
+      ctx.state.timelineDragActive = false;
+    }
+  };
+  const discard = () => {
+    finalized = true;
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    pendingUpdate = null;
+    pendingAfterRender = null;
+    release();
+  };
 
   const flush = (full: boolean) => {
+    if (!isCurrent()) {
+      discard();
+      return;
+    }
     const update = pendingUpdate;
     const afterRender = pendingAfterRender;
     pendingUpdate = null;
     pendingAfterRender = null;
     update?.();
+    if (!ownsSession()) {
+      discard();
+      return;
+    }
+    editorRevision = ctx.state.editorOverrides.get(template.id);
+    timelineRevision = ctx.state.timelineOverrides.get(template.id);
     if (full) {
       ctx.renderTimelineEditor(template);
     } else {
       renderTimelineInteractionPreview(ctx, template);
+    }
+    if (!isCurrent()) {
+      discard();
+      return;
     }
     afterRender?.();
     if (full) {
@@ -63,23 +106,29 @@ export function createTimelineDragPreview(ctx: ViewerAppContext, template) {
         frame = 0;
       }
       try {
-        if (ctx.state.dragMoved) {
+        if (ctx.state.dragMoved && isCurrent()) {
           flush(true);
         } else {
           pendingUpdate = null;
           pendingAfterRender = null;
         }
       } finally {
-        ctx.state.timelineDragActive = false;
+        release();
       }
     },
     scheduleUpdate(update: DragUpdate, afterRender: DragUpdate | null = null) {
+      if (finalized) return;
+      if (!isCurrent()) {
+        discard();
+        return;
+      }
       pendingUpdate = update;
       pendingAfterRender = afterRender;
       if (frame) {
         return;
       }
       frame = requestAnimationFrame(() => {
+        if (finalized) return;
         frame = 0;
         flush(false);
       });
@@ -87,7 +136,10 @@ export function createTimelineDragPreview(ctx: ViewerAppContext, template) {
   };
 }
 
-function renderTimelineInteractionPreview(ctx: ViewerAppContext, template) {
+function renderTimelineInteractionPreview(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource,
+): void {
   const timeline = ctx.getEffectiveTimeline(template);
   syncTimelineInteractionGeometry(ctx, template, timeline);
   ctx.renderCurveEditor(timeline);

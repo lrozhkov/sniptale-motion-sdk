@@ -1,3 +1,5 @@
+import { parseKeyframeSelectionRef } from "../model/selection-validation.js";
+import { keyframeRefKey } from "../model/keyframe-reference.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import {
   collectMarqueeBlockIds,
@@ -212,18 +214,17 @@ function resolveMarqueeBlockSelection(hits, previous, additive) {
 
 function syncMarqueeSelectionClasses(ctx): void {
   const keyframes = new Set(
-    ctx.state.selectedKeyframes.map(
-      (ref) => `${ref.trackId}:${ref.keyframeId}`,
-    ),
+    ctx.state.selectedKeyframes.map((ref) => keyframeRefKey(ref)),
   );
   ctx.refs.timelineTracks
     .querySelectorAll(".keyframe-point")
-    .forEach((point) =>
+    .forEach((point) => {
+      const ref = parseKeyframeSelectionRef(point.dataset);
       point.classList.toggle(
         "selected",
-        keyframes.has(`${point.dataset.trackId}:${point.dataset.keyframeId}`),
-      ),
-    );
+        ref !== null && keyframes.has(keyframeRefKey(ref)),
+      );
+    });
   for (const { property, selected, selector } of [
     {
       property: "layerId",
@@ -256,7 +257,7 @@ function mergeKeyframeRefs(left, right) {
   const refs = new Map();
   for (const ref of [...left, ...right]) {
     if (ref?.trackId && ref?.keyframeId) {
-      refs.set(`${ref.trackId}:${ref.keyframeId}`, ref);
+      refs.set(keyframeRefKey(ref), ref);
     }
   }
   return [...refs.values()];

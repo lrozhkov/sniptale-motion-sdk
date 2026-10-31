@@ -1,6 +1,7 @@
+import { keyframeRefKey } from "./keyframe-reference.js";
 import {
   getKeyframeSelectionBounds,
-  resolveKeyframeSelection,
+  canonicalizeKeyframeSelection,
   type KeyframeSelectionRef,
 } from "./keyframe-selection.js";
 
@@ -17,10 +18,21 @@ export type KeyframeTimeSnapshot = {
   unselectedTimesByTrack: Map<string, number[]>;
 };
 
+type KeyframeTimeTimeline = {
+  tracks: readonly {
+    id: string;
+    keyframes: readonly { id: string; time: number }[];
+  }[];
+};
+
+export type KeyframeTimeUpdate = Readonly<
+  KeyframeSelectionRef & { time: number }
+>;
+
 export type KeyframeTimePlan =
   | {
       ok: true;
-      updates: Record<string, number>;
+      updates: readonly KeyframeTimeUpdate[];
     }
   | {
       ok: false;
@@ -33,25 +45,38 @@ export type KeyframeTimePlan =
     };
 
 export function createKeyframeTimeSnapshot(
-  timeline,
-  refs,
+  timeline: KeyframeTimeTimeline,
+  refs: unknown,
   duration: number,
   frameDuration: number,
 ): KeyframeTimeSnapshot | null {
-  const resolved = resolveKeyframeSelection(timeline, refs);
+  const resolved = canonicalizeKeyframeSelection(timeline, refs).flatMap(
+    (ref) => {
+      const track = timeline.tracks.find(
+        (candidate) => candidate.id === ref.trackId,
+      );
+      const keyframe = track?.keyframes.find(
+        (candidate) => candidate.id === ref.keyframeId,
+      );
+      return keyframe ? [{ ...ref, keyframe }] : [];
+    },
+  );
   const bounds = getKeyframeSelectionBounds(resolved);
   if (!bounds) {
     return null;
   }
-  const selected = new Set(
-    resolved.map((entry) => `${entry.trackId}:${entry.keyframeId}`),
-  );
+  const selected = new Set(resolved.map((entry) => keyframeRefKey(entry)));
   const unselectedTimesByTrack = new Map<string, number[]>();
   for (const track of timeline.tracks ?? []) {
     unselectedTimesByTrack.set(
       track.id,
       (track.keyframes ?? [])
-        .filter((keyframe) => !selected.has(`${track.id}:${keyframe.id}`))
+        .filter(
+          (keyframe) =>
+            !selected.has(
+              keyframeRefKey({ trackId: track.id, keyframeId: keyframe.id }),
+            ),
+        )
         .map((keyframe) => Number(keyframe.time) || 0),
     );
   }
@@ -81,12 +106,7 @@ export function createKeyframeMovePlan(
   const delta = clamp(Number(requestedDelta) || 0, minDelta, maxDelta);
   return createKeyframeTimePlan(
     snapshot,
-    Object.fromEntries(
-      snapshot.entries.map((entry) => [
-        keyframeRefKey(entry),
-        entry.time + delta,
-      ]),
-    ),
+    snapshot.entries.map((entry) => ({ ...entry, time: entry.time + delta })),
   );
 }
 
@@ -111,12 +131,10 @@ export function createKeyframeScalePlan(
         : snapshot.bounds.start;
   return createKeyframeTimePlan(
     snapshot,
-    Object.fromEntries(
-      snapshot.entries.map((entry) => [
-        keyframeRefKey(entry),
-        snapTime(pivotTime + (entry.time - pivotTime) * factor),
-      ]),
-    ),
+    snapshot.entries.map((entry) => ({
+      ...entry,
+      time: snapTime(pivotTime + (entry.time - pivotTime) * factor),
+    })),
   );
 }
 
@@ -129,12 +147,7 @@ export function createKeyframeAlignPlan(
   }
   return createKeyframeTimePlan(
     snapshot,
-    Object.fromEntries(
-      snapshot.entries.map((entry) => [
-        keyframeRefKey(entry),
-        Number(targetTime),
-      ]),
-    ),
+    snapshot.entries.map((entry) => ({ ...entry, time: Number(targetTime) })),
   );
 }
 
@@ -154,12 +167,10 @@ export function createKeyframeDistributePlan(
   const step = snapshot.bounds.duration / (ordered.length - 1);
   return createKeyframeTimePlan(
     snapshot,
-    Object.fromEntries(
-      ordered.map((entry, index) => [
-        keyframeRefKey(entry),
-        snapTime(snapshot.bounds.start + step * index),
-      ]),
-    ),
+    ordered.map((entry, index) => ({
+      ...entry,
+      time: snapTime(snapshot.bounds.start + step * index),
+    })),
   );
 }
 
@@ -169,24 +180,31 @@ export function createKeyframeQuantizePlan(
 ): KeyframeTimePlan {
   return createKeyframeTimePlan(
     snapshot,
-    Object.fromEntries(
-      snapshot.entries.map((entry) => [
-        keyframeRefKey(entry),
-        snapTime(entry.time),
-      ]),
-    ),
+    snapshot.entries.map((entry) => ({ ...entry, time: snapTime(entry.time) })),
   );
 }
 
 export function createKeyframeTimePlan(
   snapshot: KeyframeTimeSnapshot,
-  updates: Record<string, number>,
+  updates: readonly KeyframeTimeUpdate[],
 ): KeyframeTimePlan {
+  if (updates.length !== snapshot.entries.length) {
+    return { ok: false, reason: "out-of-range" };
+  }
+  const updateByRef = new Map<string, KeyframeTimeUpdate>();
+  for (const update of updates) {
+    const key = keyframeRefKey(update);
+    if (updateByRef.has(key)) return { ok: false, reason: "collision" };
+    updateByRef.set(key, update);
+  }
+  const accepted: KeyframeTimeUpdate[] = [];
   const epsilon = Math.min(0.0001, snapshot.frameDuration * 0.1);
   const plannedByTrack = new Map<string, number[]>();
   let changed = false;
   for (const entry of snapshot.entries) {
-    const time = Number(updates[keyframeRefKey(entry)]);
+    const update = updateByRef.get(keyframeRefKey(entry));
+    if (!update) return { ok: false, reason: "out-of-range" };
+    const time = Number(update.time);
     if (
       !Number.isFinite(time) ||
       time < -epsilon ||
@@ -206,14 +224,17 @@ export function createKeyframeTimePlan(
     ) {
       return { ok: false, reason: "collision" };
     }
+    accepted.push({
+      trackId: entry.trackId,
+      keyframeId: entry.keyframeId,
+      time,
+    });
     planned.push(time);
     plannedByTrack.set(entry.trackId, planned);
   }
-  return changed ? { ok: true, updates } : { ok: false, reason: "no-change" };
-}
-
-export function keyframeRefKey(ref: KeyframeSelectionRef): string {
-  return `${ref.trackId}:${ref.keyframeId}`;
+  return changed
+    ? { ok: true, updates: accepted }
+    : { ok: false, reason: "no-change" };
 }
 
 function clamp(value: number, min: number, max: number): number {
