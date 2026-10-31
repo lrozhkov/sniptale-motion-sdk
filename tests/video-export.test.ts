@@ -193,3 +193,24 @@ describe("video-export timeline audio", () => {
     ]);
   });
 });
+
+describe("video-export option boundaries", () => {
+  it("uses finite defaults and does not coerce objects", () => {
+    const coercion = vi.fn(() => {
+      throw new Error("must not coerce");
+    });
+    expect(
+      normalizeExportSize({
+        width: { valueOf: coercion },
+        height: Infinity,
+        sizePreset: "custom",
+      }),
+    ).toEqual({ width: 1280, height: 720 });
+    expect(normalizeExportFps({ valueOf: coercion })).toBe(1);
+    expect(createFrameTiming(Infinity, 30)).toMatchObject({
+      totalFrames: 1,
+      fps: 30,
+    });
+    expect(coercion).not.toHaveBeenCalled();
+  });
+});

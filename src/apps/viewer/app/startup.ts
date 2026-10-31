@@ -172,8 +172,9 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
     "click",
     () => void ctx.copyDiagnostics(),
   );
-  ctx.refs.exportMp4Button.addEventListener("click", () =>
-    ctx.openMp4ExportDialog(),
+  ctx.refs.exportMp4Button.addEventListener(
+    "click",
+    () => void ctx.openMp4ExportDialog(),
   );
   ctx.refs.mp4ExportCloseButton.addEventListener("click", () =>
     ctx.closeMp4ExportDialog(),
@@ -189,17 +190,21 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
     "submit",
     (event) => void ctx.startMp4Export(event),
   );
-  ctx.refs.mp4ExportSizeSelect.addEventListener("change", () =>
-    ctx.updateMp4ExportSize(),
+  ctx.refs.mp4ExportSizeSelect.addEventListener(
+    "change",
+    () => void ctx.updateMp4ExportSize(),
   );
-  ctx.refs.mp4ExportFpsInput.addEventListener("input", () =>
-    ctx.updateMp4ExportCustomSize(),
+  ctx.refs.mp4ExportFpsInput.addEventListener(
+    "input",
+    () => void ctx.updateMp4ExportCustomSize(),
   );
-  ctx.refs.mp4ExportWidthInput.addEventListener("input", () =>
-    ctx.updateMp4ExportCustomSize(),
+  ctx.refs.mp4ExportWidthInput.addEventListener(
+    "input",
+    () => void ctx.updateMp4ExportCustomSize(),
   );
-  ctx.refs.mp4ExportHeightInput.addEventListener("input", () =>
-    ctx.updateMp4ExportCustomSize(),
+  ctx.refs.mp4ExportHeightInput.addEventListener(
+    "input",
+    () => void ctx.updateMp4ExportCustomSize(),
   );
   ctx.refs.fullscreenPreviewButton.addEventListener(
     "click",

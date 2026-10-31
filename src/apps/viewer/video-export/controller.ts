@@ -1,3 +1,5 @@
+import type { Mp4ExportActions } from "./actions.js";
+import type { Mp4ExportState } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getPresetSize,
@@ -12,7 +14,7 @@ import {
   translateStatus,
 } from "./ui.js";
 
-function getMp4ExportSize(state) {
+function getMp4ExportSize(state: Mp4ExportState) {
   return normalizeExportSize({
     height: state.customHeight,
     sizePreset: state.sizePreset,
@@ -28,6 +30,8 @@ async function refreshMp4ExportCapabilities(ctx: ViewerAppContext) {
   const state = ctx.state.mp4Export;
   const token = ++state.videoStatusToken;
   const template = ctx.state.currentTemplate;
+  const isCurrent = () =>
+    token === state.videoStatusToken && template === ctx.state.currentTemplate;
   const effectiveTemplate = template
     ? ctx.getEffectiveTemplate(template)
     : null;
@@ -47,7 +51,10 @@ async function refreshMp4ExportCapabilities(ctx: ViewerAppContext) {
   );
   ctx.refs.mp4ExportStatus.textContent = state.status;
   syncMp4ExportControls(ctx);
-  const capabilityRuntimePromise = import("./capabilities.js");
+  const capabilityRuntimePromise = import("./capabilities.js").then(
+    (runtime) => ({ ok: true as const, runtime }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
   let audioBuffer: AudioBuffer | null = null;
   let audioDecodeFailed = false;
   try {
@@ -55,7 +62,7 @@ async function refreshMp4ExportCapabilities(ctx: ViewerAppContext) {
       ? await resolveTimelineMp4AudioBuffer(ctx, effectiveTemplate, duration)
       : null;
   } catch (error) {
-    if (token !== state.videoStatusToken) {
+    if (!isCurrent()) {
       return;
     }
     ctx.logDiagnostic(
@@ -68,15 +75,12 @@ async function refreshMp4ExportCapabilities(ctx: ViewerAppContext) {
       "Timeline audio could not be decoded.",
     );
   }
-  let capabilityRuntime: typeof import("./capabilities.js");
-  try {
-    capabilityRuntime = await capabilityRuntimePromise;
-  } catch (error) {
-    if (token !== state.videoStatusToken) {
-      return;
-    }
+  const capabilityResult = await capabilityRuntimePromise;
+  if (!isCurrent()) return;
+  if (capabilityResult.ok === false) {
     state.status = ctx.deps.t("viewer.mp4Export.failed", "MP4 export failed");
     ctx.refs.mp4ExportStatus.textContent = state.status;
+    const error = capabilityResult.error;
     ctx.logDiagnostic(
       `MP4 codec runtime failed to load: ${error instanceof Error ? error.message : String(error)}`,
       "error",
@@ -84,13 +88,14 @@ async function refreshMp4ExportCapabilities(ctx: ViewerAppContext) {
     syncMp4ExportControls(ctx);
     return;
   }
+  const capabilityRuntime = capabilityResult.runtime;
   const { getSupportedMp4AudioOptions, getSupportedMp4VideoOptions } =
     capabilityRuntime;
   const [videoOptions, audioOptions] = await Promise.all([
     getSupportedMp4VideoOptions({ fps, ...size }),
     getSupportedMp4AudioOptions(audioBuffer),
   ]);
-  if (token !== state.videoStatusToken) {
+  if (!isCurrent()) {
     return;
   }
   state.audioBuffer = audioBuffer;
@@ -126,7 +131,7 @@ async function refreshMp4ExportCapabilities(ctx: ViewerAppContext) {
   syncMp4ExportControls(ctx);
 }
 
-function openMp4ExportDialog(ctx: ViewerAppContext) {
+async function openMp4ExportDialog(ctx: ViewerAppContext): Promise<void> {
   if (!ctx.state.currentTemplate || !ctx.assertExportable("Export blocked")) {
     return;
   }
@@ -145,7 +150,7 @@ function openMp4ExportDialog(ctx: ViewerAppContext) {
   syncMp4ExportControls(ctx);
   ctx.refs.mp4ExportStatus.textContent = state.status;
   ctx.refs.mp4ExportDialog.showModal();
-  void refreshMp4ExportCapabilities(ctx);
+  await refreshMp4ExportCapabilities(ctx);
 }
 
 function closeMp4ExportDialog(ctx: ViewerAppContext) {
@@ -153,11 +158,12 @@ function closeMp4ExportDialog(ctx: ViewerAppContext) {
     ctx.state.mp4Export.cancelRequested = true;
     return;
   }
+  ctx.state.mp4Export.videoStatusToken += 1;
   ctx.state.mp4Export.dialogOpen = false;
   ctx.refs.mp4ExportDialog.close();
 }
 
-function updateMp4ExportSize(ctx: ViewerAppContext) {
+async function updateMp4ExportSize(ctx: ViewerAppContext): Promise<void> {
   const state = ctx.state.mp4Export;
   state.sizePreset = ctx.refs.mp4ExportSizeSelect.value;
   const preset = getPresetSize(state.sizePreset);
@@ -166,16 +172,16 @@ function updateMp4ExportSize(ctx: ViewerAppContext) {
     state.customHeight = preset.height;
   }
   syncMp4ExportControls(ctx);
-  void refreshMp4ExportCapabilities(ctx);
+  await refreshMp4ExportCapabilities(ctx);
 }
 
-function updateMp4ExportCustomSize(ctx: ViewerAppContext) {
+async function updateMp4ExportCustomSize(ctx: ViewerAppContext): Promise<void> {
   const state = ctx.state.mp4Export;
   state.customWidth = Number(ctx.refs.mp4ExportWidthInput.value) || 1280;
   state.customHeight = Number(ctx.refs.mp4ExportHeightInput.value) || 720;
   state.fps = normalizeExportFps(ctx.refs.mp4ExportFpsInput.value);
   syncMp4ExportControls(ctx);
-  void refreshMp4ExportCapabilities(ctx);
+  await refreshMp4ExportCapabilities(ctx);
 }
 
 async function startMp4Export(ctx: ViewerAppContext, event?: Event) {
@@ -201,6 +207,11 @@ async function startMp4Export(ctx: ViewerAppContext, event?: Event) {
   if (!video || (state.audioBuffer && !audio)) {
     return;
   }
+  const effectiveTemplate = ctx.getEffectiveTemplate(template);
+  if (!effectiveTemplate) return;
+  const controls = ctx.deps.deepClone(ctx.state.controls);
+  const audioBuffer = state.audioBuffer;
+  const duration = ctx.getEffectiveDuration(template);
   state.inFlight = true;
   state.cancelRequested = false;
   syncMp4ExportControls(ctx);
@@ -211,13 +222,10 @@ async function startMp4Export(ctx: ViewerAppContext, event?: Event) {
       renderCurrentFrame: false,
     });
     await ctx.waitForRenderIdle();
-    const effectiveTemplate = ctx.getEffectiveTemplate(template);
-    const controls = ctx.deps.deepClone(ctx.state.controls);
-    const duration = ctx.getEffectiveDuration(template);
     const blob = await encodeMp4FromRenderedFrames({
-      audioBitrate: audio?.bitrate,
-      audioBuffer: state.audioBuffer,
-      audioCodec: audio?.value,
+      ...(audio?.bitrate === undefined ? {} : { audioBitrate: audio.bitrate }),
+      audioBuffer,
+      ...(audio ? { audioCodec: audio.value } : {}),
       drawFrame: (context, bitmap, progress) =>
         ctx.drawExportFrame(context, effectiveTemplate, bitmap, progress),
       duration,
@@ -242,11 +250,11 @@ async function startMp4Export(ctx: ViewerAppContext, event?: Event) {
           width: size.width,
         }),
       shouldCancel: () => state.cancelRequested,
-      videoBitrate: video.bitrate,
+      ...(video.bitrate === undefined ? {} : { videoBitrate: video.bitrate }),
       videoCodec: video.value,
       width: size.width,
     });
-    downloadMp4Blob(ctx, blob);
+    downloadMp4Blob(template.id, blob);
     state.status = ctx.deps.t("viewer.mp4Export.exported", "Exported MP4");
     ctx.refs.timelineSaveStatus.textContent = state.status;
   } catch (error) {
@@ -269,23 +277,28 @@ async function startMp4Export(ctx: ViewerAppContext, event?: Event) {
   }
 }
 
-function downloadMp4Blob(ctx: ViewerAppContext, blob: Blob) {
+function downloadMp4Blob(templateId: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${ctx.state.currentTemplate.id}.mp4`;
+  link.download = `${templateId}.mp4`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+export function createVideoExportActions(
+  ctx: ViewerAppContext,
+): Mp4ExportActions {
+  return {
+    localizeMp4ExportDialog: localizeMp4ExportDialog.bind(undefined, ctx),
+    openMp4ExportDialog: openMp4ExportDialog.bind(undefined, ctx),
+    closeMp4ExportDialog: closeMp4ExportDialog.bind(undefined, ctx),
+    updateMp4ExportSize: updateMp4ExportSize.bind(undefined, ctx),
+    updateMp4ExportCustomSize: updateMp4ExportCustomSize.bind(undefined, ctx),
+    startMp4Export: startMp4Export.bind(undefined, ctx),
+  };
+}
+
 export function installVideoExportControllerOwner(ctx: ViewerAppContext): void {
-  ctx.localizeMp4ExportDialog = localizeMp4ExportDialog.bind(undefined, ctx);
-  ctx.openMp4ExportDialog = openMp4ExportDialog.bind(undefined, ctx);
-  ctx.closeMp4ExportDialog = closeMp4ExportDialog.bind(undefined, ctx);
-  ctx.updateMp4ExportSize = updateMp4ExportSize.bind(undefined, ctx);
-  ctx.updateMp4ExportCustomSize = updateMp4ExportCustomSize.bind(
-    undefined,
-    ctx,
-  );
-  ctx.startMp4Export = startMp4Export.bind(undefined, ctx);
+  Object.assign(ctx, createVideoExportActions(ctx));
 }

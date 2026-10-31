@@ -17,6 +17,10 @@ export async function getSupportedMp4VideoOptions({
   fps,
   height,
   width,
+}: {
+  fps: number;
+  height: number;
+  width: number;
 }): Promise<Array<Mp4CodecOption<VideoCodec>>> {
   const supported: Array<Mp4CodecOption<VideoCodec>> = [];
   for (const candidate of MP4_VIDEO_CODEC_CANDIDATES) {

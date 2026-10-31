@@ -1,35 +1,26 @@
 import type { ViewerAppContext } from "./context.js";
+import type { Mp4ExportActions } from "../video-export/actions.js";
+import { createLazyMp4ExportActions } from "../video-export/lazy-actions.js";
 
-function installLazyExportFeaturesOwner(ctx: ViewerAppContext): void {
-  let videoExportPromise: Promise<void> | null = null;
-  const loadVideoExport = () =>
-    (videoExportPromise ??= import("../video-export/controller.js").then(
-      (module) => module.installVideoExportControllerOwner(ctx),
-    ));
-
-  ctx.localizeMp4ExportDialog = () => {};
-  ctx.openMp4ExportDialog = async (...args: any[]) => {
-    await loadVideoExport();
-    return ctx.openMp4ExportDialog(...args);
-  };
-  ctx.closeMp4ExportDialog = (...args: any[]) => {
-    if (videoExportPromise) {
-      void videoExportPromise.then(() => ctx.closeMp4ExportDialog(...args));
-    }
-  };
-  ctx.updateMp4ExportSize = async (...args: any[]) => {
-    await loadVideoExport();
-    return ctx.updateMp4ExportSize(...args);
-  };
-  ctx.updateMp4ExportCustomSize = async (...args: any[]) => {
-    await loadVideoExport();
-    return ctx.updateMp4ExportCustomSize(...args);
-  };
-  ctx.startMp4Export = async (event?: Event) => {
-    event?.preventDefault();
-    await loadVideoExport();
-    return ctx.startMp4Export();
-  };
+export function createLazyExportFeatures(
+  getContext: () => ViewerAppContext,
+): Mp4ExportActions {
+  return createLazyMp4ExportActions(
+    async () => {
+      const module = await import("../video-export/controller.js");
+      return module.createVideoExportActions(getContext());
+    },
+    (error) => {
+      const ctx = getContext();
+      const status = ctx.deps.t("viewer.mp4Export.failed", "MP4 export failed");
+      ctx.state.mp4Export.status = status;
+      ctx.refs.mp4ExportStatus.textContent = status;
+      ctx.refs.timelineSaveStatus.textContent = status;
+      ctx.logDiagnostic(
+        `MP4 export failed: ${error instanceof Error ? error.message : String(error)}`,
+        "error",
+      );
+    },
+    () => getContext().state.currentTemplate,
+  );
 }
-
-export { installLazyExportFeaturesOwner };

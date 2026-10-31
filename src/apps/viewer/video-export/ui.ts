@@ -1,10 +1,12 @@
+import type { Mp4CodecOption } from "./capabilities.js";
+import type { AudioCodec, VideoCodec } from "mediabunny";
 import type { ViewerAppContext } from "../app/context.js";
 
 export function translateStatus(
   ctx: ViewerAppContext,
-  key,
-  fallback,
-  params = {},
+  key: string,
+  fallback: string,
+  params: Record<string, string | number> = {},
 ) {
   return Object.entries(params).reduce(
     (message, [name, value]) =>
@@ -58,7 +60,10 @@ export function localizeMp4ExportDialog(ctx: ViewerAppContext) {
   }
 }
 
-export function getSelectedCodec(select, options) {
+export function getSelectedCodec<T extends AudioCodec | VideoCodec>(
+  select: HTMLSelectElement,
+  options: readonly Mp4CodecOption<T>[],
+): Mp4CodecOption<T> | null {
   return (
     options.find((option) => option.value === select.value) ??
     options[0] ??
@@ -66,7 +71,11 @@ export function getSelectedCodec(select, options) {
   );
 }
 
-function populateCodecSelect(ctx, select, options) {
+function populateCodecSelect(
+  ctx: ViewerAppContext,
+  select: HTMLSelectElement,
+  options: readonly Mp4CodecOption<AudioCodec | VideoCodec>[],
+) {
   const previous = select.value;
   select.replaceChildren();
   for (const option of options) {
@@ -83,7 +92,10 @@ function populateCodecSelect(ctx, select, options) {
   }
 }
 
-export function syncMp4ExportControls(ctx: ViewerAppContext, size) {
+export function syncMp4ExportControls(
+  ctx: ViewerAppContext,
+  size: { width: number; height: number },
+) {
   const state = ctx.state.mp4Export;
   const custom = state.sizePreset === "custom";
   ctx.refs.mp4ExportSizeSelect.value = state.sizePreset;
@@ -114,6 +126,6 @@ export function syncMp4ExportControls(ctx: ViewerAppContext, size) {
     state.inFlight || state.videoOptions.length <= 1;
   ctx.refs.mp4ExportAudioCodecSelect.disabled =
     state.inFlight || !state.audioBuffer || state.audioOptions.length <= 1;
-  ctx.refs.mp4ExportAudioCodecSelect.closest("label").hidden =
-    !state.audioBuffer;
+  const audioLabel = ctx.refs.mp4ExportAudioCodecSelect.closest("label");
+  if (audioLabel) audioLabel.hidden = !state.audioBuffer;
 }

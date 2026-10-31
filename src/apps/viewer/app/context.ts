@@ -1,3 +1,4 @@
+import type { Mp4ExportActions } from "../video-export/actions.js";
 import type { ViewerAsset } from "../assets/state.js";
 import type { RenderAssetTransfer } from "../rendering/state.js";
 import type {
@@ -16,7 +17,7 @@ import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { EditorTemplate } from "../templates/model.js";
 import type { EditorTimeline } from "../editor/model-types.js";
 
-export interface ViewerAppContext {
+export interface ViewerAppContext extends Mp4ExportActions {
   deps: ViewerAppDependencies;
   lastPlaybackAudioTs: number;
   playbackAnimationFrame: number | null;

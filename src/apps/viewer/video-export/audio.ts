@@ -1,5 +1,11 @@
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 export function createMp4ExportAudioContext(): AudioContext {
-  const Constructor = window.AudioContext ?? (window as any).webkitAudioContext;
+  const Constructor = window.AudioContext ?? window.webkitAudioContext;
   if (!Constructor) {
     throw new Error("AudioContext unavailable.");
   }

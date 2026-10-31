@@ -1,3 +1,4 @@
+import { createLazyExportFeatures } from "./lazy-export-features.js";
 import { logDiagnostic } from "./diagnostics.js";
 import { dataUrlToBlob, rasterizeSvgAsset } from "../assets/file-import.js";
 import { createAssetBitmap, createRenderAssets } from "../rendering/assets.js";
@@ -25,6 +26,7 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createLazyExportFeatures(() => ctx),
     deps: viewerAppDependencies,
     state: createViewerState(),
     refs,

@@ -33,14 +33,15 @@ type EncodeMp4Args = {
   width: number;
 };
 
-function createExportCanvas(width: number, height: number) {
+function createExportSurface(width: number, height: number) {
   if (typeof OffscreenCanvas !== "undefined") {
-    return new OffscreenCanvas(width, height);
+    const canvas = new OffscreenCanvas(width, height);
+    return { canvas, context: canvas.getContext("2d", { alpha: false }) };
   }
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  return canvas;
+  return { canvas, context: canvas.getContext("2d", { alpha: false }) };
 }
 
 function throwIfCanceled(shouldCancel: () => boolean) {
@@ -52,11 +53,7 @@ function throwIfCanceled(shouldCancel: () => boolean) {
 export async function encodeMp4FromRenderedFrames(
   args: EncodeMp4Args,
 ): Promise<Blob> {
-  const canvas = createExportCanvas(args.width, args.height);
-  const context = canvas.getContext("2d", { alpha: false }) as
-    | CanvasRenderingContext2D
-    | OffscreenCanvasRenderingContext2D
-    | null;
+  const { canvas, context } = createExportSurface(args.width, args.height);
   if (!context) {
     throw new Error("2D canvas context unavailable.");
   }
@@ -82,7 +79,9 @@ export async function encodeMp4FromRenderedFrames(
   const audioSource =
     args.audioBuffer && args.audioCodec
       ? new AudioBufferSource({
-          bitrate: args.audioBitrate,
+          ...(args.audioBitrate === undefined
+            ? {}
+            : { bitrate: args.audioBitrate }),
           codec: args.audioCodec,
         })
       : null;

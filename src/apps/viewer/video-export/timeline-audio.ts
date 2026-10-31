@@ -1,120 +1,35 @@
 import type { ViewerAppContext } from "../app/context.js";
 import { createMp4ExportAudioContext } from "./audio.js";
+import {
+  collectTimelineAudioClips,
+  type AudioAssetsContext,
+  type TimelineAudioClip,
+} from "../timeline/model/audio-clips.js";
 
-export type TimelineMp4AudioClip = {
-  asset: any;
-  duration: number;
-  offset: number;
-  start: number;
-  volume: number;
-};
-
-function isRecord(value: unknown): value is Record<string, any> {
-  return Boolean(value && typeof value === "object");
-}
-
-function finiteNumber(value: unknown, fallback: number): number {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
-}
-
-function isAudioLayer(layer: any): boolean {
-  return (
-    layer?.type === "audio" ||
-    layer?.kind === "audio" ||
-    layer?.mediaType === "audio"
-  );
-}
-
-function isAudioAsset(asset: any): boolean {
-  const mimeType = String(asset?.mimeType ?? asset?.blob?.type ?? "");
-  return asset?.kind === "audio" || mimeType.startsWith("audio/");
-}
-
-function clampUnit(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-function getAudioAsset(ctx: ViewerAppContext, layer: any, clip: any): any {
-  const assetId =
-    clip?.assetId ?? layer?.assetId ?? layer?.audioAssetId ?? layer?.sourceId;
-  return typeof assetId === "string" ? ctx.state.assets.get(assetId) : null;
-}
-
-function getAssetBlob(ctx: ViewerAppContext, asset: any): Blob | null {
-  if (asset?.blob instanceof Blob) {
-    return asset.blob;
-  }
-  if (typeof asset?.dataUrl === "string") {
-    return ctx.dataUrlToBlob(
-      asset.dataUrl,
-      String(asset.mimeType ?? "application/octet-stream"),
-    );
-  }
-  return null;
-}
-
-function getClipVolume(layer: any, clip: any): number {
-  const layerVolume = finiteNumber(layer?.volume, 1);
-  const clipVolume = finiteNumber(clip?.volume, 1);
-  return clampUnit(layerVolume * clipVolume);
-}
+export type TimelineMp4AudioClip = Omit<TimelineAudioClip, "key">;
 
 export function collectTimelineMp4AudioClips(
-  ctx: ViewerAppContext,
-  template: any,
+  ctx: AudioAssetsContext,
+  template: unknown,
   duration: number,
 ): TimelineMp4AudioClip[] {
-  const layers = Array.isArray(template?.layers) ? template.layers : [];
-  const clips = Array.isArray(template?.clips) ? template.clips : [];
-  const layersById = new Map<string, Record<string, any>>(
-    layers
-      .filter((layer) => isRecord(layer) && typeof layer.id === "string")
-      .map((layer) => [layer.id, layer]),
+  return collectTimelineAudioClips(ctx, template, duration).map(
+    ({ key: _key, ...clip }) => clip,
   );
-  const timelineClips =
-    clips.length > 0
-      ? clips
-      : layers.map((layer) => ({
-          duration,
-          layerId: layer.id,
-          offset: 0,
-          start: 0,
-        }));
-  const audioClips: TimelineMp4AudioClip[] = [];
-  for (const clip of timelineClips) {
-    if (!isRecord(clip) || clip.enabled === false || clip.disabled === true) {
-      continue;
-    }
-    const layer =
-      typeof clip.layerId === "string" ? layersById.get(clip.layerId) : null;
-    if (!isAudioLayer(layer) && !isAudioLayer(clip)) {
-      continue;
-    }
-    if (layer?.visible === false || layer?.enabled === false) {
-      continue;
-    }
-    const asset = getAudioAsset(ctx, layer, clip);
-    if (!isAudioAsset(asset)) {
-      continue;
-    }
-    const start = Math.max(0, finiteNumber(clip.start ?? layer?.start, 0));
-    const clipDuration = Math.max(
-      0,
-      finiteNumber(clip.duration ?? layer?.duration, duration - start),
-    );
-    if (start >= duration || clipDuration <= 0) {
-      continue;
-    }
-    audioClips.push({
-      asset,
-      duration: Math.min(clipDuration, duration - start),
-      offset: Math.max(0, finiteNumber(clip.offset ?? layer?.offset, 0)),
-      start,
-      volume: getClipVolume(layer, clip),
-    });
-  }
-  return audioClips;
+}
+function getAssetBlob(
+  ctx: ViewerAppContext,
+  asset: Record<string, unknown>,
+): Blob | null {
+  if (asset.blob instanceof Blob) return asset.blob;
+  return typeof asset.dataUrl === "string"
+    ? ctx.dataUrlToBlob(
+        asset.dataUrl,
+        typeof asset.mimeType === "string"
+          ? asset.mimeType
+          : "application/octet-stream",
+      )
+    : null;
 }
 
 function mixIntoChannel(
@@ -126,13 +41,17 @@ function mixIntoChannel(
   volume = 1,
 ) {
   for (let frame = 0; frame < frameCount; frame += 1) {
-    target[targetStart + frame] += source[sourceStart + frame] * volume;
+    const targetIndex = targetStart + frame;
+    const previous = target[targetIndex];
+    const sample = source[sourceStart + frame];
+    if (previous !== undefined && sample !== undefined)
+      target[targetIndex] = previous + sample * volume;
   }
 }
 
 export async function resolveTimelineMp4AudioBuffer(
   ctx: ViewerAppContext,
-  template: any,
+  template: unknown,
   duration: number,
 ): Promise<AudioBuffer | null> {
   const audioClips = collectTimelineMp4AudioClips(ctx, template, duration);

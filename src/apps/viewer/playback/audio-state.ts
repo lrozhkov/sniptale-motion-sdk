@@ -1,13 +1,7 @@
 import type { EditorTemplate } from "../templates/model.js";
 
-export type TimelinePreviewAudioClip = {
-  asset: Record<string, unknown>;
-  duration: number;
-  key: string;
-  offset: number;
-  start: number;
-  volume: number;
-};
+import type { TimelineAudioClip } from "../timeline/model/audio-clips.js";
+export type TimelinePreviewAudioClip = TimelineAudioClip;
 export type ActivePreviewAudio = {
   audio: HTMLAudioElement;
   url: string | null;
