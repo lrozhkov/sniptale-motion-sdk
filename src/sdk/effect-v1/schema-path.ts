@@ -10,7 +10,7 @@ export function createEffectV1PathCommandSchema(
     op: string,
     properties: Record<string, unknown>,
     required?: string[],
-  ) => Record<string, any>,
+  ) => Record<string, unknown>,
   style: Record<string, unknown>,
   paint: Record<string, unknown>,
 ) {

@@ -1,3 +1,5 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import { isRecord, rejectUnknownKeys } from "./validation-shared.js";
 
 const REQUIRED_FIELDS: Record<string, readonly string[]> = {
@@ -87,10 +89,10 @@ export function collectEffectV1PassIndex(
 }
 
 export function validateEffectV1CommandSemantics(
-  command: Record<string, any>,
+  command: Record<string, unknown>,
   path: string,
   passes: EffectV1PassIndex,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   for (const field of REQUIRED_FIELDS[String(command.op)] ?? []) {
     if (command[field] === undefined) {
@@ -126,6 +128,7 @@ export function validateEffectV1CommandSemantics(
   }
   if (command.op === "sampledPath") {
     if (
+      typeof command.samples !== "number" ||
       !Number.isSafeInteger(command.samples) ||
       command.samples < 2 ||
       command.samples > 256
@@ -149,7 +152,7 @@ export function validateEffectV1CommandSemantics(
   }
 
   if (command.commands !== undefined) {
-    if (!Array.isArray(command.commands)) return;
+    if (!isUnknownArray(command.commands)) return;
     if (command.commands.length === 0) {
       report.error(
         "COMMANDS_EMPTY",
@@ -159,7 +162,7 @@ export function validateEffectV1CommandSemantics(
     }
   }
   if (command.items !== undefined) {
-    if (!Array.isArray(command.items)) {
+    if (!isUnknownArray(command.items)) {
       report.error("COMMAND_ITEMS_TYPE", `${path}.items`, "Expected an array.");
     } else if (command.items.length === 0) {
       report.error(
@@ -243,7 +246,7 @@ export function validateEffectV1CommandSemantics(
 function validateStaticLoopField(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (
     !Number.isSafeInteger(value) ||
@@ -262,7 +265,7 @@ function validateStaticLoopField(
 function validateNumericExpression(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (typeof value === "number" && Number.isFinite(value)) return;
   if (isRecord(value) && typeof value.op === "string") return;
@@ -273,8 +276,12 @@ function validateNumericExpression(
   );
 }
 
-function validatePoints(value: unknown, path: string, report: any): void {
-  if (!Array.isArray(value)) {
+function validatePoints(
+  value: unknown,
+  path: string,
+  report: EffectV1ValidationErrorReport,
+): void {
+  if (!isUnknownArray(value)) {
     report.error("COMMAND_POINTS_TYPE", path, "Expected a point array.");
     return;
   }
@@ -329,8 +336,12 @@ const PATH_SEGMENT_FIELDS: Record<string, readonly string[]> = {
   roundRect: ["height", "radius", "width", "x", "y"],
 };
 
-function validatePathSegments(value: unknown, path: string, report: any): void {
-  if (!Array.isArray(value)) {
+function validatePathSegments(
+  value: unknown,
+  path: string,
+  report: EffectV1ValidationErrorReport,
+): void {
+  if (!isUnknownArray(value)) {
     report.error(
       "COMMAND_PATH_SEGMENTS_TYPE",
       path,
@@ -394,7 +405,11 @@ function validatePathSegments(value: unknown, path: string, report: any): void {
   });
 }
 
-function validatePaint(value: unknown, path: string, report: any): void {
+function validatePaint(
+  value: unknown,
+  path: string,
+  report: EffectV1ValidationErrorReport,
+): void {
   if (typeof value === "string") return;
   if (isRecord(value) && typeof value.op === "string") return;
   if (!isRecord(value)) {
@@ -433,7 +448,7 @@ function validatePaint(value: unknown, path: string, report: any): void {
       validateNumericExpression(value[field], `${path}.${field}`, report);
     }
   }
-  if (!Array.isArray(value.stops) || value.stops.length < 2) {
+  if (!isUnknownArray(value.stops) || value.stops.length < 2) {
     report.error(
       "GRADIENT_STOPS",
       `${path}.stops`,
@@ -487,7 +502,7 @@ function validateNumericRecord(
   value: unknown,
   path: string,
   keys: Set<string>,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (!isRecord(value)) {
     report.error("COMMAND_OBJECT_TYPE", path, "Expected an object.");
@@ -499,7 +514,11 @@ function validateNumericRecord(
   }
 }
 
-function validateShadow(value: unknown, path: string, report: any): void {
+function validateShadow(
+  value: unknown,
+  path: string,
+  report: EffectV1ValidationErrorReport,
+): void {
   if (!isRecord(value)) {
     report.error("COMMAND_OBJECT_TYPE", path, "Expected a shadow object.");
     return;
@@ -525,11 +544,11 @@ function validateShadow(value: unknown, path: string, report: any): void {
 
 function walkCommands(
   commands: unknown[],
-  visit: (command: Record<string, any>) => void,
+  visit: (command: Record<string, unknown>) => void,
 ): void {
   for (const value of commands) {
     if (!isRecord(value)) continue;
     visit(value);
-    if (Array.isArray(value.commands)) walkCommands(value.commands, visit);
+    if (isUnknownArray(value.commands)) walkCommands(value.commands, visit);
   }
 }

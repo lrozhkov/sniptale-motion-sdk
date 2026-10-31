@@ -59,6 +59,10 @@ describe("architecture guardrails", () => {
       strict: true,
       noImplicitAny: true,
       strictNullChecks: true,
+      exactOptionalPropertyTypes: true,
+      noUncheckedIndexedAccess: true,
+      noUnusedLocals: true,
+      noUnusedParameters: true,
     });
   });
   it("keeps repository documentation, storage, and policy state deterministic", () => {

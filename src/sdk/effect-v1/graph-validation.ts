@@ -1,4 +1,5 @@
-import type { EffectV1Command } from "./types.js";
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationReport } from "./diagnostics.js";
 import {
   COMMAND_KEYS,
   EFFECT_V1_GRAPH_LIMITS,
@@ -29,11 +30,11 @@ export { GRAPH_OPS } from "./graph-command-contract.js";
 export type { EffectV1GraphReferences } from "./graph-model.js";
 
 export function validateEffectV1Graph(
-  program: Record<string, any>,
-  assets: Map<string, any>,
+  program: Record<string, unknown>,
+  assets: Map<string, Record<string, unknown>>,
   runtimeInputs: Set<string>,
   references: EffectV1GraphReferences,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   const definitions = isRecord(program.definitions) ? program.definitions : {};
   const readReferences = createEffectV1ReadReferences(
@@ -49,7 +50,7 @@ export function validateEffectV1Graph(
     );
   }
   validateEffectV1Definitions(definitions, readReferences, report);
-  if (!Array.isArray(program.commands)) {
+  if (!isUnknownArray(program.commands)) {
     report.error(
       "COMMANDS_TYPE",
       "$.program.commands",
@@ -81,9 +82,9 @@ export function validateEffectV1Graph(
 }
 
 function validateRequiredRuntimeInputs(
-  commands: EffectV1Command[],
+  commands: unknown[],
   requiredInputs: Set<string>,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   if (requiredInputs.size === 0) return;
   const used = new Set<string>();
@@ -99,25 +100,26 @@ function validateRequiredRuntimeInputs(
   }
 }
 
-function collectRuntimeInputs(commands: EffectV1Command[], used: Set<string>) {
-  for (const command of commands as any[]) {
-    if (command?.op === "image" && typeof command.input === "string") {
+function collectRuntimeInputs(commands: unknown[], used: Set<string>) {
+  for (const command of commands) {
+    if (!isRecord(command)) continue;
+    if (command.op === "image" && typeof command.input === "string") {
       used.add(command.input);
     }
-    if (Array.isArray(command?.commands)) {
+    if (isUnknownArray(command?.commands)) {
       collectRuntimeInputs(command.commands, used);
     }
   }
 }
 
 function validateCommands(
-  commands: EffectV1Command[],
+  commands: unknown[],
   path: string,
   depth: number,
-  assets: Map<string, any>,
+  assets: Map<string, Record<string, unknown>>,
   runtimeInputs: Set<string>,
   budget: { expanded: number; nodes: number },
-  report: any,
+  report: EffectV1ValidationReport,
   references: EffectV1ReadReferences,
   passes: EffectV1PassIndex,
   multiplier = 1,
@@ -131,7 +133,7 @@ function validateCommands(
     return;
   }
   for (let index = 0; index < commands.length; index += 1) {
-    const command = commands[index] as any;
+    const command = commands[index];
     const commandPath = `${path}[${index}]`;
     budget.nodes += 1;
     budget.expanded += multiplier;
@@ -152,10 +154,13 @@ function validateCommands(
       return;
     }
     const operation = isRecord(command) ? command.op : undefined;
+    const allowed =
+      typeof operation === "string" ? COMMAND_KEYS[operation] : undefined;
     if (
       !isRecord(command) ||
       typeof operation !== "string" ||
-      !GRAPH_OPS.has(operation)
+      !GRAPH_OPS.has(operation) ||
+      !allowed
     ) {
       report.error(
         "COMMAND_OP",
@@ -164,7 +169,7 @@ function validateCommands(
       );
       continue;
     }
-    rejectUnknownKeys(command, COMMAND_KEYS[operation], commandPath, report);
+    rejectUnknownKeys(command, allowed, commandPath, report);
     validateEffectV1CommandSemantics(command, commandPath, passes, report);
     validateCommandExpressions(command, commandPath, report, references);
     validateCommandReferences(
@@ -183,7 +188,7 @@ function validateCommands(
     }
     const children = command.commands;
     if (commandNeedsChildren(operation)) {
-      if (!Array.isArray(children)) {
+      if (!isUnknownArray(children)) {
         report.error(
           "CHILD_COMMANDS_TYPE",
           `${commandPath}.commands`,
@@ -211,12 +216,12 @@ function validateCommands(
 }
 
 function validateCommandReferences(
-  command: any,
+  command: Record<string, unknown>,
   path: string,
-  assets: Map<string, any>,
+  assets: Map<string, Record<string, unknown>>,
   runtimeInputs: Set<string>,
   references: EffectV1ReadReferences,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   if (
     command.layerId !== undefined &&
@@ -240,7 +245,7 @@ function validateCommandReferences(
     validateImageSource(command, path, assets, runtimeInputs, report);
   }
   if (command.op === "svgParts" && typeof command.assetId === "string") {
-    const asset = assets.get(command.assetId);
+    const asset = assets.get(String(command.assetId));
     if (asset && asset.kind !== "svg") {
       report.error(
         "SVG_PARTS_ASSET_KIND",
@@ -252,11 +257,11 @@ function validateCommandReferences(
 }
 
 function validateImageSource(
-  command: any,
+  command: Record<string, unknown>,
   path: string,
-  assets: Map<string, any>,
+  assets: Map<string, Record<string, unknown>>,
   runtimeInputs: Set<string>,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   const hasAsset = typeof command.assetId === "string";
   const hasInput = typeof command.input === "string";
@@ -271,7 +276,7 @@ function validateImageSource(
   }
   if (hasAsset && !assets.has(String(command.assetId))) return;
   if (hasAsset) {
-    const asset = assets.get(command.assetId);
+    const asset = assets.get(String(command.assetId));
     if (asset && asset.kind !== "image" && asset.kind !== "svg") {
       report.error(
         "IMAGE_ASSET_KIND",
@@ -293,10 +298,14 @@ function validateImageSource(
   }
 }
 
-function resolveLoopBound(command: any, path: string, report: any): number {
+function resolveLoopBound(
+  command: Record<string, unknown>,
+  path: string,
+  report: EffectV1ValidationReport,
+): number {
   const count =
     command.op === "forEach" || command.op === "stableOrderBy"
-      ? Array.isArray(command.items)
+      ? isUnknownArray(command.items)
         ? command.items.length
         : Number.NaN
       : command.op === "forGrid"

@@ -37,7 +37,7 @@ export async function readTemplates(
   if (!Array.isArray(manifest.templates)) {
     return [];
   }
-  const templates = [];
+  const templates: Record<string, unknown>[] = [];
   for (const path of manifest.templates) {
     if (!isSafeLocalPath(path)) {
       continue;
@@ -119,7 +119,7 @@ function validateCompositionTemplate(
     return;
   }
   for (let index = 0; index < template.scenes.length; index += 1) {
-    const scene = template.scenes[index];
+    const scene: unknown = template.scenes[index];
     const scenePath = `${path}.scenes.${index}`;
     if (!isRecord(scene)) {
       push(errors, scenePath, "Expected scene object.");

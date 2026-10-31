@@ -72,7 +72,10 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
     if (
       !Array.isArray(value) ||
       value.length > targets.size ||
-      value.some((id) => typeof id !== "string" || !targets.has(id))
+      !value.every(
+        (id: unknown): id is string =>
+          typeof id === "string" && targets.has(id),
+      )
     )
       throw new Error("Invalid DOM motion visible targets");
     visibleTargets = new Set(value);
@@ -203,6 +206,8 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
       visibleTargets.has("page") ? read("page", "opacity", time, 1) : 0,
     );
     for (const [partIndex, part] of parts.entries()) {
+      const pose = poses[partIndex];
+      if (!pose) throw new Error("DOM motion pose is missing");
       observedTargets.add(part.binding.id);
       if (!visibleTargets.has(part.binding.id)) {
         part.source.style.visibility = "hidden";
@@ -216,7 +221,7 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
         continue;
       }
       renderDomMotionBackgrounds(part.backgrounds, progress);
-      part.source.style.transform = poses[partIndex].transform;
+      part.source.style.transform = pose.transform;
       part.source.style.transformOrigin = "50% 50%";
       if (remaining > 0.00001) {
         // A panel travels as one UI surface; its natural box still owns layout.

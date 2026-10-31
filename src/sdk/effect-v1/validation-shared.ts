@@ -1,3 +1,4 @@
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import { isEffectV1LocaleTag } from "./locale-tags.js";
 import { isSafeSvgText } from "../svg-safety.js";
 
@@ -11,7 +12,7 @@ export function rejectUnknownKeys(
   value: Record<string, unknown>,
   allowed: ReadonlySet<string>,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   for (const key of Object.keys(value)) {
     if (!allowed.has(key)) {
@@ -28,7 +29,7 @@ export function rejectUnknownKeys(
 export function requireIdentifier(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): value is string {
   if (typeof value !== "string" || !IDENTIFIER_PATTERN.test(value)) {
     report.error(
@@ -44,7 +45,7 @@ export function requireIdentifier(
 export function requireString(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): value is string {
   if (typeof value !== "string" || value.trim() === "") {
     report.error("STRING_REQUIRED", path, "Expected a non-empty string.");
@@ -56,7 +57,7 @@ export function requireString(
 export function requirePositiveNumber(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): value is number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     report.error("POSITIVE_NUMBER", path, "Expected a positive finite number.");
@@ -70,18 +71,18 @@ export function validateRange(
   durationValue: unknown,
   duration: number,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
-  const start = Number(startValue);
-  const itemDuration = Number(durationValue);
-  if (!Number.isFinite(start) || start < 0) {
+  const start = startValue;
+  const itemDuration = durationValue;
+  if (!isFiniteNumber(start) || start < 0) {
     report.error(
       "RANGE_START",
       `${path}.start`,
       "Expected a non-negative start.",
     );
   }
-  if (!Number.isFinite(itemDuration) || itemDuration <= 0) {
+  if (!isFiniteNumber(itemDuration) || itemDuration <= 0) {
     report.error(
       "RANGE_DURATION",
       `${path}.duration`,
@@ -89,8 +90,8 @@ export function validateRange(
     );
   }
   if (
-    Number.isFinite(start) &&
-    Number.isFinite(itemDuration) &&
+    isFiniteNumber(start) &&
+    isFiniteNumber(itemDuration) &&
     start + itemDuration > duration + 1e-6
   ) {
     report.error(
@@ -105,7 +106,7 @@ export function validateLocaleText(
   value: unknown,
   path: string,
   _requireRu: boolean,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (!isRecord(value)) {
     report.error("LOCALE_TEXT", path, "Expected a locale text object.");
@@ -143,4 +144,12 @@ export function isSafeRelativePath(value: unknown): boolean {
 
 export function isSafeSvg(value: unknown): boolean {
   return isSafeSvgText(value);
+}
+
+export function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+export function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }

@@ -1,8 +1,17 @@
-import type { EffectV1Diagnostic, EffectV1ValidationResult } from "./types.js";
+import type {
+  EffectV1Document,
+  EffectV1Diagnostic,
+  EffectV1ValidationResult,
+} from "./types.js";
 
 export type EffectV1ValidationReport = Pick<
   ReturnType<typeof createEffectV1Diagnostics>,
   "error" | "warning"
+>;
+
+export type EffectV1ValidationErrorReport = Pick<
+  EffectV1ValidationReport,
+  "error"
 >;
 
 export function createEffectV1Diagnostics() {
@@ -38,7 +47,7 @@ export function createEffectV1Diagnostics() {
 
 export function finishEffectV1Validation(
   diagnostics: EffectV1Diagnostic[],
-  document?: any,
+  document?: EffectV1Document,
 ): EffectV1ValidationResult {
   const errors = diagnostics.filter((item) => item.severity === "error").length;
   const warnings = diagnostics.length - errors;

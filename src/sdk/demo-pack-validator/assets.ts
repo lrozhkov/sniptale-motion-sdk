@@ -152,7 +152,7 @@ async function readAsset(
       push(errors, item.path, `Unsupported asset mime type ${mimeType}.`);
       return null;
     }
-    let svgText = null;
+    let svgText: string | null = null;
     if (mimeType === "image/svg+xml") {
       svgText = await blob.text();
       validateSvgText(svgText, item.path, errors);

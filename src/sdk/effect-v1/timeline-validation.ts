@@ -1,3 +1,5 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import {
   isRecord,
   rejectUnknownKeys,
@@ -40,10 +42,10 @@ const HANDLE_KEYS = new Set(["x1", "x2", "y1", "y2"]);
 
 export function validateEffectV1Timeline(
   value: unknown,
-  layers: Map<string, any>,
-  scenes: Map<string, any>,
+  layers: Map<string, Record<string, unknown>>,
+  scenes: Map<string, Record<string, unknown>>,
   duration: number,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): Set<string> {
   if (!isRecord(value)) {
     report.error("TIMELINE_TYPE", "$.timeline", "Expected a timeline object.");
@@ -70,12 +72,12 @@ export function validateEffectV1Timeline(
 
 function validatePhases(
   value: unknown,
-  scenes: Map<string, any>,
+  scenes: Map<string, Record<string, unknown>>,
   duration: number,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): Set<string> {
   const ids = new Set<string>();
-  if (!Array.isArray(value)) {
+  if (!isUnknownArray(value)) {
     report.error("PHASES_TYPE", "$.timeline.phases", "Expected a phase array.");
     return ids;
   }
@@ -104,14 +106,14 @@ function validatePhases(
 
 function validateTracks(
   value: unknown,
-  layers: Map<string, any>,
-  scenes: Map<string, any>,
+  layers: Map<string, Record<string, unknown>>,
+  scenes: Map<string, Record<string, unknown>>,
   phaseIds: Set<string>,
   duration: number,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): Set<string> {
   const ids = new Set<string>();
-  if (!Array.isArray(value)) {
+  if (!isUnknownArray(value)) {
     report.error("TRACKS_TYPE", "$.timeline.tracks", "Expected a track array.");
     return ids;
   }
@@ -167,12 +169,12 @@ function validateTracks(
 function validateKeyframes(
   value: unknown,
   trackPath: string,
-  scenes: Map<string, any>,
+  scenes: Map<string, Record<string, unknown>>,
   phaseIds: Set<string>,
   duration: number,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
-  if (!Array.isArray(value)) {
+  if (!isUnknownArray(value)) {
     report.error(
       "KEYFRAMES_TYPE",
       `${trackPath}.keyframes`,
@@ -189,15 +191,20 @@ function validateKeyframes(
     }
     rejectUnknownKeys(keyframe, KEYFRAME_KEYS, path, report);
     requireIdentifier(keyframe.id, `${path}.id`, report);
-    const time = Number(keyframe.time);
-    if (!Number.isFinite(time) || time < 0 || time > duration) {
+    const time = keyframe.time;
+    if (
+      typeof time !== "number" ||
+      !Number.isFinite(time) ||
+      time < 0 ||
+      time > duration
+    ) {
       report.error(
         "KEYFRAME_TIME",
         `${path}.time`,
         "Keyframe time must be inside the effect duration.",
       );
     }
-    if (time < previousTime) {
+    if (typeof time === "number" && time < previousTime) {
       report.error(
         "KEYFRAME_ORDER",
         `${path}.time`,
@@ -205,7 +212,7 @@ function validateKeyframes(
         "Sort keyframes; v1 never silently reorders author data.",
       );
     }
-    previousTime = time;
+    if (typeof time === "number" && Number.isFinite(time)) previousTime = time;
     if (keyframe.sceneId != null && !scenes.has(String(keyframe.sceneId))) {
       report.error(
         "KEYFRAME_SCENE_UNKNOWN",
@@ -225,7 +232,11 @@ function validateKeyframes(
   });
 }
 
-function validateHandles(value: unknown, path: string, report: any): void {
+function validateHandles(
+  value: unknown,
+  path: string,
+  report: EffectV1ValidationErrorReport,
+): void {
   if (value === undefined) return;
   if (!isRecord(value)) {
     report.error("KEYFRAME_HANDLES", path, "Expected a bezier handle object.");
@@ -246,7 +257,7 @@ function validateHandles(value: unknown, path: string, report: any): void {
 function validateOptionalBoolean(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (value !== undefined && typeof value !== "boolean") {
     report.error("BOOLEAN", path, "Expected a boolean.");

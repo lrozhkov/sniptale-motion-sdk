@@ -1,3 +1,5 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import { isRecord, rejectUnknownKeys } from "./validation-shared.js";
 
 const MOTION_PATH_KEYS = new Set(["layerId", "points"]);
@@ -13,11 +15,11 @@ const TANGENT_KEYS = new Set(["x", "y"]);
 export function validateEffectV1MotionPaths(
   value: unknown,
   tracks: unknown,
-  layers: Map<string, any>,
-  report: any,
+  layers: Map<string, Record<string, unknown>>,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (value === undefined) return;
-  if (!Array.isArray(value)) {
+  if (!isUnknownArray(value)) {
     report.error(
       "MOTION_PATHS_TYPE",
       "$.timeline.motionPaths",
@@ -40,7 +42,7 @@ export function validateEffectV1MotionPaths(
         "Unknown motion path layer.",
       );
     }
-    if (!Array.isArray(motionPath.points)) {
+    if (!isUnknownArray(motionPath.points)) {
       report.error(
         "MOTION_PATH_POINTS",
         `${path}.points`,
@@ -63,7 +65,7 @@ function validateMotionPoint(
   value: unknown,
   path: string,
   keyframeIds: Set<string>,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (!isRecord(value)) {
     report.error("MOTION_POINT_TYPE", path, "Expected a motion path point.");
@@ -93,7 +95,11 @@ function validateMotionPoint(
   validateTangent(value.outTangent, `${path}.outTangent`, report);
 }
 
-function validateTangent(value: unknown, path: string, report: any): void {
+function validateTangent(
+  value: unknown,
+  path: string,
+  report: EffectV1ValidationErrorReport,
+): void {
   if (value === undefined) return;
   if (!isRecord(value)) {
     report.error("MOTION_TANGENT_TYPE", path, "Expected a tangent point.");
@@ -113,9 +119,9 @@ function validateTangent(value: unknown, path: string, report: any): void {
 
 function collectKeyframeIds(tracks: unknown): Set<string> {
   const ids = new Set<string>();
-  if (!Array.isArray(tracks)) return ids;
+  if (!isUnknownArray(tracks)) return ids;
   for (const track of tracks) {
-    if (!isRecord(track) || !Array.isArray(track.keyframes)) continue;
+    if (!isRecord(track) || !isUnknownArray(track.keyframes)) continue;
     for (const keyframe of track.keyframes) {
       if (isRecord(keyframe) && typeof keyframe.id === "string") {
         ids.add(keyframe.id);

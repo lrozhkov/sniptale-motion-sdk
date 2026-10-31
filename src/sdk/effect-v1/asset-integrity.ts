@@ -15,10 +15,7 @@ export function decodeEffectV1EmbeddedAsset(asset: {
 }
 
 export async function sha256EffectV1Bytes(bytes: Uint8Array): Promise<string> {
-  const buffer = await crypto.subtle.digest(
-    "SHA-256",
-    bytes.slice().buffer as ArrayBuffer,
-  );
+  const buffer = await crypto.subtle.digest("SHA-256", bytes.slice().buffer);
   return Array.from(new Uint8Array(buffer), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
@@ -58,7 +55,7 @@ export function assertEffectV1AssetSignature(
                     ? ascii(0, 4) === "RIFF" && ascii(8, 4) === "WAVE"
                     : mimeType === "audio/mpeg"
                       ? ascii(0, 3) === "ID3" ||
-                        (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)
+                        (bytes[0] === 0xff && ((bytes[1] ?? 0) & 0xe0) === 0xe0)
                       : false;
   if (!matches) {
     throw new Error(

@@ -134,10 +134,12 @@ export function createMotionPathGeometry(
   }
   points.sort((left, right) => left.time - right.time);
   if (
-    points.some(
-      (point, index) =>
-        index > 0 && Math.abs(point.time - points[index - 1].time) < 0.0001,
-    )
+    points.some((point, index) => {
+      const previous = points[index - 1];
+      return (
+        previous !== undefined && Math.abs(point.time - previous.time) < 0.0001
+      );
+    })
   ) {
     return { layerId, ok: false, reason: "duplicate-time" };
   }
@@ -149,11 +151,12 @@ export function evaluateMotionPathGeometry(
   time: number,
 ): { x: number; y: number } | null {
   const points = geometry.points;
-  if (points.length === 0) {
+  const first = points[0];
+  if (!first) {
     return null;
   }
-  if (time <= points[0].time) {
-    return pickMotionPathPosition(points[0]);
+  if (time <= first.time) {
+    return pickMotionPathPosition(first);
   }
   const last = points.at(-1);
   if (last && time >= last.time) {
@@ -162,6 +165,7 @@ export function evaluateMotionPathGeometry(
   const index = findMotionPathSegmentIndex(points, time);
   const from = points[index];
   const to = points[index + 1];
+  if (!from || !to) return null;
   const raw = Math.min(
     1,
     Math.max(0, (time - from.time) / Math.max(0.0001, to.time - from.time)),
@@ -289,7 +293,9 @@ function findMotionPathSegmentIndex(
   let high = points.length - 1;
   while (low < high) {
     const middle = Math.floor((low + high) * 0.5);
-    if (time <= points[middle].time) {
+    const point = points[middle];
+    if (!point) return -1;
+    if (time <= point.time) {
       high = middle;
     } else {
       low = middle + 1;

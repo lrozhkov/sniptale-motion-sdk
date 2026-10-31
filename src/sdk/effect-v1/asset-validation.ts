@@ -1,3 +1,5 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import {
   isRecord,
   isSafeRelativePath,
@@ -30,10 +32,10 @@ const MAX_ASSETS = 256;
 
 export function validateEffectV1Assets(
   value: unknown,
-  report: any,
-): Map<string, any> {
-  const assets = new Map<string, any>();
-  if (!Array.isArray(value)) {
+  report: EffectV1ValidationErrorReport,
+): Map<string, Record<string, unknown>> {
+  const assets = new Map<string, Record<string, unknown>>();
+  if (!isUnknownArray(value)) {
     report.error("ASSETS_TYPE", "$.assets", "Expected an asset array.");
     return assets;
   }

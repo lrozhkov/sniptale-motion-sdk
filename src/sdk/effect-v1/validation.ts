@@ -1,10 +1,15 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import { validateEffectV1EditorRegion } from "./editor-region-validation.js";
 import { validateEffectV1ControlPresets } from "./control-presets-validation.js";
 import {
   createEffectV1Diagnostics,
   finishEffectV1Validation,
 } from "./diagnostics.js";
-import { resolveEffectV1InputContract } from "./input-contract.js";
+import {
+  isEffectV1Kind,
+  resolveEffectV1InputContract,
+} from "./input-contract.js";
 import { validateEffectV1Assets } from "./asset-validation.js";
 import { validateEffectV1Layers } from "./layer-validation.js";
 import {
@@ -19,7 +24,6 @@ import {
 import { validateEffectV1Timeline } from "./timeline-validation.js";
 import { validateEffectV1ObjectLayout } from "./object-layout-validation.js";
 import {
-  EFFECT_V1_KINDS,
   EFFECT_V1_SCHEMA,
   type EffectV1Document,
   type EffectV1ValidationResult,
@@ -155,8 +159,8 @@ function validateEffectV1DocumentInternal(
     Number(input.duration),
     report,
   );
-  const runtimeInputs = EFFECT_V1_KINDS.includes(input.kind as any)
-    ? new Set(resolveEffectV1InputContract(input.kind as any).required)
+  const runtimeInputs = isEffectV1Kind(input.kind)
+    ? new Set(resolveEffectV1InputContract(input.kind).required)
     : new Set<string>();
   validateEffectV1Program(
     input.program,
@@ -175,24 +179,27 @@ function validateEffectV1DocumentInternal(
   );
 }
 
-function validatePhaseClosure(input: Record<string, any>, report: any): void {
+function validatePhaseClosure(
+  input: Record<string, unknown>,
+  report: EffectV1ValidationErrorReport,
+): void {
   const used = new Set<string>();
-  const tracks = Array.isArray(input.timeline?.tracks)
-    ? input.timeline.tracks
-    : [];
+  const timeline = isRecord(input.timeline) ? input.timeline : null;
+  const tracks = isUnknownArray(timeline?.tracks) ? timeline.tracks : [];
   for (const track of tracks) {
-    if (typeof track?.phaseId === "string") used.add(track.phaseId);
-    for (const keyframe of Array.isArray(track?.keyframes)
+    if (!isRecord(track)) continue;
+    if (typeof track.phaseId === "string") used.add(track.phaseId);
+    for (const keyframe of isUnknownArray(track?.keyframes)
       ? track.keyframes
       : []) {
-      if (typeof keyframe?.phaseId === "string") used.add(keyframe.phaseId);
+      if (isRecord(keyframe) && typeof keyframe.phaseId === "string")
+        used.add(keyframe.phaseId);
     }
   }
-  const phases = Array.isArray(input.timeline?.phases)
-    ? input.timeline.phases
-    : [];
-  phases.forEach((phase: any, index: number) => {
-    if (typeof phase?.id !== "string" || used.has(phase.id)) return;
+  const phases = isUnknownArray(timeline?.phases) ? timeline.phases : [];
+  phases.forEach((phase, index) => {
+    if (!isRecord(phase) || typeof phase.id !== "string" || used.has(phase.id))
+      return;
     report.error(
       "PHASE_UNUSED",
       `$.timeline.phases[${index}]`,
@@ -203,20 +210,23 @@ function validatePhaseClosure(input: Record<string, any>, report: any): void {
 }
 
 function validateTrackClosure(
-  input: Record<string, any>,
+  input: Record<string, unknown>,
   tracks: Set<string>,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   const used = new Set<string>();
   collectReadIds(input.program, "tracks.", used);
   const layerReads = new Set<string>();
   collectReadIds(input.program, "layers.", layerReads);
   const commandLayerIds = new Set<string>();
-  collectStyledCommandLayerIds(input.program?.commands, commandLayerIds);
-  const trackList = Array.isArray(input.timeline?.tracks)
-    ? input.timeline.tracks
-    : [];
+  collectStyledCommandLayerIds(
+    isRecord(input.program) ? input.program.commands : undefined,
+    commandLayerIds,
+  );
+  const timeline = isRecord(input.timeline) ? input.timeline : null;
+  const trackList = isUnknownArray(timeline?.tracks) ? timeline.tracks : [];
   for (const track of trackList) {
+    if (!isRecord(track)) continue;
     const trackId = typeof track?.id === "string" ? track.id : null;
     const layerId = track?.layerId ?? track?.target;
     const property = track?.property;
@@ -239,7 +249,9 @@ function validateTrackClosure(
   }
   for (const trackId of tracks) {
     if (used.has(trackId)) continue;
-    const index = trackList.findIndex((track: any) => track?.id === trackId);
+    const index = trackList.findIndex(
+      (track) => isRecord(track) && track.id === trackId,
+    );
     report.error(
       "TRACK_UNUSED",
       index >= 0 ? `$.timeline.tracks[${index}]` : "$.timeline.tracks",
@@ -253,7 +265,7 @@ function collectStyledCommandLayerIds(
   value: unknown,
   result: Set<string>,
 ): void {
-  if (!Array.isArray(value)) return;
+  if (!isUnknownArray(value)) return;
   for (const command of value) {
     if (!isRecord(command)) continue;
     if (
@@ -267,16 +279,18 @@ function collectStyledCommandLayerIds(
 }
 
 function validateControlClosure(
-  input: Record<string, any>,
+  input: Record<string, unknown>,
   controls: Set<string>,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   const used = new Set<string>();
   collectReadIds(input.program, "controls.", used);
   for (const controlId of controls) {
     if (used.has(controlId)) continue;
-    const index = Array.isArray(input.controls)
-      ? input.controls.findIndex((control: any) => control?.id === controlId)
+    const index = isUnknownArray(input.controls)
+      ? input.controls.findIndex(
+          (control) => isRecord(control) && control.id === controlId,
+        )
       : -1;
     report.error(
       "CONTROL_UNUSED",
@@ -292,7 +306,7 @@ function collectReadIds(
   prefix: string,
   result: Set<string>,
 ): void {
-  if (Array.isArray(value)) {
+  if (isUnknownArray(value)) {
     value.forEach((item) => collectReadIds(item, prefix, result));
     return;
   }
@@ -308,19 +322,25 @@ function collectReadIds(
 }
 
 function validateAssetClosure(
-  input: Record<string, any>,
-  assets: Map<string, any>,
-  report: any,
+  input: Record<string, unknown>,
+  assets: Map<string, Record<string, unknown>>,
+  report: EffectV1ValidationErrorReport,
 ): void {
   const used = new Set<string>();
-  for (const layer of Array.isArray(input.layers) ? input.layers : []) {
-    if (typeof layer?.assetId === "string") used.add(layer.assetId);
+  for (const layer of isUnknownArray(input.layers) ? input.layers : []) {
+    if (isRecord(layer) && typeof layer.assetId === "string")
+      used.add(layer.assetId);
   }
-  collectCommandAssetIds(input.program?.commands, used);
+  collectCommandAssetIds(
+    isRecord(input.program) ? input.program.commands : undefined,
+    used,
+  );
   for (const [assetId] of assets) {
     if (!used.has(assetId)) {
-      const index = Array.isArray(input.assets)
-        ? input.assets.findIndex((asset: any) => asset?.id === assetId)
+      const index = isUnknownArray(input.assets)
+        ? input.assets.findIndex(
+            (asset) => isRecord(asset) && asset.id === assetId,
+          )
         : -1;
       report.error(
         "ASSET_UNUSED",
@@ -333,18 +353,18 @@ function validateAssetClosure(
 }
 
 function collectCommandAssetIds(value: unknown, used: Set<string>): void {
-  if (!Array.isArray(value)) return;
+  if (!isUnknownArray(value)) return;
   for (const command of value) {
-    if (!command || typeof command !== "object") continue;
-    const record = command as Record<string, unknown>;
+    if (!isRecord(command)) continue;
+    const record = command;
     if (typeof record.assetId === "string") used.add(record.assetId);
     collectCommandAssetIds(record.commands, used);
   }
 }
 
 function validateEffectV1Identity(
-  input: Record<string, any>,
-  report: any,
+  input: Record<string, unknown>,
+  report: EffectV1ValidationErrorReport,
 ): void {
   requireString(input.schemaVersion, "$.schemaVersion", report);
   if (input.schemaVersion !== EFFECT_V1_SCHEMA) {
@@ -356,7 +376,7 @@ function validateEffectV1Identity(
     );
   }
   requireIdentifier(input.id, "$.id", report);
-  if (!EFFECT_V1_KINDS.includes(input.kind as any)) {
+  if (!isEffectV1Kind(input.kind)) {
     report.error(
       "KIND_UNKNOWN",
       "$.kind",
@@ -369,7 +389,7 @@ function validateEffectV1Identity(
   if (input.description !== undefined) {
     validateLocaleText(input.description, "$.description", false, report);
   }
-  if (input.presets !== undefined && !Array.isArray(input.presets)) {
+  if (input.presets !== undefined && !isUnknownArray(input.presets)) {
     report.error("PRESETS_TYPE", "$.presets", "Expected a preset array.");
   }
 }

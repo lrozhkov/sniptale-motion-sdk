@@ -23,13 +23,15 @@ export function readDomMotionPose(
     rotateZ: (binding.tiltZ ?? 0) * remaining,
     scale: 1,
   };
-  const values = Object.entries(defaults).map(([property, fallback]) =>
-    read(binding.id, property, time, fallback),
-  );
+  const values = { ...defaults };
+  for (const property of Object.keys(defaults) as (keyof typeof defaults)[]) {
+    values[property] = read(binding.id, property, time, defaults[property]);
+  }
   return {
-    settled: values.every(
-      (value, index) => Math.abs(value - (index === 6 ? 1 : 0)) < 0.00001,
+    settled: Object.entries(values).every(
+      ([property, value]) =>
+        Math.abs(value - (property === "scale" ? 1 : 0)) < 0.00001,
     ),
-    transform: `translate3d(${values[0]}px,${values[1]}px,${values[2] + 2}px) rotateX(${values[3]}deg) rotateY(${values[4]}deg) rotateZ(${values[5]}deg) scale(${values[6]})`,
+    transform: `translate3d(${values.x}px,${values.y}px,${values.z + 2}px) rotateX(${values.rotateX}deg) rotateY(${values.rotateY}deg) rotateZ(${values.rotateZ}deg) scale(${values.scale})`,
   };
 }

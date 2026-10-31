@@ -65,7 +65,7 @@ export function validateEffectV1ObjectHandles(
     }
     for (const key of ["xControl", "yControl"]) {
       requireIdentifier(handle[key], `${path}.${key}`, report);
-      const control = Array.isArray(controls)
+      const control: unknown = Array.isArray(controls)
         ? controls.find((c) => isRecord(c) && c.id === handle[key])
         : undefined;
       if (

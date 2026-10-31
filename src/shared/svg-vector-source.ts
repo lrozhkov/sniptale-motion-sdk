@@ -4,6 +4,17 @@ export type SerializedSvgVectorSource = {
   width: number;
 };
 
+type SvgInheritedState = {
+  fill: string | null;
+  stroke: string | null;
+  groupId: string | null;
+  groupIds: string[];
+  opacity: number;
+  strokeLineCap: string;
+  strokeLineJoin: string;
+  strokeWidth: number;
+};
+
 export function serializeSvgTextVectorAsset(asset: {
   height?: number;
   id?: string;
@@ -29,17 +40,17 @@ export function serializeSvgTextVectorAsset(asset: {
 }
 
 function walkSvgNodes(
-  node: any,
+  node: Element,
   parts: Array<Record<string, unknown>>,
-  inherited: any,
+  inherited: SvgInheritedState | null,
 ): void {
-  for (const child of Array.from(node.children ?? []) as any[]) {
+  for (const child of Array.from(node.children)) {
     const tag = child.tagName.toLowerCase();
     if (tag === "defs" || tag === "clippath") continue;
     const childState = createSvgInheritedState(
       child,
       inherited,
-      inherited.groupIds,
+      inherited?.groupIds ?? [],
     );
     if (tag === "path") {
       const pathData = child.getAttribute("d");
@@ -70,8 +81,8 @@ function walkSvgNodes(
 }
 
 function pushRectPart(
-  child: any,
-  childState: any,
+  child: Element,
+  childState: SvgInheritedState,
   parts: Array<Record<string, unknown>>,
 ): void {
   if (!childState.fill && !childState.stroke) return;
@@ -103,10 +114,10 @@ function pushRectPart(
 }
 
 function createSvgInheritedState(
-  node: any,
-  inherited: any,
+  node: Element,
+  inherited: SvgInheritedState | null,
   parentGroupIds: string[],
-) {
+): SvgInheritedState {
   const nodeId = node.getAttribute?.("id") || null;
   const tag = node.tagName?.toLowerCase?.() ?? "";
   const groupIds =
@@ -151,13 +162,17 @@ function createSvgInheritedState(
   };
 }
 
-function readSvgAttr(node: any, name: string, fallback: any) {
+function readSvgAttr<T extends string | number | null>(
+  node: Element,
+  name: string,
+  fallback: T,
+): string | T {
   const value = node.getAttribute?.(name);
   return value == null || value === "" ? fallback : value;
 }
 
 function createGeneratedSvgPartId(
-  state: any,
+  state: SvgInheritedState,
   tag: string,
   parts: Array<Record<string, unknown>>,
 ): string {
@@ -173,12 +188,18 @@ function parseViewBox(
     .split(/\s+/)
     .map(Number)
     .filter(Number.isFinite);
-  return parts.length === 4 && parts[2] > 0 && parts[3] > 0
-    ? { height: parts[3], width: parts[2] }
+  const width = parts[2];
+  const height = parts[3];
+  return parts.length === 4 &&
+    width !== undefined &&
+    height !== undefined &&
+    width > 0 &&
+    height > 0
+    ? { height, width }
     : { height: asset.height ?? 1, width: asset.width ?? 1 };
 }
 
-function normalizePaint(value: unknown): unknown {
+function normalizePaint(value: string | null): string | null {
   if (!value || value === "none") return null;
   return String(value).startsWith("url(") ? "#f4fbff" : value;
 }

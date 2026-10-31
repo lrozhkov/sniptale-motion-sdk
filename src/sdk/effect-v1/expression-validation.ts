@@ -297,7 +297,7 @@ function resolveDeclaredReference(
   }
   if (path.startsWith("layers.")) {
     return {
-      id: path.slice(7).split(".")[0],
+      id: path.slice(7).split(".").at(0) ?? "",
       ids: references.layerIds,
       kind: "layer",
     };

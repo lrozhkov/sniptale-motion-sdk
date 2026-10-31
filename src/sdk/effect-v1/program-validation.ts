@@ -1,3 +1,5 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationReport } from "./diagnostics.js";
 import { validateEffectV1Graph } from "./graph-validation.js";
 import type { EffectV1GraphReferences } from "./graph-model.js";
 import { isRecord, rejectUnknownKeys } from "./validation-shared.js";
@@ -14,10 +16,10 @@ const FORBIDDEN_EXECUTABLE_KEYS = new Set([
 
 export function validateEffectV1Program(
   value: unknown,
-  assets: Map<string, any>,
+  assets: Map<string, Record<string, unknown>>,
   runtimeInputs: Set<string>,
   references: EffectV1GraphReferences,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
   if (!isRecord(value)) {
     report.error("PROGRAM_TYPE", "$.program", "Expected a render program.");
@@ -45,9 +47,9 @@ export function validateEffectV1Program(
 export function rejectEffectV1ExecutableFields(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationReport,
 ): void {
-  if (Array.isArray(value)) {
+  if (isUnknownArray(value)) {
     value.forEach((child, index) =>
       rejectEffectV1ExecutableFields(child, `${path}[${index}]`, report),
     );

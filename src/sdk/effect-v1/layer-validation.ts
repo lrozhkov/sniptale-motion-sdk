@@ -1,3 +1,5 @@
+import { isUnknownArray } from "./validation-shared.js";
+import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import {
   isRecord,
   rejectUnknownKeys,
@@ -107,11 +109,11 @@ const SPATIAL_LAYER_TYPES = new Set([
 
 export function validateEffectV1Layers(
   value: unknown,
-  assets: Map<string, any>,
-  report: any,
-): Map<string, any> {
-  const layers = new Map<string, any>();
-  if (!Array.isArray(value)) {
+  assets: Map<string, Record<string, unknown>>,
+  report: EffectV1ValidationErrorReport,
+): Map<string, Record<string, unknown>> {
+  const layers = new Map<string, Record<string, unknown>>();
+  if (!isUnknownArray(value)) {
     report.error("LAYERS_TYPE", "$.layers", "Expected a layer array.");
     return layers;
   }
@@ -158,10 +160,10 @@ export function validateEffectV1Layers(
 }
 
 function validateLayerContract(
-  layer: Record<string, any>,
+  layer: Record<string, unknown>,
   path: string,
-  assets: Map<string, any>,
-  report: any,
+  assets: Map<string, Record<string, unknown>>,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (SPATIAL_LAYER_TYPES.has(String(layer.type))) {
     for (const field of ["height", "width"]) {
@@ -235,9 +237,9 @@ function validateLayerContract(
 }
 
 function validateLayerValues(
-  layer: Record<string, any>,
+  layer: Record<string, unknown>,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   for (const key of LAYER_NUMBER_KEYS) {
     if (
@@ -273,7 +275,7 @@ function validateLayerValues(
       ]) {
         if (
           layer.editor[key] !== undefined &&
-          (!Array.isArray(layer.editor[key]) ||
+          (!isUnknownArray(layer.editor[key]) ||
             layer.editor[key].some((item: unknown) => typeof item !== "string"))
         ) {
           report.error(
@@ -289,8 +291,8 @@ function validateLayerValues(
 
 function validateLayerHierarchy(
   orderedLayers: unknown[],
-  layers: Map<string, any>,
-  report: any,
+  layers: Map<string, Record<string, unknown>>,
+  report: EffectV1ValidationErrorReport,
 ): void {
   orderedLayers.forEach((layer, index) => {
     if (!isRecord(layer) || layer.parentId == null) return;
@@ -309,7 +311,7 @@ function validateLayerHierarchy(
       );
     }
     const visited = new Set<string>();
-    let cursor: any = layer;
+    let cursor: Record<string, unknown> | undefined = layer;
     let depth = 0;
     while (cursor?.parentId != null) {
       if (visited.has(String(cursor.id))) {
@@ -340,9 +342,12 @@ function validateLayerHierarchy(
         isRecord(layer) && isDescendantOf(layer, groupId, layers) ? index : -1,
       )
       .filter((index) => index >= 0);
+    const first = indexes[0];
+    const last = indexes.at(-1);
     if (
-      indexes.length > 0 &&
-      indexes[indexes.length - 1] - indexes[0] + 1 !== indexes.length
+      first !== undefined &&
+      last !== undefined &&
+      last - first + 1 !== indexes.length
     ) {
       report.error(
         "LAYER_SUBTREE_DISCONTIGUOUS",
@@ -354,11 +359,11 @@ function validateLayerHierarchy(
 }
 
 function isDescendantOf(
-  layer: Record<string, any>,
+  layer: Record<string, unknown>,
   groupId: string,
-  layers: Map<string, any>,
+  layers: Map<string, Record<string, unknown>>,
 ): boolean {
-  let cursor: any = layer;
+  let cursor: Record<string, unknown> | undefined = layer;
   const visited = new Set<string>();
   while (cursor?.parentId != null) {
     if (String(cursor.parentId) === groupId) return true;

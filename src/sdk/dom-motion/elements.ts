@@ -20,15 +20,20 @@ export function buildDomMotionParts(
   doc: Document,
   bindings: DomMotionBinding[],
 ): DomMotionPart[] {
+  const view = doc.defaultView;
+  if (!view) throw new Error("DOM motion document has no browsing context");
   const parts = bindings.map((binding) => {
     const matches = doc.querySelectorAll<HTMLElement>(binding.selector);
     if (matches.length !== 1)
       throw new Error(
         `DOM motion selector must match one element: ${binding.id}`,
       );
+    const matched = matches[0];
+    if (!matched)
+      throw new Error(`DOM motion selector has no element: ${binding.id}`);
     const source = binding.closest
-      ? matches[0].closest<HTMLElement>(binding.closest)
-      : matches[0];
+      ? matched.closest<HTMLElement>(binding.closest)
+      : matched;
     if (!source || !source.style || source.getBoundingClientRect().width <= 0)
       throw new Error(`DOM motion binding is not visible: ${binding.id}`);
     const matchesParts = binding.parts
@@ -38,7 +43,7 @@ export function buildDomMotionParts(
       throw new Error("DOM motion element budget exceeded");
     const candidates = matchesParts.filter((element) => {
       const rect = element.getBoundingClientRect();
-      const style = doc.defaultView!.getComputedStyle(element);
+      const style = view.getComputedStyle(element);
       return (
         !!element.style &&
         rect.width > 0 &&
@@ -59,8 +64,8 @@ export function buildDomMotionParts(
     return {
       binding,
       source,
-      width: doc.defaultView!.getComputedStyle(source).width,
-      height: doc.defaultView!.getComputedStyle(source).height,
+      width: view.getComputedStyle(source).width,
+      height: view.getComputedStyle(source).height,
       style: source.getAttribute("style"),
       children: childNodes,
       backgrounds: readDomMotionBackgrounds(source, childNodes),

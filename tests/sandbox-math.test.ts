@@ -1,3 +1,4 @@
+import { evaluateTimelineKeyframes } from "../src/sdk/timeline/keyframe-value.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -29,6 +30,30 @@ describe("sandbox runtime math", () => {
         0.25,
       ),
     ).toEqual({ opacity: 0.25, xy: [2.5, 12.5], label: "from" });
+  });
+
+  it("interpolates reserved object keys as data without changing the result prototype", () => {
+    const target: unknown = JSON.parse(
+      '{"__proto__":{"marker":1},"constructor":2}',
+    );
+    const result: unknown = interpolateTimelineValue({}, target, 0.75);
+    expect(result).toEqual(target);
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(result, "__proto__")).toBe(
+      true,
+    );
+  });
+
+  it("uses the numeric fallback for omitted values inside a segment", () => {
+    expect(
+      evaluateTimelineKeyframes([{ time: 0 }, { time: 2, value: 20 }], 1, 10),
+    ).toBe(15);
+    expect(
+      evaluateTimelineKeyframes([{ time: 0, value: 0 }, { time: 2 }], 1, 10),
+    ).toBe(5);
+    expect(evaluateTimelineKeyframes([{ time: 0 }, { time: 2 }], 1, 10)).toBe(
+      10,
+    );
   });
 
   it("resolves hold and bezier timeline easing", () => {

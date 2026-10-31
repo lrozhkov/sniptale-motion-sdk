@@ -1,4 +1,8 @@
-import type { EffectTimeline, TimelineTrack } from "../types.js";
+import type {
+  EffectTimeline,
+  TimelineTrack,
+  TimelineKeyframe,
+} from "../types.js";
 import {
   DOM_MOTION_PROPERTIES,
   DOM_MOTION_SCHEMA,
@@ -169,7 +173,7 @@ export function parseDomMotionTimeline(
       const easing = k.easing ?? "linear";
       if (typeof easing !== "string" || !EASINGS.has(easing))
         throw new Error("Invalid DOM motion easing");
-      let handles;
+      let handles: TimelineKeyframe["handles"];
       if (easing === "bezier") {
         if (!record(k.handles)) throw new Error("Invalid DOM motion handles");
         handles = {
@@ -179,7 +183,7 @@ export function parseDomMotionTimeline(
           y2: number(k.handles.y2, 0, 1, "handle"),
         };
       }
-      const limits =
+      const limits: readonly [number, number] =
         t.property === "assembly" ||
         t.property === "opacity" ||
         t.property === "scrollbarOpacity"
@@ -207,7 +211,7 @@ export function parseDomMotionTimeline(
       target: t.target,
       layerId: t.target,
       property: t.property,
-      label: typeof t.label === "string" ? t.label.slice(0, 200) : undefined,
+      ...(typeof t.label === "string" ? { label: t.label.slice(0, 200) } : {}),
       keyframes,
       ...(t.enabled === undefined ? {} : { enabled: t.enabled === true }),
     };

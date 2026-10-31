@@ -12,7 +12,11 @@
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": [
     "../../../src/sdk/index.ts",

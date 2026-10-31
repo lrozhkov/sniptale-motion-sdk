@@ -14,7 +14,7 @@ export function resolveEffectV1LocaleText(
   );
   for (const key of [
     canonical.toLowerCase(),
-    canonical.split("-")[0].toLowerCase(),
+    canonical.split("-").at(0)?.toLowerCase() ?? canonical.toLowerCase(),
     "en",
   ]) {
     const value = entries.get(key);

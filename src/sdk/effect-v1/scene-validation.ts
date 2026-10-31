@@ -1,3 +1,9 @@
+import { isFiniteNumber } from "./validation-shared.js";
+import { isUnknownArray } from "./validation-shared.js";
+import type {
+  EffectV1ValidationReport,
+  EffectV1ValidationErrorReport,
+} from "./diagnostics.js";
 import { validateControlPresentation } from "./control-presentation.js";
 import {
   isRecord,
@@ -42,10 +48,10 @@ const CONTROL_KEYS = new Set([
 export function validateEffectV1Scenes(
   value: unknown,
   duration: number,
-  report: any,
-): Map<string, any> {
-  const scenes = new Map<string, any>();
-  if (!Array.isArray(value) || value.length === 0) {
+  report: EffectV1ValidationErrorReport,
+): Map<string, Record<string, unknown>> {
+  const scenes = new Map<string, Record<string, unknown>>();
+  if (!isUnknownArray(value) || value.length === 0) {
     report.error(
       "SCENES_REQUIRED",
       "$.scenes",
@@ -76,12 +82,12 @@ export function validateEffectV1Scenes(
 
 export function validateEffectV1Clips(
   value: unknown,
-  layers: Map<string, any>,
-  scenes: Map<string, any>,
+  layers: Map<string, Record<string, unknown>>,
+  scenes: Map<string, Record<string, unknown>>,
   duration: number,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
-  if (!Array.isArray(value)) {
+  if (!isUnknownArray(value)) {
     report.error("CLIPS_TYPE", "$.clips", "Expected a clip array.");
     return;
   }
@@ -140,10 +146,10 @@ export function validateEffectV1Clips(
 
 export function validateEffectV1Controls(
   value: unknown,
-  report: any,
+  report: EffectV1ValidationReport,
 ): Set<string> {
   const ids = new Set<string>();
-  if (!Array.isArray(value)) {
+  if (!isUnknownArray(value)) {
     report.error("CONTROLS_TYPE", "$.controls", "Expected a control array.");
     return ids;
   }
@@ -181,9 +187,9 @@ export function validateEffectV1Controls(
 }
 
 function validateControlValue(
-  control: Record<string, any>,
+  control: Record<string, unknown>,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (control.kind === "number") {
     for (const key of ["defaultValue", "max", "min", "step"]) {
@@ -199,8 +205,8 @@ function validateControlValue(
       }
     }
     if (
-      Number.isFinite(control.min) &&
-      Number.isFinite(control.max) &&
+      isFiniteNumber(control.min) &&
+      isFiniteNumber(control.max) &&
       control.min >= control.max
     ) {
       report.error(
@@ -209,7 +215,7 @@ function validateControlValue(
         "Control min must be lower than max so the parameter can change.",
       );
     }
-    if (Number.isFinite(control.step) && control.step <= 0) {
+    if (isFiniteNumber(control.step) && control.step <= 0) {
       report.error(
         "CONTROL_STEP",
         `${path}.step`,
@@ -217,9 +223,9 @@ function validateControlValue(
       );
     }
     if (
-      Number.isFinite(control.defaultValue) &&
-      ((Number.isFinite(control.min) && control.defaultValue < control.min) ||
-        (Number.isFinite(control.max) && control.defaultValue > control.max))
+      isFiniteNumber(control.defaultValue) &&
+      ((isFiniteNumber(control.min) && control.defaultValue < control.min) ||
+        (isFiniteNumber(control.max) && control.defaultValue > control.max))
     ) {
       report.error(
         "CONTROL_DEFAULT_RANGE",
@@ -242,7 +248,7 @@ function validateControlValue(
 function validateOptionalBoolean(
   value: unknown,
   path: string,
-  report: any,
+  report: EffectV1ValidationErrorReport,
 ): void {
   if (value !== undefined && typeof value !== "boolean") {
     report.error("BOOLEAN", path, "Expected a boolean.");
