@@ -1,10 +1,15 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import { readInspectorNumber } from "./field-model.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { InspectorKeyframeActions } from "./keyframe-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function createKeyframeSegmentTools(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  totalDuration,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  totalDuration: number,
 ) {
   const keyframes = [...(track.keyframes ?? [])].sort(
     (a, b) => a.time - b.time,
@@ -89,13 +94,13 @@ function createKeyframeSegmentTools(
 
 function createKeyframeSegmentField(
   ctx: ViewerAppContext,
-  label,
-  trackId,
-  fromKeyframeId,
-  toKeyframeId,
-  property,
-  value,
-  totalDuration,
+  label: string,
+  trackId: string,
+  fromKeyframeId: string,
+  toKeyframeId: string,
+  property: "start" | "end" | "duration",
+  value: number,
+  totalDuration: number,
 ) {
   const field = document.createElement("label");
   field.className = "keyframe-segment-field";
@@ -111,13 +116,21 @@ function createKeyframeSegmentField(
   input.dataset.toKeyframeId = toKeyframeId;
   input.dataset.keyframeSegmentProperty = property;
   input.addEventListener("change", () => {
+    const next = readInspectorNumber(input.valueAsNumber, {
+      min: 0,
+      max: totalDuration,
+    });
+    if (next === null) {
+      input.value = String(ctx.roundInspectorNumber(value));
+      return;
+    }
     updateKeyframeSegmentTiming(
       ctx,
       trackId,
       fromKeyframeId,
       toKeyframeId,
       property,
-      Number(input.value),
+      next,
     );
   });
   field.append(input);
@@ -126,12 +139,13 @@ function createKeyframeSegmentField(
 
 function updateKeyframeSegmentTiming(
   ctx: ViewerAppContext,
-  trackId,
-  fromKeyframeId,
-  toKeyframeId,
-  property,
-  rawValue,
+  trackId: string,
+  fromKeyframeId: string,
+  toKeyframeId: string,
+  property: "start" | "end" | "duration",
+  rawValue: number,
 ) {
+  if (!Number.isFinite(rawValue)) return;
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const track = timeline.tracks.find((item) => item.id === trackId);
@@ -161,7 +175,7 @@ function updateKeyframeSegmentTiming(
   if (!from || !to) {
     return;
   }
-  const value = Number(rawValue);
+  const value = rawValue;
   ctx.beginEditorCommand({
     payload: { fromKeyframeId, property, toKeyframeId, trackId, value },
     type: "updateKeyframeSegment",
@@ -192,10 +206,10 @@ function updateKeyframeSegmentTiming(
 
 function createKeyframeNavigationButton(
   ctx: ViewerAppContext,
-  direction,
-  label,
-  trackId,
-  keyframe,
+  direction: "prev" | "next",
+  label: string,
+  trackId: string,
+  keyframe: TimelineKeyframe<unknown> | null | undefined,
 ) {
   const button = document.createElement("button");
   button.type = "button";
@@ -213,23 +227,31 @@ function createKeyframeNavigationButton(
   return button;
 }
 
-export function installInspectorKeyframeSegmentOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.createKeyframeSegmentTools = createKeyframeSegmentTools.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createKeyframeSegmentField = createKeyframeSegmentField.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateKeyframeSegmentTiming = updateKeyframeSegmentTiming.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createKeyframeNavigationButton = createKeyframeNavigationButton.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorKeyframeSegmentActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorKeyframeActions,
+  | "createKeyframeSegmentTools"
+  | "createKeyframeSegmentField"
+  | "updateKeyframeSegmentTiming"
+  | "createKeyframeNavigationButton"
+> {
+  return {
+    createKeyframeSegmentTools: bindViewerAction(
+      createKeyframeSegmentTools,
+      getContext,
+    ),
+    createKeyframeSegmentField: bindViewerAction(
+      createKeyframeSegmentField,
+      getContext,
+    ),
+    updateKeyframeSegmentTiming: bindViewerAction(
+      updateKeyframeSegmentTiming,
+      getContext,
+    ),
+    createKeyframeNavigationButton: bindViewerAction(
+      createKeyframeNavigationButton,
+      getContext,
+    ),
+  };
 }

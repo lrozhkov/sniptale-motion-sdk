@@ -1,11 +1,15 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { InspectorKeyframeActions } from "./keyframe-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getTrackNumericPropertyRange } from "../layers/property-range.js";
 
 function appendKeyframeEditInspector(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  totalDuration,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  totalDuration: number,
 ) {
   const valueRange = getTrackNumericPropertyRange(
     ctx,
@@ -38,9 +42,13 @@ function appendKeyframeEditInspector(
   ctx.appendInspectorKeyframeEasingField(track, keyframe);
 }
 
-export function installInspectorKeyframeEditOwner(ctx: ViewerAppContext): void {
-  ctx.appendKeyframeEditInspector = appendKeyframeEditInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorKeyframeEditActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorKeyframeActions, "appendKeyframeEditInspector"> {
+  return {
+    appendKeyframeEditInspector: bindViewerAction(
+      appendKeyframeEditInspector,
+      getContext,
+    ),
+  };
 }

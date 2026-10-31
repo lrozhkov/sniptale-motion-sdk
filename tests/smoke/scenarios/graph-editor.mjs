@@ -1,3 +1,4 @@
+import { assertInspectorKeyframeFlow } from "./inspector-keyframe.mjs";
 import { assertActiveGestureUndo } from "./pointer-ownership.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -68,6 +69,7 @@ export async function assertGraphEditorFlow({
       .first();
     await expect(timelinePoint).toBeVisible();
     await timelinePoint.click();
+    await assertInspectorKeyframeFlow(page, outputDir);
     await expect(page.locator("#graphEditorButton")).toBeEnabled();
     await page.locator("#graphEditorButton").click();
     const svg = page.locator(".graph-editor-svg");
@@ -138,6 +140,11 @@ export async function assertGraphEditorFlow({
           browser: page.context().browser().version(),
           steps: [
             "numeric-selection",
+            "inspector-value-and-undo",
+            "inspector-invalid-value-preserves-redo",
+            "inspector-bezier-drag",
+            "inspector-undo-active-bezier-drag",
+            "inspector-redo-and-restore",
             "lazy-open",
             "keyframe-drag",
             "bezier-curve",
@@ -162,6 +169,8 @@ export async function assertGraphEditorFlow({
 }
 
 async function selectEffect(page, id) {
+  await expect(page.locator("#packStatus")).toHaveClass(/ready/);
+  await expect(page.locator("#templateSelect option")).toHaveCount(3);
   await page.locator("#templateComboboxButton").click();
   await page.locator(`.template-combobox-option[data-value="${id}"]`).click();
   await expect(page.locator("#templateSelect")).toHaveValue(id);

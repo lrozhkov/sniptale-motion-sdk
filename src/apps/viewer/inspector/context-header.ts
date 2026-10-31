@@ -92,7 +92,7 @@ function getInspectorContext(ctx: ViewerAppContext, item, template) {
         item.type === "keyframe" ? "Keyframe" : "Property track",
       ),
       title:
-        item.type === "keyframe" && keyframe
+        item.type === "keyframe" && track && keyframe
           ? getKeyframeDisplayLabel(ctx, track, keyframe)
           : (track?.label ?? item.trackId),
     };

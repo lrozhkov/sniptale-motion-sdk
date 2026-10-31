@@ -25,8 +25,8 @@ describe("viewer keyframe labels", () => {
     expect(
       getKeyframeDisplayLabel(
         ctx,
-        { label: "Scene glow" },
-        { id: "scene-glow-b", time: 1.5 },
+        { id: "glow", keyframes: [], label: "Scene glow" },
+        { id: "scene-glow-b", time: 1.5, value: 0.5 },
       ),
     ).toBe("Scene glow · 1.500с");
   });

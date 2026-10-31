@@ -1,3 +1,5 @@
+import type { InspectorFieldActions } from "../inspector/fields-contract.js";
+import type { InspectorKeyframeActions } from "../inspector/keyframe-contract.js";
 import type { CanvasDisplayActions } from "../canvas/display-contract.js";
 import type { LayerHierarchyActions } from "../layers/hierarchy-contract.js";
 import type { CanvasSelectionActions } from "../canvas/selection-contract.js";
@@ -54,6 +56,8 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    InspectorFieldActions,
+    InspectorKeyframeActions,
     CanvasDisplayActions,
     LayerHierarchyActions,
     CanvasSelectionActions,

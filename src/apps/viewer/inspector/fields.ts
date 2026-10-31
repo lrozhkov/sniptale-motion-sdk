@@ -1,3 +1,20 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  EffectClip,
+  EffectScene,
+  TimelinePhase,
+  TimelineKeyframe,
+} from "../../../sdk/types.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type {
+  InspectorFieldActions,
+  InspectorTimingField,
+  InspectorRowValue,
+} from "./fields-contract.js";
+import {
+  readInspectorNumber,
+  type InspectorNumberField,
+} from "./field-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getKeyframeEasingLabel,
@@ -19,7 +36,7 @@ function prepareInspectorSections(ctx: ViewerAppContext) {
   ctx.state.inspectorAppendSection = "summary";
 }
 
-function setInspectorAppendSection(ctx: ViewerAppContext, section) {
+function setInspectorAppendSection(ctx: ViewerAppContext, section: string) {
   ctx.state.inspectorAppendSection = section;
 }
 
@@ -31,18 +48,24 @@ export function isInspectorSectionActive(
 }
 
 function getInspectorAppendTarget(ctx: ViewerAppContext) {
-  return (
-    ctx.refs.inspectorPanel.querySelector(
-      `[data-inspector-section="${ctx.state.inspectorAppendSection ?? "summary"}"]`,
-    ) ?? ctx.refs.inspectorPanel
+  const target = ctx.refs.inspectorPanel.querySelector(
+    `[data-inspector-section="${ctx.state.inspectorAppendSection ?? "summary"}"]`,
   );
+  return target instanceof HTMLElement ? target : ctx.refs.inspectorPanel;
 }
 
-function appendInspectorNode(ctx: ViewerAppContext, ...nodes) {
+function appendInspectorNode(
+  ctx: ViewerAppContext,
+  ...nodes: (Node | string)[]
+) {
   ctx.getInspectorAppendTarget().append(...nodes);
 }
 
-function appendInspectorRows(ctx: ViewerAppContext, title, rows) {
+function appendInspectorRows(
+  ctx: ViewerAppContext,
+  title: string,
+  rows: readonly (readonly [string, InspectorRowValue])[],
+) {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
   heading.textContent = title;
@@ -62,9 +85,9 @@ function appendInspectorRows(ctx: ViewerAppContext, title, rows) {
 
 function appendInspectorKeyframeNumberField(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  field,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  field: InspectorNumberField<"time" | "value">,
 ) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
@@ -80,9 +103,13 @@ function appendInspectorKeyframeNumberField(
   input.dataset.keyframeId = keyframe.id;
   input.dataset.keyframeProperty = field.property;
   input.addEventListener("change", () => {
-    const value = ctx.deps.clamp(Number(input.value), field.min, field.max);
+    const value = readInspectorNumber(input.valueAsNumber, field);
+    if (value === null) {
+      input.value = String(ctx.roundInspectorNumber(keyframe[field.property]));
+      return;
+    }
     input.value = String(ctx.roundInspectorNumber(value));
-    ctx.updateSelectedKeyframe(
+    void ctx.updateSelectedKeyframe(
       { [field.property]: value },
       track.id,
       keyframe.id,
@@ -94,8 +121,8 @@ function appendInspectorKeyframeNumberField(
 
 function appendInspectorKeyframeEasingField(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
 ) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
@@ -112,14 +139,22 @@ function appendInspectorKeyframeEasingField(
     select.append(option);
   }
   select.value = keyframe.easing ?? "linear";
-  select.addEventListener("change", () =>
-    ctx.updateSelectedKeyframe({ easing: select.value }, track.id, keyframe.id),
-  );
+  select.addEventListener("change", () => {
+    const easing = KEYFRAME_EASING_PRESETS.find(
+      (value) => value === select.value,
+    );
+    if (easing)
+      void ctx.updateSelectedKeyframe({ easing }, track.id, keyframe.id);
+  });
   row.append(name, select);
   ctx.appendInspectorNode(row);
 }
 
-function appendInspectorSceneField(ctx: ViewerAppContext, scene, field) {
+function appendInspectorSceneField(
+  ctx: ViewerAppContext,
+  scene: EffectScene,
+  field: InspectorTimingField,
+) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
   const name = document.createElement("span");
@@ -128,7 +163,7 @@ function appendInspectorSceneField(ctx: ViewerAppContext, scene, field) {
   input.type = field.kind === "text" ? "text" : "number";
   input.value =
     field.kind === "text"
-      ? String(scene.label ?? scene.id)
+      ? ctx.deps.translateText(scene.label, scene.id)
       : String(ctx.roundInspectorNumber(scene[field.property]));
   input.dataset.sceneId = scene.id;
   input.dataset.sceneProperty = field.property;
@@ -139,14 +174,28 @@ function appendInspectorSceneField(ctx: ViewerAppContext, scene, field) {
     input.step = String(field.step);
   }
   input.addEventListener("change", () => {
-    const value = field.kind === "number" ? Number(input.value) : input.value;
+    const value =
+      field.kind === "number"
+        ? readInspectorNumber(input.valueAsNumber, field)
+        : input.value;
+    if (value === null) {
+      input.value =
+        field.kind === "number"
+          ? String(ctx.roundInspectorNumber(scene[field.property]))
+          : ctx.deps.translateText(scene.label, scene.id);
+      return;
+    }
     ctx.updateSceneProperty(scene.id, field.property, value);
   });
   row.append(name, input);
   ctx.appendInspectorNode(row);
 }
 
-function appendInspectorPhaseField(ctx: ViewerAppContext, phase, field) {
+function appendInspectorPhaseField(
+  ctx: ViewerAppContext,
+  phase: TimelinePhase,
+  field: InspectorTimingField,
+) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
   const name = document.createElement("span");
@@ -155,7 +204,7 @@ function appendInspectorPhaseField(ctx: ViewerAppContext, phase, field) {
   input.type = field.kind === "text" ? "text" : "number";
   input.value =
     field.kind === "text"
-      ? String(phase.label ?? phase.id)
+      ? ctx.deps.translateText(phase.label, phase.id)
       : String(ctx.roundInspectorNumber(phase[field.property]));
   input.dataset.phaseId = phase.id;
   input.dataset.phaseProperty = field.property;
@@ -166,14 +215,28 @@ function appendInspectorPhaseField(ctx: ViewerAppContext, phase, field) {
     input.step = String(field.step);
   }
   input.addEventListener("change", () => {
-    const value = field.kind === "number" ? Number(input.value) : input.value;
+    const value =
+      field.kind === "number"
+        ? readInspectorNumber(input.valueAsNumber, field)
+        : input.value;
+    if (value === null) {
+      input.value =
+        field.kind === "number"
+          ? String(ctx.roundInspectorNumber(phase[field.property]))
+          : ctx.deps.translateText(phase.label, phase.id);
+      return;
+    }
     ctx.updatePhaseProperty(phase.id, field.property, value);
   });
   row.append(name, input);
   ctx.appendInspectorNode(row);
 }
 
-function appendInspectorClipField(ctx: ViewerAppContext, clip, field) {
+function appendInspectorClipField(
+  ctx: ViewerAppContext,
+  clip: EffectClip,
+  field: InspectorNumberField<"start" | "duration" | "offset">,
+) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
   const name = document.createElement("span");
@@ -187,7 +250,11 @@ function appendInspectorClipField(ctx: ViewerAppContext, clip, field) {
   input.dataset.layerId = clip.layerId;
   input.dataset.clipProperty = field.property;
   input.addEventListener("change", () => {
-    const value = ctx.deps.clamp(Number(input.value), field.min, field.max);
+    const value = readInspectorNumber(input.valueAsNumber, field);
+    if (value === null) {
+      input.value = String(ctx.roundInspectorNumber(clip[field.property]));
+      return;
+    }
     input.value = String(ctx.roundInspectorNumber(value));
     ctx.beginEditorCommand({
       payload: { layerId: clip.layerId, property: field.property, value },
@@ -199,27 +266,60 @@ function appendInspectorClipField(ctx: ViewerAppContext, clip, field) {
   ctx.appendInspectorNode(row);
 }
 
-export function installInspectorFieldsOwner(ctx: ViewerAppContext): void {
-  ctx.prepareInspectorSections = prepareInspectorSections.bind(undefined, ctx);
-  ctx.setInspectorAppendSection = setInspectorAppendSection.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isInspectorSectionActive = isInspectorSectionActive.bind(undefined, ctx);
-  ctx.getInspectorAppendTarget = getInspectorAppendTarget.bind(undefined, ctx);
-  ctx.appendInspectorNode = appendInspectorNode.bind(undefined, ctx);
-  ctx.appendInspectorRows = appendInspectorRows.bind(undefined, ctx);
-  ctx.appendInspectorKeyframeNumberField =
-    appendInspectorKeyframeNumberField.bind(undefined, ctx);
-  ctx.appendInspectorKeyframeEasingField =
-    appendInspectorKeyframeEasingField.bind(undefined, ctx);
-  ctx.appendInspectorSceneField = appendInspectorSceneField.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendInspectorPhaseField = appendInspectorPhaseField.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendInspectorClipField = appendInspectorClipField.bind(undefined, ctx);
+export function createInspectorFieldActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorFieldActions,
+  | "prepareInspectorSections"
+  | "setInspectorAppendSection"
+  | "isInspectorSectionActive"
+  | "getInspectorAppendTarget"
+  | "appendInspectorNode"
+  | "appendInspectorRows"
+  | "appendInspectorKeyframeNumberField"
+  | "appendInspectorKeyframeEasingField"
+  | "appendInspectorSceneField"
+  | "appendInspectorPhaseField"
+  | "appendInspectorClipField"
+> {
+  return {
+    prepareInspectorSections: bindViewerAction(
+      prepareInspectorSections,
+      getContext,
+    ),
+    setInspectorAppendSection: bindViewerAction(
+      setInspectorAppendSection,
+      getContext,
+    ),
+    isInspectorSectionActive: bindViewerAction(
+      isInspectorSectionActive,
+      getContext,
+    ),
+    getInspectorAppendTarget: bindViewerAction(
+      getInspectorAppendTarget,
+      getContext,
+    ),
+    appendInspectorNode: bindViewerAction(appendInspectorNode, getContext),
+    appendInspectorRows: bindViewerAction(appendInspectorRows, getContext),
+    appendInspectorKeyframeNumberField: bindViewerAction(
+      appendInspectorKeyframeNumberField,
+      getContext,
+    ),
+    appendInspectorKeyframeEasingField: bindViewerAction(
+      appendInspectorKeyframeEasingField,
+      getContext,
+    ),
+    appendInspectorSceneField: bindViewerAction(
+      appendInspectorSceneField,
+      getContext,
+    ),
+    appendInspectorPhaseField: bindViewerAction(
+      appendInspectorPhaseField,
+      getContext,
+    ),
+    appendInspectorClipField: bindViewerAction(
+      appendInspectorClipField,
+      getContext,
+    ),
+  };
 }

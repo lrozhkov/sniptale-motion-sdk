@@ -1,3 +1,5 @@
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 export const KEYFRAME_EASING_PRESETS = [
@@ -24,8 +26,8 @@ export function getKeyframeEasingLabel(
 
 export function getKeyframeDisplayLabel(
   ctx: ViewerAppContext,
-  track: any,
-  keyframe: any,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown> | null | undefined,
 ): string {
   const trackLabel = ctx.getTimelineTrackDisplayLabel(track);
   return keyframe

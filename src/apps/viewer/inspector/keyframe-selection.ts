@@ -1,3 +1,8 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { KeyframeSelectionInspectorModel } from "./keyframe-selection-model.js";
+import type { InspectorKeyframeActions } from "./keyframe-contract.js";
+import { readInspectorNumber } from "./field-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   KEYFRAME_EASING_PRESETS,
@@ -5,7 +10,10 @@ import {
 } from "./keyframe-labels.js";
 import { createKeyframeSelectionInspectorModel } from "./keyframe-selection-model.js";
 
-function appendKeyframeSelectionInspector(ctx: ViewerAppContext, template) {
+function appendKeyframeSelectionInspector(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource,
+) {
   const model = createKeyframeSelectionInspectorModel(ctx, template);
   if (!model) {
     return false;
@@ -27,7 +35,10 @@ function appendKeyframeSelectionInspector(ctx: ViewerAppContext, template) {
   return true;
 }
 
-function appendSelectionSummary(ctx, model): void {
+function appendSelectionSummary(
+  ctx: ViewerAppContext,
+  model: KeyframeSelectionInspectorModel,
+): void {
   ctx.appendInspectorRows(
     ctx.deps.t(
       "viewer.inspector.keyframeSelection.title",
@@ -65,7 +76,10 @@ function appendSelectionSummary(ctx, model): void {
   );
 }
 
-function appendSelectionRange(ctx, model): void {
+function appendSelectionRange(
+  ctx: ViewerAppContext,
+  model: KeyframeSelectionInspectorModel,
+): void {
   const section = createInspectorGroup(
     ctx.deps.t("viewer.inspector.keyframeSelection.range", "Selection range"),
     "inspector-property-grid keyframe-selection-range",
@@ -89,7 +103,7 @@ function appendSelectionRange(ctx, model): void {
       model.bounds.duration,
       model.bounds.duration <= 0,
     ],
-  ]) {
+  ] as const) {
     section.body.append(
       createNumberField(ctx, {
         disabled,
@@ -103,7 +117,10 @@ function appendSelectionRange(ctx, model): void {
   ctx.appendInspectorNode(section.root);
 }
 
-function appendSelectionActions(ctx, model): void {
+function appendSelectionActions(
+  ctx: ViewerAppContext,
+  model: KeyframeSelectionInspectorModel,
+): void {
   const section = createInspectorGroup(
     ctx.deps.t("viewer.inspector.keyframeSelection.arrange", "Arrange in time"),
     "keyframe-selection-actions",
@@ -143,7 +160,7 @@ function appendSelectionActions(ctx, model): void {
       false,
       () => ctx.quantizeSelectedKeyframes(),
     ],
-  ]) {
+  ] as const) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "secondary compact";
@@ -155,7 +172,10 @@ function appendSelectionActions(ctx, model): void {
   ctx.appendInspectorNode(section.root);
 }
 
-function appendSelectionProperties(ctx, model): void {
+function appendSelectionProperties(
+  ctx: ViewerAppContext,
+  model: KeyframeSelectionInspectorModel,
+): void {
   const section = createInspectorGroup(
     ctx.deps.t(
       "viewer.inspector.keyframeSelection.common",
@@ -168,8 +188,7 @@ function appendSelectionProperties(ctx, model): void {
       disabled: !model.canEditValue,
       label: ctx.deps.t("viewer.fields.value", "Value"),
       mixed: model.value?.mixed ?? true,
-      onChange: (value) =>
-        ctx.updateSelectedKeyframesBatch({ value: Number(value) }),
+      onChange: (value) => ctx.updateSelectedKeyframesBatch({ value }),
       value: model.value?.value ?? null,
     }),
     createEasingField(ctx, model),
@@ -191,7 +210,10 @@ function appendSelectionProperties(ctx, model): void {
   ctx.appendInspectorNode(section.root);
 }
 
-function createEasingField(ctx, model) {
+function createEasingField(
+  ctx: ViewerAppContext,
+  model: KeyframeSelectionInspectorModel,
+) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
   const label = document.createElement("span");
@@ -213,17 +235,21 @@ function createEasingField(ctx, model) {
     option.textContent = getKeyframeEasingLabel(ctx, easing);
     select.append(option);
   }
-  select.value = model.easing.mixed ? "" : model.easing.value;
+  select.value = model.easing.mixed ? "" : (model.easing.value ?? "");
   select.addEventListener("change", () => {
-    if (select.value) {
-      ctx.updateSelectedKeyframesBatch({ easing: select.value });
-    }
+    const easing = KEYFRAME_EASING_PRESETS.find(
+      (value) => value === select.value,
+    );
+    if (easing) ctx.updateSelectedKeyframesBatch({ easing });
   });
   row.append(label, select);
   return row;
 }
 
-function appendSelectionOwnership(ctx, model): void {
+function appendSelectionOwnership(
+  ctx: ViewerAppContext,
+  model: KeyframeSelectionInspectorModel,
+): void {
   ctx.appendInspectorRows(
     ctx.deps.t("viewer.inspector.ownership", "Ownership"),
     [
@@ -239,12 +265,15 @@ function appendSelectionOwnership(ctx, model): void {
   );
 }
 
-function formatOwnershipValues(ctx, values): string {
+function formatOwnershipValues(
+  ctx: ViewerAppContext,
+  values: readonly string[],
+): string {
   if (values.length === 0) {
     return ctx.deps.t("viewer.inspector.values.none", "None");
   }
   if (values.length === 1) {
-    return values[0];
+    return values[0] ?? "";
   }
   return ctx.deps
     .t("viewer.inspector.keyframeSelection.mixedCount", "{count} values")
@@ -252,8 +281,20 @@ function formatOwnershipValues(ctx, values): string {
 }
 
 function createNumberField(
-  ctx,
-  { disabled = false, label, mixed = false, onChange, value },
+  ctx: ViewerAppContext,
+  {
+    disabled = false,
+    label,
+    mixed = false,
+    onChange,
+    value,
+  }: {
+    disabled?: boolean;
+    label: string;
+    mixed?: boolean;
+    onChange: (value: number) => void;
+    value: number | null;
+  },
 ) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
@@ -271,12 +312,23 @@ function createNumberField(
     value === null || value === undefined
       ? ""
       : String(ctx.roundInspectorNumber(value));
-  input.addEventListener("change", () => onChange(input.value));
+  input.addEventListener("change", () => {
+    const next = readInspectorNumber(input.valueAsNumber, {
+      min: -Infinity,
+      max: Infinity,
+    });
+    if (next === null) {
+      input.value =
+        value === null ? "" : String(ctx.roundInspectorNumber(value));
+      return;
+    }
+    onChange(next);
+  });
   row.append(name, input);
   return row;
 }
 
-function createInspectorGroup(label, bodyClass) {
+function createInspectorGroup(label: string, bodyClass: string) {
   const root = document.createElement("section");
   root.className = "inspector-property-group";
   const heading = document.createElement("div");
@@ -288,11 +340,13 @@ function createInspectorGroup(label, bodyClass) {
   return { body, root };
 }
 
-export function installInspectorKeyframeSelectionOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendKeyframeSelectionInspector = appendKeyframeSelectionInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorKeyframeSelectionActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorKeyframeActions, "appendKeyframeSelectionInspector"> {
+  return {
+    appendKeyframeSelectionInspector: bindViewerAction(
+      appendKeyframeSelectionInspector,
+      getContext,
+    ),
+  };
 }

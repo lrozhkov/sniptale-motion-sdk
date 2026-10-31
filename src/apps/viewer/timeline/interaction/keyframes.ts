@@ -24,7 +24,7 @@ function updateSelectedKeyframe(
   patch: KeyframePatch,
   trackId = ctx.getPrimaryKeyframeSelection()?.trackId,
   keyframeId = ctx.getPrimaryKeyframeSelection()?.keyframeId,
-  options: { history?: boolean } = {},
+  options: { history?: boolean; render?: boolean; timeline?: boolean } = {},
 ) {
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
@@ -96,8 +96,8 @@ function updateSelectedKeyframe(
     template.id,
     ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
   );
-  ctx.renderTimelineEditor(template);
-  return ctx.renderCurrentFrame();
+  if (options.timeline !== false) ctx.renderTimelineEditor(template);
+  if (options.render !== false) return ctx.renderCurrentFrame();
 }
 function addKeyframeAtPlayhead(ctx: ViewerAppContext, trackId: string) {
   const template = ctx.state.currentTemplate;

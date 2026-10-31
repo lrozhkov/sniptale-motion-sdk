@@ -1,20 +1,24 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { InspectorHandleProperty } from "./keyframe-contract.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { InspectorKeyframeActions } from "./keyframe-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function createCurveHandleNumberField(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  label,
-  property,
-  value,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  label: string,
+  property: InspectorHandleProperty,
+  value: number,
 ) {
-  return ctx.createCurveField(
+  return ctx.createCurveNumberField(
     label,
-    "number",
     ctx.roundInspectorNumber(value),
     (nextValue) =>
-      ctx.updateSelectedKeyframe(
-        { handles: { [property]: ctx.deps.clamp(Number(nextValue), 0, 1) } },
+      void ctx.updateSelectedKeyframe(
+        { handles: { [property]: ctx.deps.clamp(nextValue, 0, 1) } },
         track.id,
         keyframe.id,
       ),
@@ -28,11 +32,13 @@ function createCurveHandleNumberField(
   );
 }
 
-export function installInspectorKeyframeCurveHandlesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.createCurveHandleNumberField = createCurveHandleNumberField.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorKeyframeCurveHandleActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorKeyframeActions, "createCurveHandleNumberField"> {
+  return {
+    createCurveHandleNumberField: bindViewerAction(
+      createCurveHandleNumberField,
+      getContext,
+    ),
+  };
 }

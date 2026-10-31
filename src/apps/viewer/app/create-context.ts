@@ -1,3 +1,11 @@
+import { createInspectorFieldActions } from "../inspector/fields.js";
+import { createInspectorTimingActions } from "../inspector/timing.js";
+import { createInspectorKeyframeSelectionActions } from "../inspector/keyframe-selection.js";
+import { createInspectorKeyframeEditActions } from "../inspector/keyframe-edit.js";
+import { createInspectorKeyframeCurveActions } from "../inspector/keyframe-curve.js";
+import { createInspectorKeyframeCurveHandleActions } from "../inspector/keyframe-curve-handles.js";
+import { createInspectorCurveEditorActions } from "../inspector/curve-editor.js";
+import { createInspectorKeyframeSegmentActions } from "../inspector/keyframe-segment.js";
 import { createInspectorNumberFieldActions } from "../inspector/number-fields.js";
 import { createInspectorLayerPropertyActions } from "../inspector/layer-properties.js";
 import { createInspectorLayerContentActions } from "../inspector/layer-content-fields.js";
@@ -86,6 +94,15 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createInspectorFieldActions(() => ctx),
+    ...createInspectorTimingActions(() => ctx),
+    ...createInspectorKeyframeSelectionActions(() => ctx),
+    ...createInspectorKeyframeEditActions(() => ctx),
+    ...createInspectorKeyframeCurveActions(() => ctx),
+    ...createInspectorKeyframeCurveHandleActions(() => ctx),
+    ...createInspectorCurveEditorActions(() => ctx),
+    ...createInspectorKeyframeSegmentActions(() => ctx),
+
     ...createInspectorNumberFieldActions(() => ctx),
     ...createInspectorLayerPropertyActions(() => ctx),
     ...createInspectorLayerContentActions(() => ctx),

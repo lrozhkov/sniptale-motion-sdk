@@ -1,9 +1,17 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  EffectClip,
+  EffectScene,
+  TimelinePhase,
+} from "../../../sdk/types.js";
+import type { InspectorFieldActions } from "./fields-contract.js";
+import type { InspectorNumberField } from "./field-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 function appendPhaseTimingInspector(
   ctx: ViewerAppContext,
-  phase,
-  totalDuration,
+  phase: TimelinePhase,
+  totalDuration: number,
 ) {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
@@ -37,8 +45,8 @@ function appendPhaseTimingInspector(
 
 function appendSceneTimingInspector(
   ctx: ViewerAppContext,
-  scene,
-  totalDuration,
+  scene: EffectScene,
+  totalDuration: number,
 ) {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
@@ -70,7 +78,11 @@ function appendSceneTimingInspector(
   });
 }
 
-function appendClipTimingInspector(ctx: ViewerAppContext, clip, totalDuration) {
+function appendClipTimingInspector(
+  ctx: ViewerAppContext,
+  clip: EffectClip,
+  totalDuration: number,
+) {
   const heading = document.createElement("div");
   heading.className = "inspector-heading";
   heading.textContent = ctx.deps.t(
@@ -78,7 +90,9 @@ function appendClipTimingInspector(ctx: ViewerAppContext, clip, totalDuration) {
     "Clip Timing",
   );
   ctx.appendInspectorNode(heading);
-  const fields = [
+  const fields: readonly InspectorNumberField<
+    "start" | "duration" | "offset"
+  >[] = [
     {
       label: ctx.deps.t("viewer.fields.start", "Start"),
       max: totalDuration,
@@ -106,17 +120,26 @@ function appendClipTimingInspector(ctx: ViewerAppContext, clip, totalDuration) {
   }
 }
 
-export function installInspectorTimingOwner(ctx: ViewerAppContext): void {
-  ctx.appendPhaseTimingInspector = appendPhaseTimingInspector.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendSceneTimingInspector = appendSceneTimingInspector.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendClipTimingInspector = appendClipTimingInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorTimingActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorFieldActions,
+  | "appendPhaseTimingInspector"
+  | "appendSceneTimingInspector"
+  | "appendClipTimingInspector"
+> {
+  return {
+    appendPhaseTimingInspector: bindViewerAction(
+      appendPhaseTimingInspector,
+      getContext,
+    ),
+    appendSceneTimingInspector: bindViewerAction(
+      appendSceneTimingInspector,
+      getContext,
+    ),
+    appendClipTimingInspector: bindViewerAction(
+      appendClipTimingInspector,
+      getContext,
+    ),
+  };
 }

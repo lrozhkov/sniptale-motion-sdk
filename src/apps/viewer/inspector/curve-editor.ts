@@ -1,3 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type {
+  InspectorKeyframeActions,
+  InspectorCurvePoint,
+  InspectorCurveFieldOptions,
+} from "./keyframe-contract.js";
+import { createTimelineDragPreview } from "../timeline/interaction/drag-preview.js";
+import { readInspectorNumber } from "./field-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getKeyframeEasingLabel,
@@ -5,7 +14,12 @@ import {
 } from "./keyframe-labels.js";
 import { resolveTimelineEase } from "../../../sdk/timeline/easing.js";
 
-function createCurveSvg(ctx: ViewerAppContext, trackId, keyframeId, keyframe) {
+function createCurveSvg(
+  ctx: ViewerAppContext,
+  trackId: string,
+  keyframeId: string,
+  keyframe: TimelineKeyframe<unknown>,
+) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "curve-svg");
   svg.setAttribute("viewBox", "0 0 240 94");
@@ -69,13 +83,13 @@ function createCurveSvg(ctx: ViewerAppContext, trackId, keyframeId, keyframe) {
 
 function createCurveHandle(
   ctx: ViewerAppContext,
-  trackId,
-  keyframeId,
-  handleName,
-  point,
-  start,
-  end,
-) {
+  trackId: string,
+  keyframeId: string,
+  handleName: "first" | "second",
+  point: InspectorCurvePoint,
+  start: InspectorCurvePoint,
+  end: InspectorCurvePoint,
+): SVGCircleElement {
   const circle = document.createElementNS(
     "http://www.w3.org/2000/svg",
     "circle",
@@ -87,27 +101,26 @@ function createCurveHandle(
   circle.addEventListener("mousedown", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const svg = (event.currentTarget as SVGCircleElement).ownerSVGElement;
+    const template = ctx.state.currentTemplate;
+    const svg = circle.ownerSVGElement;
+    if (!template || !svg) return;
     const rect = svg.getBoundingClientRect();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    let commandStarted = false;
-    const onMove = (moveEvent) => {
-      if (!commandStarted) {
-        if (
+    const startX = event.clientX,
+      startY = event.clientY;
+    const preview = createTimelineDragPreview(ctx, template);
+    const onMove = (moveEvent: MouseEvent) => {
+      if (
+        !preview.activate(
           Math.abs(moveEvent.clientX - startX) +
-            Math.abs(moveEvent.clientY - startY) <=
-          2
-        ) {
-          return;
-        }
-        commandStarted = true;
-        ctx.state.dragMoved = true;
-        ctx.beginEditorCommand({
-          payload: { handleName, keyframeId, trackId },
-          type: "updateKeyframe",
-        });
-      }
+            Math.abs(moveEvent.clientY - startY),
+          () =>
+            ctx.beginEditorCommand({
+              payload: { handleName, keyframeId, trackId },
+              type: "updateKeyframe",
+            }),
+        )
+      )
+        return;
       const x = ctx.deps.clamp(
         (moveEvent.clientX - rect.left) / Math.max(1, rect.width),
         0,
@@ -122,57 +135,62 @@ function createCurveHandle(
         x: ctx.deps.clamp((x * 240 - start.x) / (end.x - start.x), 0, 1),
         y: ctx.deps.clamp((start.y - y * 94) / (start.y - end.y), 0, 1),
       };
-      ctx.updateSelectedKeyframe(
-        handleName === "first"
-          ? { handles: { x1: normalized.x, y1: normalized.y } }
-          : { handles: { x2: normalized.x, y2: normalized.y } },
-        trackId,
-        keyframeId,
-        { history: false },
+      preview.scheduleUpdate(
+        () => {
+          void ctx.updateSelectedKeyframe(
+            handleName === "first"
+              ? { handles: { x1: normalized.x, y1: normalized.y } }
+              : { handles: { x2: normalized.x, y2: normalized.y } },
+            trackId,
+            keyframeId,
+            { history: false, render: false, timeline: false },
+          );
+        },
+        () => ctx.renderInspector(),
       );
     };
-    ctx.bindPointerDrag((event as any).pointerId, event.currentTarget, onMove);
+    ctx.bindPointerDrag(null, circle, onMove, () => preview.finalize());
   });
   return circle;
 }
 
-function createCurveField(
-  ctx: ViewerAppContext,
-  labelText,
-  type,
-  value,
-  onInput,
-  options: any = {},
-) {
+function createCurveNumberField(
+  _ctx: ViewerAppContext,
+  labelText: string,
+  value: number,
+  onInput: (value: number) => void,
+  options: InspectorCurveFieldOptions = {},
+): HTMLLabelElement {
   const label = document.createElement("label");
   label.textContent = labelText;
   const input = document.createElement("input");
-  input.type = type;
-  input.step = type === "number" ? "0.01" : undefined;
-  if (options.min !== undefined) {
-    input.min = String(options.min);
-  }
-  if (options.max !== undefined) {
-    input.max = String(options.max);
-  }
-  if (options.trackId) {
-    input.dataset.trackId = options.trackId;
-  }
-  if (options.keyframeId) {
-    input.dataset.keyframeId = options.keyframeId;
-  }
-  if (options.keyframeProperty) {
+  input.type = "number";
+  input.step = "0.01";
+  if (options.min !== undefined) input.min = String(options.min);
+  if (options.max !== undefined) input.max = String(options.max);
+  if (options.trackId) input.dataset.trackId = options.trackId;
+  if (options.keyframeId) input.dataset.keyframeId = options.keyframeId;
+  if (options.keyframeProperty)
     input.dataset.keyframeProperty = options.keyframeProperty;
-  }
   input.value = String(value);
-  input.addEventListener("change", () => onInput(input.value));
+  input.addEventListener("change", () => {
+    const next = readInspectorNumber(input.valueAsNumber, {
+      min: options.min ?? -Infinity,
+      max: options.max ?? Infinity,
+    });
+    if (next === null) {
+      input.value = String(value);
+      return;
+    }
+    onInput(next);
+  });
   label.append(input);
   return label;
 }
 
 function createEasingField(
   ctx: ViewerAppContext,
-  keyframe,
+  keyframe: TimelineKeyframe<unknown>,
   trackId = ctx.getPrimaryKeyframeSelection()?.trackId,
   keyframeId = ctx.getPrimaryKeyframeSelection()?.keyframeId,
 ) {
@@ -204,10 +222,11 @@ function createEasingField(
 
 function updateKeyframeEasing(
   ctx: ViewerAppContext,
-  easing,
-  trackId,
-  keyframeId,
+  easing: string,
+  trackId: string | undefined = undefined,
+  keyframeId: string | undefined = undefined,
 ) {
+  if (!KEYFRAME_EASING_PRESETS.some((value) => value === easing)) return;
   const template = ctx.state.currentTemplate;
   const timeline = ctx.getEffectiveTimeline(template);
   const selectedRefs = ctx.getSelectedKeyframeRefs();
@@ -216,7 +235,9 @@ function updateKeyframeEasing(
   );
   const targetRefs = includesPrimary
     ? selectedRefs
-    : [{ keyframeId, trackId }].filter((ref) => ref.keyframeId && ref.trackId);
+    : trackId && keyframeId
+      ? [{ keyframeId, trackId }]
+      : [];
   if (!template || targetRefs.length === 0) {
     return;
   }
@@ -259,10 +280,24 @@ function updateKeyframeEasing(
   );
 }
 
-export function installInspectorCurveEditorOwner(ctx: ViewerAppContext): void {
-  ctx.createCurveSvg = createCurveSvg.bind(undefined, ctx);
-  ctx.createCurveHandle = createCurveHandle.bind(undefined, ctx);
-  ctx.createCurveField = createCurveField.bind(undefined, ctx);
-  ctx.createEasingField = createEasingField.bind(undefined, ctx);
-  ctx.updateKeyframeEasing = updateKeyframeEasing.bind(undefined, ctx);
+export function createInspectorCurveEditorActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorKeyframeActions,
+  | "createCurveSvg"
+  | "createCurveHandle"
+  | "createCurveNumberField"
+  | "createEasingField"
+  | "updateKeyframeEasing"
+> {
+  return {
+    createCurveSvg: bindViewerAction(createCurveSvg, getContext),
+    createCurveHandle: bindViewerAction(createCurveHandle, getContext),
+    createCurveNumberField: bindViewerAction(
+      createCurveNumberField,
+      getContext,
+    ),
+    createEasingField: bindViewerAction(createEasingField, getContext),
+    updateKeyframeEasing: bindViewerAction(updateKeyframeEasing, getContext),
+  };
 }

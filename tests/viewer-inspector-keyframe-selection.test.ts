@@ -1,3 +1,4 @@
+import { createKeyframeEditActions } from "../src/apps/viewer/timeline/interaction/keyframes.js";
 import { describe, expect, it, vi } from "vitest";
 
 import { createKeyframeSelectionInspectorModel } from "../src/apps/viewer/inspector/keyframe-selection-model";
@@ -28,6 +29,46 @@ describe("viewer multi-keyframe inspector", () => {
       scenes: ["main"],
     });
   });
+
+  it.each([NaN, Infinity, -Infinity])(
+    "does not enable numeric batch edits for %s",
+    (value) => {
+      const ctx = createContext();
+      const timeline = ctx.getEffectiveTimeline();
+      timeline.tracks[0].keyframes[0].value = value;
+      ctx.getEffectiveTimeline = () => timeline;
+      const model = createKeyframeSelectionInspectorModel(
+        ctx,
+        ctx.state.currentTemplate,
+      );
+      expect(model?.canEditValue).toBe(false);
+      expect(model?.numericCount).toBe(2);
+      expect(model?.value).toBeNull();
+    },
+  );
+
+  it.each([true, false])(
+    "preserves state mutation while refresh is %s",
+    async (refresh) => {
+      const ctx = createContext();
+      Object.assign(
+        ctx,
+        createKeyframeEditActions(() => ctx),
+      );
+      await ctx.updateSelectedKeyframe({ value: 0.5 }, "opacity", "a", {
+        history: refresh,
+        render: refresh,
+        timeline: refresh,
+      });
+      expect(
+        ctx.state.timelineOverrides.get("template").tracks[0].keyframes[0]
+          .value,
+      ).toBe(0.5);
+      expect(ctx.beginEditorCommand).toHaveBeenCalledTimes(refresh ? 1 : 0);
+      expect(ctx.renderTimelineEditor).toHaveBeenCalledTimes(refresh ? 1 : 0);
+      expect(ctx.renderCurrentFrame).toHaveBeenCalledTimes(refresh ? 1 : 0);
+    },
+  );
 
   it("updates every selected numeric keyframe with one command", () => {
     const ctx = createContext();

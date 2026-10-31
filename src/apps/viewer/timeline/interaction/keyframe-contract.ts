@@ -21,7 +21,7 @@ export interface KeyframeEditActions {
     patch: KeyframePatch,
     trackId?: string,
     keyframeId?: string,
-    options?: { history?: boolean },
+    options?: { history?: boolean; render?: boolean; timeline?: boolean },
   ): Promise<void> | undefined;
   addKeyframeAtPlayhead(trackId: string): void;
   resolveTrackValueForNewKeyframe(

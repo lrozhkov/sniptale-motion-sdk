@@ -1,3 +1,7 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
+import type { InspectorKeyframeActions } from "./keyframe-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   clampTrackNumericValue,
@@ -7,9 +11,9 @@ import { getKeyframeDisplayLabel } from "./keyframe-labels.js";
 
 function appendKeyframeCurveInspector(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  totalDuration,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  totalDuration: number,
 ) {
   const valueRange = getTrackNumericPropertyRange(
     ctx,
@@ -40,13 +44,12 @@ function appendKeyframeCurveInspector(
   handleFields.className = "curve-handle-fields";
   if (!hasOutgoingSegment) {
     settings.append(
-      ctx.createCurveField(
+      ctx.createCurveNumberField(
         ctx.deps.t("viewer.fields.time", "Time"),
-        "number",
         ctx.roundInspectorNumber(keyframe.time),
         (value) =>
-          ctx.updateSelectedKeyframe(
-            { time: ctx.deps.clamp(Number(value), 0, totalDuration) },
+          void ctx.updateSelectedKeyframe(
+            { time: ctx.deps.clamp(value, 0, totalDuration) },
             track.id,
             keyframe.id,
           ),
@@ -62,14 +65,13 @@ function appendKeyframeCurveInspector(
   }
   if (typeof keyframe.value === "number") {
     settings.append(
-      ctx.createCurveField(
+      ctx.createCurveNumberField(
         ctx.deps.t("viewer.fields.value", "Value"),
-        "number",
         ctx.roundInspectorNumber(keyframe.value),
         (value) =>
-          ctx.updateSelectedKeyframe(
+          void ctx.updateSelectedKeyframe(
             {
-              value: clampTrackNumericValue(Number(value), valueRange),
+              value: clampTrackNumericValue(value, valueRange),
             },
             track.id,
             keyframe.id,
@@ -111,11 +113,13 @@ function appendKeyframeCurveInspector(
   ctx.appendInspectorNode(panel);
 }
 
-export function installInspectorKeyframeCurveOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendKeyframeCurveInspector = appendKeyframeCurveInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorKeyframeCurveActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorKeyframeActions, "appendKeyframeCurveInspector"> {
+  return {
+    appendKeyframeCurveInspector: bindViewerAction(
+      appendKeyframeCurveInspector,
+      getContext,
+    ),
+  };
 }
