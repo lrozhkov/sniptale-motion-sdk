@@ -1,6 +1,17 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { InspectorPropertyActions } from "./contract.js";
+import {
+  readInspectorNumber,
+  type InspectorNumberField,
+} from "./field-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function createInspectorNumberField(ctx: ViewerAppContext, layer, field) {
+function createInspectorNumberField(
+  ctx: ViewerAppContext,
+  layer: EffectLayer,
+  field: InspectorNumberField,
+) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row inspector-transform-row";
   row.dataset.inspectorProperty = field.property;
@@ -25,7 +36,15 @@ function createInspectorNumberField(ctx: ViewerAppContext, layer, field) {
   input.dataset.layerId = layer.id;
   input.dataset.property = field.property;
   input.addEventListener("change", () => {
-    const value = ctx.deps.clamp(Number(input.value), field.min, field.max);
+    const value = readInspectorNumber(input.valueAsNumber, field);
+    if (value === null) {
+      input.value = String(
+        ctx.roundInspectorNumber(
+          ctx.getResolvedLayerProperty(layer, field.property),
+        ),
+      );
+      return;
+    }
     input.value = String(ctx.roundInspectorNumber(value));
     ctx.beginEditorCommand({
       payload: { layerId: layer.id, property: field.property, value },
@@ -37,7 +56,11 @@ function createInspectorNumberField(ctx: ViewerAppContext, layer, field) {
   return row;
 }
 
-function createLayerKeyframeButton(ctx: ViewerAppContext, layer, field) {
+function createLayerKeyframeButton(
+  ctx: ViewerAppContext,
+  layer: EffectLayer,
+  field: InspectorNumberField,
+) {
   const keyButton = document.createElement("button");
   keyButton.type = "button";
   keyButton.className = `inspector-key-button${ctx.hasLayerPropertyKeyframeAtCurrentTime(layer.id, field.property) ? " active" : ""}`;
@@ -68,9 +91,9 @@ function createLayerKeyframeButton(ctx: ViewerAppContext, layer, field) {
 
 function appendInspectorNumberField(
   ctx: ViewerAppContext,
-  layer,
-  field,
-  target = null,
+  layer: EffectLayer,
+  field: InspectorNumberField,
+  target: HTMLElement | null = null,
 ) {
   const row = createInspectorNumberField(ctx, layer, field);
   if (target) {
@@ -81,14 +104,17 @@ function appendInspectorNumberField(
   return row;
 }
 
-function roundInspectorNumber(ctx: ViewerAppContext, value) {
-  return Math.round((Number(value) || 0) * 1000) / 1000;
+export function roundInspectorNumber(value: unknown) {
+  const numeric =
+    typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const scaled = numeric * 1000;
+  return Number.isFinite(scaled) ? Math.round(scaled) / 1000 : numeric;
 }
 
 export function syncInspectorLayerPropertyState(
   ctx: ViewerAppContext,
   layerId: string,
-  properties: Record<string, unknown>,
+  properties: Readonly<Record<string, unknown>>,
 ): void {
   const propertyNames = new Set(Object.keys(properties));
   if (propertyNames.size === 0) {
@@ -136,18 +162,28 @@ export function syncInspectorLayerPropertyState(
   }
 }
 
-export function installInspectorNumberFieldsOwner(ctx: ViewerAppContext): void {
-  ctx.createInspectorNumberField = createInspectorNumberField.bind(
-    undefined,
-    ctx,
-  );
-  ctx.appendInspectorNumberField = appendInspectorNumberField.bind(
-    undefined,
-    ctx,
-  );
-  ctx.roundInspectorNumber = roundInspectorNumber.bind(undefined, ctx);
-  ctx.syncInspectorLayerPropertyState = syncInspectorLayerPropertyState.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorNumberFieldActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  InspectorPropertyActions,
+  | "createInspectorNumberField"
+  | "appendInspectorNumberField"
+  | "roundInspectorNumber"
+  | "syncInspectorLayerPropertyState"
+> {
+  return {
+    createInspectorNumberField: bindViewerAction(
+      createInspectorNumberField,
+      getContext,
+    ),
+    appendInspectorNumberField: bindViewerAction(
+      appendInspectorNumberField,
+      getContext,
+    ),
+    roundInspectorNumber,
+    syncInspectorLayerPropertyState: bindViewerAction(
+      syncInspectorLayerPropertyState,
+      getContext,
+    ),
+  };
 }

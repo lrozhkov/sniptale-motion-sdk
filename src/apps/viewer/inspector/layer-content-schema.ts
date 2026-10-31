@@ -1,7 +1,9 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { InspectorLayerField } from "./field-model.js";
 const DEFAULT_FILL = "rgba(255,255,255,0.12)";
 const DEFAULT_STROKE = "rgba(255,255,255,0.72)";
 
-const COMMON_FIELDS = [
+const COMMON_FIELDS: readonly InspectorLayerField[] = [
   {
     defaultValue: "source-over",
     kind: "select",
@@ -27,7 +29,9 @@ const TRIM_FIELDS = [
   numberField("Trim end", "trimEnd", 1, 0, 1, 0.01),
 ];
 
-export function getLayerContentFields(layer) {
+export function getLayerContentFields(
+  layer: Pick<EffectLayer, "type">,
+): InspectorLayerField[] {
   if (layer.type === "text") {
     return [
       textField("Text", "text", ""),
@@ -109,18 +113,38 @@ export function getLayerContentFields(layer) {
   return [];
 }
 
-function colorField(label, property, defaultValue) {
+function colorField(
+  label: string,
+  property: string,
+  defaultValue: string,
+): Extract<InspectorLayerField, { kind: "text" | "color" }> {
   return { defaultValue, kind: "color", label, property };
 }
 
-function numberField(label, property, defaultValue, min, max, step) {
+function numberField(
+  label: string,
+  property: string,
+  defaultValue: number,
+  min: number,
+  max: number,
+  step: number,
+): Extract<InspectorLayerField, { kind: "number" }> {
   return { defaultValue, kind: "number", label, max, min, property, step };
 }
 
-function selectField(label, property, defaultValue, ...options) {
+function selectField(
+  label: string,
+  property: string,
+  defaultValue: string,
+  ...options: string[]
+): Extract<InspectorLayerField, { kind: "select" }> {
   return { defaultValue, kind: "select", label, options, property };
 }
 
-function textField(label, property, defaultValue) {
+function textField(
+  label: string,
+  property: string,
+  defaultValue: string,
+): Extract<InspectorLayerField, { kind: "text" | "color" }> {
   return { defaultValue, kind: "text", label, property };
 }

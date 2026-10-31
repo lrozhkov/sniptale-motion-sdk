@@ -1,6 +1,10 @@
+import { readInspectorNumber } from "../src/apps/viewer/inspector/field-model.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { syncInspectorLayerPropertyState } from "../src/apps/viewer/inspector/number-fields";
+import {
+  roundInspectorNumber,
+  syncInspectorLayerPropertyState,
+} from "../src/apps/viewer/inspector/number-fields";
 
 class InputStub {
   dataset: { layerId: string; property: string };
@@ -73,5 +77,34 @@ describe("viewer inspector numeric field synchronization", () => {
 
     expect(input.value).toBe("draft");
     expect(ctx.roundInspectorNumber).not.toHaveBeenCalled();
+  });
+});
+
+describe("inspector number presentation", () => {
+  it.each(
+    [true, "12", [12], { toString: null }, Infinity].map((value: unknown) => ({
+      value,
+    })),
+  )("does not coerce malformed values: %j", ({ value }) => {
+    expect(roundInspectorNumber(value)).toBe(0);
+  });
+  it("preserves finite large values and rounds normal decimal values", () => {
+    expect(roundInspectorNumber(1e308)).toBe(1e308);
+    expect(roundInspectorNumber(12.12345)).toBe(12.123);
+  });
+});
+
+describe("inspector numeric edit boundary", () => {
+  it.each(
+    [NaN, Infinity, "", "12", null, true, [], { toString: null }].map(
+      (value: unknown) => ({ value }),
+    ),
+  )("rejects invalid native numeric values: %j", ({ value }) => {
+    expect(readInspectorNumber(value, { min: -10, max: 10 })).toBeNull();
+  });
+  it("keeps zero and clamps valid numeric edits to the field range", () => {
+    expect(readInspectorNumber(0, { min: -10, max: 10 })).toBe(0);
+    expect(readInspectorNumber(-12, { min: -10, max: 10 })).toBe(-10);
+    expect(readInspectorNumber(12, { min: -10, max: 10 })).toBe(10);
   });
 });

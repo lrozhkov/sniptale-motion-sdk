@@ -1,3 +1,13 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  EffectLayer,
+  EffectLayerEditorTransformProperty,
+} from "../../../sdk/types.js";
+import type { InspectorPropertyActions } from "./contract.js";
+import type {
+  InspectorLocalizedNumberField,
+  InspectorNumberField,
+} from "./field-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 const SIZE_PROPERTIES = new Set(["height", "width"]);
@@ -12,7 +22,7 @@ const SVG_PART_PROPERTIES = new Set([
   "svgPartMode",
 ]);
 
-const APPEARANCE_FIELDS = [
+const APPEARANCE_FIELDS: readonly InspectorLocalizedNumberField[] = [
   {
     labelFallback: "Opacity",
     labelKey: "viewer.inspector.fields.opacity",
@@ -23,36 +33,37 @@ const APPEARANCE_FIELDS = [
   },
 ];
 
-const TRANSFORM_FIELDS = [
-  { labelFallback: "X", max: 4000, min: -4000, property: "x", step: 0.1 },
-  { labelFallback: "Y", max: 4000, min: -4000, property: "y", step: 0.1 },
-  {
-    labelFallback: "Scale X",
-    labelKey: "viewer.inspector.fields.scaleX",
-    max: 8,
-    min: 0.05,
-    property: "scaleX",
-    step: 0.01,
-  },
-  {
-    labelFallback: "Scale Y",
-    labelKey: "viewer.inspector.fields.scaleY",
-    max: 8,
-    min: 0.05,
-    property: "scaleY",
-    step: 0.01,
-  },
-  {
-    labelFallback: "Rotation",
-    labelKey: "viewer.inspector.fields.rotation",
-    max: 360,
-    min: -360,
-    property: "rotation",
-    step: 0.1,
-  },
-];
+const TRANSFORM_FIELDS: readonly InspectorLocalizedNumberField<EffectLayerEditorTransformProperty>[] =
+  [
+    { labelFallback: "X", max: 4000, min: -4000, property: "x", step: 0.1 },
+    { labelFallback: "Y", max: 4000, min: -4000, property: "y", step: 0.1 },
+    {
+      labelFallback: "Scale X",
+      labelKey: "viewer.inspector.fields.scaleX",
+      max: 8,
+      min: 0.05,
+      property: "scaleX",
+      step: 0.01,
+    },
+    {
+      labelFallback: "Scale Y",
+      labelKey: "viewer.inspector.fields.scaleY",
+      max: 8,
+      min: 0.05,
+      property: "scaleY",
+      step: 0.01,
+    },
+    {
+      labelFallback: "Rotation",
+      labelKey: "viewer.inspector.fields.rotation",
+      max: 360,
+      min: -360,
+      property: "rotation",
+      step: 0.1,
+    },
+  ];
 
-const ADVANCED_TRANSFORM_FIELDS = [
+const ADVANCED_TRANSFORM_FIELDS: readonly InspectorLocalizedNumberField[] = [
   {
     labelFallback: "Anchor X",
     labelKey: "viewer.inspector.fields.anchorX",
@@ -79,7 +90,9 @@ const ADVANCED_TRANSFORM_FIELDS = [
   },
 ];
 
-export function partitionLayerContentFields(fields) {
+export function partitionLayerContentFields<T extends { property: string }>(
+  fields: readonly T[],
+) {
   return {
     advanced: fields.filter((field) =>
       ADVANCED_CONTENT_PROPERTIES.has(field.property),
@@ -95,7 +108,10 @@ export function partitionLayerContentFields(fields) {
   };
 }
 
-function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
+function appendLayerPropertiesInspector(
+  ctx: ViewerAppContext,
+  layer: EffectLayer,
+) {
   const capabilities = ctx.getLayerEditorCapabilities(layer);
   const content = partitionLayerContentFields(
     ctx
@@ -115,7 +131,7 @@ function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
   }
 
   if (layer.type === "audio") {
-    const audio = createPropertyGroup(ctx, {
+    const audio = createPropertyGroup({
       id: "audio",
       label: ctx.deps.t("viewer.inspector.audio", "Audio"),
     });
@@ -128,7 +144,7 @@ function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
     return;
   }
 
-  const transform = createPropertyGroup(ctx, {
+  const transform = createPropertyGroup({
     id: "transform",
     label: ctx.deps.t("viewer.inspector.transform", "Transform"),
     paired: true,
@@ -143,7 +159,7 @@ function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
   }
 
   if (content.size.length > 0) {
-    const size = createPropertyGroup(ctx, {
+    const size = createPropertyGroup({
       id: "size",
       label: ctx.deps.t("viewer.inspector.fields.size", "Size"),
       paired: true,
@@ -154,7 +170,7 @@ function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
     ctx.appendInspectorNode(size.root);
   }
 
-  const appearance = createPropertyGroup(ctx, {
+  const appearance = createPropertyGroup({
     id: "appearance",
     label: ctx.deps.t(
       "viewer.inspector.contentAppearance",
@@ -174,14 +190,15 @@ function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
     ctx.appendInspectorNode(appearance.root);
   }
   if (content.svgParts.length > 0) {
-    const svgParts = createPropertyGroup(ctx, {
+    const svgParts = createPropertyGroup({
       id: "svg-animation",
       label: ctx.deps.t(
         "viewer.inspector.svgPartAnimation",
         "SVG part animation",
       ),
     });
-    const partMode = String(layer.svgPartMode ?? "none");
+    const partMode =
+      typeof layer.svgPartMode === "string" ? layer.svgPartMode : "none";
     const partAnimationEnabled = partMode !== "none";
     for (const field of content.svgParts) {
       if (field.property === "svgPartMode" || partAnimationEnabled) {
@@ -210,7 +227,7 @@ function appendLayerPropertiesInspector(ctx: ViewerAppContext, layer) {
   }
 }
 
-function createNonSpatialLayerNote(ctx: ViewerAppContext, layer) {
+function createNonSpatialLayerNote(ctx: ViewerAppContext, layer: EffectLayer) {
   const note = document.createElement("p");
   note.className = "inspector-capability-note";
   note.textContent =
@@ -226,10 +243,15 @@ function createNonSpatialLayerNote(ctx: ViewerAppContext, layer) {
   return note;
 }
 
-function createPropertyGroup(
-  ctx: ViewerAppContext,
-  { id, label, paired = false },
-) {
+function createPropertyGroup({
+  id,
+  label,
+  paired = false,
+}: {
+  id: string;
+  label: string;
+  paired?: boolean;
+}) {
   const root = document.createElement("section");
   root.className = "inspector-property-group";
   root.dataset.propertyGroup = id;
@@ -263,7 +285,10 @@ function createAdvancedPropertyGroup(ctx: ViewerAppContext) {
   return { body, root };
 }
 
-function localizeFields(ctx: ViewerAppContext, fields) {
+function localizeFields<P extends string>(
+  ctx: ViewerAppContext,
+  fields: readonly InspectorLocalizedNumberField<P>[],
+): InspectorNumberField<P>[] {
   return fields.map((field) => ({
     ...field,
     label: field.labelKey
@@ -272,11 +297,13 @@ function localizeFields(ctx: ViewerAppContext, fields) {
   }));
 }
 
-export function installInspectorLayerPropertiesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.appendLayerPropertiesInspector = appendLayerPropertiesInspector.bind(
-    undefined,
-    ctx,
-  );
+export function createInspectorLayerPropertyActions(
+  getContext: () => ViewerAppContext,
+): Pick<InspectorPropertyActions, "appendLayerPropertiesInspector"> {
+  return {
+    appendLayerPropertiesInspector: bindViewerAction(
+      appendLayerPropertiesInspector,
+      getContext,
+    ),
+  };
 }

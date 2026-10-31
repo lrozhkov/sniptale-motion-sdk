@@ -1,3 +1,6 @@
+import type { CanvasSelectionDisplayOptions } from "./display-contract.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasDisplayActions } from "./display-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isRendererManagedCanvasCapabilities } from "../layers/editor-capabilities.js";
 import {
@@ -9,7 +12,10 @@ import { updateCanvasMultiSelectionBox } from "./selection-geometry-multi.js";
 
 const PLAYBACK_SELECTION_INTERVAL_MS = 1000 / 12;
 
-function updateCanvasSelectionBox(ctx: ViewerAppContext, options: any = {}) {
+function updateCanvasSelectionBox(
+  ctx: ViewerAppContext,
+  options: CanvasSelectionDisplayOptions = {},
+) {
   if (options.playbackFrame === true) {
     const now = performance.now();
     if (
@@ -144,14 +150,13 @@ function updateCanvasSelectionBox(ctx: ViewerAppContext, options: any = {}) {
       height: box.height * scaleY,
       width: box.width * scaleX,
     });
-    (
-      ctx.refs.canvasSelectionBox.querySelectorAll(
-        ".canvas-transform-handle",
-      ) as NodeListOf<HTMLButtonElement>
-    ).forEach((handle) => {
-      handle.disabled =
-        !active || Boolean(layer.locked) || !primaryLayerSelection;
-    });
+    ctx.refs.canvasSelectionBox
+      .querySelectorAll(".canvas-transform-handle")
+      .forEach((handle) => {
+        if (!(handle instanceof HTMLButtonElement)) return;
+        handle.disabled =
+          !active || Boolean(layer.locked) || !primaryLayerSelection;
+      });
     ctx.updateCanvasAnchorHandle(anchor);
     ctx.updateCanvasInfoHud(layer, box, canvasRect, stageRect, scaleX, scaleY, {
       active,
@@ -200,22 +205,40 @@ function hideCanvasSelection(ctx: ViewerAppContext) {
 
 function setStyleValue(
   style: CSSStyleDeclaration,
-  property: keyof CSSStyleDeclaration,
+  property:
+    | "left"
+    | "top"
+    | "width"
+    | "height"
+    | "transform"
+    | "transformOrigin",
   value: string,
 ) {
   if (style[property] !== value) {
-    (style[property] as string) = value;
+    style[property] = value;
   }
 }
 
-export function installCanvasSelectionGeometryOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.updateCanvasSelectionBox = updateCanvasSelectionBox.bind(undefined, ctx);
-  ctx.observeCanvasSelectionViewport = observeCanvasSelectionViewport.bind(
-    undefined,
-    ctx,
-  );
-  ctx.scheduleCanvasSelectionPlaybackUpdate =
-    scheduleCanvasSelectionPlaybackUpdate.bind(undefined, ctx);
+export function createCanvasSelectionGeometryActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasDisplayActions,
+  | "updateCanvasSelectionBox"
+  | "observeCanvasSelectionViewport"
+  | "scheduleCanvasSelectionPlaybackUpdate"
+> {
+  return {
+    updateCanvasSelectionBox: bindViewerAction(
+      updateCanvasSelectionBox,
+      getContext,
+    ),
+    observeCanvasSelectionViewport: bindViewerAction(
+      observeCanvasSelectionViewport,
+      getContext,
+    ),
+    scheduleCanvasSelectionPlaybackUpdate: bindViewerAction(
+      scheduleCanvasSelectionPlaybackUpdate,
+      getContext,
+    ),
+  };
 }

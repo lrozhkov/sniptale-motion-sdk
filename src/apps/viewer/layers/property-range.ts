@@ -46,7 +46,7 @@ export function getTrackNumericPropertyRange(
           Number.isFinite(field.max),
       )
     : null;
-  if (contentField) {
+  if (contentField?.kind === "number") {
     return { max: contentField.max, min: contentField.min };
   }
   return BUILTIN_NUMERIC_RANGES.get(property) ?? null;

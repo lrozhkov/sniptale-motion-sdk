@@ -1,16 +1,20 @@
+import type { LayerEditorCapabilities } from "../layers/editor-capabilities.js";
+import type { CanvasPoint } from "./geometry-contract.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasDisplayActions } from "./display-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolveLayerCanvasResizeProperty } from "../layers/editor-capabilities.js";
 
-const HANDLE_ANGLES = {
-  e: 0,
-  n: -90,
-  ne: -45,
-  nw: -135,
-  s: 90,
-  se: 45,
-  sw: 135,
-  w: 180,
-};
+const HANDLE_ANGLES = new Map<string, number>([
+  ["e", 0],
+  ["n", -90],
+  ["ne", -45],
+  ["nw", -135],
+  ["s", 90],
+  ["se", 45],
+  ["sw", 135],
+  ["w", 180],
+]);
 const RESIZE_CURSORS = [
   "ew-resize",
   "nwse-resize",
@@ -22,20 +26,27 @@ export function resolveCanvasResizeCursor(
   handle: unknown,
   rotation: unknown,
 ): string {
-  const baseAngle = HANDLE_ANGLES[String(handle) as keyof typeof HANDLE_ANGLES];
+  const baseAngle =
+    typeof handle === "string" ? HANDLE_ANGLES.get(handle) : undefined;
   if (baseAngle === undefined) {
     return "default";
   }
   const sector = modulo(
-    Math.round((baseAngle + (Number(rotation) || 0)) / 45),
+    Math.round(
+      (baseAngle +
+        (typeof rotation === "number" && Number.isFinite(rotation)
+          ? rotation
+          : 0)) /
+        45,
+    ),
     4,
   );
-  return RESIZE_CURSORS[sector];
+  return RESIZE_CURSORS[sector] ?? "default";
 }
 
 function ensureCanvasTransformHandles(
   ctx: ViewerAppContext,
-  capabilities,
+  capabilities: LayerEditorCapabilities,
   rotation = 0,
   displaySize: {
     height?: number;
@@ -75,33 +86,32 @@ function ensureCanvasTransformHandles(
     bindKeyboardTransform(ctx, anchor);
     ctx.refs.canvasSelectionBox.append(anchor);
   }
-  (
-    ctx.refs.canvasSelectionBox.querySelectorAll(
-      "[data-scale-handle]",
-    ) as NodeListOf<HTMLButtonElement>
-  ).forEach((handle) => {
-    const direction = handle.dataset.scaleHandle;
-    const horizontal = /e|w/.test(direction ?? "");
-    const vertical = /n|s/.test(direction ?? "");
-    const compact = isCompactCanvasSelection(displaySize);
-    const multiSelection = displaySize.multiSelection === true;
-    handle.hidden =
-      (horizontal &&
-        resolveLayerCanvasResizeProperty(capabilities, "x") === null) ||
-      (vertical &&
-        resolveLayerCanvasResizeProperty(capabilities, "y") === null) ||
-      ((compact || multiSelection) && direction?.length === 1);
-    handle.style.cursor = resolveCanvasResizeCursor(direction, rotation);
-    const label = ctx.deps.t(
-      `viewer.canvas.resize.${direction}`,
-      `Resize ${direction}`,
-    );
-    nameTransformHandle(ctx, handle, label);
-  });
+  ctx.refs.canvasSelectionBox
+    .querySelectorAll("[data-scale-handle]")
+    .forEach((handle) => {
+      if (!(handle instanceof HTMLButtonElement)) return;
+      const direction = handle.dataset.scaleHandle;
+      const horizontal = /e|w/.test(direction ?? "");
+      const vertical = /n|s/.test(direction ?? "");
+      const compact = isCompactCanvasSelection(displaySize);
+      const multiSelection = displaySize.multiSelection === true;
+      handle.hidden =
+        (horizontal &&
+          resolveLayerCanvasResizeProperty(capabilities, "x") === null) ||
+        (vertical &&
+          resolveLayerCanvasResizeProperty(capabilities, "y") === null) ||
+        ((compact || multiSelection) && direction?.length === 1);
+      handle.style.cursor = resolveCanvasResizeCursor(direction, rotation);
+      const label = ctx.deps.t(
+        `viewer.canvas.resize.${direction}`,
+        `Resize ${direction}`,
+      );
+      nameTransformHandle(ctx, handle, label);
+    });
   const rotate = ctx.refs.canvasSelectionBox.querySelector(
     "[data-rotate-handle]",
-  ) as HTMLButtonElement | null;
-  if (rotate) {
+  );
+  if (rotate instanceof HTMLButtonElement) {
     rotate.hidden = !capabilities.transform.includes("rotation");
     nameTransformHandle(
       ctx,
@@ -111,8 +121,8 @@ function ensureCanvasTransformHandles(
   }
   const anchor = ctx.refs.canvasSelectionBox.querySelector(
     "[data-anchor-handle]",
-  ) as HTMLButtonElement | null;
-  if (anchor) {
+  );
+  if (anchor instanceof HTMLButtonElement) {
     anchor.hidden =
       displaySize.multiSelection === true ||
       !capabilities.transform.includes("anchorX") ||
@@ -147,11 +157,11 @@ export function isCompactCanvasSelection({
   );
 }
 
-function updateCanvasAnchorHandle(ctx: ViewerAppContext, anchor) {
+function updateCanvasAnchorHandle(ctx: ViewerAppContext, anchor: CanvasPoint) {
   const handle = ctx.refs.canvasSelectionBox.querySelector(
     "[data-anchor-handle]",
-  ) as HTMLElement | null;
-  if (!handle) {
+  );
+  if (!(handle instanceof HTMLButtonElement)) {
     return;
   }
   handle.style.left = `${(0.5 + anchor.x) * 100}%`;
@@ -191,12 +201,20 @@ function modulo(value: number, divisor: number): number {
   return ((value % divisor) + divisor) % divisor;
 }
 
-export function installCanvasTransformHandlesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.ensureCanvasTransformHandles = ensureCanvasTransformHandles.bind(
-    undefined,
-    ctx,
-  );
-  ctx.updateCanvasAnchorHandle = updateCanvasAnchorHandle.bind(undefined, ctx);
+export function createCanvasTransformHandleActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasDisplayActions,
+  "ensureCanvasTransformHandles" | "updateCanvasAnchorHandle"
+> {
+  return {
+    ensureCanvasTransformHandles: bindViewerAction(
+      ensureCanvasTransformHandles,
+      getContext,
+    ),
+    updateCanvasAnchorHandle: bindViewerAction(
+      updateCanvasAnchorHandle,
+      getContext,
+    ),
+  };
 }

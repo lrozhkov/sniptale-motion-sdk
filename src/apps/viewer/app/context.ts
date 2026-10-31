@@ -1,3 +1,4 @@
+import type { CanvasDisplayActions } from "../canvas/display-contract.js";
 import type { LayerHierarchyActions } from "../layers/hierarchy-contract.js";
 import type { CanvasSelectionActions } from "../canvas/selection-contract.js";
 import type { CanvasTransformActions } from "../canvas/transform-contract.js";
@@ -5,7 +6,10 @@ import type { LayerEditorCapabilityActions } from "../layers/editor-capabilities
 import type { CanvasGuideActions } from "../canvas/guide-contract.js";
 import type { CanvasPathActions } from "../canvas/path-contract.js";
 import type { CanvasGeometryActions } from "../canvas/geometry-contract.js";
-import type { InspectorMotionPathActions } from "../inspector/contract.js";
+import type {
+  InspectorMotionPathActions,
+  InspectorPropertyActions,
+} from "../inspector/contract.js";
 import type {
   CanvasMotionPathUpdateActions,
   CanvasPropertyActions,
@@ -50,6 +54,7 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    CanvasDisplayActions,
     LayerHierarchyActions,
     CanvasSelectionActions,
     CanvasTransformActions,
@@ -59,6 +64,7 @@ export interface ViewerAppContext
     CanvasGeometryActions,
     CanvasMotionPathUpdateActions,
     InspectorMotionPathActions,
+    InspectorPropertyActions,
     CanvasPropertyActions,
     CanvasMotionPathSelectionActions,
     Mp4ExportActions,
@@ -78,6 +84,7 @@ export interface ViewerAppContext
     TimelineViewportActions,
     TimelineTimingActions {
   deps: ViewerAppDependencies;
+  canvasSelectionPlaybackFrame: number;
   lastPlaybackAudioTs: number;
   playbackAnimationFrame: number | null;
   playbackRenderTimer: number | null;

@@ -7,13 +7,20 @@ describe("viewer lazy feature loading", () => {
   it("keeps graph and export implementations outside the static startup graph", () => {
     const modules = staticModules(resolve("src/apps/viewer/app/bootstrap.ts"));
     for (const owner of [
+      "src/apps/viewer/app/create-context.ts",
+      "src/apps/viewer/canvas/transform-drag.ts",
+      "src/apps/viewer/inspector/layer-content-fields.ts",
+    ])
+      expect(modules.has(resolve(owner))).toBe(true);
+    for (const owner of [
       "src/apps/viewer/graph-editor/actions.ts",
       "src/apps/viewer/graph-editor/controller.ts",
       "src/apps/viewer/graph-editor/view.ts",
       "src/apps/viewer/video-export/controller.ts",
     ])
       expect(modules.has(resolve(owner))).toBe(false);
-  });
+    // The full repository AST walk also runs with coverage instrumentation.
+  }, 15_000);
   it("detects transitive runtime imports and excludes explicit type and dynamic imports", () => {
     const root = resolve(".tmp/static-import-proof");
     const sources = new Map([
@@ -46,7 +53,7 @@ function staticModules(
       file,
       readSource(file),
       ts.ScriptTarget.Latest,
-      true,
+      false,
     );
     for (const node of source.statements) {
       if (!ts.isImportDeclaration(node) && !ts.isExportDeclaration(node))

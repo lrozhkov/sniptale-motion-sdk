@@ -8,6 +8,15 @@ describe("viewer canvas selection HUD", () => {
     expect(formatCanvasHudNumber(-24.461)).toBe("-24.5");
     expect(formatCanvasHudNumber(507.624)).toBe("507.6");
     expect(formatCanvasHudNumber(-0.001)).toBe("0");
+    expect(formatCanvasHudNumber(1e308)).toBe("1e+308");
+  });
+
+  it.each(
+    [true, "12", [12], { toString: null }, Infinity, -Infinity].map(
+      (value: unknown) => ({ value }),
+    ),
+  )("does not coerce invalid metric values: %j", ({ value }) => {
+    expect(formatCanvasHudNumber(value)).toBe("0");
   });
 
   it("prefers the right side when the HUD fits", () => {

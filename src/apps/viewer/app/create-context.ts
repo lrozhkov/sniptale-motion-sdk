@@ -1,3 +1,9 @@
+import { createInspectorNumberFieldActions } from "../inspector/number-fields.js";
+import { createInspectorLayerPropertyActions } from "../inspector/layer-properties.js";
+import { createInspectorLayerContentActions } from "../inspector/layer-content-fields.js";
+import { createCanvasSelectionGeometryActions } from "../canvas/selection-geometry.js";
+import { createCanvasSelectionHudActions } from "../canvas/selection-hud.js";
+import { createCanvasTransformHandleActions } from "../canvas/transform-handles.js";
 import { createLayerHierarchyActions } from "../layers/hierarchy-controller.js";
 import { createCanvasSelectionTargetActions } from "../canvas/selection-target.js";
 import { createCanvasHitTestingActions } from "../canvas/hit-testing.js";
@@ -80,6 +86,14 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createInspectorNumberFieldActions(() => ctx),
+    ...createInspectorLayerPropertyActions(() => ctx),
+    ...createInspectorLayerContentActions(() => ctx),
+    canvasSelectionPlaybackFrame: 0,
+    ...createCanvasSelectionGeometryActions(() => ctx),
+    ...createCanvasSelectionHudActions(() => ctx),
+    ...createCanvasTransformHandleActions(() => ctx),
+
     ...createLayerHierarchyActions(() => ctx),
     ...createCanvasSelectionTargetActions(() => ctx),
     ...createCanvasHitTestingActions(() => ctx),

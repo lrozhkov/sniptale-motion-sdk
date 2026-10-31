@@ -31,6 +31,21 @@ describe("viewer canvas transform handle affordances", () => {
     expect(resolveCanvasResizeCursor("center", 45)).toBe("default");
   });
 
+  it.each(
+    ["__proto__", "constructor", ["e"], { toString: null }].map(
+      (value: unknown) => ({ value }),
+    ),
+  )("rejects invalid handle keys: %j", ({ value }) => {
+    expect(resolveCanvasResizeCursor(value, 0)).toBe("default");
+  });
+  it.each(
+    ["45", [45], { toString: null }, Infinity, NaN].map((value: unknown) => ({
+      value,
+    })),
+  )("uses the finite numeric rotation boundary: %j", ({ value }) => {
+    expect(resolveCanvasResizeCursor("e", value)).toBe("ew-resize");
+  });
+
   it("uses corner-only resize affordances when edge targets would overlap", () => {
     expect(isCompactCanvasSelection({ height: 50, width: 246 })).toBe(true);
     expect(isCompactCanvasSelection({ height: 80, width: 80 })).toBe(false);

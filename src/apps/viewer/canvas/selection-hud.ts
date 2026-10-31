@@ -1,3 +1,8 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { CanvasBox } from "./primitive-geometry.js";
+import type { CanvasViewportRect } from "./viewport-state.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasDisplayActions } from "./display-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { isRendererManagedCanvasCapabilities } from "../layers/editor-capabilities.js";
 import {
@@ -31,12 +36,12 @@ function hideCanvasInfoHud(ctx: ViewerAppContext) {
 
 function updateCanvasInfoHud(
   ctx: ViewerAppContext,
-  layer,
-  box,
-  canvasRect,
-  stageRect,
-  scaleX,
-  scaleY,
+  layer: EffectLayer,
+  box: CanvasBox,
+  canvasRect: CanvasViewportRect,
+  stageRect: CanvasViewportRect,
+  scaleX: number,
+  scaleY: number,
   options: { active?: boolean; selectionCount?: number } = {},
 ) {
   ctx.refs.canvasInfoHud.hidden = false;
@@ -228,17 +233,20 @@ function setText(element: HTMLElement, value: string): void {
 }
 
 export function formatCanvasHudNumber(value: unknown): string {
-  const rounded = Math.round((Number(value) || 0) * 10) / 10;
+  const numeric =
+    typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const scaled = numeric * 10;
+  const rounded = Number.isFinite(scaled) ? Math.round(scaled) / 10 : numeric;
   return String(Object.is(rounded, -0) ? 0 : rounded);
 }
 
 function positionCanvasInfoHud(
   ctx: ViewerAppContext,
-  box,
-  canvasRect,
-  stageRect,
-  scaleX,
-  scaleY,
+  box: CanvasBox,
+  canvasRect: CanvasViewportRect,
+  stageRect: CanvasViewportRect,
+  scaleX: number,
+  scaleY: number,
   options: { rendererManaged?: boolean } = {},
 ) {
   const left = canvasRect.left - stageRect.left + box.x * scaleX;
@@ -266,7 +274,11 @@ function positionCanvasInfoHud(
   }
 }
 
-function getCanvasSnapStatusForBox(ctx: ViewerAppContext, box, layer = null) {
+function getCanvasSnapStatusForBox(
+  ctx: ViewerAppContext,
+  box: CanvasBox,
+  layer: EffectLayer | null = null,
+) {
   const pivot = layer
     ? ctx.getLayerCanvasPivot(box, layer)
     : { x: box.x + box.width * 0.5, y: box.y + box.height * 0.5 };
@@ -290,11 +302,18 @@ function getCanvasSnapStatusForBox(ctx: ViewerAppContext, box, layer = null) {
   return snap.join(" · ");
 }
 
-export function installCanvasSelectionHudOwner(ctx: ViewerAppContext): void {
-  ctx.hideCanvasInfoHud = hideCanvasInfoHud.bind(undefined, ctx);
-  ctx.updateCanvasInfoHud = updateCanvasInfoHud.bind(undefined, ctx);
-  ctx.getCanvasSnapStatusForBox = getCanvasSnapStatusForBox.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasSelectionHudActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasDisplayActions,
+  "hideCanvasInfoHud" | "updateCanvasInfoHud" | "getCanvasSnapStatusForBox"
+> {
+  return {
+    hideCanvasInfoHud: bindViewerAction(hideCanvasInfoHud, getContext),
+    updateCanvasInfoHud: bindViewerAction(updateCanvasInfoHud, getContext),
+    getCanvasSnapStatusForBox: bindViewerAction(
+      getCanvasSnapStatusForBox,
+      getContext,
+    ),
+  };
 }

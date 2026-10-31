@@ -1,12 +1,17 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { LayerEditorCapabilities } from "../layers/editor-capabilities.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { CanvasSelectionTarget } from "./path-contract.js";
+import type { CanvasSelectionDisplayOptions } from "./display-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { resolveCanvasSelectionBounds } from "./selection-bounds.js";
 import { readCanvasSelectionViewport } from "./selection-viewport.js";
 
 export function updateCanvasMultiSelectionBox(
   ctx: ViewerAppContext,
-  template,
-  target,
-  options,
+  template: EditorTemplate,
+  target: CanvasSelectionTarget,
+  options: CanvasSelectionDisplayOptions,
 ): boolean {
   const time = Number(ctx.refs.timeSlider.value) || 0;
   const resolution = { time, timeline: template.timeline };
@@ -24,7 +29,7 @@ export function updateCanvasMultiSelectionBox(
   }
   const layers = target.layerIds
     .map((layerId) => template.layers.find((item) => item.id === layerId))
-    .filter(Boolean);
+    .filter((layer): layer is EffectLayer => layer !== undefined);
   const active =
     layers.length > 0 &&
     layers.every(
@@ -43,7 +48,7 @@ export function updateCanvasMultiSelectionBox(
     !locked &&
     commonTransform.includes("x") &&
     commonTransform.includes("y");
-  const capabilities = {
+  const capabilities: LayerEditorCapabilities = {
     canvas: "bounds",
     keyframeProperties: [],
     operations: [],
@@ -94,16 +99,14 @@ export function updateCanvasMultiSelectionBox(
     multiSelection: true,
     width: box.width * scaleX,
   });
-  (
-    selection.querySelectorAll(
-      ".canvas-transform-handle",
-    ) as NodeListOf<HTMLButtonElement>
-  ).forEach((handle) => {
+  selection.querySelectorAll(".canvas-transform-handle").forEach((handle) => {
+    if (!(handle instanceof HTMLButtonElement)) return;
     handle.disabled = !movable;
   });
   ctx.updateCanvasInfoHud(
     {
       id: target.primaryLayerId ?? "selection",
+      type: "group",
       name: ctx.deps
         .t("viewer.canvas.hud.layerSelection", "{count} layers selected")
         .replace("{count}", String(target.layerIds.length)),
@@ -133,10 +136,16 @@ export function updateCanvasMultiSelectionBox(
 
 function setStyleValue(
   style: CSSStyleDeclaration,
-  property: keyof CSSStyleDeclaration,
+  property:
+    | "left"
+    | "top"
+    | "width"
+    | "height"
+    | "transform"
+    | "transformOrigin",
   value: string,
 ) {
   if (style[property] !== value) {
-    (style[property] as string) = value;
+    style[property] = value;
   }
 }

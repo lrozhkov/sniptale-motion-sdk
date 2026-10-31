@@ -25,6 +25,7 @@ export async function assertCanvasTransformFlow({
     {
       id: "card",
       name: "Card",
+      fill: "#72dbe6",
       type: "rect",
       baseX: 340,
       baseY: 230,
@@ -36,6 +37,7 @@ export async function assertCanvasTransformFlow({
     {
       id: "title",
       name: "Title",
+      fill: "#eab676",
       type: "rect",
       baseX: 700,
       baseY: 390,
@@ -56,7 +58,7 @@ export async function assertCanvasTransformFlow({
       op: "shape",
       shape: "rect",
       layerId: layer.id,
-      fill: layer.id === "card" ? "#72dbe6" : "#eab676",
+      fill: { op: "read", path: `layers.${layer.id}.fill` },
       x: {
         op: "sub",
         args: [
@@ -136,6 +138,44 @@ export async function assertCanvasTransformFlow({
     await expect
       .poll(async () => parseFloat(await style("width")))
       .toBeCloseTo(resizedAuthorWidth * scale, 2);
+    const numberField = (property) =>
+      page.locator(
+        `#inspectorPanel input[data-layer-id="card"][data-property="${property}"]`,
+      );
+    const xInput = numberField("x");
+    const previousX = await xInput.inputValue();
+    await xInput.fill("45");
+    await xInput.press("Tab");
+    await expect(xInput).toHaveValue("45");
+    await page.locator("#undoEditorButton").click();
+    await expect(xInput).toHaveValue(previousX);
+    const widthInput = numberField("width");
+    await widthInput.fill("275");
+    await widthInput.press("Tab");
+    await expect(widthInput).toHaveValue("275");
+    await page.locator("#undoEditorButton").click();
+    await expect(widthInput).toHaveValue(String(resizedAuthorWidth));
+    await expect(page.locator("#redoEditorButton")).toBeEnabled();
+    await widthInput.fill("");
+    await widthInput.press("Tab");
+    await expect(widthInput).toHaveValue(String(resizedAuthorWidth));
+    await expect(page.locator("#redoEditorButton")).toBeEnabled();
+    const fill = page.locator(
+      '#inspectorPanel .css-color-field[data-layer-id="card"][data-property="fill"] [data-css-color-role="value"]',
+    );
+    await fill.fill("#e14b50");
+    await fill.press("Tab");
+    await expect(fill).toHaveValue("#e14b50");
+    await page
+      .locator(
+        '#inspectorPanel details[data-property-group="advanced"] summary',
+      )
+      .click();
+    await page
+      .locator(
+        '#inspectorPanel select[data-layer-id="card"][data-property="blendMode"]',
+      )
+      .selectOption("screen");
     await selectLayer("card").click();
     await selectLayer("title").click({ modifiers: ["Shift"] });
     await expect(selection).toHaveAttribute("data-selection-kind", "multi");
@@ -175,6 +215,9 @@ export async function assertCanvasTransformFlow({
       exported.layers.find((layer) => layer.id === "card").width,
       resizedAuthorWidth,
     );
+    const card = exported.layers.find((layer) => layer.id === "card");
+    assert.equal(card.fill, "#e14b50");
+    assert.equal(card.blendMode, "screen");
     for (const id of ["card", "title"]) {
       const layer = exported.layers.find((candidate) => candidate.id === id);
       assert.ok(typeof layer?.x === "number" && layer.x > 0);
@@ -206,6 +249,11 @@ export async function assertCanvasTransformFlow({
             "undo-during-drag",
             "stale-move-after-undo",
             "redo",
+            "inspector-position-and-undo",
+            "inspector-content-size-and-undo",
+            "invalid-number-preserves-redo",
+            "inspector-css-color",
+            "inspector-select-value",
             "multi-selection",
             "group-keyboard-scale",
             "group-pointer-move",

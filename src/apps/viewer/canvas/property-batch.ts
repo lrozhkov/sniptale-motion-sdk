@@ -81,11 +81,10 @@ export function updateLayerPropertyBatchAtTime(
   }
   if (options.inspector !== false) {
     const layerId = changedLayerIds[0];
-    if (changedLayerIds.length === 1 && layerId !== undefined) {
-      ctx.syncInspectorLayerPropertyState?.(
-        layerId,
-        updatesByLayerId.get(layerId),
-      );
+    const properties =
+      layerId !== undefined ? updatesByLayerId.get(layerId) : undefined;
+    if (changedLayerIds.length === 1 && layerId !== undefined && properties) {
+      ctx.syncInspectorLayerPropertyState?.(layerId, properties);
     } else {
       ctx.renderInspector?.();
     }
