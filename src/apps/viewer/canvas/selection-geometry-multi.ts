@@ -33,9 +33,10 @@ export function updateCanvasMultiSelectionBox(
         ctx.isLayerActiveAtTime(template, layer.id, time),
     );
   const locked = layers.some((layer) => layer.locked);
-  const commonTransform = ["x", "y", "scaleX", "scaleY", "rotation"].filter(
-    (property) =>
-      layers.every((layer) => ctx.canTransformLayerProperty(layer, property)),
+  const commonTransform = (
+    ["x", "y", "scaleX", "scaleY", "rotation"] as const
+  ).filter((property) =>
+    layers.every((layer) => ctx.canTransformLayerProperty(layer, property)),
   );
   const movable =
     active &&

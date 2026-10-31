@@ -1,3 +1,14 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { KeyframeSelectionRef } from "../timeline/model/selection-model.js";
+import type {
+  CanvasMotionPathModel,
+  CanvasMotionPathPoint,
+} from "./motion-path-model.js";
+import type {
+  CanvasPoint,
+  CanvasMotionPathViewport,
+} from "./geometry-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createCanvasMotionPathModel,
@@ -13,14 +24,14 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 export type CanvasMotionPathOverlayEntry = {
   interactive: boolean;
-  layer: any;
+  layer: EffectLayer;
   primary: boolean;
 };
 
 export function renderCanvasMotionPathOverlay(
   ctx: ViewerAppContext,
-  template,
-  layer,
+  template: EditorTemplate,
+  layer: EffectLayer,
 ): boolean {
   return renderCanvasMotionPathOverlays(ctx, template, [
     { interactive: true, layer, primary: true },
@@ -29,29 +40,24 @@ export function renderCanvasMotionPathOverlay(
 
 export function renderCanvasMotionPathOverlays(
   ctx: ViewerAppContext,
-  template,
+  template: EditorTemplate,
   entries: CanvasMotionPathOverlayEntry[],
 ): boolean {
   const timeline = ctx.getEffectiveTimeline(template);
-  const resolved = entries
-    .map((entry) => ({
-      ...entry,
-      model: createCanvasMotionPathModel(timeline, entry.layer.id),
-    }))
-    .filter(
-      (entry) => entry.model.ok && entry.model.points.length > 0,
-    ) as Array<
+  const resolved: Array<
     CanvasMotionPathOverlayEntry & {
-      model: Extract<
-        ReturnType<ViewerAppContext["getCanvasMotionPathModel"]>,
-        { ok: true }
-      >;
+      model: Extract<CanvasMotionPathModel, { ok: true }>;
     }
-  >;
+  > = [];
+  for (const entry of entries) {
+    const model = createCanvasMotionPathModel(timeline, entry.layer.id);
+    if (model.ok && model.points.length > 0) resolved.push({ ...entry, model });
+  }
   if (resolved.length === 0) {
     return false;
   }
   const viewport = getMotionPathViewport(ctx);
+  if (!viewport) return false;
   ctx.refs.motionPathOverlay.removeAttribute("hidden");
   ctx.refs.motionPathOverlay.innerHTML = "";
   ctx.refs.motionPathOverlay.setAttribute(
@@ -66,12 +72,14 @@ export function renderCanvasMotionPathOverlays(
 }
 
 function appendMotionPathLayer(
-  ctx,
-  entry,
-  viewport,
+  ctx: ViewerAppContext,
+  entry: CanvasMotionPathOverlayEntry & {
+    model: Extract<CanvasMotionPathModel, { ok: true }>;
+  },
+  viewport: CanvasMotionPathViewport,
   index: number,
-  selectedRefs,
-  template,
+  selectedRefs: readonly KeyframeSelectionRef[],
+  template: EditorTemplate,
 ): void {
   const group = document.createElementNS(SVG_NAMESPACE, "g");
   group.setAttribute(
@@ -134,11 +142,17 @@ function appendMotionPathLayer(
   ctx.refs.motionPathOverlay.append(group);
 }
 
-function createMotionPathData(points, viewport): string {
-  const commands = [`M ${formatPoint(points[0].stage)}`];
+function createMotionPathData(
+  points: readonly { model: CanvasMotionPathPoint; stage: CanvasPoint }[],
+  viewport: CanvasMotionPathViewport,
+): string {
+  const first = points[0];
+  if (!first) return "";
+  const commands = [`M ${formatPoint(first.stage)}`];
   for (let index = 0; index < points.length - 1; index += 1) {
     const from = points[index];
     const to = points[index + 1];
+    if (!from || !to) continue;
     const linearSegment = from.model.kind === "linear";
     const firstControl = getMotionPathTangentStagePoint(
       from.stage,
@@ -160,10 +174,10 @@ function createMotionPathData(points, viewport): string {
 }
 
 export function getCanvasMotionPathStagePoint(
-  ctx,
-  layer,
-  point,
-  viewport = getMotionPathViewport(ctx),
+  ctx: ViewerAppContext,
+  layer: EffectLayer,
+  point: CanvasPoint,
+  viewport: CanvasMotionPathViewport,
 ) {
   const box = ctx.getLayerStaticCanvasBox(layer.id, point.x, point.y, layer);
   return {
@@ -180,7 +194,8 @@ export function getCanvasMotionPathStagePoint(
 
 function getMotionPathViewport(ctx: ViewerAppContext) {
   const canvasRect = ctx.refs.canvas.getBoundingClientRect();
-  const stageRect = ctx.refs.canvas.parentElement.getBoundingClientRect();
+  const stageRect = ctx.refs.canvas.parentElement?.getBoundingClientRect();
+  if (!stageRect) return null;
   return {
     canvasRect,
     scaleX: canvasRect.width / ctx.refs.canvas.width,
@@ -189,6 +204,6 @@ function getMotionPathViewport(ctx: ViewerAppContext) {
   };
 }
 
-function formatPoint(point): string {
+function formatPoint(point: CanvasPoint): string {
   return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
 }

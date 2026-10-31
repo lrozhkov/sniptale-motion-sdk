@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  CanvasGeometryActions,
+  CanvasPoint,
+  CanvasRect,
+} from "./geometry-contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { CanvasPropertyResolution } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerAuthorCanvasBox } from "./layer-author-geometry.js";
 import { usesIntrinsicCanvasGeometry } from "./layer-hit-geometry.js";
@@ -6,8 +14,8 @@ import { fitOrientedBoxToPrimitiveBounds } from "./primitive-geometry.js";
 export function getLayerCanvasBox(
   ctx: ViewerAppContext,
   layerId: string,
-  layer,
-  resolution: any = {},
+  layer: EffectLayer,
+  resolution: CanvasPropertyResolution = {},
 ) {
   const capabilities = ctx.getLayerEditorCapabilities(layer);
   if (capabilities.canvas === "none") {
@@ -62,8 +70,8 @@ export function getLayerCanvasBox(
 
 export function getResolvedLayerAnchor(
   ctx: ViewerAppContext,
-  layer,
-  resolution: any = {},
+  layer: EffectLayer,
+  resolution: CanvasPropertyResolution = {},
 ) {
   return {
     x: ctx.deps.clamp(
@@ -79,15 +87,19 @@ export function getResolvedLayerAnchor(
   };
 }
 
-export function getLayerCanvasPivot(ctx: ViewerAppContext, box, layer) {
+export function getLayerCanvasPivot(
+  ctx: ViewerAppContext,
+  box: CanvasRect,
+  layer: EffectLayer,
+) {
   return getCanvasBoxPivot(box, ctx.getResolvedLayerAnchor(layer));
 }
 
 export function getLayerBaseCanvasBox(
   ctx: ViewerAppContext,
-  layerId,
-  layer,
-  resolution: any = {},
+  layerId: string,
+  layer: EffectLayer,
+  resolution: CanvasPropertyResolution = {},
 ) {
   const capabilities = ctx.getLayerEditorCapabilities(layer);
   if (capabilities.canvas === "none") {
@@ -108,8 +120,8 @@ export function getLayerBaseCanvasBox(
 
 export function getLayerPrimitiveCanvasBox(
   ctx: ViewerAppContext,
-  layerId,
-  _layer = null,
+  layerId: string,
+  _layer: EffectLayer | null = null,
 ) {
   const bounds = ctx.state.lastBindingReads?.primitiveBounds?.find(
     (item) => item.layerId === layerId,
@@ -118,25 +130,17 @@ export function getLayerPrimitiveCanvasBox(
     return null;
   }
   const x = ctx.deps.clamp(
-    Number(bounds.x),
+    bounds.x,
     -ctx.refs.canvas.width,
     ctx.refs.canvas.width * 2,
   );
   const y = ctx.deps.clamp(
-    Number(bounds.y),
+    bounds.y,
     -ctx.refs.canvas.height,
     ctx.refs.canvas.height * 2,
   );
-  const width = ctx.deps.clamp(
-    Number(bounds.width),
-    1,
-    ctx.refs.canvas.width * 2,
-  );
-  const height = ctx.deps.clamp(
-    Number(bounds.height),
-    1,
-    ctx.refs.canvas.height * 2,
-  );
+  const width = ctx.deps.clamp(bounds.width, 1, ctx.refs.canvas.width * 2);
+  const height = ctx.deps.clamp(bounds.height, 1, ctx.refs.canvas.height * 2);
   if (![x, y, width, height].every(Number.isFinite)) {
     return null;
   }
@@ -145,8 +149,8 @@ export function getLayerPrimitiveCanvasBox(
 
 export function layerHasAuthorGeometryHints(
   ctx: ViewerAppContext,
-  layerId,
-  layer = null,
+  layerId: string,
+  layer: EffectLayer | null = null,
 ) {
   const sourceLayer =
     ctx.state.currentTemplate?.layers?.find((item) => item.id === layerId) ??
@@ -161,10 +165,10 @@ export function layerHasAuthorGeometryHints(
 
 export function getLayerStaticCanvasBox(
   ctx: ViewerAppContext,
-  layerId,
-  x,
-  y,
-  layer = null,
+  layerId: string,
+  x: number,
+  y: number,
+  layer: EffectLayer | null = null,
 ) {
   if (layerId === "logo") {
     const width = ctx.refs.canvas.width * 0.42;
@@ -201,12 +205,12 @@ export function getLayerStaticCanvasBox(
     };
   }
   const width = ctx.deps.clamp(
-    Number(layer?.width) || ctx.refs.canvas.width * 0.2,
+    finiteGeometryValue(layer?.width, 0) || ctx.refs.canvas.width * 0.2,
     8,
     ctx.refs.canvas.width * 2,
   );
   const height = ctx.deps.clamp(
-    Number(layer?.height) || ctx.refs.canvas.height * 0.2,
+    finiteGeometryValue(layer?.height, 0) || ctx.refs.canvas.height * 0.2,
     8,
     ctx.refs.canvas.height * 2,
   );
@@ -219,22 +223,24 @@ export function getLayerStaticCanvasBox(
   };
 }
 
-function getLayerBaseCenter(ctx: ViewerAppContext, layer, width, height) {
-  if (
-    Number.isFinite(Number(layer?.left)) ||
-    Number.isFinite(Number(layer?.top))
-  ) {
+function getLayerBaseCenter(
+  ctx: ViewerAppContext,
+  layer: EffectLayer | null,
+  width: number,
+  height: number,
+) {
+  if (isFiniteGeometryValue(layer?.left) || isFiniteGeometryValue(layer?.top)) {
     return {
       x:
         ctx.deps.clamp(
-          Number(layer?.left) || 0,
+          finiteGeometryValue(layer?.left, 0) || 0,
           -ctx.refs.canvas.width,
           ctx.refs.canvas.width * 2,
         ) +
         width * 0.5,
       y:
         ctx.deps.clamp(
-          Number(layer?.top) || 0,
+          finiteGeometryValue(layer?.top, 0) || 0,
           -ctx.refs.canvas.height,
           ctx.refs.canvas.height * 2,
         ) +
@@ -257,35 +263,59 @@ function getLayerBaseCenter(ctx: ViewerAppContext, layer, width, height) {
   };
 }
 
-function resolveCanvasCoordinate(ctx: ViewerAppContext, value, size, fallback) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
+function resolveCanvasCoordinate(
+  ctx: ViewerAppContext,
+  value: unknown,
+  size: number,
+  fallback: number,
+) {
+  if (!isFiniteGeometryValue(value)) {
     return fallback;
   }
-  const resolved = Math.abs(numeric) <= 1 ? numeric * size : numeric;
+  const resolved = Math.abs(value) <= 1 ? value * size : value;
   return ctx.deps.clamp(resolved, -size, size * 2);
 }
 
-function getCanvasBoxPivot(box, anchor) {
+function getCanvasBoxPivot(box: CanvasRect, anchor: CanvasPoint) {
   return {
     x: box.x + box.width * (0.5 + anchor.x),
     y: box.y + box.height * (0.5 + anchor.y),
   };
 }
 
-export function installCanvasLayerGeometryOwner(ctx: ViewerAppContext): void {
-  ctx.getLayerCanvasBox = getLayerCanvasBox.bind(undefined, ctx);
-  ctx.getResolvedLayerAnchor = getResolvedLayerAnchor.bind(undefined, ctx);
-  ctx.getLayerCanvasPivot = getLayerCanvasPivot.bind(undefined, ctx);
-  ctx.getLayerBaseCanvasBox = getLayerBaseCanvasBox.bind(undefined, ctx);
-  ctx.getLayerAuthorCanvasBox = getLayerAuthorCanvasBox.bind(undefined, ctx);
-  ctx.getLayerPrimitiveCanvasBox = getLayerPrimitiveCanvasBox.bind(
-    undefined,
-    ctx,
-  );
-  ctx.layerHasAuthorGeometryHints = layerHasAuthorGeometryHints.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getLayerStaticCanvasBox = getLayerStaticCanvasBox.bind(undefined, ctx);
+export function createCanvasGeometryActions(
+  getContext: () => ViewerAppContext,
+): Omit<CanvasGeometryActions, "getLayerCanvasHitBox"> {
+  return {
+    getLayerCanvasBox: bindViewerAction(getLayerCanvasBox, getContext),
+    getResolvedLayerAnchor: bindViewerAction(
+      getResolvedLayerAnchor,
+      getContext,
+    ),
+    getLayerCanvasPivot: bindViewerAction(getLayerCanvasPivot, getContext),
+    getLayerBaseCanvasBox: bindViewerAction(getLayerBaseCanvasBox, getContext),
+    getLayerAuthorCanvasBox: bindViewerAction(
+      getLayerAuthorCanvasBox,
+      getContext,
+    ),
+    getLayerPrimitiveCanvasBox: bindViewerAction(
+      getLayerPrimitiveCanvasBox,
+      getContext,
+    ),
+    layerHasAuthorGeometryHints: bindViewerAction(
+      layerHasAuthorGeometryHints,
+      getContext,
+    ),
+    getLayerStaticCanvasBox: bindViewerAction(
+      getLayerStaticCanvasBox,
+      getContext,
+    ),
+  };
+}
+
+function isFiniteGeometryValue(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+function finiteGeometryValue(value: unknown, fallback: number): number {
+  return isFiniteGeometryValue(value) ? value : fallback;
 }

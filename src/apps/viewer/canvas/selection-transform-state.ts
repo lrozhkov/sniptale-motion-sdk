@@ -1,3 +1,4 @@
+import type { EffectLayerEditorTransformProperty } from "../../../sdk/types.js";
 import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { createCanvasDragPreview } from "./drag-preview.js";
@@ -24,7 +25,7 @@ export type CanvasSelectionGestureSnapshot = {
 
 const OPERATION_PROPERTIES: Record<
   CanvasSelectionTransformOperation,
-  string[]
+  EffectLayerEditorTransformProperty[]
 > = {
   move: ["x", "y"],
   rotation: ["x", "y", "rotation"],
@@ -159,7 +160,7 @@ export function applyCanvasSelectionTransform(
   if (ctx.state.canvasTransformPreview?.boxes) {
     ctx.state.canvasTransformPreview.boxes = result.boxes;
   }
-  const properties = new Set(OPERATION_PROPERTIES[snapshot.operation]);
+  const properties = new Set<string>(OPERATION_PROPERTIES[snapshot.operation]);
   const updates = Object.fromEntries(
     Object.entries(result.updates).map(([layerId, values]) => [
       layerId,

@@ -1,3 +1,7 @@
+import type { LayerEditorCapabilityActions } from "../layers/editor-capabilities.js";
+import type { CanvasGuideActions } from "../canvas/guide-contract.js";
+import type { CanvasPathActions } from "../canvas/path-contract.js";
+import type { CanvasGeometryActions } from "../canvas/geometry-contract.js";
 import type { InspectorMotionPathActions } from "../inspector/contract.js";
 import type {
   CanvasMotionPathUpdateActions,
@@ -43,6 +47,10 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    LayerEditorCapabilityActions,
+    CanvasGuideActions,
+    CanvasPathActions,
+    CanvasGeometryActions,
     CanvasMotionPathUpdateActions,
     InspectorMotionPathActions,
     CanvasPropertyActions,

@@ -1,6 +1,15 @@
+import {
+  readEditablePathPointDataset,
+  readMotionPathPointDataset,
+} from "./path-point-dataset.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasPathActions } from "./path-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function beginMotionPathPointHitDrag(ctx: ViewerAppContext, event) {
+function beginMotionPathPointHitDrag(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+) {
   if (event.button !== 0 || event.defaultPrevented) {
     return;
   }
@@ -34,7 +43,7 @@ function beginMotionPathPointHitDrag(ctx: ViewerAppContext, event) {
 
 function beginOverlappingTransformHandleDrag(
   ctx: ViewerAppContext,
-  event,
+  event: PointerEvent,
 ): boolean {
   const handle = document
     .elementsFromPoint(event.clientX, event.clientY)
@@ -62,69 +71,78 @@ function beginOverlappingTransformHandleDrag(
   return false;
 }
 
-function findNearestOverlayPoint(
+function findNearestOverlayPoint<T extends object>(
   ctx: ViewerAppContext,
-  event,
+  event: MouseEvent,
   selector: string,
-  read: (point: SVGElement) => Record<string, unknown>,
+  read: (point: SVGElement) => T | null,
 ) {
-  let nearest: any = null;
+  let nearest: (T & { distance: number }) | null = null;
   const points = Array.from(
     ctx.refs.motionPathOverlay.querySelectorAll(selector),
-  ) as SVGElement[];
+  );
   for (const point of points) {
+    if (!(point instanceof SVGElement)) continue;
+    const value = read(point);
+    if (!value) continue;
     const rect = point.getBoundingClientRect();
     const distance = Math.hypot(
       event.clientX - (rect.left + rect.width / 2),
       event.clientY - (rect.top + rect.height / 2),
     );
     if (distance <= 14 && (!nearest || distance < nearest.distance)) {
-      nearest = { distance, ...read(point) };
+      nearest = { distance, ...value };
     }
   }
   return nearest;
 }
 
-function findEditablePathPointNearEvent(ctx: ViewerAppContext, event) {
-  return findNearestOverlayPoint(
-    ctx,
-    event,
-    ".editable-path-point",
-    (point) => ({
-      layerId: point.dataset.layerId,
-      pointIndex: Number(point.dataset.pointIndex),
-    }),
+function findEditablePathPointNearEvent(
+  ctx: ViewerAppContext,
+  event: MouseEvent,
+) {
+  return findNearestOverlayPoint(ctx, event, ".editable-path-point", (point) =>
+    readEditablePathPointDataset(point.dataset),
   );
 }
 
-function findMotionPathPointNearEvent(ctx: ViewerAppContext, event) {
+function findMotionPathPointNearEvent(
+  ctx: ViewerAppContext,
+  event: MouseEvent,
+) {
   return findNearestOverlayPoint(
     ctx,
     event,
     '.motion-path-point[data-interactive="true"]',
-    (point) => ({
-      layerId: point.dataset.layerId,
-      xKeyframeId: point.dataset.xKeyframeId,
-      yKeyframeId: point.dataset.yKeyframeId,
-    }),
+    (point) => readMotionPathPointDataset(point.dataset),
   );
 }
 
-export function installCanvasPathPointHitTestingOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginMotionPathPointHitDrag = beginMotionPathPointHitDrag.bind(
-    undefined,
-    ctx,
-  );
-  ctx.beginOverlappingTransformHandleDrag =
-    beginOverlappingTransformHandleDrag.bind(undefined, ctx);
-  ctx.findEditablePathPointNearEvent = findEditablePathPointNearEvent.bind(
-    undefined,
-    ctx,
-  );
-  ctx.findMotionPathPointNearEvent = findMotionPathPointNearEvent.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasPathPointHitTestingActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasPathActions,
+  | "beginMotionPathPointHitDrag"
+  | "beginOverlappingTransformHandleDrag"
+  | "findEditablePathPointNearEvent"
+  | "findMotionPathPointNearEvent"
+> {
+  return {
+    beginMotionPathPointHitDrag: bindViewerAction(
+      beginMotionPathPointHitDrag,
+      getContext,
+    ),
+    beginOverlappingTransformHandleDrag: bindViewerAction(
+      beginOverlappingTransformHandleDrag,
+      getContext,
+    ),
+    findEditablePathPointNearEvent: bindViewerAction(
+      findEditablePathPointNearEvent,
+      getContext,
+    ),
+    findMotionPathPointNearEvent: bindViewerAction(
+      findMotionPathPointNearEvent,
+      getContext,
+    ),
+  };
 }

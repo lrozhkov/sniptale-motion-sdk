@@ -1,10 +1,12 @@
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { CanvasPropertyResolution } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 export function getLayerAuthorCanvasBox(
   ctx: ViewerAppContext,
-  layerId,
-  layer,
-  resolution: any = {},
+  layerId: string,
+  layer: EffectLayer,
+  resolution: CanvasPropertyResolution = {},
 ) {
   const capabilities = ctx.getLayerEditorCapabilities(layer);
   if (capabilities.canvas === "none") {
@@ -29,6 +31,7 @@ export function getLayerAuthorCanvasBox(
   );
   const rotation = ctx.getResolvedLayerProperty(layer, "rotation", resolution);
   const baseBox = ctx.getLayerBaseCanvasBox(layerId, layer, resolution);
+  if (!baseBox) return null;
   const anchor = ctx.getResolvedLayerAnchor(layer, resolution);
   const pivot = {
     x: baseBox.x + baseBox.width * (0.5 + anchor.x),

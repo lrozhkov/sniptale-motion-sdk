@@ -1,10 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasPathActions } from "./path-contract.js";
 import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
 
 function beginMotionPathTangentDrag(
   ctx: ViewerAppContext,
-  event,
+  event: PointerEvent,
   layerId: string,
   xKeyframeId: string,
   yKeyframeId: string,
@@ -35,6 +37,10 @@ function beginMotionPathTangentDrag(
   ) {
     return;
   }
+  const handle = event.currentTarget;
+  if (!(handle instanceof SVGCircleElement)) return;
+  const sibling = handle.previousElementSibling;
+  const line = sibling instanceof SVGLineElement ? sibling : null;
   ctx.selectCanvasMotionPathPoint(layerId, xKeyframeId, yKeyframeId, null, {
     sync: false,
   });
@@ -43,14 +49,12 @@ function beginMotionPathTangentDrag(
   const startY = event.clientY;
   const original = { ...point[`${side}Tangent`] };
   const preview = createCanvasDragPreview(ctx);
-  const handle = event.currentTarget as SVGCircleElement;
-  const line = handle.previousElementSibling as SVGLineElement | null;
   const handleStart = {
     x: Number(handle.getAttribute("cx")) || 0,
     y: Number(handle.getAttribute("cy")) || 0,
   };
   let latest = original;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
@@ -123,7 +127,7 @@ function beginMotionPathTangentDrag(
 
 function handleMotionPathTangentKeydown(
   ctx: ViewerAppContext,
-  event,
+  event: KeyboardEvent,
   layerId: string,
   xKeyframeId: string,
   yKeyframeId: string,
@@ -184,7 +188,7 @@ function handleMotionPathTangentKeydown(
   });
 }
 
-function getKeyboardTangentDelta(event) {
+function getKeyboardTangentDelta(event: KeyboardEvent) {
   const step = event.shiftKey ? 10 : 1;
   if (event.key === "ArrowLeft") return { x: -step, y: 0 };
   if (event.key === "ArrowRight") return { x: step, y: 0 };
@@ -193,15 +197,20 @@ function getKeyboardTangentDelta(event) {
   return null;
 }
 
-export function installCanvasMotionPathHandleDragOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginMotionPathTangentDrag = beginMotionPathTangentDrag.bind(
-    undefined,
-    ctx,
-  );
-  ctx.handleMotionPathTangentKeydown = handleMotionPathTangentKeydown.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasMotionPathHandleDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasPathActions,
+  "beginMotionPathTangentDrag" | "handleMotionPathTangentKeydown"
+> {
+  return {
+    beginMotionPathTangentDrag: bindViewerAction(
+      beginMotionPathTangentDrag,
+      getContext,
+    ),
+    handleMotionPathTangentKeydown: bindViewerAction(
+      handleMotionPathTangentKeydown,
+      getContext,
+    ),
+  };
 }

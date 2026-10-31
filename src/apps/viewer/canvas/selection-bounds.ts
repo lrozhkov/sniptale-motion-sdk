@@ -1,3 +1,8 @@
+import type { CanvasBox } from "./primitive-geometry.js";
+import type { CanvasPoint } from "./geometry-contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTemplate } from "../templates/model.js";
+import type { CanvasPropertyResolution } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { rotateCanvasVector } from "./transform-math.js";
 
@@ -13,17 +18,17 @@ export type CanvasSelectionBounds = {
 };
 
 export type CanvasSelectionBoundsEntry = {
-  box: any;
-  layer: any;
+  box: CanvasBox;
+  layer: EffectLayer;
   layerId: string;
-  pivot: any;
+  pivot: CanvasPoint;
 };
 
 export function resolveCanvasSelectionBounds(
   ctx: ViewerAppContext,
-  template,
+  template: Pick<EditorTemplate, "layers">,
   layerIds: string[],
-  resolution: any = {},
+  resolution: CanvasPropertyResolution = {},
 ): CanvasSelectionBounds | null {
   const entries: CanvasSelectionBoundsEntry[] = [];
   for (const layerId of layerIds) {
@@ -64,7 +69,7 @@ export function resolveCanvasSelectionBounds(
   };
 }
 
-export function getAxisAlignedCanvasBox(box, pivot) {
+export function getAxisAlignedCanvasBox(box: CanvasBox, pivot: CanvasPoint) {
   const corners = [
     { x: box.x, y: box.y },
     { x: box.x + box.width, y: box.y },

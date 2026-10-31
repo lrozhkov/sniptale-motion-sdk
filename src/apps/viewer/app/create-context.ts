@@ -1,3 +1,12 @@
+import { createLayerEditorCapabilityActions } from "../layers/editor-capabilities.js";
+import { createCanvasGuideActions } from "../canvas/guide-snap.js";
+import { createCanvasPathOverlayActions } from "../canvas/path-overlay.js";
+import { createCanvasPathPointDragActions } from "../canvas/path-point-drag.js";
+import { createCanvasMotionPathHandleDragActions } from "../canvas/motion-path-handle-drag.js";
+import { createCanvasEditablePathPointDragActions } from "../canvas/editable-path-point-drag.js";
+import { createCanvasPathPointHitTestingActions } from "../canvas/path-point-hit-testing.js";
+import { createCanvasGeometryActions } from "../canvas/layer-geometry.js";
+import { createCanvasHitGeometryActions } from "../canvas/layer-hit-geometry.js";
 import { createInspectorMotionPathActions } from "../inspector/motion-path-point.js";
 import { createCanvasMotionPathUpdateActions } from "../canvas/motion-path-updates.js";
 import { createCanvasMotionPathBatchActions } from "../canvas/motion-path-batch-updates.js";
@@ -58,6 +67,16 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createLayerEditorCapabilityActions(),
+    ...createCanvasGuideActions(() => ctx),
+    ...createCanvasPathOverlayActions(() => ctx),
+    ...createCanvasPathPointDragActions(() => ctx),
+    ...createCanvasMotionPathHandleDragActions(() => ctx),
+    ...createCanvasEditablePathPointDragActions(() => ctx),
+    ...createCanvasPathPointHitTestingActions(() => ctx),
+
+    ...createCanvasGeometryActions(() => ctx),
+    ...createCanvasHitGeometryActions(() => ctx),
     ...createLazyExportFeatures(() => ctx),
     ...createTimelineActions(() => ctx),
     ...createCanvasMotionPathUpdateActions(() => ctx),

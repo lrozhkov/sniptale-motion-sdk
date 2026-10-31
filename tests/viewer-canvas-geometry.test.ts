@@ -1,3 +1,4 @@
+import type { EffectLayer } from "../src/sdk/types.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -11,10 +12,49 @@ import { resolveLayerEditorCapabilities } from "../src/apps/viewer/layers/editor
 import { normalizeLayers } from "../src/apps/sandbox/runtime/render-normalization";
 
 describe("viewer canvas geometry", () => {
+  it.each(
+    [null, true, "12", [], [12], { toString: null }].map((value: unknown) => ({
+      value,
+    })),
+  )("does not coerce authored geometry: %j", ({ value }) => {
+    const ctx = createGeometryContext();
+    const dimensions = getLayerStaticCanvasBox(ctx, "card", 0, 0, {
+      id: "card",
+      type: "rect",
+      width: value,
+      height: 100,
+      baseX: 0.5,
+      baseY: 0.5,
+    });
+    expect(dimensions.width).toBe(256);
+    const position = getLayerStaticCanvasBox(ctx, "card", 0, 0, {
+      id: "card",
+      type: "rect",
+      width: 100,
+      height: 100,
+      baseX: value,
+      baseY: value,
+    });
+    expect(position.x).toBe(590);
+    expect(position.y).toBe(310);
+    const offsets = getLayerStaticCanvasBox(ctx, "card", 0, 0, {
+      id: "card",
+      type: "rect",
+      width: 100,
+      height: 100,
+      left: value,
+      top: value,
+    });
+    expect(offsets.x).toBe(590);
+    expect(offsets.y).toBe(310);
+  });
+
   it("uses layer base coordinates instead of always centering generic layers", () => {
     const ctx = createGeometryContext();
 
     const box = getLayerStaticCanvasBox(ctx, "box", -120, 30, {
+      id: "box",
+      type: "rect",
       baseX: 0.5,
       baseY: 0.48,
       height: 140,
@@ -35,6 +75,7 @@ describe("viewer canvas geometry", () => {
 
     expect(
       getLayerCanvasBox(ctx, "box", {
+        id: "box",
         baseX: 0.5,
         baseY: 0.5,
         height: 100,
@@ -73,7 +114,7 @@ describe("viewer canvas geometry", () => {
   });
 
   it("does not switch geometry sources merely because another canvas gesture is active", () => {
-    const layer = {
+    const layer: EffectLayer = {
       baseX: 0.5,
       baseY: 0.5,
       height: 100,
@@ -177,7 +218,7 @@ describe("viewer canvas geometry", () => {
   });
 
   it("uses the author box for intrinsic resize while retaining renderer hit bounds", () => {
-    const layer = {
+    const layer: EffectLayer = {
       baseX: 0.5,
       baseY: 0.5,
       height: 210,
@@ -276,6 +317,7 @@ describe("viewer canvas geometry", () => {
     });
 
     const box = getLayerCanvasBox(ctx, "box", layer);
+    if (!box) throw new Error("Expected canvas geometry");
     expect(box.rotation).toBe(30);
     expect(box.width).toBeCloseTo(expected.width);
     expect(box.height).toBeCloseTo(expected.height);
@@ -284,7 +326,7 @@ describe("viewer canvas geometry", () => {
   });
 
   it("uses author aspect near a 45 degree bounds singularity", () => {
-    const layer = {
+    const layer: EffectLayer = {
       baseX: 0.5,
       baseY: 0.5,
       height: 80,
@@ -311,6 +353,7 @@ describe("viewer canvas geometry", () => {
     });
 
     const box = getLayerCanvasBox(ctx, "box", layer);
+    if (!box) throw new Error("Expected canvas geometry");
     expect(box.rotation).toBe(45);
     expect(box.width).toBeCloseTo(expected.width);
     expect(box.height).toBeCloseTo(expected.height);

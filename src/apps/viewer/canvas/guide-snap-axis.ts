@@ -1,3 +1,4 @@
+import type { CanvasPoint, CanvasRect } from "./geometry-contract.js";
 export interface CanvasGuide {
   label: string;
   value: number;
@@ -151,7 +152,10 @@ export function resolveCanvasGuideSnapForAnchors(
   };
 }
 
-export function getCanvasSnapAnchorValues(box, pivot) {
+export function getCanvasSnapAnchorValues(
+  box: CanvasRect & { rotation?: number },
+  pivot: CanvasPoint,
+) {
   const rotation = Number(box.rotation) || 0;
   const corners = [
     { x: box.x, y: box.y },

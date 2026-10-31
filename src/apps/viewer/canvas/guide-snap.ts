@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  CanvasGuideActions,
+  CanvasGuideSnapSession,
+  CanvasGuideRecentRelease,
+} from "./guide-contract.js";
+import type { CanvasPoint, CanvasRect } from "./geometry-contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   type CanvasGuideSnapLock,
@@ -17,29 +25,14 @@ const SNAP_RELEASE_CSS_PIXELS = 6;
 const SNAP_RELEASE_BLEND_CSS_PIXELS = 18;
 const SNAP_REACQUIRE_COOLDOWN_SAMPLES = 8;
 
-type CanvasGuideRecentRelease = {
-  guide: { label: string; value: number };
-  remaining: number;
-};
-
-interface CanvasGuideSnapSession {
-  xAnchorOffsets: number[];
-  xGuides: Array<{ label: string; value: number }>;
-  xLock: CanvasGuideSnapLock | null;
-  xRecentRelease: CanvasGuideRecentRelease | null;
-  yAnchorOffsets: number[];
-  yGuides: Array<{ label: string; value: number }>;
-  yLock: CanvasGuideSnapLock | null;
-  yRecentRelease: CanvasGuideRecentRelease | null;
-}
-
 function createCanvasGuideSnapSession(
   ctx: ViewerAppContext,
-  layerId,
-  layer,
-  position,
-): CanvasGuideSnapSession {
+  layerId: string,
+  layer: EffectLayer,
+  position: CanvasPoint,
+): CanvasGuideSnapSession | null {
   const box = ctx.getLayerCanvasBox(layerId, layer);
+  if (!box) return null;
   const pivot = ctx.getLayerCanvasPivot(box, layer);
   const anchors = getCanvasSnapAnchorValues(box, pivot);
   return {
@@ -56,7 +49,7 @@ function createCanvasGuideSnapSession(
 
 function createCanvasGuideSnapSessionForBox(
   ctx: ViewerAppContext,
-  box,
+  box: CanvasRect,
   position = { x: box.x + box.width * 0.5, y: box.y + box.height * 0.5 },
   excludedLayerIds: string[] = [],
 ): CanvasGuideSnapSession {
@@ -76,10 +69,11 @@ function createCanvasGuideSnapSessionForBox(
 
 function applyCanvasGuideSnap(
   ctx: ViewerAppContext,
-  session: CanvasGuideSnapSession,
-  x,
-  y,
+  session: CanvasGuideSnapSession | null,
+  x: number,
+  y: number,
 ) {
+  if (!session) return { snap: [], x, y };
   if (!ctx.state.previewSnap) {
     session.xLock = null;
     session.yLock = null;
@@ -183,7 +177,11 @@ function updateRecentGuideRelease(
     : null;
 }
 
-function getCanvasSnapGuides(ctx: ViewerAppContext, size, safeInsetRatio) {
+function getCanvasSnapGuides(
+  ctx: ViewerAppContext,
+  size: number,
+  safeInsetRatio: number,
+) {
   const safeInset = size * safeInsetRatio;
   return [
     {
@@ -237,19 +235,29 @@ function getCanvasGestureSnapGuides(
     const start = axis === "x" ? bounds.x : bounds.y;
     const length = axis === "x" ? bounds.width : bounds.height;
     for (const value of [start, start + length * 0.5, start + length]) {
-      guides.push({ label: layer.name || layer.id, value });
+      guides.push({
+        label:
+          typeof layer.name === "string" && layer.name ? layer.name : layer.id,
+        value,
+      });
     }
   }
   return guides;
 }
 
-export function installCanvasGuideSnapOwner(ctx: ViewerAppContext): void {
-  ctx.createCanvasGuideSnapSession = createCanvasGuideSnapSession.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createCanvasGuideSnapSessionForBox =
-    createCanvasGuideSnapSessionForBox.bind(undefined, ctx);
-  ctx.applyCanvasGuideSnap = applyCanvasGuideSnap.bind(undefined, ctx);
-  ctx.getCanvasSnapGuides = getCanvasSnapGuides.bind(undefined, ctx);
+export function createCanvasGuideActions(
+  getContext: () => ViewerAppContext,
+): CanvasGuideActions {
+  return {
+    createCanvasGuideSnapSession: bindViewerAction(
+      createCanvasGuideSnapSession,
+      getContext,
+    ),
+    createCanvasGuideSnapSessionForBox: bindViewerAction(
+      createCanvasGuideSnapSessionForBox,
+      getContext,
+    ),
+    applyCanvasGuideSnap: bindViewerAction(applyCanvasGuideSnap, getContext),
+    getCanvasSnapGuides: bindViewerAction(getCanvasSnapGuides, getContext),
+  };
 }

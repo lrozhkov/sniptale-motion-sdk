@@ -1,3 +1,8 @@
+import type {
+  CanvasPoint,
+  CanvasMotionPathViewport,
+} from "./geometry-contract.js";
+import type { MotionPathTangent } from "../../../shared/timeline/motion-path.js";
 import type { ViewerAppContext } from "../app/context.js";
 import type { CanvasMotionPathPoint } from "./motion-path-model.js";
 
@@ -8,7 +13,7 @@ export function appendMotionPathPoint(
   group: SVGGElement,
   layerId: string,
   point: CanvasMotionPathPoint,
-  stagePoint,
+  stagePoint: CanvasPoint,
   index: number,
   count: number,
   selected: boolean,
@@ -67,8 +72,8 @@ export function appendMotionPathTangents(
   group: SVGGElement,
   layerId: string,
   point: CanvasMotionPathPoint,
-  stagePoint,
-  viewport,
+  stagePoint: CanvasPoint,
+  viewport: CanvasMotionPathViewport,
 ): void {
   for (const side of ["in", "out"] as const) {
     const tangent = point[`${side}Tangent`];
@@ -132,7 +137,11 @@ export function appendMotionPathTangents(
   }
 }
 
-export function getMotionPathTangentStagePoint(point, tangent, viewport) {
+export function getMotionPathTangentStagePoint(
+  point: CanvasPoint,
+  tangent: MotionPathTangent,
+  viewport: Pick<CanvasMotionPathViewport, "scaleX" | "scaleY">,
+) {
   return {
     x: point.x + tangent.x * viewport.scaleX,
     y: point.y + tangent.y * viewport.scaleY,

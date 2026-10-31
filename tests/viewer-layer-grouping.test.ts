@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { installLayersClipboardOwner } from "../src/apps/viewer/layers/clipboard";
-import { installLayersEditorCapabilitiesOwner } from "../src/apps/viewer/layers/editor-capabilities";
+import { createLayerEditorCapabilityActions } from "../src/apps/viewer/layers/editor-capabilities";
 import { installLayersFactoryOwner } from "../src/apps/viewer/layers/factory";
 import { installLayersGroupingOwner } from "../src/apps/viewer/layers/grouping";
 import { installLayersHierarchyControllerOwner } from "../src/apps/viewer/layers/hierarchy-controller";
@@ -64,7 +64,7 @@ describe("viewer structural layer grouping", () => {
     ctx.state.selectedLayers = ["group-1"];
     ctx.state.selectedItem = { layerId: "group-1", type: "layer" };
     installLayersHierarchyControllerOwner(ctx);
-    installLayersEditorCapabilitiesOwner(ctx);
+    Object.assign(ctx, createLayerEditorCapabilityActions());
     installLayersFactoryOwner(ctx);
     installLayersClipboardOwner(ctx);
 

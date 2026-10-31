@@ -1,12 +1,14 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasPathActions } from "./path-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
 import { prepareCanvasGesture } from "./gesture.js";
 
 function beginEditablePathPointDrag(
   ctx: ViewerAppContext,
-  event,
-  layerId,
-  pointIndex,
+  event: PointerEvent,
+  layerId: string,
+  pointIndex: number,
 ) {
   event.preventDefault();
   event.stopPropagation();
@@ -23,12 +25,13 @@ function beginEditablePathPointDrag(
     return;
   }
   const box = ctx.getLayerCanvasBox(layerId, layer);
+  if (!box) return;
   const canvasRect = ctx.refs.canvas.getBoundingClientRect();
   const startX = event.clientX;
   const startY = event.clientY;
   const preview = createCanvasDragPreview(ctx);
   let latest = original;
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
@@ -74,11 +77,13 @@ function beginEditablePathPointDrag(
   });
 }
 
-export function installCanvasEditablePathPointDragOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginEditablePathPointDrag = beginEditablePathPointDrag.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasEditablePathPointDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<CanvasPathActions, "beginEditablePathPointDrag"> {
+  return {
+    beginEditablePathPointDrag: bindViewerAction(
+      beginEditablePathPointDrag,
+      getContext,
+    ),
+  };
 }

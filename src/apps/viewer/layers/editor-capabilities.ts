@@ -4,7 +4,6 @@ import type {
   EffectLayerEditorOperation,
   EffectLayerEditorTransformProperty,
 } from "../../../sdk/types.js";
-import type { ViewerAppContext } from "../app/context.js";
 
 export type LayerEditorCapabilities = {
   canvas: EffectLayerEditorCanvasMode;
@@ -269,18 +268,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function installLayersEditorCapabilitiesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.getLayerEditorCapabilities = (layer) =>
-    resolveLayerEditorCapabilities(layer);
-  ctx.isLayerCanvasSelectable = (layer) => isLayerCanvasSelectable(layer);
-  ctx.canEditLayerProperty = (layer, property) =>
-    canEditLayerProperty(layer, property);
-  ctx.canKeyframeLayerProperty = (layer, property) =>
-    canKeyframeLayerProperty(layer, property);
-  ctx.canTransformLayerProperty = (layer, property) =>
-    canTransformLayerProperty(layer, property);
-  ctx.canPerformLayerOperation = (layer, operation) =>
-    canPerformLayerOperation(layer, operation);
+export type LayerEditorCapabilityActions = {
+  getLayerEditorCapabilities: typeof resolveLayerEditorCapabilities;
+  isLayerCanvasSelectable: typeof isLayerCanvasSelectable;
+  canEditLayerProperty: typeof canEditLayerProperty;
+  canKeyframeLayerProperty: typeof canKeyframeLayerProperty;
+  canTransformLayerProperty: typeof canTransformLayerProperty;
+  canPerformLayerOperation: typeof canPerformLayerOperation;
+};
+export function createLayerEditorCapabilityActions(): LayerEditorCapabilityActions {
+  return {
+    getLayerEditorCapabilities: resolveLayerEditorCapabilities,
+    isLayerCanvasSelectable,
+    canEditLayerProperty,
+    canKeyframeLayerProperty,
+    canTransformLayerProperty,
+    canPerformLayerOperation,
+  };
 }

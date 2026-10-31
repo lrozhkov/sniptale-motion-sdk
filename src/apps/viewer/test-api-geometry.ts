@@ -1,8 +1,12 @@
+import type { CanvasPoint } from "./canvas/geometry-contract.js";
 import type { ViewerAppContext } from "./app/context.js";
 import { createCanvasMotionPathModel } from "./canvas/motion-path-model.js";
 import { getCanvasMotionPathStagePoint } from "./canvas/motion-path-overlay.js";
 
-export function getLayerGeometryForTest(ctx: ViewerAppContext, layerId) {
+export function getLayerGeometryForTest(
+  ctx: ViewerAppContext,
+  layerId: string,
+) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const layer = template?.layers.find((item) => item.id === layerId);
   if (!layer) {
@@ -31,7 +35,10 @@ export function getSelectedLayerGeometryForTest(ctx: ViewerAppContext) {
   return layerId ? getLayerGeometryForTest(ctx, layerId) : null;
 }
 
-export function getLayerPathPointsForTest(ctx: ViewerAppContext, layerId) {
+export function getLayerPathPointsForTest(
+  ctx: ViewerAppContext,
+  layerId: string,
+) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const layer = template?.layers.find((item) => item.id === layerId);
   if (!template || !layer) {
@@ -49,12 +56,9 @@ export function getLayerPathPointsForTest(ctx: ViewerAppContext, layerId) {
     return ctx.deps.deepClone({
       editable: ctx
         .getEditablePathPoints(layer)
-        .map((point) =>
-          withPagePoint(
-            ctx.getEditablePathStagePoint(layer, point),
-            pageOffset,
-          ),
-        ),
+        .map((point) => ctx.getEditablePathStagePoint(layer, point))
+        .filter((point) => point !== null)
+        .map((point) => withPagePoint(point, pageOffset)),
       motion: [],
     });
   }
@@ -63,7 +67,12 @@ export function getLayerPathPointsForTest(ctx: ViewerAppContext, layerId) {
     ? model.points.map((point) =>
         withPagePoint(
           {
-            ...getCanvasMotionPathStagePoint(ctx, layer, point),
+            ...getCanvasMotionPathStagePoint(ctx, layer, point, {
+              canvasRect,
+              stageRect,
+              scaleX: canvasRect.width / ctx.refs.canvas.width,
+              scaleY: canvasRect.height / ctx.refs.canvas.height,
+            }),
             time: point.time,
           },
           pageOffset,
@@ -84,7 +93,10 @@ export function getLayerPathPointsForTest(ctx: ViewerAppContext, layerId) {
   });
 }
 
-function withPagePoint(point, pageOffset) {
+function withPagePoint<T extends CanvasPoint>(
+  point: T,
+  pageOffset: CanvasPoint,
+) {
   return {
     ...point,
     pageX: pageOffset.x + point.x,

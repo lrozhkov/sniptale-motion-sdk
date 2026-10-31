@@ -1,3 +1,12 @@
+import type { CanvasPoint } from "./geometry-contract.js";
+import type { CanvasMotionPathPositionUpdate } from "./contract.js";
+import type {
+  CanvasMotionPathModel,
+  CanvasMotionPathSelection,
+} from "./motion-path-model.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { CanvasPathActions } from "./path-contract.js";
 import { motionPathPointKey } from "./motion-path-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { activateCanvasDrag, createCanvasDragPreview } from "./drag-preview.js";
@@ -5,10 +14,10 @@ import { prepareCanvasGesture } from "./gesture.js";
 
 function beginMotionPathPointDrag(
   ctx: ViewerAppContext,
-  event,
-  layerId,
-  xKeyframeId,
-  yKeyframeId,
+  event: PointerEvent,
+  layerId: string,
+  xKeyframeId: string,
+  yKeyframeId: string,
 ) {
   event.preventDefault();
   event.stopPropagation();
@@ -72,7 +81,8 @@ function beginMotionPathPointDrag(
       item.layerId === layerId &&
       item.xKeyframeId === xKeyframeId &&
       item.yKeyframeId === yKeyframeId,
-  )!;
+  );
+  if (!anchor) return;
   const canvasRect = ctx.refs.canvas.getBoundingClientRect();
   const startX = event.clientX;
   const startY = event.clientY;
@@ -89,7 +99,7 @@ function beginMotionPathPointDrag(
   );
   const preview = createCanvasDragPreview(ctx);
   let latest = createOffsetUpdates(snapshot, { x: 0, y: 0 });
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: MouseEvent) => {
     if (!preview.isCurrent()) return;
     const pageDx = moveEvent.clientX - startX;
     const pageDy = moveEvent.clientY - startY;
@@ -149,10 +159,10 @@ function beginMotionPathPointDrag(
 
 function handleMotionPathPointKeydown(
   ctx: ViewerAppContext,
-  event,
-  layerId,
-  xKeyframeId,
-  yKeyframeId,
+  event: KeyboardEvent,
+  layerId: string,
+  xKeyframeId: string,
+  yKeyframeId: string,
 ) {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -221,7 +231,10 @@ function handleMotionPathPointKeydown(
   });
 }
 
-function createOffsetUpdates(snapshot, delta) {
+function createOffsetUpdates(
+  snapshot: readonly CanvasMotionPathPositionUpdate[],
+  delta: CanvasPoint,
+) {
   return snapshot.map((item) => ({
     layerId: item.layerId,
     position: {
@@ -233,7 +246,10 @@ function createOffsetUpdates(snapshot, delta) {
   }));
 }
 
-function refreshMotionPathOverlay(ctx: ViewerAppContext, template): void {
+function refreshMotionPathOverlay(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource,
+): void {
   const renderTemplate = ctx.getRenderTemplateSnapshot(template);
   const target = renderTemplate
     ? ctx.getCanvasSelectionTarget(renderTemplate)
@@ -243,7 +259,11 @@ function refreshMotionPathOverlay(ctx: ViewerAppContext, template): void {
   }
 }
 
-function findPoint(model, xKeyframeId, yKeyframeId) {
+function findPoint(
+  model: CanvasMotionPathModel,
+  xKeyframeId: string,
+  yKeyframeId: string,
+) {
   return model.ok
     ? model.points.find(
         (candidate) =>
@@ -253,7 +273,12 @@ function findPoint(model, xKeyframeId, yKeyframeId) {
     : null;
 }
 
-function isSamePoint(selection, layerId, xKeyframeId, yKeyframeId): boolean {
+function isSamePoint(
+  selection: CanvasMotionPathSelection,
+  layerId: string,
+  xKeyframeId: string,
+  yKeyframeId: string,
+): boolean {
   return (
     selection.layer.id === layerId &&
     selection.point.xKeyframeId === xKeyframeId &&
@@ -261,7 +286,7 @@ function isSamePoint(selection, layerId, xKeyframeId, yKeyframeId): boolean {
   );
 }
 
-function toPointRef(item) {
+function toPointRef(item: CanvasMotionPathPositionUpdate) {
   return {
     layerId: item.layerId,
     xKeyframeId: item.xKeyframeId,
@@ -269,11 +294,11 @@ function toPointRef(item) {
   };
 }
 
-function hasSelectionModifier(event): boolean {
+function hasSelectionModifier(event: MouseEvent): boolean {
   return Boolean(event.shiftKey || event.metaKey || event.ctrlKey);
 }
 
-function getMotionPathKeyboardDelta(event) {
+function getMotionPathKeyboardDelta(event: KeyboardEvent) {
   const step = event.shiftKey ? 10 : 1;
   if (event.key === "ArrowLeft") return { x: -step, y: 0 };
   if (event.key === "ArrowRight") return { x: step, y: 0 };
@@ -300,10 +325,20 @@ function focusMotionPathPoint(
   if (point instanceof SVGElement) point.focus();
 }
 
-export function installCanvasPathPointDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginMotionPathPointDrag = beginMotionPathPointDrag.bind(undefined, ctx);
-  ctx.handleMotionPathPointKeydown = handleMotionPathPointKeydown.bind(
-    undefined,
-    ctx,
-  );
+export function createCanvasPathPointDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  CanvasPathActions,
+  "beginMotionPathPointDrag" | "handleMotionPathPointKeydown"
+> {
+  return {
+    beginMotionPathPointDrag: bindViewerAction(
+      beginMotionPathPointDrag,
+      getContext,
+    ),
+    handleMotionPathPointKeydown: bindViewerAction(
+      handleMotionPathPointKeydown,
+      getContext,
+    ),
+  };
 }
