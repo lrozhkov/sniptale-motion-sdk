@@ -1,3 +1,4 @@
+import { readEditorPresets } from "../templates/source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { createPresetRow } from "./preset-row.js";
 
@@ -15,9 +16,7 @@ function renderPresetsPanel(
     );
     return;
   }
-  const presets = Array.isArray(effectiveTemplate.presets)
-    ? effectiveTemplate.presets
-    : [];
+  const presets = readEditorPresets(effectiveTemplate.presets);
   if (
     ctx.state.selectedPresetId &&
     !presets.some((preset) => preset.id === ctx.state.selectedPresetId)
@@ -70,7 +69,7 @@ function hasPresetParameters(template) {
 
 function updatePresetActionState(ctx: ViewerAppContext, template) {
   const enabled = hasPresetParameters(template);
-  const presets = Array.isArray(template?.presets) ? template.presets : [];
+  const presets = readEditorPresets(template?.presets);
   const selected = presets.some(
     (preset) => preset.id === ctx.state.selectedPresetId,
   );
@@ -105,7 +104,10 @@ function saveCurrentAsPreset(ctx: ViewerAppContext) {
   }
   const preset = ctx.createPresetFromTemplate(
     template,
-    ctx.deps.createUniquePresetId(template.presets ?? [], "preset"),
+    ctx.deps.createUniquePresetId(
+      readEditorPresets(template.presets),
+      "preset",
+    ),
   );
   ctx.applyEditorCommand(
     { payload: { presetId: preset.id }, type: "savePreset" },
@@ -136,14 +138,12 @@ function duplicateSelectedPreset(ctx: ViewerAppContext) {
 }
 function duplicatePreset(ctx: ViewerAppContext, presetId) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  const source = template?.presets?.find((preset) => preset.id === presetId);
+  const presets = readEditorPresets(template?.presets);
+  const source = presets.find((preset) => preset.id === presetId);
   if (!template || !hasPresetParameters(template) || !source) {
     return null;
   }
-  const nextId = ctx.deps.createUniquePresetId(
-    template.presets ?? [],
-    `${source.id}-copy`,
-  );
+  const nextId = ctx.deps.createUniquePresetId(presets, `${source.id}-copy`);
   const duplicate = {
     ...ctx.deps.deepClone(source),
     id: nextId,
@@ -173,11 +173,12 @@ function duplicatePreset(ctx: ViewerAppContext, presetId) {
 }
 function deletePreset(ctx: ViewerAppContext, presetId) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  const preset = template?.presets?.find((item) => item.id === presetId);
+  const presets = readEditorPresets(template?.presets);
+  const preset = presets.find((item) => item.id === presetId);
   if (!template || !preset) {
     return false;
   }
-  const remaining = template.presets.filter((item) => item.id !== presetId);
+  const remaining = presets.filter((item) => item.id !== presetId);
   ctx.applyEditorCommand(
     { payload: { presetId }, type: "deletePreset" },
     () => {
@@ -202,10 +203,10 @@ function deletePreset(ctx: ViewerAppContext, presetId) {
 async function applyPreset(ctx: ViewerAppContext, presetId) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
-  const preset = effectiveTemplate?.presets?.find(
+  const preset = readEditorPresets(effectiveTemplate?.presets).find(
     (item) => item.id === presetId,
   );
-  if (!template || !preset) {
+  if (!template || !effectiveTemplate || !preset) {
     return false;
   }
   ctx.applyEditorCommand({ payload: { presetId }, type: "applyPreset" }, () => {

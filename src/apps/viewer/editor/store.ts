@@ -4,26 +4,33 @@ import {
   type EditorTimelineSource,
 } from "./timeline-source.js";
 import type { EditorTimeline } from "./model-types.js";
+import { readTemplatePatch, readTemplateSource } from "../templates/source.js";
 
-function getEditorOverride(
+export function getEditorOverride(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
-  if (!template) {
+  template: unknown = ctx.state.currentTemplate,
+): Record<string, unknown> {
+  if (
+    template === null ||
+    typeof template !== "object" ||
+    Array.isArray(template) ||
+    !("id" in template) ||
+    typeof template.id !== "string"
+  )
     return {};
-  }
-  return ctx.state.editorOverrides.get(template.id) ?? {};
+  const override: unknown = ctx.state.editorOverrides.get(template.id);
+  return readTemplatePatch(override ?? {});
 }
-function setEditorOverride(ctx: ViewerAppContext, patch) {
-  if (!ctx.state.currentTemplate) {
-    return;
-  }
-  const current = ctx.getEditorOverride(ctx.state.currentTemplate);
-  ctx.state.editorOverrides.set(ctx.state.currentTemplate.id, {
+export function setEditorOverride(ctx: ViewerAppContext, patch: unknown): void {
+  if (!ctx.state.currentTemplate) return;
+  const template = readTemplateSource(ctx.state.currentTemplate);
+  const current = ctx.getEditorOverride(template);
+  ctx.state.editorOverrides.set(template.id, {
     ...current,
-    ...patch,
+    ...readTemplatePatch(patch),
   });
 }
+
 function applyEditorCommand(ctx: ViewerAppContext, command, mutate) {
   if (!ctx.state.currentTemplate) {
     return null;
@@ -81,14 +88,17 @@ function getCanonicalEditorState(
     time: Number(ctx.refs.timeSlider.value) || 0,
   };
 }
-function getEffectiveDuration(
+export function getEffectiveDuration(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
-  return Number(
-    ctx.getEditorOverride(template).duration ?? template?.duration ?? 1,
-  );
+  template: unknown = ctx.state.currentTemplate,
+): number {
+  const duration =
+    template !== null && typeof template === "object" && "duration" in template
+      ? template.duration
+      : undefined;
+  return Number(ctx.getEditorOverride(template).duration ?? duration ?? 1);
 }
+
 function setCurrentDuration(ctx: ViewerAppContext, duration) {
   if (!ctx.state.currentTemplate || !Number.isFinite(duration)) {
     return;

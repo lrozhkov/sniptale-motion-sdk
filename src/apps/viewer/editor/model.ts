@@ -74,15 +74,18 @@ export function buildControlsWithDefaults(
 }
 
 export function normalizeScenes(scenes: unknown, duration: number) {
-  const safeDuration = Math.max(0.05, Number(duration) || 1);
+  const durationValue = finiteNumber(duration) || 1;
+  const safeDuration = durationValue > 0 ? durationValue : 0.05;
   const normalized = Array.isArray(scenes)
     ? scenes
         .filter(isRecord)
         .map((scene, index) => ({
-          duration: Math.max(
-            0.05,
-            finiteNumber(scene.duration) || safeDuration,
-          ),
+          duration:
+            finiteNumber(scene.duration) > 0
+              ? finiteNumber(scene.duration)
+              : finiteNumber(scene.duration) < 0
+                ? 0.05
+                : safeDuration,
           enabled: scene.enabled !== false,
           id: primitiveText(scene.id, `scene-${index + 1}`),
           label: normalizeEditorLabel(

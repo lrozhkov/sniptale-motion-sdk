@@ -1,9 +1,5 @@
 import { EFFECT_V1_SCHEMA } from "../../../sdk/effect-v1/index.js";
-import {
-  deepClone,
-  normalizePresets,
-  normalizeScenes,
-} from "../editor/model.js";
+import { deepClone, normalizePresets } from "../editor/model.js";
 import { stableStringify } from "./stable-json.js";
 
 export function buildTemplateJson(template: any): string {
@@ -74,10 +70,7 @@ export function buildEffectFilePayload(options: {
       : {}),
     presets: normalizePresets(template.presets ?? base.presets ?? []),
     program: deepClone(base.program),
-    scenes: normalizeScenes(
-      template.scenes ?? base.scenes ?? [],
-      Number(template.duration) || base.duration,
-    ),
+    scenes: deepClone(template.scenes ?? base.scenes ?? []),
     schemaVersion: EFFECT_V1_SCHEMA,
     timeline: buildEffectFileTimeline(template.timeline),
   };

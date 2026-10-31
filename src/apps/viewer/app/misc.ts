@@ -108,6 +108,7 @@ function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
   }
   if (ctx.state.selectedItem.type === "scene") {
     const effectiveTemplate = ctx.getEffectiveTemplate(template);
+    if (!effectiveTemplate) return;
     const scenes = ctx.normalizeScenes(
       effectiveTemplate.scenes ?? [],
       ctx.getEffectiveDuration(template),

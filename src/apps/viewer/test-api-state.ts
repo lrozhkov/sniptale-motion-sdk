@@ -1,3 +1,4 @@
+import { readEditorPresets } from "./templates/source.js";
 import type { ViewerAppContext } from "./app/context.js";
 
 export function getViewerStateForTest(ctx: ViewerAppContext) {
@@ -48,10 +49,9 @@ export function getViewerStateForTest(ctx: ViewerAppContext) {
     playbackRun: ctx.deps.deepClone(ctx.state.playbackRun),
     historyFuture: ctx.state.historyFuture.length,
     historyPast: ctx.state.historyPast.length,
-    presets:
-      ctx
-        .getEffectiveTemplate(ctx.state.currentTemplate)
-        ?.presets?.map((preset) => preset.id) ?? [],
+    presets: readEditorPresets(
+      ctx.getEffectiveTemplate(ctx.state.currentTemplate)?.presets,
+    ).map((preset) => preset.id),
     canvasSnapStatus: ctx.state.canvasSnapStatus,
     previewGuides: ctx.state.previewGuides,
     previewRasterHeight: ctx.state.previewRasterHeight,

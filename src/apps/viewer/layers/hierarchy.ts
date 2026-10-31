@@ -1,46 +1,45 @@
-import type { EffectLayer } from "../../../sdk/types.js";
-
 export const LAYER_GROUP_TYPE = "group";
 export const MAX_LAYER_GROUP_DEPTH = 8;
 
-export type LayerHierarchyIndex = {
-  byId: Map<string, EffectLayer>;
-  childrenByParentId: Map<string | null, EffectLayer[]>;
-  indexById: Map<string, number>;
-  layers: EffectLayer[];
-  parentById: Map<string, EffectLayer | null>;
+export type LayerHierarchyNode = Record<string, unknown> & { id: string };
+
+export type LayerHierarchyIndex<
+  T extends LayerHierarchyNode = LayerHierarchyNode,
+> = {
+  readonly byId: ReadonlyMap<string, T>;
+  readonly childrenByParentId: ReadonlyMap<string | null, readonly T[]>;
+  readonly indexById: ReadonlyMap<string, number>;
+  readonly layers: readonly T[];
+  readonly parentById: ReadonlyMap<string, T | null>;
 };
 
-export function isLayerGroup(layer: unknown): layer is EffectLayer {
-  return Boolean(
-    layer &&
-    typeof layer === "object" &&
-    (layer as Record<string, unknown>).type === LAYER_GROUP_TYPE,
-  );
+export function isLayerGroup(
+  layer: unknown,
+): layer is LayerHierarchyNode & { type: typeof LAYER_GROUP_TYPE } {
+  return isHierarchyNode(layer) && layer.type === LAYER_GROUP_TYPE;
 }
 
+export function createLayerHierarchyIndex<T extends LayerHierarchyNode>(
+  sourceLayers: readonly T[],
+): LayerHierarchyIndex<T>;
 export function createLayerHierarchyIndex(
-  sourceLayers: EffectLayer[] | unknown,
+  sourceLayers: unknown,
+): LayerHierarchyIndex;
+export function createLayerHierarchyIndex(
+  sourceLayers: unknown,
 ): LayerHierarchyIndex {
-  const layers = Array.isArray(sourceLayers)
-    ? sourceLayers.filter(
-        (layer): layer is EffectLayer =>
-          Boolean(layer) &&
-          typeof layer === "object" &&
-          typeof (layer as EffectLayer).id === "string",
-      )
-    : [];
-  const byId = new Map<string, EffectLayer>();
+  const values: unknown[] = Array.isArray(sourceLayers) ? sourceLayers : [];
+  const layers = values.filter(isHierarchyNode);
+  const byId = new Map<string, LayerHierarchyNode>();
   const indexById = new Map<string, number>();
-  for (let index = 0; index < layers.length; index += 1) {
-    const layer = layers[index];
+  for (const [index, layer] of layers.entries()) {
     if (!byId.has(layer.id)) {
       byId.set(layer.id, layer);
       indexById.set(layer.id, index);
     }
   }
-  const childrenByParentId = new Map<string | null, EffectLayer[]>();
-  const parentById = new Map<string, EffectLayer | null>();
+  const childrenByParentId = new Map<string | null, LayerHierarchyNode[]>();
+  const parentById = new Map<string, LayerHierarchyNode | null>();
   for (const layer of layers) {
     const parentId =
       typeof layer.parentId === "string" && byId.has(layer.parentId)
@@ -52,13 +51,17 @@ export function createLayerHierarchyIndex(
     children.push(layer);
     childrenByParentId.set(parentId, children);
   }
-  return {
-    byId,
-    childrenByParentId,
-    indexById,
-    layers,
-    parentById,
-  };
+  return { byId, childrenByParentId, indexById, layers, parentById };
+}
+
+function isHierarchyNode(value: unknown): value is LayerHierarchyNode {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "id" in value &&
+    typeof value.id === "string"
+  );
 }
 
 export function getLayerAncestorIds(

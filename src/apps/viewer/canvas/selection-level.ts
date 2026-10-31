@@ -1,10 +1,13 @@
+import type { EffectLayer } from "../../../sdk/types.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerAncestorIds, isLayerGroup } from "../layers/hierarchy.js";
 
 export function resolveCanvasHitSelectionLayerId(
   ctx: ViewerAppContext,
   leafLayerId: string,
-  template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
+  template: {
+    layers: readonly EffectLayer[];
+  } | null = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
 ): string | null {
   if (!template) {
     return null;
@@ -29,7 +32,9 @@ export function resolveCanvasHitSelectionLayerId(
 
 export function getCanvasSelectionLevelLayerIds(
   ctx: ViewerAppContext,
-  template = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
+  template: {
+    layers: readonly EffectLayer[];
+  } | null = ctx.getEffectiveTemplate(ctx.state.currentTemplate),
 ): string[] {
   if (!template) {
     return [];

@@ -34,11 +34,13 @@ export function getSelectedLayerGeometryForTest(ctx: ViewerAppContext) {
 export function getLayerPathPointsForTest(ctx: ViewerAppContext, layerId) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const layer = template?.layers.find((item) => item.id === layerId);
-  if (!layer) {
+  if (!template || !layer) {
     return null;
   }
   const canvasRect = ctx.refs.canvas.getBoundingClientRect();
-  const stageRect = ctx.refs.canvas.parentElement.getBoundingClientRect();
+  const stage = ctx.refs.canvas.parentElement;
+  if (!stage) return null;
+  const stageRect = stage.getBoundingClientRect();
   const pageOffset = {
     x: stageRect.left,
     y: stageRect.top,

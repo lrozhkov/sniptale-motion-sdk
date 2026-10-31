@@ -2,7 +2,13 @@ import { createViewerRefs } from "./refs.js";
 import { createViewerState } from "./state.js";
 import { viewerAppDependencies } from "./dependencies.js";
 import type { ViewerAppContext } from "./context.js";
-import { getEffectiveTimeline } from "../editor/store.js";
+import { getEffectiveTemplate } from "../templates/controller.js";
+import {
+  getEffectiveTimeline,
+  getEditorOverride,
+  setEditorOverride,
+  getEffectiveDuration,
+} from "../editor/store.js";
 
 export function createViewerContext(): ViewerAppContext {
   const refs = createViewerRefs();
@@ -20,6 +26,18 @@ export function createViewerContext(): ViewerAppContext {
     lastPlaybackRenderTs: 0,
     lastPlaybackTs: 0,
     lastPlaybackUiTs: 0,
+    getEditorOverride(template) {
+      return getEditorOverride(ctx, template);
+    },
+    setEditorOverride(patch) {
+      setEditorOverride(ctx, patch);
+    },
+    getEffectiveDuration(template) {
+      return getEffectiveDuration(ctx, template);
+    },
+    getEffectiveTemplate(template) {
+      return getEffectiveTemplate(ctx, template);
+    },
     getEffectiveTimeline(template) {
       return getEffectiveTimeline(ctx, template);
     },

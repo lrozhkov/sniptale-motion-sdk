@@ -65,7 +65,6 @@ function duplicateSelectedLayers(ctx: ViewerAppContext) {
       name: ctx.deps
         .t("viewer.layers.copyName", "{name} Copy")
         .replace("{name}", sourceLayer.name || sourceLayer.id),
-      parentId: sourceLayer.parentId,
       ...(isLayerGroup(sourceLayer)
         ? {}
         : {
@@ -77,9 +76,10 @@ function duplicateSelectedLayers(ctx: ViewerAppContext) {
     return duplicate;
   });
   for (const duplicate of duplicateNodes) {
-    if (duplicate.parentId && idMap.has(duplicate.parentId)) {
-      duplicate.parentId = idMap.get(duplicate.parentId);
-    }
+    const parentId = duplicate.parentId
+      ? idMap.get(duplicate.parentId)
+      : undefined;
+    if (parentId !== undefined) duplicate.parentId = parentId;
   }
   const lastSourceIndex = Math.max(
     ...sourceNodes.map((layer) =>

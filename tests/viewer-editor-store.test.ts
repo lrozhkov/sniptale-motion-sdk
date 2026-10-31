@@ -1,3 +1,11 @@
+import { createStarterDocument } from "../src/apps/cli/starter.js";
+import {
+  normalizeEffectV1ToTemplate,
+  validateEffectV1Document,
+} from "../src/sdk/effect-v1/index.js";
+import { installTemplatesControllerOwner } from "../src/apps/viewer/templates/controller.js";
+import { buildEffectFilePayload } from "../src/apps/viewer/effect-file/builder.js";
+import { normalizeScenes } from "../src/apps/viewer/editor/model.js";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -31,6 +39,67 @@ describe("viewer editor history transactions", () => {
       layers: [{ x: 2 }],
     });
     expect(ctx.markEditorChanged).toHaveBeenCalledTimes(3);
+  });
+
+  it("validates opaque overrides without changing source or accepting a partial write", () => {
+    const ctx = createStoreContext();
+    installEditorStoreOwner(ctx);
+    expect(ctx.getEffectiveDuration()).toBe(4);
+    ctx.setEditorOverride({ duration: 0.02, extension: { keep: true } });
+    expect(ctx.getEffectiveDuration()).toBe(0.02);
+    expect(ctx.getEditorOverride()).toEqual({
+      duration: 0.02,
+      extension: { keep: true },
+    });
+    expect(() => ctx.setEditorOverride(["invalid"])).toThrow(
+      /Invalid editor template override/,
+    );
+    expect(ctx.getEditorOverride()).toEqual({
+      duration: 0.02,
+      extension: { keep: true },
+    });
+    expect(ctx.state.currentTemplate.duration).toBe(4);
+    ctx.state.editorOverrides.set("template", "corrupt");
+    expect(() => ctx.getEditorOverride()).toThrow(
+      /Invalid editor template override/,
+    );
+  });
+
+  it("opens and exports a short localized scene without retiming or replacing its labels", () => {
+    const document = createStarterDocument("tiny-scene", "standalone");
+    document.duration = 0.02;
+    document.clips = document.clips.map((clip) => ({
+      ...clip,
+      start: 0.001,
+      duration: 0.019,
+    }));
+    document.scenes = [
+      {
+        id: "main",
+        start: 0.001,
+        duration: 0.019,
+        label: { en: "Intro", ru: "Вступление" },
+      },
+    ];
+    expect(validateEffectV1Document(document).ok).toBe(true);
+    const ctx = createStoreContext();
+    const template = normalizeEffectV1ToTemplate(document);
+    ctx.state.currentTemplate = template;
+    installEditorStoreOwner(ctx);
+    installTemplatesControllerOwner(ctx);
+    const effective = ctx.getEffectiveTemplate();
+    expect(effective.scenes).toEqual(document.scenes);
+    expect(template.scenes).toEqual(document.scenes);
+    const viewScenes = normalizeScenes(effective.scenes, effective.duration);
+    expect(viewScenes[0]?.start).toBe(0.001);
+    expect(viewScenes[0]?.duration).toBe(0.019);
+    expect(typeof viewScenes[0]?.label).toBe("string");
+    const exported = buildEffectFilePayload({
+      template: effective,
+      assets: new Map(),
+    });
+    expect(exported.scenes).toEqual(document.scenes);
+    expect(validateEffectV1Document(exported).ok).toBe(true);
   });
 
   it("stores only asset deltas and restores the loaded base asset", () => {

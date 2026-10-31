@@ -101,7 +101,7 @@ export type EffectScene = {
   duration: number;
   enabled?: boolean;
   id: string;
-  label?: string;
+  label?: LocaleText | string;
   locked?: boolean;
   start: number;
   transition?: Record<string, unknown> | null;

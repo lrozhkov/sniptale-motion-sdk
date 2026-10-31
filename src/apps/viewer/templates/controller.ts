@@ -1,4 +1,6 @@
 import type { ViewerAppContext } from "../app/context.js";
+import type { EditorTemplate } from "./model.js";
+import { readEditorTemplate, readTemplateSource } from "./source.js";
 
 function createPresetFromTemplate(ctx: ViewerAppContext, template, id) {
   const presetNumber = String(id).match(/^preset(?:-(\d+))?$/)?.[1];
@@ -47,30 +49,34 @@ function drawBaseForTemplate(
   });
 }
 
-function getEffectiveTemplate(
+export function getEffectiveTemplate(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
-) {
-  if (!template) {
-    return null;
-  }
-  const override = ctx.state.editorOverrides.get(template.id) ?? {};
-  return {
-    ...ctx.deps.deepClone(template),
-    ...ctx.deps.deepClone(override),
-    duration: Number(override.duration ?? template.duration),
-    clips: ctx.deps.deepClone(
-      override.clips ?? template.clips ?? ctx.createFallbackClips(template),
-    ),
-    layers: ctx.deps.deepClone(
-      override.layers ?? template.layers ?? ctx.createFallbackLayers(template),
-    ),
-    scenes: ctx.normalizeScenes(
-      override.scenes ?? template.scenes ?? ctx.createFallbackScenes(template),
-      Number(override.duration ?? template.duration),
-    ),
-    timeline: ctx.getEffectiveTimeline(template),
-  };
+  template: unknown = ctx.state.currentTemplate,
+): EditorTemplate | null {
+  if (!template) return null;
+  const source = readTemplateSource(template);
+  const override = ctx.getEditorOverride(source);
+  const timeline = ctx.getEffectiveTimeline(source);
+  const sceneSource = override.scenes ?? source.scenes;
+  const scenes =
+    Array.isArray(sceneSource) && sceneSource.length === 0
+      ? ctx.createFallbackScenes(source)
+      : (sceneSource ?? ctx.createFallbackScenes(source));
+  return readEditorTemplate(
+    {
+      ...ctx.deps.deepClone(source),
+      ...ctx.deps.deepClone(override),
+      duration: Number(override.duration ?? source.duration),
+      clips: ctx.deps.deepClone(
+        override.clips ?? source.clips ?? ctx.createFallbackClips(source),
+      ),
+      layers: ctx.deps.deepClone(
+        override.layers ?? source.layers ?? ctx.createFallbackLayers(source),
+      ),
+      scenes: ctx.deps.deepClone(scenes),
+    },
+    timeline,
+  );
 }
 
 export function installTemplatesControllerOwner(ctx: ViewerAppContext): void {
