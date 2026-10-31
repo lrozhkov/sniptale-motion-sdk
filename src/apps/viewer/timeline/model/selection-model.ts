@@ -31,3 +31,27 @@ export function createViewerSelectionState(): ViewerSelectionState {
     selectedScenes: [],
   };
 }
+
+export type SelectionModifiers = Partial<
+  Pick<MouseEvent, "ctrlKey" | "metaKey" | "shiftKey">
+>;
+export type KeyframeSelectionOptions = {
+  preserveMotionPathContext?: boolean;
+  render?: boolean;
+};
+export type SelectionCollectionKind =
+  | "clip"
+  | "layer"
+  | "phase"
+  | "scene"
+  | "keyframe"
+  | "track";
+export type TimelineNavigationItem = Exclude<
+  ViewerSelection,
+  { type: "effect" | "asset" }
+> & { sceneId?: string | null };
+export type InspectorFocusTab =
+  | "transform"
+  | "timing"
+  | "ownership"
+  | "summary";

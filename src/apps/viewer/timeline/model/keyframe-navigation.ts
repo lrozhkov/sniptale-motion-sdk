@@ -1,10 +1,11 @@
+import { bindViewerAction } from "../../app/bind-action.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function navigateSelectedKeyframe(
   ctx: ViewerAppContext,
-  direction,
+  direction: number,
   options: { extend?: boolean } = {},
-) {
+): void {
   const selected = ctx.getPrimaryKeyframeSelection();
   const timeline = ctx.getEffectiveTimeline(ctx.state.currentTemplate);
   const track = timeline.tracks.find((item) => item.id === selected?.trackId);
@@ -37,6 +38,13 @@ function navigateSelectedKeyframe(
   ctx.scrollSelectedTimelineItemIntoView();
 }
 
-export function installModelSelectionOwner(ctx: ViewerAppContext): void {
-  ctx.navigateSelectedKeyframe = navigateSelectedKeyframe.bind(undefined, ctx);
+export function createKeyframeNavigationActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    navigateSelectedKeyframe: bindViewerAction(
+      navigateSelectedKeyframe,
+      getContext,
+    ),
+  };
 }

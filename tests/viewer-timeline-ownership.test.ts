@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createTimelineOwnershipPredicates } from "../src/apps/viewer/timeline/model/ownership-predicates";
 import { installTimelineRowTreeOwner } from "../src/apps/viewer/timeline/model/row-tree";
-import { installModelSelectionNavigationOwner } from "../src/apps/viewer/timeline/model/selection-navigation";
+import { createTimelineNavigationActions } from "../src/apps/viewer/timeline/model/selection-navigation";
 
 describe("viewer timeline ownership predicates", () => {
   it("keeps a composition-end keyframe in the final timeline scope", () => {
@@ -58,7 +58,10 @@ describe("viewer timeline ownership predicates", () => {
       isSceneExpanded: () => false,
       isTimelineRowExpanded: () => false,
     };
-    installModelSelectionNavigationOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineNavigationActions(() => ctx),
+    );
 
     expect(ctx.getVisibleTimelineSelectionItems({})).toEqual([
       { layerId: "background", sceneId: null, type: "layer" },

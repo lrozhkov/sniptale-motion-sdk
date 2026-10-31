@@ -1,3 +1,9 @@
+import { createTimelineSelectionStateActions } from "../timeline/model/selection-state.js";
+import { createTimelineNavigationActions } from "../timeline/model/selection-navigation.js";
+import { createKeyframeNavigationActions } from "../timeline/model/keyframe-navigation.js";
+import { createKeyframeSelectionActions } from "../timeline/model/keyframe-selection-state.js";
+import { syncTimelineSelection } from "../timeline/view/selection.js";
+import { reconcileTimelineSelection } from "../timeline/model/selection-consistency.js";
 import { createTimelineSelectionRangeActions } from "../timeline/model/selection-range.js";
 import { createTimelineRangeActions } from "../timeline/model/ownership.js";
 import { getPrimaryKeyframeSelection } from "../timeline/model/selection-consistency.js";
@@ -37,6 +43,10 @@ export function createViewerContext(): ViewerAppContext {
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
     ...createLazyExportFeatures(() => ctx),
+    ...createTimelineSelectionStateActions(() => ctx),
+    ...createTimelineNavigationActions(() => ctx),
+    ...createKeyframeNavigationActions(() => ctx),
+    ...createKeyframeSelectionActions(() => ctx),
     ...createTimelineSelectionRangeActions(() => ctx),
     ...createTimelineRangeActions(() => ctx),
 
@@ -82,6 +92,12 @@ export function createViewerContext(): ViewerAppContext {
     },
     renderCurrentFrame(options) {
       return renderCurrentFrame(ctx, options);
+    },
+    syncTimelineSelection(template) {
+      syncTimelineSelection(ctx, template);
+    },
+    reconcileTimelineSelection(template) {
+      reconcileTimelineSelection(ctx, template);
     },
     getTrackLayerId,
     findSceneIdAtTime(template, time) {

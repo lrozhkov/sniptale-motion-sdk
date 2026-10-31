@@ -1,23 +1,30 @@
+import { resolvePrimarySelectionItem } from "../src/apps/viewer/timeline/model/selection-values.js";
+import { createKeyframeSelectionActions } from "../src/apps/viewer/timeline/model/keyframe-selection-state.js";
 import { describe, expect, it } from "vitest";
 
-import {
-  installModelSelectionStateOwner,
-  resolvePrimarySelectionItem,
-} from "../src/apps/viewer/timeline/model/selection-state";
+import { createTimelineSelectionStateActions } from "../src/apps/viewer/timeline/model/selection-state";
 
 describe("viewer selection state", () => {
   it("falls back to the composition when a modifier toggle empties a set", () => {
-    expect(resolvePrimarySelectionItem("layer", "layerId", [])).toEqual({
+    expect(resolvePrimarySelectionItem("layer", [])).toEqual({
       type: "effect",
     });
-    expect(
-      resolvePrimarySelectionItem("clip", "layerId", ["grid", "card"]),
-    ).toEqual({ layerId: "card", type: "clip" });
+    expect(resolvePrimarySelectionItem("clip", ["grid", "card"])).toEqual({
+      layerId: "card",
+      type: "clip",
+    });
   });
 
   it("keeps layer and interval selection mutually exclusive", () => {
     const canvasSelections: any[] = [];
     const ctx: any = {
+      getEffectiveTimeline: () => ({
+        duration: 4,
+        phases: [],
+        tracks: [
+          { id: "card.x", keyframes: [{ id: "card-x-a", time: 0, value: 1 }] },
+        ],
+      }),
       getEffectiveTemplate: () => ({
         layers: [
           { id: "group-1", type: "group" },
@@ -41,7 +48,11 @@ describe("viewer selection state", () => {
         ctx.updateCanvasSelectionBox();
       },
     };
-    installModelSelectionStateOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineSelectionStateActions(() => ctx),
+      createKeyframeSelectionActions(() => ctx),
+    );
 
     ctx.selectLayer("card");
     expect(ctx.state.selectedItem).toEqual({

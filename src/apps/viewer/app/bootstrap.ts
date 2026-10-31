@@ -44,9 +44,6 @@ import { installCanvasIsolationBreadcrumbOwner } from "../canvas/isolation-bread
 import { installCanvasMarqueeOwner } from "../canvas/marquee.js";
 import { installInspectorOwnershipEditorsOwner } from "../inspector/ownership-editors.js";
 import { installInspectorOwnershipSummaryOwner } from "../inspector/ownership-summary.js";
-import { installModelSelectionStateOwner } from "../timeline/model/selection-state.js";
-import { installTimelineSelectionConsistencyOwner } from "../timeline/model/selection-consistency.js";
-import { installModelSelectionNavigationOwner } from "../timeline/model/selection-navigation.js";
 import { installTimelineKeyframeIdOwner } from "../timeline/model/keyframe-id.js";
 import { installTimelineLabelsOwner } from "../timeline/model/labels.js";
 import { installTimelineEnabledOwner } from "../timeline/model/enabled.js";
@@ -114,7 +111,6 @@ import { installRenderingModelCacheOwner } from "../rendering/model-cache.js";
 import { installLazyViewerFeatures } from "./lazy-features.js";
 import { installAppMiscOwner } from "./misc.js";
 import { installLayersOperationsOwner } from "../layers/operations.js";
-import { installModelSelectionOwner } from "../timeline/model/selection.js";
 import { installViewEditorOwner } from "../timeline/view/editor.js";
 import { installTimelineSurfaceViewOwner } from "../timeline/view/surface.js";
 import { installTimelineClipGroupViewOwner } from "../timeline/view/clip-group.js";
@@ -125,7 +121,6 @@ import { installTimelineLayerTreeViewOwner } from "../timeline/view/layer-tree.j
 import { installTimelineStructuralLayerGroupViewOwner } from "../timeline/view/structural-layer-group.js";
 import { installTimelinePhaseGroupViewOwner } from "../timeline/view/phase-group.js";
 import { installTimelinePropertyTrackViewOwner } from "../timeline/view/property-track.js";
-import { installTimelineSelectionViewOwner } from "../timeline/view/selection.js";
 import { installViewSceneGroupOwner } from "../timeline/view/scene-group.js";
 import { installInteractionDragOwner } from "../timeline/interaction/drag.js";
 import { installInteractionKeyframesOwner } from "../timeline/interaction/keyframes.js";
@@ -180,7 +175,6 @@ export function startViewerApp(): void {
   installRenderingExportFrameOwner(ctx);
   installAppMiscOwner(ctx);
   installLayersOperationsOwner(ctx);
-  installModelSelectionOwner(ctx);
   installViewEditorOwner(ctx);
   installTimelineSurfaceViewOwner(ctx);
   installTimelineGroupLabelViewOwner(ctx);
@@ -191,7 +185,6 @@ export function startViewerApp(): void {
   installTimelinePhaseGroupViewOwner(ctx);
   installTimelineClipGroupViewOwner(ctx);
   installTimelinePropertyTrackViewOwner(ctx);
-  installTimelineSelectionViewOwner(ctx);
   installViewSceneGroupOwner(ctx);
   installInteractionDragOwner(ctx);
   installInteractionKeyframesOwner(ctx);
@@ -252,9 +245,6 @@ export function startViewerApp(): void {
   installCanvasSelectionTransformKeyboardOwner(ctx);
   installInspectorOwnershipEditorsOwner(ctx);
   installInspectorOwnershipSummaryOwner(ctx);
-  installModelSelectionStateOwner(ctx);
-  installTimelineSelectionConsistencyOwner(ctx);
-  installModelSelectionNavigationOwner(ctx);
   installTimelineKeyframeIdOwner(ctx);
   installTimelineLabelsOwner(ctx);
   installTimelineEnabledOwner(ctx);

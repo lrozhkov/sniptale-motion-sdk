@@ -1,8 +1,9 @@
+import type { EditorTimelineSource } from "../../editor/timeline-source.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 export function syncTimelineSelection(
   ctx: ViewerAppContext,
-  template = ctx.state.currentTemplate,
+  template: EditorTimelineSource | null = ctx.state.currentTemplate,
 ): void {
   ctx.reconcileTimelineSelection(template);
   toggleSelectionClass(
@@ -73,8 +74,4 @@ function toggleSelectionClass(
   root.querySelectorAll<HTMLElement>(selector).forEach((element) => {
     element.classList.toggle(className, selected(element));
   });
-}
-
-export function installTimelineSelectionViewOwner(ctx: ViewerAppContext): void {
-  ctx.syncTimelineSelection = syncTimelineSelection.bind(undefined, ctx);
 }

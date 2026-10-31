@@ -4,6 +4,7 @@ import type {
   TimelineTrackRow,
 } from "../src/apps/viewer/timeline/model/row-tree-model.js";
 import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import type { TimelineNavigationItem } from "../src/apps/viewer/timeline/model/selection-model.js";
 import type {
   ClipMovePlan,
   PhaseMovePlan,
@@ -41,6 +42,19 @@ import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 
 describe("viewer state contracts", () => {
+  it("keeps selection commands and navigation items typed at the application boundary", () => {
+    expectTypeOf<
+      ReturnType<ViewerAppContext["getVisibleTimelineSelectionItems"]>
+    >().toEqualTypeOf<TimelineNavigationItem[]>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["isSelectedLayer"]>
+    >().toBeBoolean();
+    expectTypeOf<Parameters<ViewerAppContext["selectLayer"]>[0]>().toBeString();
+    expectTypeOf<
+      Parameters<ViewerAppContext["setSelectedKeyframes"]>[0]
+    >().toBeUnknown();
+  });
+
   it("keeps timeline action payloads typed at the application boundary", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["createClipMovePlan"]>

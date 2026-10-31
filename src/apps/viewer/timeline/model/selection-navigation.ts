@@ -1,6 +1,16 @@
+import { getVisibleTimelineSelectionItems } from "./selection-rows.js";
+import { bindViewerAction } from "../../app/bind-action.js";
+import type {
+  TimelineNavigationItem,
+  ViewerSelection,
+  InspectorFocusTab,
+} from "./selection-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function cycleTimelineSelection(ctx: ViewerAppContext, direction) {
+function cycleTimelineSelection(
+  ctx: ViewerAppContext,
+  direction: number,
+): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -19,6 +29,7 @@ function cycleTimelineSelection(ctx: ViewerAppContext, direction) {
         ? items.length - 1
         : 0;
   const nextItem = items[nextIndex];
+  if (!nextItem) return;
   ctx.applyTimelineSelectionItem(nextItem);
   const rowIndex = ctx.getTimelineItemRowIndex(
     ctx.state.currentTemplate,
@@ -32,79 +43,10 @@ function cycleTimelineSelection(ctx: ViewerAppContext, direction) {
   ctx.scrollSelectedTimelineItemIntoView();
 }
 
-function getVisibleTimelineSelectionItems(ctx: ViewerAppContext, template) {
-  const items = [];
-  const appendTracks = (trackRows, sceneId) => {
-    for (const { keyframes, track } of trackRows) {
-      items.push({ sceneId, trackId: track.id, type: "track" });
-      for (const keyframe of keyframes) {
-        items.push({
-          keyframeId: keyframe.id,
-          sceneId,
-          trackId: track.id,
-          type: "keyframe",
-        });
-      }
-    }
-  };
-  const tree = ctx.createTimelineRowTree(template);
-  appendLayerRows(tree.globalLayers ?? [], null);
-  for (const sceneRow of tree.scenes) {
-    const { scene } = sceneRow;
-    items.push({ sceneId: scene.id, type: "scene" });
-    if (!ctx.isSceneExpanded(scene.id)) {
-      continue;
-    }
-    appendLayerRows(sceneRow.layers, scene.id);
-    for (const phaseRow of sceneRow.scenePhases) {
-      items.push({
-        phaseId: phaseRow.phase.id,
-        sceneId: scene.id,
-        type: "phase",
-      });
-      if (ctx.isTimelineRowExpanded("scenePhase", phaseRow.expansionId)) {
-        appendTracks(phaseRow.tracks, scene.id);
-      }
-    }
-    if (
-      sceneRow.sceneTracks.length > 0 &&
-      ctx.isTimelineRowExpanded("sceneTracks", scene.id)
-    ) {
-      appendTracks(sceneRow.sceneTracks, scene.id);
-    }
-  }
-  return items;
-
-  function appendLayerRows(layerRows, sceneId): void {
-    for (const layerRow of layerRows) {
-      items.push({ layerId: layerRow.layerId, sceneId, type: "layer" });
-      if (layerRow.kind !== "group" && layerRow.clip) {
-        items.push({ layerId: layerRow.layerId, sceneId, type: "clip" });
-      }
-      const rowType = layerRow.kind === "group" ? "group" : "layer";
-      if (!ctx.isTimelineRowExpanded(rowType, layerRow.expansionId)) {
-        continue;
-      }
-      if (layerRow.kind === "group") {
-        appendLayerRows(layerRow.children, sceneId);
-        continue;
-      }
-      for (const phaseRow of layerRow.phases) {
-        items.push({
-          phaseId: phaseRow.phase.id,
-          sceneId,
-          type: "phase",
-        });
-        if (ctx.isTimelineRowExpanded("phase", phaseRow.expansionId)) {
-          appendTracks(phaseRow.tracks, sceneId);
-        }
-      }
-      appendTracks(layerRow.directTracks, sceneId);
-    }
-  }
-}
-
-function isTimelineSelectionItemCurrent(ctx: ViewerAppContext, item) {
+function isTimelineSelectionItemCurrent(
+  ctx: ViewerAppContext,
+  item: TimelineNavigationItem,
+): boolean {
   const current = ctx.state.selectedItem ?? { type: "effect" };
   if (item.type !== current.type) {
     return false;
@@ -132,7 +74,10 @@ function isTimelineSelectionItemCurrent(ctx: ViewerAppContext, item) {
   return false;
 }
 
-function applyTimelineSelectionItem(ctx: ViewerAppContext, item) {
+function applyTimelineSelectionItem(
+  ctx: ViewerAppContext,
+  item: TimelineNavigationItem,
+): void {
   if (item.sceneId) {
     ctx.state.expandedSceneIds.add(item.sceneId);
   }
@@ -158,7 +103,7 @@ function applyTimelineSelectionItem(ctx: ViewerAppContext, item) {
   }
 }
 
-function scrollSelectedTimelineItemIntoView(ctx: ViewerAppContext) {
+function scrollSelectedTimelineItemIntoView(ctx: ViewerAppContext): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const range = template ? ctx.getSelectedTimelineRange(template) : null;
   requestAnimationFrame(() => {
@@ -169,7 +114,7 @@ function scrollSelectedTimelineItemIntoView(ctx: ViewerAppContext) {
   });
 }
 
-function focusInspectorForSelection(ctx: ViewerAppContext) {
+function focusInspectorForSelection(ctx: ViewerAppContext): void {
   if (!ctx.state.currentTemplate || ctx.state.selectedItem?.type === "effect") {
     return;
   }
@@ -185,11 +130,14 @@ function focusInspectorForSelection(ctx: ViewerAppContext) {
   if (focusable instanceof HTMLElement) focusable.focus();
 }
 
-function getInspectorFocusTabForSelection(_ctx: ViewerAppContext, item) {
+function getInspectorFocusTabForSelection(
+  _ctx: ViewerAppContext,
+  item: Pick<ViewerSelection, "type"> | null | undefined,
+): InspectorFocusTab {
   if (item?.type === "layer") {
     return "transform";
   }
-  if (["clip", "phase", "scene", "track"].includes(item?.type)) {
+  if (["clip", "phase", "scene", "track"].includes(item?.type ?? "")) {
     return "timing";
   }
   if (item?.type === "keyframe") {
@@ -201,7 +149,7 @@ function getInspectorFocusTabForSelection(_ctx: ViewerAppContext, item) {
   return "summary";
 }
 
-function frameSelectedTimelineItem(ctx: ViewerAppContext) {
+function frameSelectedTimelineItem(ctx: ViewerAppContext): void {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template) {
     return;
@@ -238,7 +186,10 @@ function frameSelectedTimelineItem(ctx: ViewerAppContext) {
   });
 }
 
-function scrollTimelineElementHorizontallyIntoView(ctx, element) {
+function scrollTimelineElementHorizontallyIntoView(
+  ctx: ViewerAppContext,
+  element: Element | null,
+): void {
   if (!element) {
     return;
   }
@@ -252,36 +203,45 @@ function scrollTimelineElementHorizontallyIntoView(ctx, element) {
   }
 }
 
-export function installModelSelectionNavigationOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.cycleTimelineSelection = cycleTimelineSelection.bind(undefined, ctx);
-  ctx.getVisibleTimelineSelectionItems = getVisibleTimelineSelectionItems.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isTimelineSelectionItemCurrent = isTimelineSelectionItemCurrent.bind(
-    undefined,
-    ctx,
-  );
-  ctx.applyTimelineSelectionItem = applyTimelineSelectionItem.bind(
-    undefined,
-    ctx,
-  );
-  ctx.scrollSelectedTimelineItemIntoView =
-    scrollSelectedTimelineItemIntoView.bind(undefined, ctx);
-  ctx.focusInspectorForSelection = focusInspectorForSelection.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getInspectorFocusTabForSelection = getInspectorFocusTabForSelection.bind(
-    undefined,
-    ctx,
-  );
-  ctx.frameSelectedTimelineItem = frameSelectedTimelineItem.bind(
-    undefined,
-    ctx,
-  );
-  ctx.scrollTimelineElementHorizontallyIntoView =
-    scrollTimelineElementHorizontallyIntoView.bind(undefined, ctx);
+export function createTimelineNavigationActions(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    cycleTimelineSelection: bindViewerAction(
+      cycleTimelineSelection,
+      getContext,
+    ),
+    getVisibleTimelineSelectionItems: bindViewerAction(
+      getVisibleTimelineSelectionItems,
+      getContext,
+    ),
+    isTimelineSelectionItemCurrent: bindViewerAction(
+      isTimelineSelectionItemCurrent,
+      getContext,
+    ),
+    applyTimelineSelectionItem: bindViewerAction(
+      applyTimelineSelectionItem,
+      getContext,
+    ),
+    scrollSelectedTimelineItemIntoView: bindViewerAction(
+      scrollSelectedTimelineItemIntoView,
+      getContext,
+    ),
+    focusInspectorForSelection: bindViewerAction(
+      focusInspectorForSelection,
+      getContext,
+    ),
+    getInspectorFocusTabForSelection: bindViewerAction(
+      getInspectorFocusTabForSelection,
+      getContext,
+    ),
+    frameSelectedTimelineItem: bindViewerAction(
+      frameSelectedTimelineItem,
+      getContext,
+    ),
+    scrollTimelineElementHorizontallyIntoView: bindViewerAction(
+      scrollTimelineElementHorizontallyIntoView,
+      getContext,
+    ),
+  };
 }

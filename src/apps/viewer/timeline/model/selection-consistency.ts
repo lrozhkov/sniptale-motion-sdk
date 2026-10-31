@@ -184,9 +184,3 @@ function resetTimelineSelection(state: ViewerSelectionState): void {
   clearTimelineCollections(state);
   state.selectedItem = { type: "effect" };
 }
-
-export function installTimelineSelectionConsistencyOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.reconcileTimelineSelection = reconcileTimelineSelection.bind(null, ctx);
-}
