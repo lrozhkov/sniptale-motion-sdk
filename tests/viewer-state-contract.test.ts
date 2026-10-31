@@ -45,6 +45,24 @@ import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 
 describe("viewer state contracts", () => {
+  it("keeps graph actions stable before and after lazy loading", () => {
+    expectTypeOf<
+      ReturnType<ViewerAppContext["fitGraphEditor"]>
+    >().toEqualTypeOf<Promise<boolean>>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["zoomGraphEditor"]>
+    >().toEqualTypeOf<Promise<boolean>>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["toggleGraphEditor"]>
+    >().toEqualTypeOf<Promise<void>>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["renderCurveEditor"]>
+    >().toBeVoid();
+    expectTypeOf<
+      Parameters<ViewerAppContext["beginGraphKeyframeDrag"]>[0]
+    >().toEqualTypeOf<PointerEvent>();
+  });
+
   it("keeps keyframe edit results and payloads typed at the application boundary", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["copySelectedKeyframes"]>

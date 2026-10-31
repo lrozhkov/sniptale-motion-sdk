@@ -1,27 +1,35 @@
-import type { ViewerAppContext } from "../app/context.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { GraphRuntimeActions } from "./contract.js";
+import type { GraphEditorViewport } from "./state.js";
+import type { GraphCoordinates, GraphEditorModel } from "./model-types.js";
 import {
-  activateTimelineDrag,
-  createTimelineDragPreview,
-} from "../timeline/interaction/drag-preview.js";
-import { graphXToTime, graphYToValue } from "./model.js";
+  readGraphPointerTarget,
+  createGraphPointerMapper,
+} from "./pointer-coordinates.js";
+import type { ViewerAppContext } from "../app/context.js";
+import { createTimelineDragPreview } from "../timeline/interaction/drag-preview.js";
+import { graphXToTime, graphYToValue } from "./viewport.js";
 import {
   clampGraphValue,
   commitInteractiveGraphTimeline,
-  createGraphPointerMapper,
 } from "./interaction-shared.js";
 import { getPairedMotionPathKeyframeRef } from "../timeline/model/motion-path-mutations.js";
 
 function beginGraphBezierHandleDrag(
   ctx: ViewerAppContext,
-  event,
-  model,
-  trackId,
-  keyframeId,
-  handleName,
+  event: PointerEvent,
+  model: GraphEditorModel,
+  trackId: string,
+  keyframeId: string,
+  handleName: "first" | "second",
 ) {
+  if (ctx.state.currentTemplate !== model.template) return;
   if (event.button !== 0) {
     return;
   }
+  const surface = readGraphPointerTarget(event);
+  if (!surface) return;
+  const { target, svg } = surface;
   event.preventDefault();
   event.stopPropagation();
   const template = ctx.state.currentTemplate;
@@ -36,21 +44,29 @@ function beginGraphBezierHandleDrag(
   if (!template || !track || !keyframe || !next) {
     return;
   }
+  if (
+    typeof keyframe.value !== "number" ||
+    !Number.isFinite(keyframe.value) ||
+    typeof next.value !== "number" ||
+    !Number.isFinite(next.value)
+  )
+    return;
+  const initial = { time: keyframe.time, value: keyframe.value };
+  const following = { time: next.time, value: next.value };
   const start = { x: event.clientX, y: event.clientY };
-  const svg = event.currentTarget.ownerSVGElement;
   const mapPointer = createGraphPointerMapper(svg);
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const pointer = mapPointer(moveEvent);
+    if (!pointer) return;
     const normalized = resolveNormalizedHandle(
       pointer,
       model.viewport,
-      keyframe,
-      next,
+      initial,
+      following,
     );
     if (
-      !activateTimelineDrag(
-        ctx,
+      !preview.activate(
         Math.abs(moveEvent.clientX - start.x) +
           Math.abs(moveEvent.clientY - start.y),
         () =>
@@ -99,15 +115,21 @@ function beginGraphBezierHandleDrag(
       commitInteractiveGraphTimeline(ctx, template, timeline);
     });
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
     preview.finalize(),
   );
 }
 
-function resolveNormalizedHandle(pointer, viewport, keyframe, next) {
+function resolveNormalizedHandle(
+  pointer: { x: number; y: number },
+  viewport: GraphEditorViewport,
+  keyframe: GraphCoordinates,
+  next: GraphCoordinates,
+) {
   const time = graphXToTime(pointer.x, viewport);
   const value = graphYToValue(pointer.y, viewport);
-  const deltaValue = next.value - keyframe.value;
+  const initialValue = keyframe.value;
+  const deltaValue = next.value - initialValue;
   return {
     x: clampGraphValue(
       (time - keyframe.time) / Math.max(0.0001, next.time - keyframe.time),
@@ -115,18 +137,20 @@ function resolveNormalizedHandle(pointer, viewport, keyframe, next) {
       1,
     ),
     y: clampGraphValue(
-      Math.abs(deltaValue) < 0.0001
-        ? 0.5
-        : (value - keyframe.value) / deltaValue,
+      Math.abs(deltaValue) < 0.0001 ? 0.5 : (value - initialValue) / deltaValue,
       0,
       1,
     ),
   };
 }
 
-export function installGraphEditorHandleDragOwner(ctx: ViewerAppContext): void {
-  ctx.beginGraphBezierHandleDrag = beginGraphBezierHandleDrag.bind(
-    undefined,
-    ctx,
-  );
+export function createGraphHandleDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<GraphRuntimeActions, "beginGraphBezierHandleDrag"> {
+  return {
+    beginGraphBezierHandleDrag: bindViewerAction(
+      beginGraphBezierHandleDrag,
+      getContext,
+    ),
+  };
 }

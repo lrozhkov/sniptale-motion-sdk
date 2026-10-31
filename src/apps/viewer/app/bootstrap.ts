@@ -98,7 +98,6 @@ import { installRenderingInputFramesOwner } from "../rendering/input-frames.js";
 import { installRenderingPreviewQualityOwner } from "../rendering/preview-quality.js";
 import { installRenderingRasterSizeOwner } from "../rendering/raster-size.js";
 import { installRenderingModelCacheOwner } from "../rendering/model-cache.js";
-import { installLazyViewerFeatures } from "./lazy-features.js";
 import { installAppMiscOwner } from "./misc.js";
 import { installLayersOperationsOwner } from "../layers/operations.js";
 import { installInteractionDragOwner } from "../timeline/interaction/drag.js";
@@ -121,7 +120,6 @@ export function startViewerApp(): void {
   installAppShellLayoutOwner(ctx);
   installAppShellPanelsOwner(ctx);
   installAppPointerDragOwner(ctx);
-  installLazyViewerFeatures(ctx);
   installTemplatesControllerOwner(ctx);
   installTransportRuntimeRecoveryOwner(ctx);
   installTransportControllerOwner(ctx);

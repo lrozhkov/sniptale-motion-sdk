@@ -1,3 +1,4 @@
+import type { GraphEditorModel } from "./model-types.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   getKeyframeEasingLabel,
@@ -6,7 +7,7 @@ import {
 
 export function createGraphEditorToolbar(
   ctx: ViewerAppContext,
-  model,
+  model: GraphEditorModel,
 ): HTMLElement {
   const toolbar = document.createElement("div");
   toolbar.className = "graph-editor-toolbar";
@@ -33,21 +34,21 @@ export function createGraphEditorToolbar(
   actions.append(
     createActionButton(
       ctx.deps.t("viewer.graphEditor.fitSelection", "Fit selection"),
-      () => ctx.fitGraphEditor("selection"),
+      () => void ctx.fitGraphEditor("selection"),
     ),
     createActionButton(
       ctx.deps.t("viewer.graphEditor.fitAll", "Fit curves"),
-      () => ctx.fitGraphEditor("all"),
+      () => void ctx.fitGraphEditor("all"),
     ),
     createActionButton(
       ctx.deps.t("viewer.graphEditor.zoomOut", "Zoom out"),
-      () => ctx.zoomGraphEditor(1.25),
+      () => void ctx.zoomGraphEditor(1.25),
       "−",
       "graph-editor-icon-action",
     ),
     createActionButton(
       ctx.deps.t("viewer.graphEditor.zoomIn", "Zoom in"),
-      () => ctx.zoomGraphEditor(0.8),
+      () => void ctx.zoomGraphEditor(0.8),
       "+",
       "graph-editor-icon-action",
     ),
@@ -55,7 +56,7 @@ export function createGraphEditorToolbar(
     createEasingPresetField(ctx, model),
     createActionButton(
       ctx.deps.t("viewer.graphEditor.close", "Close Graph Editor"),
-      () => ctx.toggleGraphEditor(false),
+      () => void ctx.toggleGraphEditor(false),
       "×",
       "graph-editor-icon-action",
     ),
@@ -64,7 +65,10 @@ export function createGraphEditorToolbar(
   return toolbar;
 }
 
-function createLinkedHandlesButton(ctx, model) {
+function createLinkedHandlesButton(
+  ctx: ViewerAppContext,
+  model: GraphEditorModel,
+) {
   const button = createActionButton(
     model.linkedHandles
       ? ctx.deps.t("viewer.graphEditor.linkedHandles", "Linked handles")
@@ -76,7 +80,10 @@ function createLinkedHandlesButton(ctx, model) {
   return button;
 }
 
-function createEasingPresetField(ctx, model) {
+function createEasingPresetField(
+  ctx: ViewerAppContext,
+  model: GraphEditorModel,
+) {
   const label = document.createElement("label");
   label.className = "graph-editor-easing-field";
   const name = document.createElement("span");
@@ -104,7 +111,7 @@ function createEasingPresetField(ctx, model) {
     option.textContent = getKeyframeEasingLabel(ctx, easing);
     select.append(option);
   }
-  select.value = common;
+  select.value = common ?? "";
   select.addEventListener("change", () => {
     if (select.value) {
       ctx.updateSelectedKeyframesBatch({ easing: select.value });
@@ -114,7 +121,12 @@ function createEasingPresetField(ctx, model) {
   return label;
 }
 
-function createActionButton(label, action, text = label, className = "") {
+function createActionButton(
+  label: string,
+  action: () => void,
+  text = label,
+  className = "",
+): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = `secondary compact ${className}`.trim();

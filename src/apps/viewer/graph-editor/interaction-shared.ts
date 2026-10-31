@@ -1,3 +1,6 @@
+import type { ViewerAppContext } from "../app/context.js";
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
+import type { GraphEditorViewport } from "./state.js";
 import type { EditorTimeline } from "../editor/model-types.js";
 import { type KeyframeTimePlan } from "../timeline/model/keyframe-transform.js";
 
@@ -19,48 +22,21 @@ export function applyGraphTimePlan(
   }
 }
 
-export function commitInteractiveGraphTimeline(ctx, template, timeline): void {
+export function commitInteractiveGraphTimeline(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource,
+  timeline: EditorTimeline,
+): void {
   ctx.state.timelineOverrides.set(
     template.id,
     ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
   );
 }
 
-export function getGraphPointer(svg, event) {
-  return createGraphPointerMapper(svg)(event);
-}
-
-export function createGraphPointerMapper(svg) {
-  const rect = svg.getBoundingClientRect();
-  const viewBox = svg.viewBox.baseVal;
-  const inverse = svg.getScreenCTM?.()?.inverse?.() ?? null;
-  const metrics = {
-    height: viewBox.height,
-    left: rect.left,
-    top: rect.top,
-    width: viewBox.width,
-    viewportHeight: rect.height,
-    viewportWidth: rect.width,
-  };
-  return (event) =>
-    inverse
-      ? {
-          x: inverse.a * event.clientX + inverse.c * event.clientY + inverse.e,
-          y: inverse.b * event.clientX + inverse.d * event.clientY + inverse.f,
-        }
-      : {
-          x:
-            ((event.clientX - metrics.left) /
-              Math.max(1, metrics.viewportWidth)) *
-            metrics.width,
-          y:
-            ((event.clientY - metrics.top) /
-              Math.max(1, metrics.viewportHeight)) *
-            metrics.height,
-        };
-}
-
-export function clampGraphTimeViewport(viewport, duration): void {
+export function clampGraphTimeViewport(
+  viewport: GraphEditorViewport,
+  duration: number,
+): void {
   const span = viewport.timeEnd - viewport.timeStart;
   if (viewport.timeStart < 0) {
     viewport.timeStart = 0;
@@ -72,6 +48,10 @@ export function clampGraphTimeViewport(viewport, duration): void {
   }
 }
 
-export function clampGraphValue(value, min, max) {
+export function clampGraphValue(
+  value: number,
+  min: number,
+  max: number,
+): number {
   return Math.min(max, Math.max(min, value));
 }

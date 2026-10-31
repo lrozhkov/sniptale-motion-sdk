@@ -4,23 +4,6 @@ import { syncTimelineInteractionGeometry } from "./preview-geometry.js";
 
 type DragUpdate = () => void;
 
-export function activateTimelineDrag(
-  ctx: ViewerAppContext,
-  distance: number,
-  startCommand: () => void,
-  threshold = 2,
-): boolean {
-  if (ctx.state.dragMoved) {
-    return true;
-  }
-  if (distance <= threshold) {
-    return false;
-  }
-  ctx.state.dragMoved = true;
-  startCommand();
-  return true;
-}
-
 export function createTimelineDragPreview(
   ctx: ViewerAppContext,
   template: EditorTimelineSource,
@@ -62,6 +45,15 @@ export function createTimelineDragPreview(
     release();
   };
 
+  const canUpdate = (): boolean => {
+    if (finalized) return false;
+    if (!isCurrent()) {
+      discard();
+      return false;
+    }
+    return true;
+  };
+
   const flush = (full: boolean) => {
     if (!isCurrent()) {
       discard();
@@ -96,6 +88,18 @@ export function createTimelineDragPreview(
   };
 
   return {
+    activate(
+      distance: number,
+      startCommand: () => void,
+      threshold = 2,
+    ): boolean {
+      if (!canUpdate()) return false;
+      if (ctx.state.dragMoved) return true;
+      if (distance <= threshold) return false;
+      ctx.state.dragMoved = true;
+      startCommand();
+      return true;
+    },
     finalize() {
       if (finalized) {
         return;
@@ -117,11 +121,7 @@ export function createTimelineDragPreview(
       }
     },
     scheduleUpdate(update: DragUpdate, afterRender: DragUpdate | null = null) {
-      if (finalized) return;
-      if (!isCurrent()) {
-        discard();
-        return;
-      }
+      if (!canUpdate()) return;
       pendingUpdate = update;
       pendingAfterRender = afterRender;
       if (frame) {

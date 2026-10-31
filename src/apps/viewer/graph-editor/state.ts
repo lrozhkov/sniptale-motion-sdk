@@ -7,6 +7,7 @@ export type GraphEditorViewport = {
 };
 
 export type GraphEditorState = {
+  graphEditorPanSession: object | null;
   graphEditorEnabled: boolean;
   graphEditorLinkedHandles: boolean;
   graphEditorViewport: GraphEditorViewport | null;
@@ -14,6 +15,7 @@ export type GraphEditorState = {
 
 export function createGraphEditorState(): GraphEditorState {
   return {
+    graphEditorPanSession: null,
     graphEditorEnabled: false,
     graphEditorLinkedHandles: true,
     graphEditorViewport: null,

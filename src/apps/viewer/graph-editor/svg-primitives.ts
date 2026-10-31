@@ -1,8 +1,8 @@
-import { GRAPH_EDITOR_VIEWBOX } from "./model.js";
+import { GRAPH_EDITOR_VIEWBOX } from "./viewport.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-export function appendGraphPlotClip(svg): void {
+export function appendGraphPlotClip(svg: SVGElement): void {
   const defs = createGraphSvg("defs");
   const clip = createGraphSvg("clipPath");
   clip.setAttribute("id", "graph-editor-plot-clip");
@@ -16,7 +16,12 @@ export function appendGraphPlotClip(svg): void {
   svg.append(defs);
 }
 
-export function createGraphAxisLabel(x, y, text, className): SVGElement {
+export function createGraphAxisLabel(
+  x: number,
+  y: number,
+  text: string,
+  className: string,
+): SVGElement {
   const label = createGraphSvg("text", className);
   label.setAttribute("x", String(x));
   label.setAttribute("y", String(y));
@@ -24,7 +29,12 @@ export function createGraphAxisLabel(x, y, text, className): SVGElement {
   return label;
 }
 
-export function createGraphGridLine(x1, y1, x2, y2): SVGElement {
+export function createGraphGridLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): SVGElement {
   const line = createGraphSvg("line", "graph-grid-line");
   line.setAttribute("x1", String(x1));
   line.setAttribute("y1", String(y1));
@@ -33,7 +43,10 @@ export function createGraphGridLine(x1, y1, x2, y2): SVGElement {
   return line;
 }
 
-export function createGraphSvg(tag, className = ""): any {
+export function createGraphSvg<Tag extends keyof SVGElementTagNameMap>(
+  tag: Tag,
+  className = "",
+): SVGElementTagNameMap[Tag] {
   const element = document.createElementNS(SVG_NS, tag);
   if (className) {
     element.setAttribute("class", className);

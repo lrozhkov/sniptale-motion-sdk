@@ -1,5 +1,7 @@
+import type { ViewerAppContext } from "../app/context.js";
+import type { GraphEditorModel } from "./model-types.js";
 import { formatGraphValue } from "./curve-path.js";
-import { GRAPH_EDITOR_VIEWBOX } from "./model.js";
+import { GRAPH_EDITOR_VIEWBOX } from "./viewport.js";
 import {
   createGraphAxisLabel,
   createGraphGridLine,
@@ -8,7 +10,11 @@ import {
   getGraphPlotWidth,
 } from "./svg-primitives.js";
 
-export function appendGraphGrid(ctx, svg, model): void {
+export function appendGraphGrid(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+): void {
   const plot = createGraphSvg("rect", "graph-editor-plot");
   plot.dataset.graphBackground = "true";
   plot.setAttribute("x", String(GRAPH_EDITOR_VIEWBOX.marginLeft));
@@ -21,7 +27,12 @@ export function appendGraphGrid(ctx, svg, model): void {
   }
 }
 
-function appendGridStep(ctx, svg, model, ratio): void {
+function appendGridStep(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+  ratio: number,
+): void {
   const x = GRAPH_EDITOR_VIEWBOX.marginLeft + ratio * getGraphPlotWidth();
   const time =
     model.viewport.timeStart +

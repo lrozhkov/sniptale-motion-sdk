@@ -1,3 +1,4 @@
+import type { GraphEditorActions } from "../graph-editor/contract.js";
 import type { KeyframeEditActions } from "../timeline/interaction/keyframe-contract.js";
 import type { TimelineRowTreeActions } from "../timeline/model/row-tree-contract.js";
 import type { TimelineVirtualizationActions } from "../timeline/virtualization/contract.js";
@@ -32,6 +33,7 @@ export interface ViewerAppContext
   extends
     Mp4ExportActions,
     KeyframeEditActions,
+    GraphEditorActions,
     TimelineModelActions,
     TimelineSelectionActions,
     InspectorOwnershipActions,

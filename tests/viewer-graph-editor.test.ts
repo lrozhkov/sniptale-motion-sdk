@@ -1,14 +1,19 @@
+import { normalizeHandles } from "../src/apps/viewer/editor/model.js";
+import type { MotionPathTrack } from "../src/shared/timeline/motion-path.js";
 import { describe, expect, it } from "vitest";
 
+import { createGraphEditorModel } from "../src/apps/viewer/graph-editor/model.js";
 import {
   createFittedGraphViewport,
-  createGraphEditorModel,
   graphTimeToX,
   graphValueToY,
   graphXToTime,
   graphYToValue,
-} from "../src/apps/viewer/graph-editor/model";
-import { createGraphTrackPath } from "../src/apps/viewer/graph-editor/curve-path";
+} from "../src/apps/viewer/graph-editor/viewport.js";
+import {
+  createGraphTrackPath,
+  getGraphTrackColor,
+} from "../src/apps/viewer/graph-editor/curve-path";
 import {
   clampTrackNumericValue,
   getTrackNumericPropertyRange,
@@ -19,7 +24,7 @@ describe("viewer Graph Editor", () => {
     const timeline = createTimeline();
     const ctx: any = {
       deps: {
-        normalizeHandles: (handles) => handles,
+        normalizeHandles,
       },
       getEffectiveDuration: () => 4,
       getLayerContentFields: () => [],
@@ -31,10 +36,11 @@ describe("viewer Graph Editor", () => {
         { keyframeId: "opacity-a", trackId: "opacity" },
         { keyframeId: "scale-a", trackId: "scale" },
       ],
-      getTimelineTrackDisplayLabel: (track) => track.label,
-      getTrackLayerId: (track) => track.layerId ?? null,
-      inferTrackProperty: (track) => track.property ?? null,
-      isSelectedKeyframe: (trackId, keyframeId) =>
+      getTimelineTrackDisplayLabel: (track: MotionPathTrack) => track.label,
+      getTrackLayerId: (track: MotionPathTrack) => track.layerId ?? null,
+      inferTrackProperty: (track: { property?: string }) =>
+        track.property ?? null,
+      isSelectedKeyframe: (trackId: string, keyframeId: string) =>
         ["opacity:opacity-a", "scale:scale-a"].includes(
           `${trackId}:${keyframeId}`,
         ),
@@ -46,12 +52,13 @@ describe("viewer Graph Editor", () => {
     };
 
     const model = createGraphEditorModel(ctx, timeline);
+    if (!model) throw new Error("Expected a numeric graph model");
 
     expect(model.tracks.map((track) => track.id)).toEqual(["opacity", "scale"]);
     expect(model.selection).toHaveLength(2);
     expect(model.multiTrack).toBe(true);
-    expect(model.primary.keyframeId).toBe("scale-a");
-    expect(model.tracks[0].valueRange).toEqual({ max: 1, min: 0 });
+    expect(model.primary?.keyframeId).toBe("scale-a");
+    expect(model.tracks[0]?.valueRange).toEqual({ max: 1, min: 0 });
     expect(model.viewport.timeStart).toBeLessThan(1);
     expect(model.viewport.timeEnd).toBeGreaterThan(2);
   });
@@ -62,7 +69,7 @@ describe("viewer Graph Editor", () => {
         { kind: "number", max: 240, min: 0, property: "radius" },
       ],
       getTrackLayerId: () => "card",
-      inferTrackProperty: (track) => track.property,
+      inferTrackProperty: (track: { property?: string }) => track.property,
     };
     const template = { layers: [{ id: "card", type: "rect" }] };
 
@@ -86,6 +93,53 @@ describe("viewer Graph Editor", () => {
     };
     expect(graphXToTime(graphTimeToX(3, viewport), viewport)).toBeCloseTo(3);
     expect(graphYToValue(graphValueToY(5, viewport), viewport)).toBeCloseTo(5);
+  });
+
+  it("fits only the requested identities when track and keyframe ids contain delimiters", () => {
+    const viewport = createFittedGraphViewport(
+      "source",
+      [
+        {
+          id: "a:b",
+          points: [
+            { id: "c", time: 1, value: 1 },
+            { id: "d", time: 2, value: 2 },
+          ],
+        },
+        { id: "a", points: [{ id: "b:c", time: 99, value: 999 }] },
+      ],
+      [
+        { trackId: "a:b", keyframeId: "c" },
+        { trackId: "a:b", keyframeId: "d" },
+      ],
+      100,
+    );
+    expect(viewport.timeEnd).toBeLessThan(3);
+    expect(viewport.valueMax).toBeLessThan(3);
+  });
+
+  it("handles empty geometry, incomplete handles and palette overflow deterministically", () => {
+    const viewport = {
+      templateId: "source",
+      timeStart: 0,
+      timeEnd: 1,
+      valueMin: 0,
+      valueMax: 1,
+    };
+    expect(createGraphTrackPath({ points: [] }, viewport)).toBe("");
+    const path = createGraphTrackPath(
+      {
+        points: [
+          { time: 0, value: 0, easing: "bezier" },
+          { time: 1, value: 1 },
+        ],
+      },
+      viewport,
+    );
+    expect(path).toContain("C");
+    expect(path).not.toMatch(/NaN|undefined/);
+    expect(getGraphTrackColor({ colorIndex: 6 })).toBe("#72dbe6");
+    expect(getGraphTrackColor({ colorIndex: Number.NaN })).toBe("#72dbe6");
   });
 
   it("renders bezier and hold segments using value geometry", () => {
@@ -136,6 +190,8 @@ describe("viewer Graph Editor", () => {
 
 function createTimeline() {
   return {
+    duration: 4,
+    phases: [],
     tracks: [
       {
         id: "opacity",

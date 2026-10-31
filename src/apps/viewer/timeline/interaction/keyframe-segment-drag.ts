@@ -1,8 +1,5 @@
 import type { ViewerAppContext } from "../../app/context.js";
-import {
-  activateTimelineDrag,
-  createTimelineDragPreview,
-} from "./drag-preview.js";
+import { createTimelineDragPreview } from "./drag-preview.js";
 
 function beginKeyframeSegmentDrag(
   ctx: ViewerAppContext,
@@ -67,7 +64,7 @@ function beginKeyframeSegmentDrag(
   const onMove = (moveEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     if (
-      !activateTimelineDrag(ctx, Math.abs(pointerDelta), () =>
+      !preview.activate(Math.abs(pointerDelta), () =>
         ctx.beginEditorCommand({
           payload: { fromKeyframeId, mode, toKeyframeId, trackId },
           type: "moveKeyframeSegment",

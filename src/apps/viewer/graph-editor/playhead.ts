@@ -1,5 +1,7 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { GraphRuntimeActions } from "./contract.js";
 import type { ViewerAppContext } from "../app/context.js";
-import { graphTimeToX } from "./model.js";
+import { graphTimeToX } from "./viewport.js";
 
 function updateGraphEditorPlayhead(ctx: ViewerAppContext, time: number): void {
   const playhead = ctx.refs.curveEditor.querySelector(".graph-playhead");
@@ -16,9 +18,13 @@ function updateGraphEditorPlayhead(ctx: ViewerAppContext, time: number): void {
   }
 }
 
-export function installGraphEditorPlayheadOwner(ctx: ViewerAppContext): void {
-  ctx.updateGraphEditorPlayhead = updateGraphEditorPlayhead.bind(
-    undefined,
-    ctx,
-  );
+export function createGraphPlayheadActions(
+  getContext: () => ViewerAppContext,
+): Pick<GraphRuntimeActions, "updateGraphEditorPlayhead"> {
+  return {
+    updateGraphEditorPlayhead: bindViewerAction(
+      updateGraphEditorPlayhead,
+      getContext,
+    ),
+  };
 }

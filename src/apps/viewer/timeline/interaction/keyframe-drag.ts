@@ -1,8 +1,5 @@
 import type { ViewerAppContext } from "../../app/context.js";
-import {
-  activateTimelineDrag,
-  createTimelineDragPreview,
-} from "./drag-preview.js";
+import { createTimelineDragPreview } from "./drag-preview.js";
 import {
   createKeyframeMovePlan,
   createKeyframeTimeSnapshot,
@@ -82,7 +79,7 @@ function beginKeyframeDrag(
       return;
     }
     if (
-      !activateTimelineDrag(ctx, Math.abs(pointerDelta), () =>
+      !preview.activate(Math.abs(pointerDelta), () =>
         ctx.beginEditorCommand({
           payload: {
             keyframes: originals.map((item) => ({

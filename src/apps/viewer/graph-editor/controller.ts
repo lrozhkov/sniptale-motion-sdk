@@ -1,9 +1,10 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { GraphRuntimeActions } from "./contract.js";
+import { clampGraphTimeViewport } from "./interaction-shared.js";
 import type { ViewerAppContext } from "../app/context.js";
-import {
-  createFittedGraphViewport,
-  createGraphEditorModel,
-  type GraphEditorViewport,
-} from "./model.js";
+import { createGraphEditorModel } from "./model.js";
+import { createFittedGraphViewport } from "./viewport.js";
+import type { GraphEditorViewport } from "./state.js";
 
 function toggleGraphEditor(
   ctx: ViewerAppContext,
@@ -42,7 +43,7 @@ function fitGraphEditor(
 
 function zoomGraphEditor(
   ctx: ViewerAppContext,
-  factor,
+  factor: number,
   options: {
     timeAnchor?: number;
     valueAnchor?: number;
@@ -101,30 +102,35 @@ function setGraphEditorViewport(
   }
 }
 
-function setGraphEditorLinkedHandles(ctx: ViewerAppContext, linked): void {
+function setGraphEditorLinkedHandles(
+  ctx: ViewerAppContext,
+  linked: boolean,
+): void {
   ctx.state.graphEditorLinkedHandles = Boolean(linked);
   ctx.renderCurveEditor(ctx.getEffectiveTimeline(ctx.state.currentTemplate));
 }
 
-function clampGraphTimeViewport(viewport, duration): void {
-  const span = viewport.timeEnd - viewport.timeStart;
-  if (viewport.timeStart < 0) {
-    viewport.timeStart = 0;
-    viewport.timeEnd = span;
-  }
-  if (viewport.timeEnd > duration) {
-    viewport.timeEnd = duration;
-    viewport.timeStart = Math.max(0, duration - span);
-  }
-}
-
-export function installGraphEditorControllerOwner(ctx: ViewerAppContext): void {
-  ctx.toggleGraphEditor = toggleGraphEditor.bind(undefined, ctx);
-  ctx.fitGraphEditor = fitGraphEditor.bind(undefined, ctx);
-  ctx.zoomGraphEditor = zoomGraphEditor.bind(undefined, ctx);
-  ctx.setGraphEditorViewport = setGraphEditorViewport.bind(undefined, ctx);
-  ctx.setGraphEditorLinkedHandles = setGraphEditorLinkedHandles.bind(
-    undefined,
-    ctx,
-  );
+export function createGraphControllerActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  GraphRuntimeActions,
+  | "toggleGraphEditor"
+  | "fitGraphEditor"
+  | "zoomGraphEditor"
+  | "setGraphEditorViewport"
+  | "setGraphEditorLinkedHandles"
+> {
+  return {
+    toggleGraphEditor: bindViewerAction(toggleGraphEditor, getContext),
+    fitGraphEditor: bindViewerAction(fitGraphEditor, getContext),
+    zoomGraphEditor: bindViewerAction(zoomGraphEditor, getContext),
+    setGraphEditorViewport: bindViewerAction(
+      setGraphEditorViewport,
+      getContext,
+    ),
+    setGraphEditorLinkedHandles: bindViewerAction(
+      setGraphEditorLinkedHandles,
+      getContext,
+    ),
+  };
 }

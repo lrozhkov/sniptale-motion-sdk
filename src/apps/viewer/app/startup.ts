@@ -116,8 +116,9 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
   ctx.refs.frameSelectionButton.addEventListener("click", () =>
     ctx.frameSelectedTimelineItem(),
   );
-  ctx.refs.graphEditorButton.addEventListener("click", () =>
-    ctx.toggleGraphEditor(),
+  ctx.refs.graphEditorButton.addEventListener(
+    "click",
+    () => void ctx.toggleGraphEditor(),
   );
   ctx.refs.expandTimelineRowsButton?.addEventListener("click", () =>
     ctx.setAllTimelineRowsExpanded(true),

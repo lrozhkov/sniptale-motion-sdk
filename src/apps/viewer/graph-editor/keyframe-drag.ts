@@ -1,3 +1,10 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { GraphRuntimeActions } from "./contract.js";
+import type { GraphEditorModel } from "./model-types.js";
+import {
+  readGraphPointerTarget,
+  createGraphPointerMapper,
+} from "./pointer-coordinates.js";
 import { keyframeRefKey } from "../timeline/model/keyframe-reference.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
@@ -6,27 +13,27 @@ import {
 } from "../timeline/model/keyframe-transform.js";
 import { expandMotionPathKeyframeSelection } from "../timeline/model/motion-path-mutations.js";
 import { clampTrackNumericValue } from "../layers/property-range.js";
-import {
-  activateTimelineDrag,
-  createTimelineDragPreview,
-} from "../timeline/interaction/drag-preview.js";
-import { graphXToTime, graphYToValue } from "./model.js";
+import { createTimelineDragPreview } from "../timeline/interaction/drag-preview.js";
+import { graphXToTime, graphYToValue } from "./viewport.js";
 import {
   applyGraphTimePlan,
   commitInteractiveGraphTimeline,
-  createGraphPointerMapper,
 } from "./interaction-shared.js";
 
 function beginGraphKeyframeDrag(
   ctx: ViewerAppContext,
-  event,
-  model,
-  trackId,
-  keyframeId,
+  event: PointerEvent,
+  model: GraphEditorModel,
+  trackId: string,
+  keyframeId: string,
 ) {
+  if (ctx.state.currentTemplate !== model.template) return;
   if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) {
     return;
   }
+  const surface = readGraphPointerTarget(event);
+  if (!surface) return;
+  const { target, svg } = surface;
   event.preventDefault();
   event.stopPropagation();
   ctx.prepareKeyframeSelectionForPointer(event, trackId, keyframeId);
@@ -52,22 +59,25 @@ function beginGraphKeyframeDrag(
   const canMoveValue =
     new Set(snapshot.entries.map((entry) => entry.trackId)).size === 1;
   const graphTrack = model.tracks.find((entry) => entry.id === trackId);
-  const originalValues = new Map(
-    snapshot.entries.map((entry) => {
+  const originalValues = new Map<string, number>();
+  if (canMoveValue) {
+    for (const entry of snapshot.entries) {
       const track = timeline.tracks.find((item) => item.id === entry.trackId);
-      const keyframe = track?.keyframes.find(
+      const value = track?.keyframes.find(
         (item) => item.id === entry.keyframeId,
-      );
-      return [keyframeRefKey(entry), Number(keyframe?.value) || 0];
-    }),
-  );
-  const svg = event.currentTarget.ownerSVGElement;
+      )?.value;
+      if (typeof value !== "number" || !Number.isFinite(value)) return;
+      originalValues.set(keyframeRefKey(entry), value);
+    }
+  }
   const mapPointer = createGraphPointerMapper(svg);
   const startPointer = mapPointer(event);
+  if (!startPointer) return;
   const startValue = originalValues.get(keyframeRefKey(primary)) ?? 0;
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const pointer = mapPointer(moveEvent);
+    if (!pointer) return;
     const desiredTime = ctx.snapTime(graphXToTime(pointer.x, model.viewport));
     const movePlan = createKeyframeMovePlan(
       snapshot,
@@ -84,8 +94,7 @@ function beginGraphKeyframeDrag(
             updates: snapshot.entries,
           };
     if (
-      !activateTimelineDrag(
-        ctx,
+      !preview.activate(
         Math.abs(pointer.x - startPointer.x) +
           Math.abs(pointer.y - startPointer.y),
         () =>
@@ -134,13 +143,18 @@ function beginGraphKeyframeDrag(
       },
     );
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
     preview.finalize(),
   );
 }
 
-export function installGraphEditorKeyframeDragOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.beginGraphKeyframeDrag = beginGraphKeyframeDrag.bind(undefined, ctx);
+export function createGraphKeyframeDragActions(
+  getContext: () => ViewerAppContext,
+): Pick<GraphRuntimeActions, "beginGraphKeyframeDrag"> {
+  return {
+    beginGraphKeyframeDrag: bindViewerAction(
+      beginGraphKeyframeDrag,
+      getContext,
+    ),
+  };
 }

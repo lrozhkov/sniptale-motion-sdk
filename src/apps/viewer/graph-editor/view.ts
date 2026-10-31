@@ -1,9 +1,15 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { GraphRuntimeActions } from "./contract.js";
+import type { EditorTimeline } from "../editor/model-types.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { createGraphEditorModel } from "./model.js";
 import { createGraphEditorLegend, createGraphEditorSvg } from "./view-svg.js";
 import { createGraphEditorToolbar } from "./toolbar.js";
 
-function renderCurveEditor(ctx: ViewerAppContext, timeline) {
+function renderCurveEditor(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline,
+): void {
   const root = ctx.refs.curveEditor;
   root.innerHTML = "";
   const model = createGraphEditorModel(ctx, timeline);
@@ -14,7 +20,7 @@ function renderCurveEditor(ctx: ViewerAppContext, timeline) {
   );
   const active = Boolean(model && ctx.state.graphEditorEnabled);
   ctx.refs.timelineEditor.classList.toggle("graph-editor-active", active);
-  if (!active) {
+  if (!model || !active) {
     root.hidden = true;
     return;
   }
@@ -29,6 +35,10 @@ function renderCurveEditor(ctx: ViewerAppContext, timeline) {
   root.append(createGraphEditorToolbar(ctx, model), workspace);
 }
 
-export function installGraphEditorViewOwner(ctx: ViewerAppContext): void {
-  ctx.renderCurveEditor = renderCurveEditor.bind(undefined, ctx);
+export function createGraphViewActions(
+  getContext: () => ViewerAppContext,
+): Pick<GraphRuntimeActions, "renderCurveEditor"> {
+  return {
+    renderCurveEditor: bindViewerAction(renderCurveEditor, getContext),
+  };
 }

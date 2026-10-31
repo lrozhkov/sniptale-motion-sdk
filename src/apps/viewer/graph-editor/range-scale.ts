@@ -1,23 +1,35 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { GraphRuntimeActions } from "./contract.js";
+import type { GraphEditorModel } from "./model-types.js";
+import {
+  readGraphPointerTarget,
+  createGraphPointerMapper,
+} from "./pointer-coordinates.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createKeyframeScalePlan,
   createKeyframeTimeSnapshot,
 } from "../timeline/model/keyframe-transform.js";
-import {
-  activateTimelineDrag,
-  createTimelineDragPreview,
-} from "../timeline/interaction/drag-preview.js";
-import { graphXToTime } from "./model.js";
+import { createTimelineDragPreview } from "../timeline/interaction/drag-preview.js";
+import { graphXToTime } from "./viewport.js";
 import {
   applyGraphTimePlan,
   commitInteractiveGraphTimeline,
-  createGraphPointerMapper,
 } from "./interaction-shared.js";
 
-function beginGraphSelectionScale(ctx: ViewerAppContext, event, model, edge) {
+function beginGraphSelectionScale(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+  model: GraphEditorModel,
+  edge: "start" | "end",
+) {
+  if (ctx.state.currentTemplate !== model.template) return;
   if (event.button !== 0 || !model.selectionBounds?.duration) {
     return;
   }
+  const surface = readGraphPointerTarget(event);
+  if (!surface) return;
+  const { target, svg } = surface;
   event.preventDefault();
   event.stopPropagation();
   const template = ctx.state.currentTemplate;
@@ -32,11 +44,11 @@ function beginGraphSelectionScale(ctx: ViewerAppContext, event, model, edge) {
     return;
   }
   const startX = event.clientX;
-  const svg = event.currentTarget.ownerSVGElement;
   const mapPointer = createGraphPointerMapper(svg);
   const preview = createTimelineDragPreview(ctx, template);
-  const onMove = (moveEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const pointer = mapPointer(moveEvent);
+    if (!pointer) return;
     const requested = ctx.snapTime(graphXToTime(pointer.x, model.viewport));
     const factor =
       edge === "start"
@@ -52,7 +64,7 @@ function beginGraphSelectionScale(ctx: ViewerAppContext, event, model, edge) {
       return;
     }
     if (
-      !activateTimelineDrag(ctx, Math.abs(moveEvent.clientX - startX), () =>
+      !preview.activate(Math.abs(moveEvent.clientX - startX), () =>
         ctx.beginEditorCommand({
           payload: { edge, keyframes: snapshot.refs },
           type: "scaleKeyframes",
@@ -66,11 +78,18 @@ function beginGraphSelectionScale(ctx: ViewerAppContext, event, model, edge) {
       commitInteractiveGraphTimeline(ctx, template, timeline);
     });
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove, () =>
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
     preview.finalize(),
   );
 }
 
-export function installGraphEditorRangeScaleOwner(ctx: ViewerAppContext): void {
-  ctx.beginGraphSelectionScale = beginGraphSelectionScale.bind(undefined, ctx);
+export function createGraphRangeScaleActions(
+  getContext: () => ViewerAppContext,
+): Pick<GraphRuntimeActions, "beginGraphSelectionScale"> {
+  return {
+    beginGraphSelectionScale: bindViewerAction(
+      beginGraphSelectionScale,
+      getContext,
+    ),
+  };
 }

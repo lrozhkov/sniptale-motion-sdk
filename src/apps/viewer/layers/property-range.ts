@@ -1,9 +1,6 @@
 import type { ViewerAppContext } from "../app/context.js";
 
-export type LayerNumericPropertyRange = {
-  max: number;
-  min: number;
-};
+import type { LayerNumericPropertyRange } from "./property-range-model.js";
 
 const BUILTIN_NUMERIC_RANGES = new Map<string, LayerNumericPropertyRange>([
   ["anchorX", { max: 0.5, min: -0.5 }],

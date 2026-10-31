@@ -1,4 +1,10 @@
-import { GRAPH_EDITOR_VIEWBOX, graphTimeToX, graphValueToY } from "./model.js";
+import type { ViewerAppContext } from "../app/context.js";
+import type { GraphEditorModel } from "./model-types.js";
+import {
+  GRAPH_EDITOR_VIEWBOX,
+  graphTimeToX,
+  graphValueToY,
+} from "./viewport.js";
 import {
   createGraphTrackPath,
   formatGraphValue,
@@ -11,7 +17,7 @@ import {
 } from "./svg-selection.js";
 import { appendGraphPlotClip, createGraphSvg } from "./svg-primitives.js";
 
-export function createGraphEditorLegend(model): HTMLElement {
+export function createGraphEditorLegend(model: GraphEditorModel): HTMLElement {
   const legend = document.createElement("div");
   legend.className = "graph-editor-legend";
   for (const track of model.tracks) {
@@ -23,7 +29,10 @@ export function createGraphEditorLegend(model): HTMLElement {
   return legend;
 }
 
-export function createGraphEditorSvg(ctx, model): SVGElement {
+export function createGraphEditorSvg(
+  ctx: ViewerAppContext,
+  model: GraphEditorModel,
+): SVGSVGElement {
   const svg = createGraphSvg("svg", "graph-editor-svg");
   svg.setAttribute(
     "viewBox",
@@ -52,15 +61,20 @@ export function createGraphEditorSvg(ctx, model): SVGElement {
   svg.addEventListener("dblclick", (event) => {
     if (
       event.target === svg ||
-      (event.target as HTMLElement).dataset.graphBackground
+      (event.target instanceof SVGElement &&
+        event.target.dataset.graphBackground)
     ) {
-      ctx.fitGraphEditor("selection");
+      void ctx.fitGraphEditor("selection");
     }
   });
   return svg;
 }
 
-function appendGraphCurves(ctx, svg, model): void {
+function appendGraphCurves(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+): void {
   const group = createGraphSvg("g", "graph-curves");
   group.setAttribute("clip-path", "url(#graph-editor-plot-clip)");
   for (const track of model.tracks) {
@@ -115,15 +129,19 @@ function appendGraphCurves(ctx, svg, model): void {
   svg.append(group);
 }
 
-function appendPrimaryBezierHandles(ctx, svg, model): void {
+function appendPrimaryBezierHandles(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+): void {
   if (!model.primary || model.primary.keyframe.easing !== "bezier") {
     return;
   }
-  const track = model.tracks.find(
-    (entry) => entry.id === model.primary.trackId,
-  );
-  const index = track?.points.findIndex(
-    (point) => point.id === model.primary.keyframeId,
+  const primary = model.primary;
+  const track = model.tracks.find((entry) => entry.id === primary.trackId);
+  if (!track || track.spatialMotionPath) return;
+  const index = track.points.findIndex(
+    (point) => point.id === primary.keyframeId,
   );
   const point = index >= 0 ? track.points[index] : null;
   const next = index >= 0 ? track.points[index + 1] : null;
@@ -142,7 +160,7 @@ function appendPrimaryBezierHandles(ctx, svg, model): void {
       time: point.time + handles.x2 * (next.time - point.time),
       value: point.value + handles.y2 * (next.value - point.value),
     },
-  ]) {
+  ] as const) {
     const anchor =
       control.handle === "first"
         ? { time: point.time, value: point.value }

@@ -1,3 +1,4 @@
+import { createLazyGraphEditorActions } from "../graph-editor/lazy.js";
 import { createKeyframeActions } from "../timeline/interaction/keyframe-actions.js";
 import { createTimelineActions } from "../timeline/actions.js";
 import { createTimelineViewActions } from "../timeline/view/actions.js";
@@ -49,6 +50,13 @@ export function createViewerContext(): ViewerAppContext {
     ...createLazyExportFeatures(() => ctx),
     ...createTimelineActions(() => ctx),
     ...createKeyframeActions(() => ctx),
+    ...createLazyGraphEditorActions(
+      () => ctx,
+      () =>
+        import("../graph-editor/actions.js").then((module) =>
+          module.createGraphEditorRuntimeActions(() => ctx),
+        ),
+    ),
     ...createTimelineViewActions(() => ctx),
     ...createInspectorOwnershipActions(() => ctx),
     ...createTimelineSelectionStateActions(() => ctx),

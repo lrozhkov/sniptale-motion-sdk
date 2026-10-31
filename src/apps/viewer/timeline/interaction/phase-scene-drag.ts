@@ -1,8 +1,5 @@
 import type { ViewerAppContext } from "../../app/context.js";
-import {
-  activateTimelineDrag,
-  createTimelineDragPreview,
-} from "./drag-preview.js";
+import { createTimelineDragPreview } from "./drag-preview.js";
 
 function beginPhaseDrag(ctx: ViewerAppContext, event, phaseId, mode) {
   if (event.button !== 0) {
@@ -60,7 +57,7 @@ function beginPhaseDrag(ctx: ViewerAppContext, event, phaseId, mode) {
   const onMove = (moveEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     if (
-      !activateTimelineDrag(ctx, Math.abs(pointerDelta), () =>
+      !preview.activate(Math.abs(pointerDelta), () =>
         ctx.beginEditorCommand({
           payload: {
             linkedKeys: ctx.state.moveLinkedKeys,
@@ -224,7 +221,7 @@ function beginSceneDrag(ctx: ViewerAppContext, event, sceneId, mode) {
   const onMove = (moveEvent) => {
     const pointerDelta = moveEvent.clientX - startX;
     if (
-      !activateTimelineDrag(ctx, Math.abs(pointerDelta), () =>
+      !preview.activate(Math.abs(pointerDelta), () =>
         ctx.beginEditorCommand({
           payload: {
             linkedKeys: ctx.state.moveLinkedKeys,

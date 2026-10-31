@@ -1,7 +1,13 @@
-import { GRAPH_EDITOR_VIEWBOX, graphTimeToX } from "./model.js";
+import type { ViewerAppContext } from "../app/context.js";
+import type { GraphEditorModel } from "./model-types.js";
+import { GRAPH_EDITOR_VIEWBOX, graphTimeToX } from "./viewport.js";
 import { createGraphSvg } from "./svg-primitives.js";
 
-export function appendGraphSelectionRange(ctx, svg, model): void {
+export function appendGraphSelectionRange(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+): void {
   if (!model.selectionBounds || model.selection.length < 2) {
     return;
   }
@@ -17,7 +23,11 @@ export function appendGraphSelectionRange(ctx, svg, model): void {
   appendRangeHandle(ctx, svg, model, "end", endX);
 }
 
-export function appendGraphPlayhead(ctx, svg, model): void {
+export function appendGraphPlayhead(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+): void {
   const time = Number(ctx.refs.timeSlider.value) || 0;
   if (time < model.viewport.timeStart || time > model.viewport.timeEnd) {
     return;
@@ -34,7 +44,13 @@ export function appendGraphPlayhead(ctx, svg, model): void {
   svg.append(line);
 }
 
-function appendRangeHandle(ctx, svg, model, edge, x): void {
+function appendRangeHandle(
+  ctx: ViewerAppContext,
+  svg: SVGElement,
+  model: GraphEditorModel,
+  edge: "end" | "start",
+  x: number,
+): void {
   const handle = createGraphSvg("rect", "graph-selection-range-handle");
   handle.dataset.rangeEdge = edge;
   handle.setAttribute("x", String(x - 5));

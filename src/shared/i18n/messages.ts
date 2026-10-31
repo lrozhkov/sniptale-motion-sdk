@@ -478,6 +478,10 @@ export const messages = {
       zoomOut: { en: "Zoom out", ru: "Отдалить" },
     },
     graphEditor: {
+      loadFailed: {
+        ru: "Не удалось загрузить редактор кривых. Повторите действие.",
+        en: "Could not load the graph editor. Try the action again.",
+      },
       title: { en: "Graph Editor", ru: "Редактор кривых" },
       toggle: {
         en: "Toggle Graph Editor",
