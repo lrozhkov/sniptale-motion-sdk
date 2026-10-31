@@ -1,18 +1,27 @@
-import type {
-  EffectV1Command,
-  EffectV1Expression,
-} from "../../../../sdk/effect-v1/types.js";
+import type { RuntimeCanvas } from "../canvas-model.js";
+import type { BindingReads } from "../binding-reads.js";
+import type { EffectV1Command } from "../../../../sdk/effect-v1/types.js";
 import {
   evaluateEffectV1Expression,
+  effectV1Number,
   type EffectV1EvaluationScope,
+  type EffectV1EvaluationContext,
 } from "./expression.js";
 
+type EffectV1RenderContext = EffectV1EvaluationContext & {
+  width: number;
+  height: number;
+  createCanvas(width: number, height: number): RuntimeCanvas;
+  __bindingReads?: BindingReads | null;
+};
 export type RenderState = {
   canvas: any;
   context: any;
   passes: Map<string, any>;
   runtime: any;
-  scope: EffectV1EvaluationScope;
+  scope: Omit<EffectV1EvaluationScope, "context"> & {
+    context: EffectV1RenderContext;
+  };
 };
 
 export function resolveCommandLayer(
@@ -38,13 +47,12 @@ export function withItem<T>(
   }
 }
 
-export function v(value: unknown, state: RenderState): any {
-  return evaluateEffectV1Expression(value as EffectV1Expression, state.scope);
+export function v(value: unknown, state: RenderState): unknown {
+  return evaluateEffectV1Expression(value, state.scope);
 }
 
 export function n(value: unknown, state: RenderState): number {
-  const result = Number(v(value ?? 0, state));
-  return Number.isFinite(result) ? result : 0;
+  return effectV1Number(v(value ?? 0, state));
 }
 
 export function valueOr(

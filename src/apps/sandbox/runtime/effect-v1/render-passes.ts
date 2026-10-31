@@ -24,7 +24,10 @@ export async function renderEffectV1Pass(
   const width = valueOr(command.width, state.scope.context.width, state);
   const height = valueOr(command.height, state.scope.context.height, state);
   const canvas = state.scope.context.createCanvas(width, height);
-  const passState = { ...state, canvas, context: canvas.getContext("2d") };
+  const context = canvas.getContext("2d");
+  if (!context)
+    throw new Error("Render pass Canvas 2D context is unavailable.");
+  const passState = { ...state, canvas, context };
   const bindingReads = createChildBindingReads(
     state.scope.context.__bindingReads,
   );

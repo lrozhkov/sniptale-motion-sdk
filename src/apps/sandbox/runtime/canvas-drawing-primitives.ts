@@ -84,7 +84,7 @@ export function drawCodeBlock(
     }
     context.fillStyle = "rgba(132,147,166,0.82)";
     context.fillText(String(i + 1).padStart(2, "0"), x + 24, rowY);
-    drawCodeTokens(context, lines[i], x + 76, rowY, accent);
+    drawCodeTokens(context, lines[i] ?? "", x + 76, rowY, accent);
   }
   context.restore();
 }
@@ -113,6 +113,8 @@ export function drawPath(
     maxIndex - 1,
     Math.floor((points.length - 1) * clamp(startProgress, 0, 1)),
   );
+  const first = points[minIndex];
+  if (!first) return;
   const opacity = Number(alpha ?? args?.opacity ?? 1);
   context.save();
   context.globalAlpha *= opacity;
@@ -124,10 +126,11 @@ export function drawPath(
   context.shadowColor = color;
   context.shadowBlur = glow;
   context.beginPath();
-  context.moveTo(points[minIndex].x, points[minIndex].y);
+  context.moveTo(first.x, first.y);
   for (let i = minIndex + 1; i <= maxIndex; i += 1) {
     const current = points[i];
     const previous = points[i - 1];
+    if (!current || !previous) continue;
     context.quadraticCurveTo(
       previous.x,
       previous.y,

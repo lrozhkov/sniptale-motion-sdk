@@ -1,3 +1,4 @@
+import { effectV1Text } from "./expression.js";
 import { isRecord, n, type RenderState, v, valueOr } from "./model.js";
 import { drawCanvasPathSegments, trimPolyline } from "./path-drawing.js";
 import { getLogicalCanvasScale } from "../logical-canvas.js";
@@ -57,10 +58,12 @@ export function drawText(command: any, layer: any, state: RenderState): void {
     c.textAlign = String(command.align ?? "left");
     c.textBaseline = String(command.baseline ?? "alphabetic");
     const size = valueOr(command.fontSize, 16, state);
-    const fontFamily = String(v(command.fontFamily ?? "system-ui", state));
-    const fontWeight = v(command.fontWeight ?? 400, state);
+    const fontFamily = effectV1Text(
+      v(command.fontFamily ?? "system-ui", state),
+    );
+    const fontWeight = effectV1Text(v(command.fontWeight ?? 400, state));
     c.font = `${command.fontStyle ?? "normal"} ${fontWeight} ${size}px ${fontFamily}`;
-    const text = String(v(command.text ?? "", state));
+    const text = effectV1Text(v(command.text ?? "", state));
     const maxWidth = n(command.maxWidth, state);
     const x = n(command.x, state);
     const y = n(command.y, state);
@@ -162,11 +165,13 @@ export function drawPath(command: any, layer: any, state: RenderState): void {
     : [];
   if (points.length < 2) return;
   const visible = trimPolyline(points, valueOr(command.progress, 1, state));
+  const first = visible[0];
+  if (!first) return;
   withCommandStyle(command, layer, state, () => {
     const c = state.context;
     recordPolylinePrimitive(command, state, visible);
     c.beginPath();
-    c.moveTo(visible[0].x, visible[0].y);
+    c.moveTo(first.x, first.y);
     for (const point of visible.slice(1)) c.lineTo(point.x, point.y);
     if (command.closed === true) c.closePath();
     paintPath(command, state);
@@ -251,13 +256,15 @@ function applyShadow(value: unknown, state: RenderState): void {
   if (!isRecord(value)) return;
   const scale = getLogicalCanvasScale(state.context);
   state.context.shadowBlur = n(value.blur, state) * scale.uniform;
-  state.context.shadowColor = String(v(value.color ?? "transparent", state));
+  state.context.shadowColor = effectV1Text(
+    v(value.color ?? "transparent", state),
+  );
   state.context.shadowOffsetX = n(value.x, state) * scale.x;
   state.context.shadowOffsetY = n(value.y, state) * scale.y;
 }
 
 export function resolvePaint(value: unknown, c: any, state: RenderState): any {
-  if (!isRecord(value) || value.op) return v(value, state);
+  if (!isRecord(value) || value.op) return effectV1Text(v(value, state));
   if (value.kind === "linearGradient" || value.kind === "radialGradient") {
     const gradient =
       value.kind === "linearGradient"
@@ -278,7 +285,7 @@ export function resolvePaint(value: unknown, c: any, state: RenderState): any {
     for (const stop of Array.isArray(value.stops) ? value.stops : []) {
       gradient.addColorStop(
         n(stop.offset, state),
-        String(v(stop.color, state)),
+        effectV1Text(v(stop.color, state)),
       );
     }
     return gradient;

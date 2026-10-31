@@ -1,6 +1,10 @@
+import type { EffectV1PathSegment } from "../../../../sdk/effect-v1/types.js";
 import { n, type RenderState } from "./model.js";
 
-export function drawCanvasPathSegments(command: any, state: RenderState): void {
+export function drawCanvasPathSegments(
+  command: { segments: readonly EffectV1PathSegment[]; closed?: boolean },
+  state: RenderState,
+): void {
   const c = state.context;
   c.beginPath();
   for (const segment of command.segments) {
@@ -73,28 +77,39 @@ export function drawCanvasPathSegments(command: any, state: RenderState): void {
   if (command.closed === true) c.closePath();
 }
 
-export function trimPolyline(points: any[], progress: number): any[] {
+type PathPoint = { x: number; y: number };
+export function trimPolyline(
+  points: PathPoint[],
+  progress: number,
+): PathPoint[] {
+  const first = points[0];
+  if (!first || !Number.isFinite(progress)) return [];
   if (progress >= 1) return points;
-  if (progress <= 0) return [points[0], points[0]];
-  const lengths = points
-    .slice(1)
-    .map((point, index) =>
-      Math.hypot(point.x - points[index].x, point.y - points[index].y),
-    );
-  const target = lengths.reduce((sum, value) => sum + value, 0) * progress;
-  const result = [points[0]];
+  if (progress <= 0) return [first, first];
+  const segments: { from: PathPoint; to: PathPoint; length: number }[] = [];
+  let previous = first;
+  for (const point of points.slice(1)) {
+    segments.push({
+      from: previous,
+      to: point,
+      length: Math.hypot(point.x - previous.x, point.y - previous.y),
+    });
+    previous = point;
+  }
+  const target =
+    segments.reduce((sum, segment) => sum + segment.length, 0) * progress;
+  const result = [first];
   let consumed = 0;
-  for (let index = 0; index < lengths.length; index += 1) {
-    const length = lengths[index];
+  for (const { from, to, length } of segments) {
     if (consumed + length <= target) {
-      result.push(points[index + 1]);
+      result.push(to);
       consumed += length;
       continue;
     }
     const ratio = length > 0 ? (target - consumed) / length : 0;
     result.push({
-      x: points[index].x + (points[index + 1].x - points[index].x) * ratio,
-      y: points[index].y + (points[index + 1].y - points[index].y) * ratio,
+      x: from.x + (to.x - from.x) * ratio,
+      y: from.y + (to.y - from.y) * ratio,
     });
     break;
   }
