@@ -1,3 +1,4 @@
+import { acceptInstalledStudio } from "./studio-accept.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -126,6 +127,15 @@ try {
     assert.equal(result.ok, true);
     assert.equal(result.proof.runtime, "not-run");
   }
+  await acceptInstalledStudio({
+    cli,
+    project,
+    evidence,
+    browserCheck: process.env.MOTION_NPM_BROWSER_ACCEPT === "1",
+  });
+  steps.push({ label: "installed-studio-http-and-stop", exitCode: 130 });
+  if (process.env.MOTION_NPM_BROWSER_ACCEPT === "1")
+    steps.push({ label: "installed-studio-browser", exitCode: 0 });
   const assetDirectory = join(project, "effects/standalone");
   const effectFile = join(assetDirectory, "effect.sniptale-effect.json");
   const document = JSON.parse(await readFile(effectFile, "utf8"));

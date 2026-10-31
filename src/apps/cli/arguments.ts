@@ -9,6 +9,9 @@ export function parseCliArguments(argv: string[]) {
     json: { type: "boolean" },
     locale: { type: "string" },
     version: { type: "boolean" },
+    ...(command === "studio"
+      ? { "no-open": { type: "boolean" as const } }
+      : {}),
     ...(command === "new" ? { kind: { type: "string" as const } } : {}),
     ...(command === "validate"
       ? { "asset-root": { type: "string" as const } }
@@ -38,12 +41,16 @@ export function parseCliArguments(argv: string[]) {
   }
   const locale = parseLocale(parsed.values.locale);
   if (
-    !["help", "init", "new", "validate", "doctor", "docs"].includes(command)
+    !["help", "init", "new", "validate", "doctor", "docs", "studio"].includes(
+      command,
+    )
   ) {
     throw new MotionCliError("ARGUMENTS", `Unknown command: ${command}`);
   }
   const minimum = command === "new" || command === "validate" ? 1 : 0;
-  const maximum = ["init", "new", "validate"].includes(command) ? 1 : 0;
+  const maximum = ["init", "new", "validate", "studio"].includes(command)
+    ? 1
+    : 0;
   if (
     !parsed.values.help &&
     !parsed.values.version &&
@@ -57,6 +64,7 @@ export function parseCliArguments(argv: string[]) {
   return {
     command,
     values: {
+      "no-open": parsed.values["no-open"] === true,
       help: parsed.values.help === true,
       json: parsed.values.json === true,
       version: parsed.values.version === true,

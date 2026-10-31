@@ -15,14 +15,28 @@ if (
 ) {
   throw new Error("Invalid installed Sniptale Motion manifest.");
 }
-process.exitCode = await runMotionCli(process.argv.slice(2), {
-  cwd: process.cwd(),
-  packageRoot,
-  version: manifest.version,
-  stdout: (text) => {
-    process.stdout.write(text);
-  },
-  stderr: (text) => {
-    process.stderr.write(text);
-  },
-});
+const controller = new AbortController();
+const interrupt = () => controller.abort(130);
+const terminate = () => controller.abort(143);
+process.once("SIGINT", interrupt);
+process.once("SIGTERM", terminate);
+try {
+  process.exitCode = await runMotionCli(process.argv.slice(2), {
+    signal: controller.signal,
+    cwd: process.cwd(),
+    packageRoot,
+    version: manifest.version,
+    stdout: (text) => {
+      process.stdout.write(text);
+    },
+    stderr: (text) => {
+      process.stderr.write(text);
+    },
+  });
+
+  if (controller.signal.aborted)
+    process.exitCode = controller.signal.reason === 130 ? 130 : 143;
+} finally {
+  process.off("SIGINT", interrupt);
+  process.off("SIGTERM", terminate);
+}

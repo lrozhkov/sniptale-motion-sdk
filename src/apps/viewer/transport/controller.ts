@@ -1,3 +1,4 @@
+import { STUDIO_SANDBOX_PARAMETER } from "../../../shared/studio/protocol.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { parseViewerSandboxMessage } from "./message-boundary.js";
 import {
@@ -168,12 +169,35 @@ function createUniqueModuleId(ctx: ViewerAppContext, baseId) {
 }
 function createSandboxUrl(ctx: ViewerAppContext) {
   const params = new URLSearchParams(window.location.search);
+  const studioOrigin = params.get(STUDIO_SANDBOX_PARAMETER);
+  if (studioOrigin !== null)
+    return `${resolveStudioSandboxOrigin(studioOrigin, window.location.origin)}/sandbox.html`;
   const port = resolveSandboxPort(
     params.get("sandboxPort"),
     ctx.refs.sandboxFrame.dataset.sandboxPort,
   );
   const host = resolveSandboxHost(window.location.hostname);
   return `${window.location.protocol}//${host}:${port}/sandbox.html`;
+}
+
+export function resolveStudioSandboxOrigin(
+  value: string,
+  viewerOrigin: string,
+): string {
+  const url = new URL(value);
+  if (
+    url.protocol !== "http:" ||
+    url.hostname !== "127.0.0.1" ||
+    !url.port ||
+    url.origin === viewerOrigin ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  )
+    throw new Error("Invalid Studio sandbox origin.");
+  return url.origin;
 }
 
 export function resolveSandboxHost(viewerHostname: string): string {

@@ -1,26 +1,38 @@
-export const LOCAL_EFFECTS_ROUTE = "/__sniptale/local-effects";
-const MAX_LOCAL_EFFECTS = 64;
-const MAX_LOCAL_EFFECT_SOURCE_LENGTH = 40_000_000;
+import {
+  MAX_STUDIO_EFFECTS,
+  MAX_STUDIO_SOURCE_BYTES,
+  STUDIO_CATALOG_ROUTE,
+  STUDIO_SESSION_HEADER,
+  STUDIO_SESSION_PARAMETER,
+  type LocalEffectCatalog,
+  type LocalEffectSource,
+} from "../../../shared/studio/protocol.js";
+export type {
+  LocalEffectCatalog,
+  LocalEffectSource,
+} from "../../../shared/studio/protocol.js";
+export const LOCAL_EFFECTS_ROUTE = STUDIO_CATALOG_ROUTE;
 
-export type LocalEffectCatalog = {
-  effects: LocalEffectSource[];
-  errors: string[];
-};
-
-export type LocalEffectSource = {
-  default: boolean;
-  source: string;
-  sourceName: string;
-};
+export function getStudioSession(): string | null {
+  if (typeof window === "undefined" || !window.location) return null;
+  const value = new URLSearchParams(window.location.search).get(
+    STUDIO_SESSION_PARAMETER,
+  );
+  return value && /^[a-f0-9]{64}$/.test(value) ? value : null;
+}
 
 export async function loadLocalEffectCatalog(
   fetcher: typeof fetch = fetch,
 ): Promise<LocalEffectCatalog> {
+  const session = getStudioSession();
   let response: Response;
   try {
     response = await fetcher(LOCAL_EFFECTS_ROUTE, {
       cache: "no-store",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        ...(session ? { [STUDIO_SESSION_HEADER]: session } : {}),
+      },
     });
   } catch (error) {
     return {
@@ -72,14 +84,14 @@ export function parseLocalEffectCatalog(value: unknown): LocalEffectCatalog {
       ],
     };
   }
-  if (value.effects.length > MAX_LOCAL_EFFECTS) {
+  if (value.effects.length > MAX_STUDIO_EFFECTS) {
     errors.push(
-      `Local effect discovery returned more than ${MAX_LOCAL_EFFECTS} effects.`,
+      `Local effect discovery returned more than ${MAX_STUDIO_EFFECTS} effects.`,
     );
   }
   const effects: LocalEffectSource[] = [];
   for (const [index, item] of value.effects
-    .slice(0, MAX_LOCAL_EFFECTS)
+    .slice(0, MAX_STUDIO_EFFECTS)
     .entries()) {
     if (
       !isRecord(item) ||
@@ -88,7 +100,7 @@ export function parseLocalEffectCatalog(value: unknown): LocalEffectCatalog {
       typeof item.sourceName !== "string" ||
       !isSafeSourceName(item.sourceName) ||
       item.source.length === 0 ||
-      item.source.length > MAX_LOCAL_EFFECT_SOURCE_LENGTH
+      item.source.length > MAX_STUDIO_SOURCE_BYTES
     ) {
       errors.push(`Local effect discovery entry ${index} is invalid.`);
       continue;
@@ -102,7 +114,7 @@ export function parseLocalEffectCatalog(value: unknown): LocalEffectCatalog {
   return { effects, errors };
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 

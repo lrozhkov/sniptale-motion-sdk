@@ -1,5 +1,7 @@
+import { readBoundedFile } from "./files.js";
+import { MAX_STUDIO_SOURCE_BYTES } from "../../shared/studio/protocol.js";
 import { constants } from "node:fs";
-import { open, readFile, realpath } from "node:fs/promises";
+import { open, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import {
@@ -26,7 +28,16 @@ export async function readMaterializedEffectV1Bundle(
   file: string,
   assetRoot?: string | null,
 ): Promise<string> {
-  const source = await readFile(file, "utf8");
+  const source = (
+    await readBoundedFile(await realpath(file), MAX_STUDIO_SOURCE_BYTES)
+  ).toString("utf8");
+  return materializeEffectV1Bundle(source, resolve(assetRoot ?? dirname(file)));
+}
+
+export async function materializeEffectV1Bundle(
+  source: string,
+  root: string,
+): Promise<string> {
   let document: unknown;
   try {
     document = JSON.parse(source);
@@ -36,7 +47,6 @@ export async function readMaterializedEffectV1Bundle(
   }
   if (!isRecord(document) || !Array.isArray(document.assets)) return source;
   const assets: unknown[] = document.assets;
-  const root = resolve(assetRoot ?? dirname(file));
   let totalBytes = 0;
   for (const [index, asset] of assets.entries()) {
     if (!isRecord(asset)) continue;

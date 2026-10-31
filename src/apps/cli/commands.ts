@@ -1,3 +1,5 @@
+import type { CliContext } from "./context.js";
+import { runStudioCommand } from "./studio/command.js";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
@@ -12,14 +14,6 @@ import {
 import { parseCliArguments } from "./arguments.js";
 import { MotionCliError } from "./errors.js";
 import { initProject, newEffect } from "./project.js";
-
-export type CliContext = {
-  cwd: string;
-  packageRoot: string;
-  version: string;
-  stdout: (text: string) => void;
-  stderr: (text: string) => void;
-};
 
 export async function runMotionCli(
   argv: string[],
@@ -90,6 +84,14 @@ export async function runMotionCli(
           runtime: "not-run",
         },
       };
+    } else if (args.command === "studio") {
+      await runStudioCommand(
+        context,
+        args.positional ?? ".",
+        { json: args.values.json, noOpen: args.values["no-open"] },
+        messages,
+      );
+      return 0;
     } else if (args.command === "docs") {
       const text = await readFile(
         join(context.packageRoot, "README.md"),

@@ -1,3 +1,4 @@
+import { getStudioSession } from "../effect-file/local-catalog.js";
 import {
   DEFAULT_LOAD_TIMEOUT_MS,
   DEFAULT_RENDER_TIMEOUT_MS,
@@ -148,9 +149,10 @@ export const viewerAppDependencies = {
   isSafeLocalAssetPath,
   isSafeSvgAssetText,
   loadDemoPack: includesLocalDemoPack ? loadDemoPack : loadEmptyStartupPack,
-  loadLocalEffectCatalog: includesLocalEffects
-    ? loadLocalEffectCatalog
-    : emptyLocalEffectCatalog,
+  loadLocalEffectCatalog:
+    includesLocalEffects || getStudioSession() !== null
+      ? loadLocalEffectCatalog
+      : emptyLocalEffectCatalog,
   normalizeAuthorAssetMimeType,
   normalizeBindingReads,
   normalizeEditorScenes,
