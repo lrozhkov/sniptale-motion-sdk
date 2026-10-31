@@ -58,3 +58,13 @@ export function finishEffectV1Validation(
     summary: { errors, warnings },
   };
 }
+
+export function formatEffectV1DiagnosticValue(value: unknown): string {
+  return value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+    ? String(value)
+    : "<invalid>";
+}

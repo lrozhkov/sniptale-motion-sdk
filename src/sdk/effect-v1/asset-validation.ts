@@ -1,3 +1,4 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import {
@@ -22,12 +23,12 @@ const ASSET_KEYS = new Set([
   "svgText",
   "width",
 ]);
-const ASSET_KINDS = new Set(["audio", "image", "svg"]);
-const MIME_BY_KIND = {
-  audio: /^audio\/(?:ogg|mpeg|wav)$/,
-  image: /^image\/(?:jpeg|png|webp)$/,
-  svg: /^image\/svg\+xml$/,
-};
+const MIME_BY_KIND = new Map<string, RegExp>([
+  ["audio", /^audio\/(?:ogg|mpeg|wav)$/],
+  ["image", /^image\/(?:jpeg|png|webp)$/],
+  ["svg", /^image\/svg\+xml$/],
+]);
+const ASSET_KINDS = new Set(MIME_BY_KIND.keys());
 const MAX_ASSETS = 256;
 
 export function validateEffectV1Assets(
@@ -63,7 +64,7 @@ export function validateEffectV1Assets(
       }
       assets.set(asset.id, asset);
     }
-    if (!ASSET_KINDS.has(String(asset.kind))) {
+    if (typeof asset.kind !== "string" || !ASSET_KINDS.has(asset.kind)) {
       report.error(
         "ASSET_KIND",
         `${path}.kind`,
@@ -72,14 +73,13 @@ export function validateEffectV1Assets(
     }
     if (
       typeof asset.mimeType !== "string" ||
-      !MIME_BY_KIND[asset.kind as keyof typeof MIME_BY_KIND]?.test(
-        asset.mimeType,
-      )
+      typeof asset.kind !== "string" ||
+      !MIME_BY_KIND.get(asset.kind)?.test(asset.mimeType)
     ) {
       report.error(
         "ASSET_MIME",
         `${path}.mimeType`,
-        `MIME type does not match asset kind "${String(asset.kind)}".`,
+        `MIME type does not match asset kind "${formatEffectV1DiagnosticValue(asset.kind)}".`,
       );
     }
     if (asset.path !== undefined && !isSafeRelativePath(asset.path)) {
@@ -176,7 +176,11 @@ function isSafeDataUrl(
   mimeType: unknown,
 ): boolean {
   if (typeof value !== "string" || value.length > 3_000_000) return false;
-  if (!ASSET_KINDS.has(String(kind)) || typeof mimeType !== "string") {
+  if (
+    typeof kind !== "string" ||
+    !ASSET_KINDS.has(kind) ||
+    typeof mimeType !== "string"
+  ) {
     return false;
   }
   const encodedMime = mimeType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

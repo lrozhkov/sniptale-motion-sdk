@@ -1,3 +1,5 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
+import { hasKnownIdentifier } from "./validation-shared.js";
 import { isFiniteNumber } from "./validation-shared.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type {
@@ -99,12 +101,14 @@ export function validateEffectV1Clips(
       return;
     }
     rejectUnknownKeys(clip, CLIP_KEYS, path, report);
-    const layer = layers.get(String(clip.layerId));
+    const layer = hasKnownIdentifier(clip.layerId, layers)
+      ? layers.get(clip.layerId)
+      : undefined;
     if (!layer) {
       report.error(
         "CLIP_LAYER_UNKNOWN",
         `${path}.layerId`,
-        `Unknown layer "${String(clip.layerId)}".`,
+        `Unknown layer "${formatEffectV1DiagnosticValue(clip.layerId)}".`,
       );
     } else if (layer.type === "group") {
       report.error(
@@ -113,19 +117,22 @@ export function validateEffectV1Clips(
         "Structural groups cannot own clips.",
       );
     }
-    if (clippedLayers.has(String(clip.layerId))) {
+    if (typeof clip.layerId === "string" && clippedLayers.has(clip.layerId)) {
       report.error(
         "CLIP_LAYER_DUPLICATE",
         `${path}.layerId`,
         "A v1 layer owns at most one clip.",
       );
     }
-    clippedLayers.add(String(clip.layerId));
-    if (clip.sceneId != null && !scenes.has(String(clip.sceneId))) {
+    if (typeof clip.layerId === "string") clippedLayers.add(clip.layerId);
+    if (
+      clip.sceneId !== undefined &&
+      !hasKnownIdentifier(clip.sceneId, scenes)
+    ) {
       report.error(
         "CLIP_SCENE_UNKNOWN",
         `${path}.sceneId`,
-        `Unknown scene "${String(clip.sceneId)}".`,
+        `Unknown scene "${formatEffectV1DiagnosticValue(clip.sceneId)}".`,
       );
     }
     validateRange(clip.start, clip.duration, duration, path, report);
@@ -170,7 +177,10 @@ export function validateEffectV1Controls(
       }
       ids.add(control.id);
     }
-    if (!["color", "number", "text"].includes(String(control.kind))) {
+    if (
+      typeof control.kind !== "string" ||
+      !["color", "number", "text"].includes(control.kind)
+    ) {
       report.error(
         "CONTROL_KIND",
         `${path}.kind`,
@@ -234,7 +244,7 @@ function validateControlValue(
       );
     }
   } else if (
-    ["color", "text"].includes(String(control.kind)) &&
+    (control.kind === "color" || control.kind === "text") &&
     typeof control.defaultValue !== "string"
   ) {
     report.error(

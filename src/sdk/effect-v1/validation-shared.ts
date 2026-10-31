@@ -153,3 +153,10 @@ export function isUnknownArray(value: unknown): value is unknown[] {
 export function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
+
+export function hasKnownIdentifier(
+  value: unknown,
+  identifiers: ReadonlyMap<string, unknown> | ReadonlySet<string>,
+): value is string {
+  return typeof value === "string" && identifiers.has(value);
+}

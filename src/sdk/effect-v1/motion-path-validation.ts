@@ -1,6 +1,10 @@
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
-import { isRecord, rejectUnknownKeys } from "./validation-shared.js";
+import {
+  hasKnownIdentifier,
+  isRecord,
+  rejectUnknownKeys,
+} from "./validation-shared.js";
 
 const MOTION_PATH_KEYS = new Set(["layerId", "points"]);
 const MOTION_POINT_KEYS = new Set([
@@ -35,7 +39,7 @@ export function validateEffectV1MotionPaths(
       return;
     }
     rejectUnknownKeys(motionPath, MOTION_PATH_KEYS, path, report);
-    if (!layers.has(String(motionPath.layerId))) {
+    if (!hasKnownIdentifier(motionPath.layerId, layers)) {
       report.error(
         "MOTION_PATH_LAYER_UNKNOWN",
         `${path}.layerId`,
@@ -83,7 +87,8 @@ function validateMotionPoint(
   }
   if (
     value.kind !== undefined &&
-    !["corner", "linear", "smooth"].includes(String(value.kind))
+    (typeof value.kind !== "string" ||
+      !["corner", "linear", "smooth"].includes(value.kind))
   ) {
     report.error(
       "MOTION_POINT_KIND",

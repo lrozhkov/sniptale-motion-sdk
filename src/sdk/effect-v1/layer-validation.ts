@@ -1,3 +1,5 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
+import { hasKnownIdentifier } from "./validation-shared.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import {
@@ -145,11 +147,14 @@ export function validateEffectV1Layers(
       }
     }
     validateLayerValues(layer, path, report);
-    if (layer.assetId !== undefined && !assets.has(String(layer.assetId))) {
+    if (
+      layer.assetId !== undefined &&
+      !hasKnownIdentifier(layer.assetId, assets)
+    ) {
       report.error(
         "LAYER_ASSET_UNKNOWN",
         `${path}.assetId`,
-        `Unknown asset "${String(layer.assetId)}".`,
+        `Unknown asset "${formatEffectV1DiagnosticValue(layer.assetId)}".`,
         "Declare every runtime asset in this document; pack-global fallback is forbidden.",
       );
     }
@@ -165,7 +170,7 @@ function validateLayerContract(
   assets: Map<string, Record<string, unknown>>,
   report: EffectV1ValidationErrorReport,
 ): void {
-  if (SPATIAL_LAYER_TYPES.has(String(layer.type))) {
+  if (typeof layer.type === "string" && SPATIAL_LAYER_TYPES.has(layer.type)) {
     for (const field of ["height", "width"]) {
       if (
         typeof layer[field] !== "number" ||
@@ -180,7 +185,10 @@ function validateLayerContract(
       }
     }
   }
-  if (["audio", "imageAsset", "svgAsset"].includes(String(layer.type))) {
+  if (
+    typeof layer.type === "string" &&
+    ["audio", "imageAsset", "svgAsset"].includes(layer.type)
+  ) {
     if (typeof layer.assetId !== "string") {
       report.error(
         "LAYER_ASSET_REQUIRED",
@@ -196,11 +204,14 @@ function validateLayerContract(
         : layer.type === "svgAsset"
           ? ["svg"]
           : ["image"];
-    if (asset && !expectedKinds.includes(String(asset.kind))) {
+    if (
+      asset &&
+      (typeof asset.kind !== "string" || !expectedKinds.includes(asset.kind))
+    ) {
       report.error(
         "LAYER_ASSET_KIND",
         `${path}.assetId`,
-        `Layer "${layer.type}" cannot use ${String(asset.kind)} asset "${layer.assetId}".`,
+        `Layer "${layer.type}" cannot use ${formatEffectV1DiagnosticValue(asset.kind)} asset "${layer.assetId}".`,
       );
     }
   }
@@ -296,12 +307,14 @@ function validateLayerHierarchy(
 ): void {
   orderedLayers.forEach((layer, index) => {
     if (!isRecord(layer) || layer.parentId == null) return;
-    const parent = layers.get(String(layer.parentId));
+    const parent = hasKnownIdentifier(layer.parentId, layers)
+      ? layers.get(layer.parentId)
+      : undefined;
     if (!parent) {
       report.error(
         "LAYER_PARENT_UNKNOWN",
         `$.layers[${index}].parentId`,
-        `Unknown parent "${String(layer.parentId)}".`,
+        `Unknown parent "${formatEffectV1DiagnosticValue(layer.parentId)}".`,
       );
     } else if (parent.type !== "group") {
       report.error(
@@ -314,7 +327,9 @@ function validateLayerHierarchy(
     let cursor: Record<string, unknown> | undefined = layer;
     let depth = 0;
     while (cursor?.parentId != null) {
-      if (visited.has(String(cursor.id))) {
+      if (typeof cursor.id !== "string" || typeof cursor.parentId !== "string")
+        break;
+      if (visited.has(cursor.id)) {
         report.error(
           "LAYER_PARENT_CYCLE",
           `$.layers[${index}].parentId`,
@@ -322,8 +337,8 @@ function validateLayerHierarchy(
         );
         break;
       }
-      visited.add(String(cursor.id));
-      cursor = layers.get(String(cursor.parentId));
+      visited.add(cursor.id);
+      cursor = layers.get(cursor.parentId);
       depth += 1;
       if (depth > 8) {
         report.error(
@@ -366,10 +381,12 @@ function isDescendantOf(
   let cursor: Record<string, unknown> | undefined = layer;
   const visited = new Set<string>();
   while (cursor?.parentId != null) {
-    if (String(cursor.parentId) === groupId) return true;
-    if (visited.has(String(cursor.id))) return false;
-    visited.add(String(cursor.id));
-    cursor = layers.get(String(cursor.parentId));
+    if (typeof cursor.parentId !== "string" || typeof cursor.id !== "string")
+      return false;
+    if (cursor.parentId === groupId) return true;
+    if (visited.has(cursor.id)) return false;
+    visited.add(cursor.id);
+    cursor = layers.get(cursor.parentId);
   }
   return false;
 }

@@ -1,3 +1,4 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import { validateEffectV1EditorRegion } from "./editor-region-validation.js";
@@ -101,7 +102,7 @@ export function parseEffectV1Source(source: string): EffectV1ValidationResult {
     return finishEffectV1Validation([
       {
         code: "JSON_INVALID",
-        message: `Invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Invalid JSON: ${error instanceof Error ? error.message : formatEffectV1DiagnosticValue(error)}`,
         path: "$",
         severity: "error",
         suggestion:
@@ -135,20 +136,11 @@ function validateEffectV1DocumentInternal(
     input.controls,
   );
 
+  const duration = typeof input.duration === "number" ? input.duration : NaN;
   const assets = validateEffectV1Assets(input.assets, report);
   const layers = validateEffectV1Layers(input.layers, assets, report);
-  const scenes = validateEffectV1Scenes(
-    input.scenes,
-    Number(input.duration),
-    report,
-  );
-  validateEffectV1Clips(
-    input.clips,
-    layers,
-    scenes,
-    Number(input.duration),
-    report,
-  );
+  const scenes = validateEffectV1Scenes(input.scenes, duration, report);
+  validateEffectV1Clips(input.clips, layers, scenes, duration, report);
   const controlIds = validateEffectV1Controls(input.controls, report);
   validateEffectV1ControlPresets(input, report);
   validateEffectV1EditorRegion(input, report);
@@ -156,7 +148,7 @@ function validateEffectV1DocumentInternal(
     input.timeline,
     layers,
     scenes,
-    Number(input.duration),
+    duration,
     report,
   );
   const runtimeInputs = isEffectV1Kind(input.kind)
@@ -269,7 +261,8 @@ function collectStyledCommandLayerIds(
   for (const command of value) {
     if (!isRecord(command)) continue;
     if (
-      STYLED_COMMAND_OPS.has(String(command.op)) &&
+      typeof command.op === "string" &&
+      STYLED_COMMAND_OPS.has(command.op) &&
       typeof command.layerId === "string"
     ) {
       result.add(command.layerId);

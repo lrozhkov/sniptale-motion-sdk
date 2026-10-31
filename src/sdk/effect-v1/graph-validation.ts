@@ -1,3 +1,5 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
+import { hasKnownIdentifier } from "./validation-shared.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationReport } from "./diagnostics.js";
 import {
@@ -165,7 +167,7 @@ function validateCommands(
       report.error(
         "COMMAND_OP",
         `${commandPath}.op`,
-        `Unknown render command "${String(operation)}".`,
+        `Unknown render command "${formatEffectV1DiagnosticValue(operation)}".`,
       );
       continue;
     }
@@ -225,32 +227,35 @@ function validateCommandReferences(
 ): void {
   if (
     command.layerId !== undefined &&
-    !references.layerIds.has(String(command.layerId))
+    !hasKnownIdentifier(command.layerId, references.layerIds)
   ) {
     report.error(
       "COMMAND_LAYER_UNKNOWN",
       `${path}.layerId`,
-      `Unknown layer "${String(command.layerId)}".`,
+      `Unknown layer "${formatEffectV1DiagnosticValue(command.layerId)}".`,
       "Use a declared leaf layer id or remove layerId.",
     );
   }
-  if (command.assetId !== undefined && !assets.has(String(command.assetId))) {
+  if (
+    command.assetId !== undefined &&
+    !hasKnownIdentifier(command.assetId, assets)
+  ) {
     report.error(
       "COMMAND_ASSET_UNKNOWN",
       `${path}.assetId`,
-      `Unknown asset "${String(command.assetId)}".`,
+      `Unknown asset "${formatEffectV1DiagnosticValue(command.assetId)}".`,
     );
   }
   if (command.op === "image") {
     validateImageSource(command, path, assets, runtimeInputs, report);
   }
   if (command.op === "svgParts" && typeof command.assetId === "string") {
-    const asset = assets.get(String(command.assetId));
+    const asset = assets.get(command.assetId);
     if (asset && asset.kind !== "svg") {
       report.error(
         "SVG_PARTS_ASSET_KIND",
         `${path}.assetId`,
-        `svgParts requires an SVG asset; "${command.assetId}" is ${String(asset.kind)}.`,
+        `svgParts requires an SVG asset; "${command.assetId}" is ${formatEffectV1DiagnosticValue(asset.kind)}.`,
       );
     }
   }
@@ -263,8 +268,8 @@ function validateImageSource(
   runtimeInputs: Set<string>,
   report: EffectV1ValidationReport,
 ): void {
-  const hasAsset = typeof command.assetId === "string";
-  const hasInput = typeof command.input === "string";
+  const hasAsset = command.assetId !== undefined;
+  const hasInput = command.input !== undefined;
   if (hasAsset === hasInput) {
     report.error(
       "IMAGE_SOURCE",
@@ -274,23 +279,23 @@ function validateImageSource(
     );
     return;
   }
-  if (hasAsset && !assets.has(String(command.assetId))) return;
-  if (hasAsset) {
-    const asset = assets.get(String(command.assetId));
+  if (hasAsset && !hasKnownIdentifier(command.assetId, assets)) return;
+  if (typeof command.assetId === "string") {
+    const asset = assets.get(command.assetId);
     if (asset && asset.kind !== "image" && asset.kind !== "svg") {
       report.error(
         "IMAGE_ASSET_KIND",
         `${path}.assetId`,
-        `Image command cannot render ${String(asset.kind)} asset "${command.assetId}".`,
+        `Image command cannot render ${formatEffectV1DiagnosticValue(asset.kind)} asset "${command.assetId}".`,
         "Use an image/SVG asset, or a kind-specific temporary runtime input.",
       );
     }
   }
-  if (hasInput && !runtimeInputs.has(String(command.input))) {
+  if (hasInput && !hasKnownIdentifier(command.input, runtimeInputs)) {
     report.error(
       "IMAGE_INPUT_UNAVAILABLE",
       `${path}.input`,
-      `Runtime input "${String(command.input)}" is unavailable for this effect kind.`,
+      `Runtime input "${formatEffectV1DiagnosticValue(command.input)}" is unavailable for this effect kind.`,
       runtimeInputs.size > 0
         ? `Use one of: ${[...runtimeInputs].join(", ")}.`
         : "Use assetId for a standalone effect.",
@@ -309,8 +314,8 @@ function resolveLoopBound(
         ? command.items.length
         : Number.NaN
       : command.op === "forGrid"
-        ? Number(command.columns) * Number(command.rows)
-        : Number(command.count);
+        ? readLoopNumber(command.columns) * readLoopNumber(command.rows)
+        : readLoopNumber(command.count);
   if (
     !Number.isSafeInteger(count) ||
     count < 0 ||
@@ -343,4 +348,8 @@ function commandNeedsChildren(op: string): boolean {
 
 function isLoop(op: string): boolean {
   return ["forEach", "forGrid", "forRange", "stableOrderBy"].includes(op);
+}
+
+function readLoopNumber(value: unknown): number {
+  return typeof value === "number" ? value : NaN;
 }

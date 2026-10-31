@@ -1,3 +1,4 @@
+import { findCoercedValidationLookups } from "./validation-boundaries.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { inspectRepositoryHygiene } from "./repository-hygiene.mjs";
@@ -143,6 +144,7 @@ function inspectFile(path) {
   if (isSourceTs) {
     const source = readFileSync(path, "utf8");
     const lines = source.split("\n").length;
+    violations.push(...findCoercedValidationLookups(file, source));
     sourceFiles.add(file);
     importGraph.set(file, collectRelativeImports(file, source));
     if (source.includes("@ts-nocheck") || source.includes("@ts-ignore")) {

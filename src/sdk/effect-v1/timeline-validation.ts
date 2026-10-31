@@ -1,3 +1,4 @@
+import { hasKnownIdentifier } from "./validation-shared.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import {
@@ -94,7 +95,10 @@ function validatePhases(
       }
       ids.add(phase.id);
     }
-    if (phase.sceneId != null && !scenes.has(String(phase.sceneId))) {
+    if (
+      phase.sceneId !== undefined &&
+      !hasKnownIdentifier(phase.sceneId, scenes)
+    ) {
       report.error("PHASE_SCENE_UNKNOWN", `${path}.sceneId`, "Unknown scene.");
     }
     validateRange(phase.start, phase.duration, duration, path, report);
@@ -130,27 +134,36 @@ function validateTracks(
       }
       ids.add(track.id);
     }
-    const layerId = track.layerId ?? track.target;
-    if (layerId !== undefined) {
-      const layer = layers.get(String(layerId));
+    for (const field of ["layerId", "target"] as const) {
+      const layerId = track[field];
+      if (layerId === undefined) continue;
+      const layer = hasKnownIdentifier(layerId, layers)
+        ? layers.get(layerId)
+        : undefined;
       if (!layer) {
         report.error(
           "TRACK_LAYER_UNKNOWN",
-          `${path}.target`,
+          `${path}.${field}`,
           "Unknown layer target.",
         );
       } else if (layer.type === "group") {
         report.error(
           "GROUP_TRACK_FORBIDDEN",
-          `${path}.target`,
+          `${path}.${field}`,
           "Structural groups cannot own animation tracks.",
         );
       }
     }
-    if (track.sceneId != null && !scenes.has(String(track.sceneId))) {
+    if (
+      track.sceneId !== undefined &&
+      !hasKnownIdentifier(track.sceneId, scenes)
+    ) {
       report.error("TRACK_SCENE_UNKNOWN", `${path}.sceneId`, "Unknown scene.");
     }
-    if (track.phaseId != null && !phaseIds.has(String(track.phaseId))) {
+    if (
+      track.phaseId !== undefined &&
+      !hasKnownIdentifier(track.phaseId, phaseIds)
+    ) {
       report.error("TRACK_PHASE_UNKNOWN", `${path}.phaseId`, "Unknown phase.");
     }
     validateKeyframes(
@@ -213,14 +226,20 @@ function validateKeyframes(
       );
     }
     if (typeof time === "number" && Number.isFinite(time)) previousTime = time;
-    if (keyframe.sceneId != null && !scenes.has(String(keyframe.sceneId))) {
+    if (
+      keyframe.sceneId !== undefined &&
+      !hasKnownIdentifier(keyframe.sceneId, scenes)
+    ) {
       report.error(
         "KEYFRAME_SCENE_UNKNOWN",
         `${path}.sceneId`,
         "Unknown scene.",
       );
     }
-    if (keyframe.phaseId != null && !phaseIds.has(String(keyframe.phaseId))) {
+    if (
+      keyframe.phaseId !== undefined &&
+      !hasKnownIdentifier(keyframe.phaseId, phaseIds)
+    ) {
       report.error(
         "KEYFRAME_PHASE_UNKNOWN",
         `${path}.phaseId`,

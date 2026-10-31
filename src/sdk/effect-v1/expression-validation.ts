@@ -1,3 +1,4 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { EFFECT_V1_EXPRESSION_OPS } from "./types.js";
 import type { EffectV1ValidationReport } from "./diagnostics.js";
 import type { EffectV1ReadReferences } from "./graph-model.js";
@@ -151,7 +152,7 @@ export function validateEffectV1Expression(
     report.error(
       "EXPRESSION_OP",
       `${path}.op`,
-      `Unknown expression operation "${String(operation)}".`,
+      `Unknown expression operation "${formatEffectV1DiagnosticValue(operation)}".`,
     );
     return;
   }
@@ -207,7 +208,10 @@ function validateExpressionShape(
   path: string,
   report: EffectV1ValidationReport,
 ): void {
-  const shape = EXPRESSION_SHAPES[String(value.op)];
+  const shape =
+    typeof value.op === "string" && Object.hasOwn(EXPRESSION_SHAPES, value.op)
+      ? EXPRESSION_SHAPES[value.op]
+      : undefined;
   if (!shape) return;
   if (shape.args) {
     if (!Array.isArray(value.args)) {

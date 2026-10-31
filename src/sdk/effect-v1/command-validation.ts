@@ -1,3 +1,4 @@
+import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
 import { isRecord, rejectUnknownKeys } from "./validation-shared.js";
@@ -94,7 +95,11 @@ export function validateEffectV1CommandSemantics(
   passes: EffectV1PassIndex,
   report: EffectV1ValidationErrorReport,
 ): void {
-  for (const field of REQUIRED_FIELDS[String(command.op)] ?? []) {
+  const requiredFields =
+    typeof command.op === "string" && Object.hasOwn(REQUIRED_FIELDS, command.op)
+      ? REQUIRED_FIELDS[command.op]
+      : [];
+  for (const field of requiredFields ?? []) {
     if (command[field] === undefined) {
       report.error(
         "COMMAND_FIELD_REQUIRED",
@@ -110,11 +115,15 @@ export function validateEffectV1CommandSemantics(
     }
   }
   for (const [field, values] of Object.entries(ENUM_FIELDS)) {
-    if (command[field] !== undefined && !values.has(String(command[field]))) {
+    const value = command[field];
+    if (
+      value !== undefined &&
+      (typeof value !== "string" || !values.has(value))
+    ) {
       report.error(
         "COMMAND_ENUM",
         `${path}.${field}`,
-        `Unsupported ${field} value "${String(command[field])}".`,
+        `Unsupported ${field} value "${formatEffectV1DiagnosticValue(command[field])}".`,
         `Use one of: ${[...values].join(", ")}.`,
       );
     }
@@ -141,7 +150,8 @@ export function validateEffectV1CommandSemantics(
     }
     if (
       command.sampleVar !== undefined &&
-      !/^[a-z][a-zA-Z0-9_-]{0,31}$/.test(String(command.sampleVar))
+      (typeof command.sampleVar !== "string" ||
+        !/^[a-z][a-zA-Z0-9_-]{0,31}$/.test(command.sampleVar))
     ) {
       report.error(
         "SAMPLED_PATH_VARIABLE",
@@ -249,9 +259,10 @@ function validateStaticLoopField(
   report: EffectV1ValidationErrorReport,
 ): void {
   if (
+    typeof value !== "number" ||
     !Number.isSafeInteger(value) ||
-    Number(value) < 1 ||
-    Number(value) > 512
+    value < 1 ||
+    value > 512
   ) {
     report.error(
       "LOOP_BOUND",
@@ -366,12 +377,16 @@ function validatePathSegments(
       );
       return;
     }
-    const required = PATH_SEGMENT_FIELDS[String(segment.kind)];
+    const required =
+      typeof segment.kind === "string" &&
+      Object.hasOwn(PATH_SEGMENT_FIELDS, segment.kind)
+        ? PATH_SEGMENT_FIELDS[segment.kind]
+        : undefined;
     if (!required) {
       report.error(
         "COMMAND_PATH_SEGMENT_KIND",
         `${segmentPath}.kind`,
-        `Unsupported path segment kind "${String(segment.kind)}".`,
+        `Unsupported path segment kind "${formatEffectV1DiagnosticValue(segment.kind)}".`,
       );
       return;
     }
