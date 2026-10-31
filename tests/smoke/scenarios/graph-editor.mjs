@@ -1,7 +1,9 @@
 import { assertActiveGestureUndo } from "./pointer-ownership.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { join } from "node:path";
 import { expect } from "@playwright/test";
 import { createNeutralEffectV1Document } from "../../../tooling/test/fixtures/local-pack.mjs";
@@ -124,12 +126,14 @@ export async function assertGraphEditorFlow({
     await expect(svg).toBeHidden();
     await page.locator("#graphEditorButton").click();
     await expect(svg).toBeVisible();
+    const exportSha256 = await assertEditedEffectExport(page, outputDir);
     assert.deepEqual(errors, []);
     await writeFile(
       join(outputDir, "graph-editor.json"),
       JSON.stringify(
         {
           status: "passed",
+          exportSha256,
           inputSha256: createHash("sha256").update(input).digest("hex"),
           browser: page.context().browser().version(),
           steps: [
@@ -143,6 +147,7 @@ export async function assertGraphEditorFlow({
             "pan",
             "source-switch",
             "close-and-reopen",
+            "edited-effect-export-and-validate",
           ],
           errors,
         },
@@ -160,4 +165,41 @@ async function selectEffect(page, id) {
   await page.locator("#templateComboboxButton").click();
   await page.locator(`.template-combobox-option[data-value="${id}"]`).click();
   await expect(page.locator("#templateSelect")).toHaveValue(id);
+}
+
+async function assertEditedEffectExport(page, outputDir) {
+  await page.locator("#appActionsButton").click();
+  const exportButton = page.locator("#exportEffectFileButton");
+  await expect(exportButton).toBeEnabled();
+  const pendingDownload = page.waitForEvent("download");
+  await exportButton.click();
+  const download = await pendingDownload;
+  const file = join(outputDir, "graph-edited.sniptale-effect.json");
+  await download.saveAs(file);
+  const source = await readFile(file, "utf8");
+  const payload = JSON.parse(source);
+  const track = payload.timeline.tracks.find(
+    (item) => item.id === "card.opacity",
+  );
+  assert.ok(track, "Export must preserve the edited graph track.");
+  assert.notEqual(
+    track.keyframes.find((item) => item.id === "start")?.time,
+    0.25,
+  );
+  assert.ok(
+    track.keyframes.every(
+      (item) => item.phaseId !== null && item.sceneId !== null,
+    ),
+  );
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    ["--import", "tsx", "tooling/effect-v1/validate.ts", file, "--json"],
+    { cwd: process.cwd() },
+  );
+  assert.equal(
+    JSON.parse(stdout).ok,
+    true,
+    "Downloaded editor output must pass the product receiving validator.",
+  );
+  return createHash("sha256").update(source).digest("hex");
 }

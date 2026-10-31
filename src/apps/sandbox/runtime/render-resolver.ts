@@ -46,6 +46,7 @@ export function resolveLayerState(
   timeline: RuntimeTimeline,
   layerId: string,
   time: number,
+  onTrackRead?: (trackId: string) => void,
 ): any {
   const layer = getLayersById(layers).get(layerId) ?? {
     id: layerId,
@@ -63,50 +64,19 @@ export function resolveLayerState(
         time >= item.start &&
         time <= item.start + item.duration,
     ) ?? null;
-  const blur = resolveTrackValue(
-    timeline,
-    `${layerId}.blur`,
-    time,
-    layer.blur ?? 0,
-  );
-  const anchorX = resolveTrackValue(
-    timeline,
-    `${layerId}.anchorX`,
-    time,
-    layer.anchorX ?? 0,
-  );
-  const anchorY = resolveTrackValue(
-    timeline,
-    `${layerId}.anchorY`,
-    time,
-    layer.anchorY ?? 0,
-  );
-  const opacity = resolveTrackValue(
-    timeline,
-    `${layerId}.opacity`,
-    time,
-    layer.opacity ?? 1,
-  );
-  const rotation = resolveTrackValue(
-    timeline,
-    `${layerId}.rotation`,
-    time,
-    layer.rotation ?? 0,
-  );
-  const scaleX = resolveTrackValue(
-    timeline,
-    `${layerId}.scaleX`,
-    time,
-    layer.scaleX ?? 1,
-  );
-  const scaleY = resolveTrackValue(
-    timeline,
-    `${layerId}.scaleY`,
-    time,
-    layer.scaleY ?? 1,
-  );
-  const x = resolveTrackValue(timeline, `${layerId}.x`, time, layer.x ?? 0);
-  const y = resolveTrackValue(timeline, `${layerId}.y`, time, layer.y ?? 0);
+  const readTrack = (property: string, fallback: unknown) => {
+    const trackId = `${layerId}.${property}`;
+    return resolveTrackValue(timeline, trackId, time, fallback, onTrackRead);
+  };
+  const blur = readTrack("blur", layer.blur ?? 0);
+  const anchorX = readTrack("anchorX", layer.anchorX ?? 0);
+  const anchorY = readTrack("anchorY", layer.anchorY ?? 0);
+  const opacity = readTrack("opacity", layer.opacity ?? 1);
+  const rotation = readTrack("rotation", layer.rotation ?? 0);
+  const scaleX = readTrack("scaleX", layer.scaleX ?? 1);
+  const scaleY = readTrack("scaleY", layer.scaleY ?? 1);
+  const x = readTrack("x", layer.x ?? 0);
+  const y = readTrack("y", layer.y ?? 0);
   return {
     ...layer,
     active:
@@ -150,9 +120,11 @@ export function resolveTrackValue(
   trackId: string,
   time: number,
   fallback: unknown,
+  onTrackRead?: (trackId: string) => void,
 ): unknown {
   const index = getTimelineIndex(timeline);
   const track = index.tracksById.get(trackId);
+  if (track) onTrackRead?.(trackId);
   if (
     !track ||
     track.enabled === false ||

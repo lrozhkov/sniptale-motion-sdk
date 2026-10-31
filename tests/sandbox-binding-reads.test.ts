@@ -12,6 +12,40 @@ import { createRenderContext } from "../src/apps/sandbox/runtime/render-context"
 import { normalizeRenderResult } from "../src/apps/sandbox/runtime/render-result";
 
 describe("sandbox binding reads", () => {
+  it("records actual implicit layer-track reads and their phase gates", () => {
+    const context = createRenderContext(
+      {
+        time: 0.5,
+        duration: 2,
+        layers: [{ id: "card", visible: true }],
+        timeline: {
+          phases: [{ id: "intro", start: 0, duration: 2 }],
+          tracks: [
+            {
+              id: "card.opacity",
+              phaseId: "intro",
+              keyframes: [
+                { id: "a", time: 0, value: 0 },
+                { id: "b", time: 1, value: 1 },
+              ],
+            },
+            {
+              id: "card.unread",
+              keyframes: [{ id: "c", time: 0, value: 123 }],
+            },
+          ],
+        },
+      },
+      {},
+      {},
+    );
+    expect(context.resolveLayer("card").opacity).toBe(0.5);
+    const reads = serializeBindingReads(context);
+    expect(reads?.tracks).toEqual(["card.opacity"]);
+    expect(reads?.phases).toContain("intro");
+    expect(reads?.tracks).not.toContain("card.unread");
+  });
+
   it("uses the current context time when no method time is supplied", () => {
     const context = createRenderContext(
       {

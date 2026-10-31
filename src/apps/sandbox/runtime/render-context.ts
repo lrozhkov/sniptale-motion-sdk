@@ -143,7 +143,15 @@ export function createRenderContext(
       recordBindingRead(bindingReads, "layerGateReads", layerId);
       recordBindingRead(bindingReads, "layers", layerId);
       recordBindingRead(bindingReads, "clips", layerId);
-      return resolveLayerState(layers, clips, timeline, layerId, at);
+      return resolveLayerState(
+        layers,
+        clips,
+        timeline,
+        layerId,
+        at,
+        (trackId) =>
+          recordTrackBindingRead(bindingReads, trackPhaseBindings, trackId),
+      );
     },
     resolveTrack(trackId: string, fallback: unknown = 0, at?: number): unknown {
       at = at === undefined ? ctx.time : at;

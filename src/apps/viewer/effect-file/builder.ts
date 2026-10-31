@@ -44,7 +44,7 @@ export function buildEffectFilePayload(options: {
             template.defaultControlPresetId ?? base.defaultControlPresetId,
         }
       : {}),
-    clips: deepClone(template.clips ?? []),
+    clips: canonicalizeReferences(deepClone(template.clips ?? []), ["sceneId"]),
     controls: (template.controls ?? []).map((control) => ({
       ...deepClone(control),
       defaultValue: deepClone(
@@ -76,11 +76,61 @@ export function buildEffectFilePayload(options: {
   };
 }
 
-export function buildEffectFileTimeline(timeline: any): any {
-  const { duration: _editorDuration, ...documentTimeline } = deepClone(
-    timeline ?? { phases: [], tracks: [] },
+export function buildEffectFileTimeline(
+  timeline: unknown,
+): Record<string, unknown> {
+  const source: unknown = deepClone(timeline ?? { phases: [], tracks: [] });
+  if (!isRecord(source)) throw new Error("Invalid editor timeline.");
+  const { duration: _editorDuration, ...documentTimeline } = source;
+  return {
+    ...documentTimeline,
+    phases: canonicalizeReferences(documentTimeline.phases, ["sceneId"]),
+    tracks: mapRecords(documentTimeline.tracks, (track) => ({
+      ...omitAbsentReferences(track, [
+        "layerId",
+        "target",
+        "phaseId",
+        "sceneId",
+      ]),
+      keyframes: canonicalizeReferences(track.keyframes, [
+        "phaseId",
+        "sceneId",
+      ]),
+    })),
+  };
+}
+
+function canonicalizeReferences(
+  value: unknown,
+  keys: readonly string[],
+): unknown {
+  return mapRecords(value, (item) => omitAbsentReferences(item, keys));
+}
+
+function mapRecords(
+  value: unknown,
+  convert: (item: Record<string, unknown>) => Record<string, unknown>,
+): unknown {
+  if (!Array.isArray(value)) return value;
+  const items: unknown[] = value;
+  return items.map((item) => (isRecord(item) ? convert(item) : item));
+}
+
+function omitAbsentReferences(
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([key, item]) =>
+        !keys.includes(key) ||
+        (item !== null && item !== undefined && item !== ""),
+    ),
   );
-  return documentTimeline;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function buildEffectFileAssets(
