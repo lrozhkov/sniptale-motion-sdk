@@ -1,3 +1,4 @@
+import type { EffectsViewerTestApi } from "../src/apps/viewer/test-api.js";
 import type { TimelineRenderSnapshot } from "../src/apps/viewer/timeline/state.js";
 import type {
   TimelineRowTree,
@@ -108,6 +109,22 @@ describe("viewer state contracts", () => {
     >().toBeString();
   });
 
+  it("exposes actual viewer test API parameters and results", () => {
+    expectTypeOf<
+      Parameters<EffectsViewerTestApi["setControl"]>
+    >().toEqualTypeOf<[id: string, value: unknown]>();
+    expectTypeOf<
+      ReturnType<EffectsViewerTestApi["renderTemplate"]>
+    >().toEqualTypeOf<Promise<string>>();
+    expectTypeOf<ReturnType<EffectsViewerTestApi["getState"]>>().not.toBeAny();
+    expectTypeOf<
+      ReturnType<EffectsViewerTestApi["getTimeline"]>
+    >().not.toBeAny();
+    expectTypeOf<
+      ReturnType<EffectsViewerTestApi["exportEffectFile"]>
+    >().not.toBeAny();
+  });
+
   it("keeps timeline nodes and ownership fields typed at the application boundary", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["createTimelineLane"]>["body"]
@@ -123,7 +140,7 @@ describe("viewer state contracts", () => {
     >().toBeString();
     expectTypeOf<
       Parameters<ViewerAppContext["appendInspectorSelectRow"]>[0]["onChange"]
-    >().toEqualTypeOf<(value: string) => void>();
+    >().toEqualTypeOf<(value: string) => void | Promise<void>>();
   });
 
   it("keeps selection commands and navigation items typed at the application boundary", () => {

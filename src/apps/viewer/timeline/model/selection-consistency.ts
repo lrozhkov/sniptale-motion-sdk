@@ -27,7 +27,9 @@ export function reconcileTimelineSelection(
     return;
   }
   const { layerIds, clipLayerIds, phaseIds, sceneIds, trackById } =
-    createSelectionIndexes(effectiveTemplate, ctx.normalizeScenes);
+    createSelectionIndexes(effectiveTemplate, (...args) =>
+      ctx.normalizeScenes(...args),
+    );
 
   ctx.state.selectedLayers = filterSelectionIds(
     ctx.state.selectedLayers,

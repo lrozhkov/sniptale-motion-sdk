@@ -1,6 +1,6 @@
 import { clamp } from "../../../sdk/protocol.js";
 
-export type TimelineSnapMode = "free" | "tenths" | "frames" | string;
+export type TimelineSnapMode = string;
 
 export type TimelineViewport = {
   end: number;

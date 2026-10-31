@@ -1,0 +1,18 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "../../../src",
+    "../../../tests",
+    "../../../tooling",
+    "../../../*.config.ts"
+  ]
+}

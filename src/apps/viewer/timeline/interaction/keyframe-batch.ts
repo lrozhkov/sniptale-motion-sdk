@@ -52,11 +52,8 @@ function scaleSelectedKeyframeTimes(
     ? applyKeyframeTimePlan(
         ctx,
         operation,
-        createKeyframeScalePlan(
-          operation.snapshot,
-          factor,
-          pivot,
-          ctx.snapTime,
+        createKeyframeScalePlan(operation.snapshot, factor, pivot, (time) =>
+          ctx.snapTime(time),
         ),
         {
           payload: { factor, pivot },
@@ -106,7 +103,7 @@ function setKeyframeSelectionRangeProperty(
       operation.snapshot,
       requestedDuration / bounds.duration,
       "start",
-      ctx.snapTime,
+      (time) => ctx.snapTime(time),
     ),
     {
       payload: { property, value },
@@ -146,7 +143,9 @@ function distributeSelectedKeyframes(ctx: ViewerAppContext): boolean {
     ? applyKeyframeTimePlan(
         ctx,
         operation,
-        createKeyframeDistributePlan(operation.snapshot, ctx.snapTime),
+        createKeyframeDistributePlan(operation.snapshot, (time) =>
+          ctx.snapTime(time),
+        ),
         {
           payload: {},
           type: "distributeKeyframes",

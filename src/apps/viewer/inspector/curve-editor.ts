@@ -223,8 +223,8 @@ function createEasingField(
 function updateKeyframeEasing(
   ctx: ViewerAppContext,
   easing: string,
-  trackId: string | undefined = undefined,
-  keyframeId: string | undefined = undefined,
+  trackId?: string,
+  keyframeId?: string,
 ) {
   if (!KEYFRAME_EASING_PRESETS.some((value) => value === easing)) return;
   const template = ctx.state.currentTemplate;

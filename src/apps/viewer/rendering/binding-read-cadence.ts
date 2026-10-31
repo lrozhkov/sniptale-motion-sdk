@@ -1,7 +1,10 @@
 const PLAYBACK_BINDING_READ_INTERVAL_MS = 1000 / 12;
 
 export function shouldCapturePlaybackBindingReads(
-  state: any,
+  state: {
+    playbackBindingLayerId?: string | null;
+    lastPlaybackBindingReadAtMs: number;
+  },
   layerId: string | null,
   now: number,
 ): boolean {

@@ -54,6 +54,7 @@ function walk(dir: string): string[] {
 describe("architecture guardrails", () => {
   it("keeps product source and public SDK declarations fully strict", () => {
     for (const file of [
+      "tsconfig.json",
       "tooling/configs/typescript/sdk.json",
       "tooling/configs/typescript/product.json",
     ]) {
@@ -143,6 +144,8 @@ describe("architecture guardrails", () => {
       "effect:validate": "tsx tooling/effect-v1/validate.ts",
       format: "node tooling/qa/formatting/run.mjs",
       "format:write": "node tooling/qa/formatting/run.mjs --write",
+      "lint:product":
+        "node node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json src",
       qa: "npm run qa:checkpoint && npm run qa:build",
       "qa:build": "node tooling/qa/wrappers/build.mjs",
       "qa:checkpoint": "node tooling/qa/wrappers/checkpoint.mjs",
@@ -163,11 +166,14 @@ describe("architecture guardrails", () => {
         "vitest run --coverage --config tooling/configs/qa/vitest.ts",
       "test:npm": "node tooling/release/npm/accept.mjs",
       "test:smoke": "node tooling/test/smoke/run.mjs",
-      typecheck: "npm run typecheck:workspace && npm run typecheck:product",
+      typecheck:
+        "npm run typecheck:workspace && npm run typecheck:product && npm run typecheck:sdk",
       "typecheck:workspace":
-        "node node_modules/@typescript/native/bin/tsc --noEmit",
+        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/workspace.json",
       "typecheck:product":
         "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/product.json",
+      "typecheck:sdk":
+        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/sdk.json",
     });
   });
 

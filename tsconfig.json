@@ -11,12 +11,14 @@
     "isolatedModules": true,
     "noEmit": true,
     "strict": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "skipLibCheck": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node"],
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src", "tests", "tooling", "*.config.ts"]
+  "include": ["src"]
 }

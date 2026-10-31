@@ -34,7 +34,7 @@
     "qa:closeout": "node tooling/qa/wrappers/closeout.mjs",
     "qa:licenses": "node tooling/release/dependency-legal/audit-full-lock.mjs",
     "qa:security": "node tooling/qa/wrappers/security.mjs",
-    "typecheck": "npm run typecheck:workspace && npm run typecheck:product",
+    "typecheck": "npm run typecheck:workspace && npm run typecheck:product && npm run typecheck:sdk",
     "test": "vitest run --config tooling/configs/qa/vitest.ts",
     "test:coverage": "vitest run --coverage --config tooling/configs/qa/vitest.ts",
     "test:npm": "node tooling/release/npm/accept.mjs",
@@ -43,8 +43,10 @@
     "qa:dependencies": "node tooling/qa/security/dependency-age.mjs",
     "format": "node tooling/qa/formatting/run.mjs",
     "format:write": "node tooling/qa/formatting/run.mjs --write",
-    "typecheck:workspace": "node node_modules/@typescript/native/bin/tsc --noEmit",
-    "typecheck:product": "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/product.json"
+    "typecheck:workspace": "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/workspace.json",
+    "typecheck:product": "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/product.json",
+    "lint:product": "node node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json src",
+    "typecheck:sdk": "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/sdk.json"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

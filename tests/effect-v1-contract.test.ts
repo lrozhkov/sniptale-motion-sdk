@@ -13,6 +13,15 @@ import {
 } from "../src/sdk/effect-v1";
 
 describe("Effect v1 contract", () => {
+  it("publishes literal traversal checks without rejecting normal two-character paths", () => {
+    const path = new RegExp(
+      EFFECT_V1_JSON_SCHEMA.$defs.asset.properties.path.pattern,
+    );
+    for (const value of ["aa", "assets/card.png", "notes..svg", "ab/image.svg"])
+      expect(path.test(value)).toBe(true);
+    for (const value of ["../secret", "a/../secret", "/absolute", "a\\b"])
+      expect(path.test(value)).toBe(false);
+  });
   it("keeps the published JSON Schema synchronized with every operation", () => {
     const published = JSON.parse(
       readFileSync("schemas/sniptale-effect-v1.schema.json", "utf8"),

@@ -8,42 +8,14 @@ import {
 import { getViewerStateForTest } from "./test-api-state.js";
 import { installTimelineStressModelForTest } from "./test-api-performance.js";
 
-export interface EffectsViewerTestApi {
-  exportTemplateJson: (...args: any[]) => any;
-  exportEffectFile: (...args: any[]) => any;
-  getTemplateJsonForTest: (...args: any[]) => any;
-  profileTemplateFrame: (...args: any[]) => any;
-  validateEffectFileForTest: (...args: any[]) => any;
-  importEffectFileForTest: (...args: any[]) => any;
-  getTimeline: (...args: any[]) => any;
-  renderTemplate: (...args: any[]) => any;
-  renderTemplateFrame: (...args: any[]) => any;
-  setControl: (...args: any[]) => any;
-  applyPresetForTest: (...args: any[]) => any;
-  duplicatePresetForTest: (...args: any[]) => any;
-  deletePresetForTest: (...args: any[]) => any;
-  savePresetForTest: (...args: any[]) => any;
-  resetTimeline: (...args: any[]) => any;
-  testBindTemplateJson: (...args: any[]) => any;
-  getState: (...args: any[]) => any;
-  refreshRendererContractCoverageForTest: (...args: any[]) => any;
-  setRendererContractCoverageForTest: (...args: any[]) => any;
-  getContractValidationIssuesForTest: (...args: any[]) => any;
-  getCanonicalEditorState: (...args: any[]) => any;
-  getLayerGeometryForTest: (...args: any[]) => any;
-  getLayerPathPointsForTest: (...args: any[]) => any;
-  getSelectedLayerGeometryForTest: (...args: any[]) => any;
-  setPreviewRenderCostForTest: (...args: any[]) => any;
-  triggerSandboxTimeoutForTest: (...args: any[]) => any;
-  moveKeyframe: (...args: any[]) => any;
-  movePhase: (...args: any[]) => any;
-  moveTrack: (...args: any[]) => any;
-  setKeyframeHandles: (...args: any[]) => any;
-  installTimelineStressModelForTest: (...args: any[]) => any;
-}
+export type EffectsViewerTestApi = ReturnType<typeof createViewerTestApi>;
 
 export function installViewerTestApi(ctx: ViewerAppContext): void {
-  window.effectsViewer = {
+  window.effectsViewer = createViewerTestApi(ctx);
+}
+
+function createViewerTestApi(ctx: ViewerAppContext) {
+  return {
     exportTemplateJson() {
       return ctx.assertExportable("Export blocked")
         ? ctx.buildCurrentTemplateJson()
@@ -56,17 +28,21 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
         : null;
     },
     getTemplateJsonForTest: () => ctx.buildCurrentTemplateJson(),
-    async profileTemplateFrame(templateId, time, directPresentation = false) {
+    async profileTemplateFrame(
+      templateId: string,
+      time: number,
+      directPresentation = false,
+    ) {
       await renderTemplateFrame(ctx, templateId, time, {
         directPresentation: Boolean(directPresentation),
         profile: true,
       });
       return ctx.deps.deepClone(ctx.state.lastRenderProfile);
     },
-    validateEffectFileForTest(source) {
+    validateEffectFileForTest(source: string) {
       return ctx.validateCurrentEffectFileSource(source);
     },
-    importEffectFileForTest(source) {
+    importEffectFileForTest(source: string) {
       return ctx.importEffectFileSource(
         source,
         "test-import.sniptale-effect.json",
@@ -75,27 +51,27 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
     getTimeline() {
       return ctx.getEffectiveTimeline();
     },
-    async renderTemplate(templateId, time) {
+    async renderTemplate(templateId: string, time: number) {
       await renderTemplateFrame(ctx, templateId, time);
       return ctx.refs.canvas.toDataURL("image/png");
     },
-    async renderTemplateFrame(templateId, time) {
+    async renderTemplateFrame(templateId: string, time: number) {
       await renderTemplateFrame(ctx, templateId, time);
     },
-    async setControl(id, value) {
+    async setControl(id: string, value: unknown) {
       ctx.state.controls[id] = value;
       ctx.renderControls(ctx.state.currentTemplate);
       await ctx.renderCurrentFrame();
       return ctx.refs.canvas.toDataURL("image/png");
     },
-    async applyPresetForTest(presetId) {
+    async applyPresetForTest(presetId: string) {
       await ctx.applyPreset(presetId);
       return ctx.refs.canvas.toDataURL("image/png");
     },
-    duplicatePresetForTest(presetId) {
+    duplicatePresetForTest(presetId: string) {
       return ctx.duplicatePreset(presetId);
     },
-    deletePresetForTest(presetId) {
+    deletePresetForTest(presetId: string) {
       return ctx.deletePreset(presetId);
     },
     savePresetForTest() {
@@ -146,9 +122,10 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
       }
       return undefined;
     },
-    testBindTemplateJson(jsonText) {
+    testBindTemplateJson(jsonText: string) {
       try {
-        return ctx.validateBoundTemplateJson(JSON.parse(jsonText));
+        const value: unknown = JSON.parse(jsonText);
+        return ctx.validateBoundTemplateJson(value);
       } catch {
         ctx.refs.timelineSaveStatus.textContent = ctx.deps.t(
           "viewer.status.rejectedMalformedJson",
@@ -166,7 +143,7 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
       await ctx.refreshRendererContractCoverage();
       return ctx.deps.deepClone(ctx.state.rendererContractReads);
     },
-    async setRendererContractCoverageForTest(reads) {
+    async setRendererContractCoverageForTest(reads: unknown) {
       if (!ctx.state.currentTemplate) {
         return null;
       }
@@ -207,16 +184,16 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
     getCanonicalEditorState() {
       return ctx.getCanonicalEditorState();
     },
-    getLayerGeometryForTest(layerId) {
+    getLayerGeometryForTest(layerId: string) {
       return getLayerGeometryForTest(ctx, layerId);
     },
-    getLayerPathPointsForTest(layerId) {
+    getLayerPathPointsForTest(layerId: string) {
       return getLayerPathPointsForTest(ctx, layerId);
     },
     getSelectedLayerGeometryForTest() {
       return getSelectedLayerGeometryForTest(ctx);
     },
-    setPreviewRenderCostForTest(milliseconds) {
+    setPreviewRenderCostForTest(milliseconds: number) {
       ctx.state.averageFullRenderMs = Math.max(0, Number(milliseconds) || 0);
       return ctx.state.averageFullRenderMs;
     },
@@ -236,17 +213,21 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
       } catch (error) {
         return {
           name: error instanceof Error ? error.name : "UnknownError",
-          recoveryStarted: Boolean((error as any)?.recoveryStarted),
+          recoveryStarted:
+            error !== null &&
+            typeof error === "object" &&
+            "recoveryStarted" in error &&
+            error.recoveryStarted === true,
         };
       }
     },
-    async moveKeyframe(trackId, keyframeId, time) {
+    async moveKeyframe(trackId: string, keyframeId: string, time: number) {
       ctx.state.selectedItem = { keyframeId, trackId, type: "keyframe" };
       ctx.state.selectedKeyframes = [{ keyframeId, trackId }];
       await ctx.updateSelectedKeyframe({ time });
       return ctx.refs.canvas.toDataURL("image/png");
     },
-    async movePhase(phaseId, delta) {
+    async movePhase(phaseId: string, delta: number) {
       const template = ctx.state.currentTemplate;
       const timeline = ctx.getEffectiveTimeline(template);
       const phase = timeline.phases.find((item) => item.id === phaseId);
@@ -265,7 +246,7 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
       }
       return ctx.refs.canvas.toDataURL("image/png");
     },
-    async moveTrack(trackId, delta) {
+    async moveTrack(trackId: string, delta: number) {
       const template = ctx.state.currentTemplate;
       const timeline = ctx.getEffectiveTimeline(template);
       const track = timeline.tracks.find((item) => item.id === trackId);
@@ -294,7 +275,13 @@ export function installViewerTestApi(ctx: ViewerAppContext): void {
       }
       return ctx.refs.canvas.toDataURL("image/png");
     },
-    async setKeyframeHandles(trackId, keyframeId, handles) {
+    async setKeyframeHandles(
+      trackId: string,
+      keyframeId: string,
+      handles: NonNullable<
+        Parameters<ViewerAppContext["updateSelectedKeyframe"]>[0]["handles"]
+      >,
+    ) {
       ctx.state.selectedItem = { keyframeId, trackId, type: "keyframe" };
       ctx.state.selectedKeyframes = [{ keyframeId, trackId }];
       await ctx.updateSelectedKeyframe({ handles });
@@ -307,7 +294,7 @@ async function renderTemplateFrame(
   ctx: ViewerAppContext,
   templateId: string,
   time: number,
-  options: any = {},
+  options: Parameters<ViewerAppContext["renderCurrentFrame"]>[0] = {},
 ): Promise<void> {
   if (ctx.state.currentTemplate?.id !== templateId) {
     await ctx.selectTemplate(templateId);

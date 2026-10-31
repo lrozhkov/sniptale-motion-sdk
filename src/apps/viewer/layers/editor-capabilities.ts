@@ -1,5 +1,4 @@
 import type {
-  EffectLayer,
   EffectLayerEditorCanvasMode,
   EffectLayerEditorOperation,
   EffectLayerEditorTransformProperty,
@@ -115,7 +114,7 @@ const CONTENT_PROPERTIES_BY_TYPE: Record<string, string[]> = {
 };
 
 export function resolveLayerEditorCapabilities(
-  layer: EffectLayer | unknown,
+  layer: unknown,
 ): LayerEditorCapabilities {
   const source = isRecord(layer) ? layer : {};
   const type = typeof source.type === "string" ? source.type : "";
@@ -178,7 +177,7 @@ export function resolveLayerEditorCapabilities(
   };
 }
 
-export function isLayerCanvasSelectable(layer: EffectLayer | unknown): boolean {
+export function isLayerCanvasSelectable(layer: unknown): boolean {
   return resolveLayerEditorCapabilities(layer).canvas !== "none";
 }
 
@@ -191,14 +190,14 @@ export function isRendererManagedCanvasCapabilities(
 }
 
 export function canEditLayerProperty(
-  layer: EffectLayer | unknown,
+  layer: unknown,
   property: string,
 ): boolean {
   return resolveLayerEditorCapabilities(layer).properties.includes(property);
 }
 
 export function canKeyframeLayerProperty(
-  layer: EffectLayer | unknown,
+  layer: unknown,
   property: string,
 ): boolean {
   return resolveLayerEditorCapabilities(layer).keyframeProperties.includes(
@@ -207,14 +206,14 @@ export function canKeyframeLayerProperty(
 }
 
 export function canTransformLayerProperty(
-  layer: EffectLayer | unknown,
+  layer: unknown,
   property: EffectLayerEditorTransformProperty,
 ): boolean {
   return resolveLayerEditorCapabilities(layer).transform.includes(property);
 }
 
 export function canPerformLayerOperation(
-  layer: EffectLayer | unknown,
+  layer: unknown,
   operation: EffectLayerEditorOperation,
 ): boolean {
   return resolveLayerEditorCapabilities(layer).operations.includes(operation);

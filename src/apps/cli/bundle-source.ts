@@ -1,3 +1,4 @@
+import { diagnosticValue } from "../../sdk/diagnostic-value.js";
 import { readBoundedFile } from "./files.js";
 import { MAX_STUDIO_SOURCE_BYTES } from "../../shared/studio/protocol.js";
 import { constants } from "node:fs";
@@ -63,7 +64,7 @@ export async function materializeEffectV1Bundle(
       throw new EffectV1BundleError(
         "ASSET_SIZE",
         `$.assets[${index}]`,
-        `Asset "${asset.id ?? index}" must be from 1 to ${MAX_ASSET_BYTES} bytes.`,
+        `Asset "${diagnosticValue(asset.id ?? index)}" must be from 1 to ${MAX_ASSET_BYTES} bytes.`,
         "Reduce or recompress the asset, then update byteLength and sha256.",
       );
     }
@@ -76,8 +77,9 @@ export async function materializeEffectV1Bundle(
         "Remove unused assets or reduce their encoded size.",
       );
     }
+    const mimeType = asset.mimeType;
     try {
-      assertEffectV1AssetSignature(bytes, asset.mimeType, asset.id ?? index);
+      assertEffectV1AssetSignature(bytes, mimeType, asset.id ?? index);
     } catch (error) {
       throw new EffectV1BundleError(
         "ASSET_SIGNATURE",
@@ -94,7 +96,7 @@ export async function materializeEffectV1Bundle(
       throw new EffectV1BundleError(
         "ASSET_BYTE_LENGTH_MISMATCH",
         `$.assets[${index}].byteLength`,
-        `Asset "${asset.id ?? index}" byteLength does not match.`,
+        `Asset "${diagnosticValue(asset.id ?? index)}" byteLength does not match.`,
         `Set byteLength to ${bytes.byteLength}.`,
       );
     }
@@ -102,16 +104,16 @@ export async function materializeEffectV1Bundle(
       throw new EffectV1BundleError(
         "ASSET_SHA256_MISMATCH",
         `$.assets[${index}].sha256`,
-        `Asset "${asset.id ?? index}" SHA-256 does not match.`,
+        `Asset "${diagnosticValue(asset.id ?? index)}" SHA-256 does not match.`,
         `Set sha256 to "${digest}" after confirming this is the intended asset.`,
       );
     }
     asset.byteLength = bytes.byteLength;
     asset.sha256 = digest;
-    if (asset.kind === "svg" || asset.mimeType === "image/svg+xml") {
+    if (asset.kind === "svg" || mimeType === "image/svg+xml") {
       asset.svgText = new TextDecoder().decode(bytes);
     } else {
-      asset.dataUrl = `data:${asset.mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
+      asset.dataUrl = `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
     }
   }
   return `${JSON.stringify(document, null, 2)}\n`;
@@ -127,7 +129,7 @@ async function readBundleAsset(
     throw new EffectV1BundleError(
       "ASSET_PATH_UNSAFE",
       diagnosticPath,
-      `Asset "${String(assetId)}" has no safe bundle path.`,
+      `Asset "${diagnosticValue(assetId)}" has no safe bundle path.`,
       "Use a relative path inside --asset-root without traversal segments.",
     );
   }
@@ -136,7 +138,7 @@ async function readBundleAsset(
     throw new EffectV1BundleError(
       "ASSET_PATH_UNSAFE",
       diagnosticPath,
-      `Asset "${String(assetId)}" escapes the asset root.`,
+      `Asset "${diagnosticValue(assetId)}" escapes the asset root.`,
       "Move the asset inside --asset-root and use a relative path.",
     );
   }
@@ -159,7 +161,7 @@ async function readBundleAsset(
     throw new EffectV1BundleError(
       "ASSET_PATH_UNSAFE",
       diagnosticPath,
-      `Asset "${String(assetId)}" resolves outside the asset root.`,
+      `Asset "${diagnosticValue(assetId)}" resolves outside the asset root.`,
       "Replace the symlink with a file inside --asset-root.",
     );
   }
@@ -183,7 +185,7 @@ async function readBundleAsset(
       throw new EffectV1BundleError(
         "ASSET_FILE_TYPE",
         diagnosticPath,
-        `Asset "${String(assetId)}" is not a regular file.`,
+        `Asset "${diagnosticValue(assetId)}" is not a regular file.`,
         "Replace the path with a regular file inside --asset-root.",
       );
     }
@@ -191,7 +193,7 @@ async function readBundleAsset(
       throw new EffectV1BundleError(
         "ASSET_SIZE",
         diagnosticPath,
-        `Asset "${String(assetId)}" must be from 1 to ${MAX_ASSET_BYTES} bytes.`,
+        `Asset "${diagnosticValue(assetId)}" must be from 1 to ${MAX_ASSET_BYTES} bytes.`,
         "Reduce or recompress the asset, then update byteLength and sha256.",
       );
     }
@@ -217,7 +219,7 @@ async function readBundleAsset(
       throw new EffectV1BundleError(
         "ASSET_FILE_CHANGED",
         diagnosticPath,
-        `Asset "${String(assetId)}" changed while it was being read.`,
+        `Asset "${diagnosticValue(assetId)}" changed while it was being read.`,
         "Retry after asset writes have completed.",
       );
     }

@@ -158,7 +158,7 @@ export const EFFECT_V1_JSON_SCHEMA = Object.freeze({
         kind: { enum: ["audio", "image", "svg"] },
         mimeType: { type: "string" },
         path: {
-          pattern: "^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\\\\]+$",
+          pattern: "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
           type: "string",
         },
         sha256: { pattern: "^[a-f0-9]{64}$", type: "string" },

@@ -16,7 +16,8 @@
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "noEmitOnError": true
   },
   "include": [
     "../../../src/sdk/index.ts",

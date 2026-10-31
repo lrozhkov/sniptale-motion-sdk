@@ -1,3 +1,4 @@
+import { diagnosticValue } from "../diagnostic-value.js";
 export function decodeEffectV1EmbeddedAsset(asset: {
   dataUrl?: unknown;
   svgText?: unknown;
@@ -5,7 +6,7 @@ export function decodeEffectV1EmbeddedAsset(asset: {
   if (typeof asset.svgText === "string") {
     return new TextEncoder().encode(asset.svgText);
   }
-  const value = String(asset.dataUrl ?? "");
+  const value = typeof asset.dataUrl === "string" ? asset.dataUrl : "";
   const separator = value.indexOf(",");
   if (separator < 0 || !/;base64$/i.test(value.slice(0, separator))) {
     throw new Error("Expected a base64 data URL.");
@@ -25,7 +26,7 @@ export function assertEffectV1AssetSignature(
   bytes: Uint8Array,
   mimeType: unknown,
   assetId: unknown,
-): void {
+): asserts mimeType is string {
   const ascii = (start: number, length: number) =>
     String.fromCharCode(...bytes.subarray(start, start + length));
   const matches =
@@ -59,7 +60,7 @@ export function assertEffectV1AssetSignature(
                       : false;
   if (!matches) {
     throw new Error(
-      `Asset "${String(assetId)}" content does not match ${String(mimeType)}.`,
+      `Asset "${diagnosticValue(assetId)}" content does not match ${diagnosticValue(mimeType)}.`,
     );
   }
 }

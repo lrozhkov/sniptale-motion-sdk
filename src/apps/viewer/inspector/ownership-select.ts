@@ -26,7 +26,15 @@ function appendInspectorSelectRow(
   syncInspectorSelectTitle(select);
   select.addEventListener("change", () => {
     syncInspectorSelectTitle(select);
-    onChange(select.value);
+    void applyOwnershipSelectChange(onChange, select.value, () => {
+      ctx.logDiagnostic(
+        ctx.deps.t(
+          "viewer.inspector.ownershipUpdateFailed",
+          "Could not update timeline ownership.",
+        ),
+        "error",
+      );
+    });
   });
   row.append(name, select);
   ctx.appendInspectorNode(row);
@@ -46,4 +54,16 @@ export function createOwnershipSelectActions(
       getContext,
     ),
   };
+}
+
+export async function applyOwnershipSelectChange(
+  onChange: OwnershipSelectRow["onChange"],
+  value: string,
+  onError: () => void,
+): Promise<void> {
+  try {
+    await onChange(value);
+  } catch {
+    onError();
+  }
 }

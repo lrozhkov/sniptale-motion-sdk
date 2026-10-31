@@ -31,8 +31,10 @@ export function discardStaleFrame(
     typeof bitmap === "object" &&
     "close" in bitmap &&
     typeof bitmap.close === "function"
-  )
-    bitmap.close();
+  ) {
+    const result: unknown = Reflect.apply(bitmap.close, bitmap, []);
+    void Promise.resolve(result).catch(() => {});
+  }
   return true;
 }
 export function isCurrentFrame(

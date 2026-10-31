@@ -523,6 +523,10 @@ export const messages = {
       },
     },
     inspector: {
+      ownershipUpdateFailed: {
+        ru: "Не удалось изменить привязку на таймлайне.",
+        en: "Could not update timeline ownership.",
+      },
       layer: { en: "Layer", ru: "Слой" },
       audio: { en: "Audio", ru: "Аудио" },
       audioCanvasNote: {

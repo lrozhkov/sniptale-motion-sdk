@@ -1,3 +1,4 @@
+import { diagnosticValue } from "../diagnostic-value.js";
 import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { EFFECT_V1_EXPRESSION_OPS } from "./types.js";
 import type { EffectV1ValidationReport } from "./diagnostics.js";
@@ -218,7 +219,7 @@ function validateExpressionShape(
       report.error(
         "EXPRESSION_ARGS_REQUIRED",
         `${path}.args`,
-        `Operation "${value.op}" requires an argument array.`,
+        `Operation "${diagnosticValue(value.op)}" requires an argument array.`,
       );
       return;
     }
@@ -228,8 +229,8 @@ function validateExpressionShape(
         "EXPRESSION_ARITY",
         `${path}.args`,
         minimum === maximum
-          ? `Operation "${value.op}" requires exactly ${minimum} argument${minimum === 1 ? "" : "s"}.`
-          : `Operation "${value.op}" requires ${minimum} to ${maximum} arguments.`,
+          ? `Operation "${diagnosticValue(value.op)}" requires exactly ${minimum} argument${minimum === 1 ? "" : "s"}.`
+          : `Operation "${diagnosticValue(value.op)}" requires ${minimum} to ${maximum} arguments.`,
       );
     }
     return;
@@ -239,7 +240,7 @@ function validateExpressionShape(
       report.error(
         "EXPRESSION_FIELD_REQUIRED",
         `${path}.${field}`,
-        `Operation "${value.op}" requires field "${field}".`,
+        `Operation "${diagnosticValue(value.op)}" requires field "${field}".`,
       );
     }
   }

@@ -1,3 +1,4 @@
+import type { TimelinePhase, TimelineKeyframe } from "../../../../sdk/types.js";
 export type TimelinePhaseBounds = {
   auto: boolean;
   duration: number;
@@ -5,7 +6,18 @@ export type TimelinePhaseBounds = {
   start: number;
 };
 
-export function getPhaseRowTimingBounds(phaseRow: any): TimelinePhaseBounds {
+export function getPhaseRowTimingBounds(
+  phaseRow:
+    | {
+        phase?: Partial<TimelinePhase> | null;
+        tracks?: readonly {
+          keyframes?: readonly (Pick<TimelineKeyframe<unknown>, "time"> &
+            Partial<TimelineKeyframe<unknown>>)[];
+        }[];
+      }
+    | null
+    | undefined,
+): TimelinePhaseBounds {
   const phaseStart = Number(phaseRow?.phase?.start);
   const phaseDuration = Number(phaseRow?.phase?.duration);
   if (

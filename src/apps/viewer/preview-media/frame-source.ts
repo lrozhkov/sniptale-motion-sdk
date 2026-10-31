@@ -125,7 +125,8 @@ function waitForMediaEvent(
       window.clearTimeout(timeout);
       media.removeEventListener(eventName, onReady);
       media.removeEventListener("error", onError);
-      ok ? resolve() : reject(new Error("Preview media loading timed out."));
+      if (ok) resolve();
+      else reject(new Error("Preview media loading timed out."));
     };
     const onReady = () => finish(true);
     const onError = () => finish(false);

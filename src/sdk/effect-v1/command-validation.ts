@@ -1,3 +1,4 @@
+import { diagnosticValue } from "../diagnostic-value.js";
 import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
@@ -104,7 +105,7 @@ export function validateEffectV1CommandSemantics(
       report.error(
         "COMMAND_FIELD_REQUIRED",
         `${path}.${field}`,
-        `Command "${command.op}" requires field "${field}".`,
+        `Command "${diagnosticValue(command.op)}" requires field "${field}".`,
       );
     }
   }
@@ -167,7 +168,7 @@ export function validateEffectV1CommandSemantics(
       report.error(
         "COMMANDS_EMPTY",
         `${path}.commands`,
-        `Command "${command.op}" must contain at least one child command.`,
+        `Command "${diagnosticValue(command.op)}" must contain at least one child command.`,
       );
     }
   }
@@ -178,7 +179,7 @@ export function validateEffectV1CommandSemantics(
       report.error(
         "COMMAND_ITEMS_EMPTY",
         `${path}.items`,
-        `Command "${command.op}" requires at least one item.`,
+        `Command "${diagnosticValue(command.op)}" requires at least one item.`,
       );
     }
   }
@@ -397,7 +398,7 @@ function validatePathSegments(
         report.error(
           "COMMAND_FIELD_REQUIRED",
           `${segmentPath}.${field}`,
-          `Path segment "${segment.kind}" requires field "${field}".`,
+          `Path segment "${diagnosticValue(segment.kind)}" requires field "${field}".`,
         );
       } else {
         validateNumericExpression(

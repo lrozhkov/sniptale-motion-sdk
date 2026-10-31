@@ -184,7 +184,7 @@ function parseViewBox(
   value: unknown,
   asset: { height?: number; width?: number },
 ) {
-  const parts = String(value ?? "")
+  const parts = (typeof value === "string" ? value : "")
     .split(/\s+/)
     .map(Number)
     .filter(Number.isFinite);

@@ -49,7 +49,7 @@ function readRootAttributes(
   tag: "html" | "body",
   owner: Document,
 ): string {
-  const pattern = new RegExp(`<${tag}\\b((?:[^>"']|"[^\"]*"|'[^']*')*)>`, "i");
+  const pattern = new RegExp(`<${tag}\\b((?:[^>"']|"[^"]*"|'[^']*')*)>`, "i");
   const attributes = pattern.exec(html)?.[1] ?? "";
   const holder = owner.createElement("template");
   holder.innerHTML = `<div${attributes}></div>`;

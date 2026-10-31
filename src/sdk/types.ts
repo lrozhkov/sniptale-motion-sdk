@@ -57,7 +57,7 @@ export type TimelinePhase = {
 };
 
 export type TimelineKeyframe<T = number> = {
-  easing?: "linear" | "in" | "out" | "inOut" | "hold" | "bezier" | string;
+  easing?: string;
   enabled?: boolean;
   handles?: {
     x1: number;
@@ -187,13 +187,7 @@ export type EffectDefinition = {
   effectV1?: unknown;
   effectId: string;
   id: string;
-  kind:
-    | "composition"
-    | "layerEffect"
-    | "overlay"
-    | "sceneEffect"
-    | "transitionEffect"
-    | string;
+  kind: string;
   label?: LocaleText;
   layers: EffectLayer[];
   moduleId: string;

@@ -11,6 +11,13 @@ import { join, resolve } from "node:path";
 import { runMotionCli } from "../src/apps/cli/commands";
 import { createStarterDocument } from "../src/apps/cli/starter";
 
+const scenario = vi.hoisted(() =>
+  vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
+);
+vi.mock("../src/apps/cli/proof/scenario.js", () => ({
+  runProofScenario: scenario,
+}));
+
 const launch = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 );
@@ -18,6 +25,7 @@ vi.mock("playwright-core", () => ({ chromium: { launch } }));
 const roots: string[] = [];
 afterEach(async () => {
   launch.mockReset();
+  scenario.mockClear();
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
   );
@@ -117,7 +125,7 @@ describe("browser proof failure boundaries", () => {
   it("closes the browser and listeners and removes temporary files after a driver failure", async () => {
     const { root, file, invoke, output } = await fixture();
     const original = await readFile(file);
-    const close = vi.fn(async () => {});
+    const close = vi.fn<() => Promise<void>>(async () => {});
     launch.mockResolvedValueOnce({
       version: () => "156.0.8078.4",
       close,
@@ -132,11 +140,62 @@ describe("browser proof failure boundaries", () => {
     expect(output().stdout).not.toMatch(/SECRET|private\/profile/);
     expect(output().stderr).toBe("");
   });
+  it("preserves a driver failure when browser shutdown also fails", async () => {
+    const { root, invoke, output } = await fixture();
+    const close = vi.fn<() => Promise<void>>(async () => {
+      throw new Error("SECRET_CLOSE_FAILURE");
+    });
+    launch.mockResolvedValueOnce({
+      version: () => "156.0.8078.4",
+      close,
+      newContext: async () => {
+        throw new Error("SECRET_DRIVER_FAILURE");
+      },
+    });
+    expect(await invoke("prove")).toBe(1);
+    expect(close).toHaveBeenCalledOnce();
+    expect(JSON.parse(output().stdout)).toMatchObject({
+      diagnostics: [{ code: "PROOF_RUNTIME" }],
+    });
+    expect(output().stdout).not.toContain("SECRET_");
+    expect(await readdir(join(root, ".tmp"))).toEqual([]);
+  });
+
+  it("reports cleanup failure after a successful proof instead of returning success", async () => {
+    const { root, invoke, output } = await fixture();
+    const close = vi.fn<() => Promise<void>>(async () => {
+      throw new Error("SECRET_CLOSE_FAILURE");
+    });
+    launch.mockResolvedValueOnce({
+      version: () => "156.0.8078.4",
+      close,
+      newContext: async () => ({
+        route: async () => {},
+        newPage: async () => ({
+          setDefaultTimeout() {},
+          on() {},
+          goto: async () => {},
+          waitForFunction: async () => {},
+        }),
+      }),
+    });
+    expect(await invoke("prove")).toBe(1);
+    expect(scenario).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(JSON.parse(output().stdout)).toMatchObject({
+      diagnostics: [{ code: "PROOF_CLEANUP" }],
+    });
+    expect(output().stdout).not.toContain("SECRET_");
+    expect(await readdir(join(root, ".tmp"))).toEqual([]);
+  });
+
   it("awaits browser shutdown when the command is cancelled during driver setup", async () => {
     const { root, invoke } = await fixture();
     const pendingContext = Promise.withResolvers<never>();
-    const newContext = vi.fn(() => pendingContext.promise);
-    const close = vi.fn(async () => {
+    const newContext = vi.fn<() => Promise<never>>(
+      () => pendingContext.promise,
+    );
+    const close = vi.fn<() => Promise<void>>(async () => {
       pendingContext.reject(new Error("closed"));
     });
     launch.mockResolvedValueOnce({

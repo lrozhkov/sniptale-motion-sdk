@@ -23,7 +23,7 @@ function renderTimelineRuler(
   const duration = timeline.duration || template.duration || 1;
   const viewport = ctx.getTimelineViewport(duration);
   const tickStep = ctx.deps.getTimelineTickStep(viewport.span);
-  ctx.refs.timelineRuler.onpointerdown = ctx.beginRulerScrub;
+  ctx.refs.timelineRuler.onpointerdown = (event) => ctx.beginRulerScrub(event);
   for (const time of ctx.getVisibleTimelineTicks(duration)) {
     const tick = document.createElement("span");
     tick.className = "timeline-ruler-tick";

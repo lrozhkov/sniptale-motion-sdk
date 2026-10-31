@@ -60,13 +60,14 @@ export function validateEffectV1ControlPresets(
         continue;
       }
       rejectUnknownKeys(named, NAMED_KEYS, `${path}.${key}`, report);
-      requireIdentifier(named["id"], `${path}.${key}.id`, report);
+      const namedId = named["id"];
+      requireIdentifier(namedId, `${path}.${key}.id`, report);
       validateLocaleText(named["label"], `${path}.${key}.label`, false, report);
-      if (isRecord(named["label"])) {
+      if (isRecord(named["label"]) && typeof namedId === "string") {
         const label = JSON.stringify(
           Object.entries(named["label"]).sort(([a], [b]) => a.localeCompare(b)),
         );
-        const identity = `${key}:${named["id"]}`;
+        const identity = `${key}:${namedId}`;
         if (labels.has(identity) && labels.get(identity) !== label)
           report.error(
             "CONTROL_PRESET_IDENTITY_CONFLICT",

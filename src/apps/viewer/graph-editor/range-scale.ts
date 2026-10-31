@@ -58,7 +58,7 @@ function beginGraphSelectionScale(
       snapshot,
       factor,
       edge === "start" ? "end" : "start",
-      ctx.snapTime,
+      (time) => ctx.snapTime(time),
     );
     if (!plan.ok) {
       return;

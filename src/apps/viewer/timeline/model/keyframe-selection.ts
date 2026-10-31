@@ -75,7 +75,7 @@ export function getKeyframeSelectionBounds(
   end: number;
   start: number;
 } | null {
-  if (!Array.isArray(entries) || entries.length === 0) {
+  if (!entries || entries.length === 0) {
     return null;
   }
   const times = entries.map((entry) => Number(entry.keyframe.time) || 0);

@@ -123,7 +123,7 @@ function validateMotionPathPoints(
     if (!xKeyframe || !yKeyframe) {
       return;
     }
-    const refKey = `${point.xKeyframeId}:${point.yKeyframeId}`;
+    const refKey = JSON.stringify([point.xKeyframeId, point.yKeyframeId]);
     if (seenRefs.has(refKey)) {
       push(errors, pointPath, "Duplicate motion path keyframe pair.");
     }

@@ -1,3 +1,4 @@
+import { diagnosticValue } from "../../../sdk/diagnostic-value.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { createMp4ExportAudioContext } from "./audio.js";
 import {
@@ -65,7 +66,7 @@ export async function resolveTimelineMp4AudioBuffer(
         const blob = getAssetBlob(ctx, clip.asset);
         if (!blob) {
           throw new Error(
-            `Audio asset ${clip.asset?.id ?? "(unknown)"} has no data.`,
+            `Audio asset ${diagnosticValue(clip.asset?.id ?? "(unknown)")} has no data.`,
           );
         }
         return {
