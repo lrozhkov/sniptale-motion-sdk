@@ -1,19 +1,6 @@
+import type { ViewerRenderTimings } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
-
-const VIEWER_RENDER_PROFILE_FIELDS = [
-  "modelMs",
-  "inputFramesMs",
-  "assetsMs",
-  "modelEnvelopeMs",
-  "messageMs",
-  "requestMs",
-  "videoCacheMs",
-  "presentationMs",
-  "postProcessMs",
-] as const;
-
-type ViewerRenderProfileField = (typeof VIEWER_RENDER_PROFILE_FIELDS)[number];
 
 export function beginViewerRenderProfile(enabled: boolean) {
   if (!enabled) {
@@ -21,12 +8,20 @@ export function beginViewerRenderProfile(enabled: boolean) {
   }
   const startedAt = performance.now();
   let phaseStartedAt = startedAt;
-  const viewer = Object.fromEntries(
-    VIEWER_RENDER_PROFILE_FIELDS.map((field) => [field, 0]),
-  ) as Record<ViewerRenderProfileField, number>;
+  const viewer: ViewerRenderTimings = {
+    modelMs: 0,
+    inputFramesMs: 0,
+    assetsMs: 0,
+    modelEnvelopeMs: 0,
+    messageMs: 0,
+    requestMs: 0,
+    videoCacheMs: 0,
+    presentationMs: 0,
+    postProcessMs: 0,
+  };
   return {
     finish(
-      ctx: ViewerAppContext,
+      ctx: Pick<ViewerAppContext, "state">,
       options: {
         height: number;
         sandbox?: SandboxRenderProfile;
@@ -41,11 +36,11 @@ export function beginViewerRenderProfile(enabled: boolean) {
         templateId: options.templateId,
         time: options.time,
         totalMs: Math.max(0, performance.now() - startedAt),
-        viewer,
+        viewer: { ...viewer },
         width: options.width,
       };
     },
-    mark(field: ViewerRenderProfileField) {
+    mark(field: keyof ViewerRenderTimings) {
       const now = performance.now();
       viewer[field] = Math.max(0, now - phaseStartedAt);
       phaseStartedAt = now;

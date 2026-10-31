@@ -66,7 +66,6 @@ export function createViewerState() {
     lastCanvasSelectionPlaybackTs: 0,
     lastEstimatedFullRenderMs: 0,
     lastPlaybackBindingReadAtMs: 0,
-    lastRenderProfile: null,
     lastPreviewLatencyMs: 0,
     lastRenderMs: 0,
     loadedModules: new Set<string>(),

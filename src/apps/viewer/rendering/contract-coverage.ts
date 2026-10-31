@@ -1,10 +1,15 @@
+import { BINDING_READ_LIST_FIELDS } from "../app/binding-reads.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { mergePrimitiveBounds } from "./contract-bounds.js";
 import { resolveViewerRenderTimeoutMs } from "./timeouts.js";
 
 const CONTRACT_PLAYBACK_RECHECK_INTERVAL_MS = 250;
 
-function mergeRendererContractReads(ctx: ViewerAppContext, templateId, reads) {
+function mergeRendererContractReads(
+  ctx: ViewerAppContext,
+  templateId: string,
+  reads: unknown,
+): void {
   if (!templateId || ctx.state.rendererContractCoverageLockedForTest) {
     return;
   }
@@ -14,13 +19,13 @@ function mergeRendererContractReads(ctx: ViewerAppContext, templateId, reads) {
     ctx.state.rendererContractTemplateId = templateId;
   }
   const merged = ctx.state.rendererContractReads;
-  for (const key of Object.keys(merged)) {
-    if (key === "primitiveBounds") {
-      merged[key] = mergePrimitiveBounds(merged[key], normalized[key]);
-      continue;
-    }
+  merged.primitiveBounds = mergePrimitiveBounds(
+    merged.primitiveBounds,
+    normalized.primitiveBounds,
+  );
+  for (const key of BINDING_READ_LIST_FIELDS) {
     merged[key] = Array.from(
-      new Set([...(merged[key] ?? []), ...(normalized[key] ?? [])]),
+      new Set([...merged[key], ...normalized[key]]),
     ).sort();
   }
 }

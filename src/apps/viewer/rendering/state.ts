@@ -1,3 +1,4 @@
+import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
 import type { EditorTemplate } from "../templates/model.js";
 
 export type RenderOptions = {
@@ -15,7 +16,29 @@ export type RenderTemplateSnapshot = {
   value: EditorTemplate | null;
 };
 
+export type ViewerRenderTimings = {
+  modelMs: number;
+  inputFramesMs: number;
+  assetsMs: number;
+  modelEnvelopeMs: number;
+  messageMs: number;
+  requestMs: number;
+  videoCacheMs: number;
+  presentationMs: number;
+  postProcessMs: number;
+};
+export type ViewerRenderProfile = {
+  height: number;
+  width: number;
+  templateId: string;
+  time: number;
+  totalMs: number;
+  sandbox: SandboxRenderProfile | null;
+  viewer: ViewerRenderTimings;
+};
+
 export type ViewerRenderingState = {
+  lastRenderProfile: ViewerRenderProfile | null;
   renderIdleWaiters: (() => void)[];
   renderTemplateSnapshot: RenderTemplateSnapshot | null;
   queuedRenderOptions: RenderOptions | null;
@@ -28,6 +51,7 @@ export type ViewerRenderingState = {
 
 export function createViewerRenderingState(): ViewerRenderingState {
   return {
+    lastRenderProfile: null,
     renderIdleWaiters: [],
     renderTemplateSnapshot: null,
     queuedRenderOptions: null,

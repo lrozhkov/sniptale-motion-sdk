@@ -1,3 +1,5 @@
+import type { RendererBindingReads } from "../src/apps/viewer/app/binding-reads.js";
+import type { ViewerRenderProfile } from "../src/apps/viewer/rendering/state.js";
 import type { PreviewAudioState } from "../src/apps/viewer/playback/audio-state.js";
 import type { PendingSandboxRequest } from "../src/apps/viewer/transport/state.js";
 import type { Mp4ExportState } from "../src/apps/viewer/video-export/state.js";
@@ -33,6 +35,13 @@ describe("viewer state contracts", () => {
       state.currentTemplate,
     ).toEqualTypeOf<EditorTemplateSource | null>();
     expectTypeOf(state.selectedLayers).toEqualTypeOf<string[]>();
+    expectTypeOf(state.lastBindingReads).toEqualTypeOf<RendererBindingReads>();
+    expectTypeOf(
+      state.rendererContractReads,
+    ).toEqualTypeOf<RendererBindingReads>();
+    expectTypeOf(
+      state.lastRenderProfile,
+    ).toEqualTypeOf<ViewerRenderProfile | null>();
     expectTypeOf(state.pending).toEqualTypeOf<
       Map<string, PendingSandboxRequest>
     >();

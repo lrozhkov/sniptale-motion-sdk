@@ -1,7 +1,15 @@
-export function mergePrimitiveBounds(current = [], next = []) {
-  const byLayer = new Map();
+import type { PrimitiveBindingBounds } from "../app/binding-reads.js";
+type BoundsCandidate = Omit<PrimitiveBindingBounds, "layerId"> & {
+  layerId?: string;
+};
+
+export function mergePrimitiveBounds(
+  current: readonly BoundsCandidate[] = [],
+  next: readonly BoundsCandidate[] = [],
+): PrimitiveBindingBounds[] {
+  const byLayer = new Map<string, PrimitiveBindingBounds>();
   for (const bounds of [...current, ...next]) {
-    if (!bounds?.layerId) {
+    if (!hasLayerId(bounds)) {
       continue;
     }
     const previous = byLayer.get(bounds.layerId);
@@ -15,7 +23,10 @@ export function mergePrimitiveBounds(current = [], next = []) {
   );
 }
 
-function unionPrimitiveBounds(a, b) {
+function unionPrimitiveBounds(
+  a: PrimitiveBindingBounds,
+  b: PrimitiveBindingBounds,
+): PrimitiveBindingBounds {
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
   const right = Math.max(a.x + a.width, b.x + b.width);
@@ -27,4 +38,8 @@ function unionPrimitiveBounds(a, b) {
     x,
     y,
   };
+}
+
+function hasLayerId(bounds: BoundsCandidate): bounds is PrimitiveBindingBounds {
+  return typeof bounds?.layerId === "string" && bounds.layerId !== "";
 }
