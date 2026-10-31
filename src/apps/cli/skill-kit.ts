@@ -54,6 +54,7 @@ function files(
             "sdk/",
             "schemas/",
             "node_modules/playwright-core/",
+            "node_modules/semver/",
           ].some((prefix) => path.startsWith(prefix))
     )
       return null;

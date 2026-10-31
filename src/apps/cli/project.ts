@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, realpath } from "node:fs/promises";
+import { mkdir, open, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   EFFECT_V1_SCHEMA,
@@ -6,9 +6,8 @@ import {
 } from "../../sdk/effect-v1/index.js";
 import { MotionCliError } from "./errors.js";
 import { createStarterDocument } from "./starter.js";
-
-const PROJECT_FILE = "sniptale-motion.json";
-const PROJECT_SCHEMA = "sniptale.motion-project.v1";
+import { PROJECT_FILE, readProjectContract } from "./project-contract.js";
+import { MOTION_COMPATIBILITY } from "../../shared/compatibility.js";
 
 export async function initProject(
   cwd: string,
@@ -19,8 +18,9 @@ export async function initProject(
   await mkdir(root, { recursive: true });
   // Claim the project before adding directories. A retry never replaces metadata.
   await writeExclusive(join(root, PROJECT_FILE), {
-    schemaVersion: PROJECT_SCHEMA,
+    schemaVersion: MOTION_COMPATIBILITY.projectSchema,
     effectSchema: EFFECT_V1_SCHEMA,
+    toolkitCompatibility: MOTION_COMPATIBILITY.toolkitCompatibility,
     createdWith: version,
   });
   for (const name of ["effects", "exports", ".tmp"]) {
@@ -30,30 +30,7 @@ export async function initProject(
 }
 
 export async function readProject(cwd: string): Promise<string> {
-  const root = await realpath(cwd);
-  let value: unknown;
-  try {
-    value = JSON.parse(await readFile(join(root, PROJECT_FILE), "utf8"));
-  } catch {
-    throw new MotionCliError(
-      "PROJECT_REQUIRED",
-      "Run init or enter a Sniptale Motion project.",
-    );
-  }
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    !("schemaVersion" in value) ||
-    value.schemaVersion !== PROJECT_SCHEMA ||
-    !("effectSchema" in value) ||
-    value.effectSchema !== EFFECT_V1_SCHEMA
-  ) {
-    throw new MotionCliError(
-      "PROJECT_VERSION",
-      "Unsupported project format; project files were not changed.",
-    );
-  }
-  return root;
+  return (await readProjectContract(cwd)).root;
 }
 
 export async function newEffect(cwd: string, id: string, kind: EffectV1Kind) {

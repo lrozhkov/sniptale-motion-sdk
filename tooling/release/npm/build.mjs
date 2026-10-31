@@ -40,7 +40,7 @@ const bundled = await build({
   bundle: true,
   metafile: true,
   legalComments: "eof",
-  external: ["playwright-core"],
+  external: ["playwright-core", "semver"],
 });
 for (const input of Object.keys(bundled.metafile.inputs)) {
   if (
@@ -54,7 +54,7 @@ for (const entry of Object.values(bundled.metafile.outputs)) {
     if (
       !dependency.external ||
       (!dependency.path.startsWith("node:") &&
-        dependency.path !== "playwright-core")
+        !["playwright-core", "semver"].includes(dependency.path))
     ) {
       throw new Error(
         `CLI runtime dependency is not bundled: ${dependency.path}`,
@@ -63,6 +63,38 @@ for (const entry of Object.values(bundled.metafile.outputs)) {
   }
 }
 await chmod(join(stage, "bin/sniptale-motion.mjs"), 0o755);
+const semverManifest = JSON.parse(
+  await readFile(join(repo, "node_modules/semver/package.json"), "utf8"),
+);
+if (
+  semverManifest.name !== "semver" ||
+  semverManifest.version !== rootManifest.dependencies.semver ||
+  Object.keys(semverManifest.dependencies ?? {}).length
+)
+  throw new Error("Semver runtime dependency differs from the locked closure.");
+await cp(
+  join(repo, "node_modules/semver"),
+  join(stage, "node_modules/semver"),
+  { recursive: true },
+);
+await writeFile(
+  join(stage, "package.json"),
+  JSON.stringify({ type: "module", version: rootManifest.version }),
+);
+const compiledInfo = JSON.parse(
+  execFileSync(
+    process.execPath,
+    [join(stage, "bin/sniptale-motion.mjs"), "--version", "--json"],
+    { encoding: "utf8" },
+  ),
+);
+if (
+  compiledInfo.version !== rootManifest.version ||
+  !compiledInfo.compatibility ||
+  typeof compiledInfo.compatibility.schemaVersion !== "string"
+)
+  throw new Error("Compiled CLI does not expose its compatibility contract.");
+
 const driverManifest = JSON.parse(
   await readFile(
     join(repo, "node_modules/playwright-core/package.json"),
@@ -123,9 +155,14 @@ for (const path of inputs) {
   };
   if (path.startsWith("skills/create-effect/")) skillFiles.push(entry);
   else if (
-    ["bin/", "apps/", "sdk/", "schemas/", "node_modules/playwright-core/"].some(
-      (prefix) => path.startsWith(prefix),
-    )
+    [
+      "bin/",
+      "apps/",
+      "sdk/",
+      "schemas/",
+      "node_modules/playwright-core/",
+      "node_modules/semver/",
+    ].some((prefix) => path.startsWith(prefix))
   )
     runtimeFiles.push(entry);
 }
@@ -159,8 +196,10 @@ const manifest = {
   engines: rootManifest.engines,
   dependencies: {
     "playwright-core": rootManifest.dependencies["playwright-core"],
+    semver: rootManifest.dependencies.semver,
   },
-  bundledDependencies: ["playwright-core"],
+  bundledDependencies: ["playwright-core", "semver"],
+  sniptaleMotion: compiledInfo.compatibility,
   bin: { "sniptale-motion": "bin/sniptale-motion.mjs" },
   files: [
     "bin",

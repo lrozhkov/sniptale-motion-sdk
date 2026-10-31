@@ -2,10 +2,18 @@ import type { Locale } from "./config.js";
 
 const messages = {
   ru: {
-    help: "Команды: init [папка], new <id> [--kind standalone|targetEffect|transition], validate <файл> [--asset-root папка], prove <файл> [--asset-root папка] [--browser-channel chrome|msedge|chromium], export <файл> --output <файл> [--asset-root папка], studio [папка] [--no-open], doctor [--browser-channel chrome|msedge|chromium], browser install, skills, docs.\nОпции: --json, --locale ru|en, --help, --version.\nКоды завершения: 0 — успех, 1 — ошибка операции/валидации, 2 — неверные аргументы.\n",
+    help: "Команды: init [папка], new <id> [--kind standalone|targetEffect|transition], validate <файл> [--asset-root папка], prove <файл> [--asset-root папка] [--browser-channel chrome|msedge|chromium], export <файл> --output <файл> [--asset-root папка], studio [папка] [--no-open], doctor [--project path] [--browser-channel chrome|msedge|chromium], browser install, skills, check-update [version] [--project path], docs.\nОпции: --json, --locale ru|en, --help, --version.\nКоды завершения: 0 — успех, 1 — ошибка операции/валидации, 2 — неверные аргументы.\n",
     studioReady: "Studio запущена. Откройте адрес в браузере:",
     skillKitFailed:
       "Набор skill не соответствует установленному toolkit или повреждён. Переустановите проверенный архив и повторите skills.",
+    projectVersion:
+      "Формат проекта, Effect schema или поколение совместимости не поддерживается. Данные не изменены; используйте подходящий toolkit либо отдельную явную миграцию с резервной копией.",
+    projectRequired:
+      "Не найден читаемый проект Sniptale Motion. Перейдите в его папку или создайте новый через init; существующий manifest не перезаписывается.",
+    updateVersion:
+      "Укажите точную версию пакета, например check-update 0.2.0, без диапазонов и dist-tag.",
+    updateRegistryFailed:
+      "Не удалось проверить метаданные обновления. Проверьте сеть и повторите check-update; установленный toolkit и проект не изменены.",
     studioStop: "Для остановки нажмите Ctrl+C.",
     browserOpenFailed:
       "Не удалось открыть браузер автоматически. Откройте адрес Studio вручную.",
@@ -41,10 +49,18 @@ const messages = {
       "Браузер не требуется для создания и валидации. Studio использует установленный браузер; prove запускает совместимый браузер без интерфейса.",
   },
   en: {
-    help: "Commands: init [directory], new <id> [--kind standalone|targetEffect|transition], validate <file> [--asset-root directory], prove <file> [--asset-root directory] [--browser-channel chrome|msedge|chromium], export <file> --output <file> [--asset-root directory], studio [directory] [--no-open], doctor [--browser-channel chrome|msedge|chromium], browser install, skills, docs.\nOptions: --json, --locale ru|en, --help, --version.\nExit codes: 0 success, 1 operation/validation failure, 2 invalid arguments.\n",
+    help: "Commands: init [directory], new <id> [--kind standalone|targetEffect|transition], validate <file> [--asset-root directory], prove <file> [--asset-root directory] [--browser-channel chrome|msedge|chromium], export <file> --output <file> [--asset-root directory], studio [directory] [--no-open], doctor [--project path] [--browser-channel chrome|msedge|chromium], browser install, skills, check-update [version] [--project path], docs.\nOptions: --json, --locale ru|en, --help, --version.\nExit codes: 0 success, 1 operation/validation failure, 2 invalid arguments.\n",
     studioReady: "Studio is running. Open this address in a browser:",
     skillKitFailed:
       "The skill kit does not match the installed toolkit or is damaged. Reinstall the verified archive and run skills again.",
+    projectVersion:
+      "The project format, Effect schema or compatibility generation is unsupported. Data was not changed; use a matching toolkit or a separate explicit migration with a backup.",
+    projectRequired:
+      "No readable Sniptale Motion project was found. Enter its directory or create a new one with init; an existing manifest is never replaced.",
+    updateVersion:
+      "Specify an exact package version, for example check-update 0.2.0, without ranges or dist-tags.",
+    updateRegistryFailed:
+      "Update metadata could not be verified. Check network access and retry check-update; the installed toolkit and project were not changed.",
     studioStop: "Press Ctrl+C to stop.",
     browserOpenFailed:
       "The browser could not be opened automatically. Open the Studio address manually.",

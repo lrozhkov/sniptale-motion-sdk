@@ -10,6 +10,9 @@ export function parseCliArguments(argv: string[]) {
     json: { type: "boolean" },
     locale: { type: "string" },
     version: { type: "boolean" },
+    ...(["doctor", "check-update"].includes(command)
+      ? { project: { type: "string" as const } }
+      : {}),
     ...(command === "studio"
       ? { "no-open": { type: "boolean" as const } }
       : {}),
@@ -58,6 +61,7 @@ export function parseCliArguments(argv: string[]) {
       "browser",
       "prove",
       "skills",
+      "check-update",
     ].includes(command)
   ) {
     throw new MotionCliError("ARGUMENTS", `Unknown command: ${command}`);
@@ -75,6 +79,7 @@ export function parseCliArguments(argv: string[]) {
     "studio",
     "browser",
     "prove",
+    "check-update",
   ].includes(command)
     ? 1
     : 0;
@@ -104,6 +109,10 @@ export function parseCliArguments(argv: string[]) {
       json: parsed.values.json === true,
       version: parsed.values.version === true,
       browserChannel,
+      project:
+        typeof parsed.values.project === "string"
+          ? parsed.values.project
+          : undefined,
       kind:
         typeof parsed.values.kind === "string" ? parsed.values.kind : undefined,
       output:

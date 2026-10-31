@@ -1,6 +1,7 @@
 import { acceptInstalledStudio } from "./studio-accept.mjs";
 import { acceptInstalledProof } from "./proof-accept.mjs";
 import { acceptInstalledSkills } from "./skills-accept.mjs";
+import { acceptInstalledCompatibility } from "./compatibility-accept.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -73,8 +74,12 @@ try {
   assert.equal(installedManifest.version, inventory.version);
   assert.deepEqual(Object.keys(installedManifest.dependencies ?? {}), [
     "playwright-core",
+    "semver",
   ]);
-  assert.deepEqual(installedManifest.bundledDependencies, ["playwright-core"]);
+  assert.deepEqual(installedManifest.bundledDependencies, [
+    "playwright-core",
+    "semver",
+  ]);
   assert.equal(
     installedManifest.scripts,
     undefined,
@@ -118,6 +123,16 @@ try {
   assert.equal((await invoke("docs", ["docs"])).ok, true);
   const project = join(workspace, "проект с пробелами");
   await invoke("init", ["init", project]);
+  await acceptInstalledCompatibility({
+    invoke,
+    installed,
+    workspace,
+    npmCli,
+    common,
+    archive: suppliedArchive,
+    evidence,
+  });
+  steps.push({ label: "local-npm-update-rollback", exitCode: 0 });
   await acceptInstalledSkills({
     invoke,
     project,

@@ -241,6 +241,18 @@
       "packageResolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz"
     },
     {
+      "packageName": "semver",
+      "version": "7.8.5",
+      "packagePath": "node_modules/semver",
+      "licenseExpression": "ISC",
+      "licenseSourceKind": "installed-file",
+      "licenseSource": "node_modules/semver/LICENSE",
+      "archivePath": "LICENSES/dependencies/semver-7.8.5.txt",
+      "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
+      "sourceUrl": "https://github.com/npm/node-semver.git",
+      "packageResolved": "https://registry.npmjs.org/semver/-/semver-7.8.5.tgz"
+    },
+    {
       "packageName": "suspend-react",
       "version": "0.1.3",
       "packagePath": "node_modules/suspend-react",

@@ -316,6 +316,22 @@ Package repository: https://github.com/facebook/react.git
 
 Locked package tarball: https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz
 
+## `semver` 7.8.5
+
+License expression: `ISC`
+
+Installed package: `node_modules/semver`
+
+License input: `node_modules/semver/LICENSE`
+
+Redistributed license: [`LICENSES/dependencies/semver-7.8.5.txt`](LICENSES/dependencies/semver-7.8.5.txt)
+
+License SHA-256: `4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b`
+
+Package repository: https://github.com/npm/node-semver.git
+
+Locked package tarball: https://registry.npmjs.org/semver/-/semver-7.8.5.tgz
+
 ## `suspend-react` 0.1.3
 
 License expression: `MIT`

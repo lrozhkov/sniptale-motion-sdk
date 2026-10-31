@@ -1,3 +1,4 @@
+import { MOTION_COMPATIBILITY } from "../src/shared/compatibility";
 import {
   mkdir,
   mkdtemp,
@@ -164,6 +165,10 @@ describe("installed Motion CLI contracts", () => {
     expect((await invoke(root, "docs")).stdout).toBe("Installed reference");
     expect(
       JSON.parse((await invoke(root, "--version", "--json")).stdout),
-    ).toEqual({ ok: true, version: "0.1.0" });
+    ).toEqual({
+      ok: true,
+      version: "0.1.0",
+      compatibility: MOTION_COMPATIBILITY,
+    });
   });
 });

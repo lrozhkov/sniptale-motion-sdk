@@ -22,6 +22,9 @@ import { sanitizeCliDiagnostics } from "./diagnostics.js";
 import { publicDiagnosticPath } from "./diagnostic-path.js";
 import type { Locale } from "../../shared/i18n/config.js";
 import { inspectSkillKit } from "./skill-kit.js";
+import { MOTION_COMPATIBILITY } from "../../shared/compatibility.js";
+import { readProjectContract } from "./project-contract.js";
+import { checkMotionUpdate } from "./updates/check.js";
 
 export async function runMotionCli(
   argv: string[],
@@ -35,7 +38,7 @@ export async function runMotionCli(
     if (args.values.version) {
       context.stdout(
         args.values.json
-          ? `${JSON.stringify({ ok: true, version: context.version })}\n`
+          ? `${JSON.stringify({ ok: true, version: context.version, compatibility: MOTION_COMPATIBILITY })}\n`
           : `${context.version}\n`,
       );
       return 0;
@@ -143,6 +146,10 @@ export async function runMotionCli(
         );
       await installMotionBrowser(context, args.locale);
       result = { ok: true, browser: "chromium", installation: "completed" };
+    } else if (args.command === "check-update") {
+      if (args.values.project !== undefined)
+        await readProjectContract(resolve(context.cwd, args.values.project));
+      result = await checkMotionUpdate(context, args.positional, args.locale);
     } else if (args.command === "skills") {
       result = await inspectSkillKit(context, args.locale);
     } else if (args.command === "docs") {
@@ -155,12 +162,22 @@ export async function runMotionCli(
       );
       return 0;
     } else {
+      const project =
+        args.values.project !== undefined
+          ? (
+              await readProjectContract(
+                resolve(context.cwd, args.values.project),
+              )
+            ).contract
+          : null;
       result = {
         ok: true,
         version: context.version,
         node: process.version,
         platform: process.platform,
         architecture: process.arch,
+        compatibility: MOTION_COMPATIBILITY,
+        project,
         browser: await inspectMotionBrowser({
           locale: args.locale,
           ...(context.signal ? { signal: context.signal } : {}),
@@ -188,9 +205,13 @@ export async function runMotionCli(
     const message =
       error instanceof EffectV1BundleError
         ? messages.assetValidationFailed
-        : error instanceof MotionCliError
-          ? error.message
-          : messages.operationFailed;
+        : code === "PROJECT_VERSION"
+          ? messages.projectVersion
+          : code === "PROJECT_REQUIRED"
+            ? messages.projectRequired
+            : error instanceof MotionCliError
+              ? error.message
+              : messages.operationFailed;
     if (argv.includes("--json"))
       context.stdout(
         `${JSON.stringify({ ok: false, diagnostics: [{ code, message, path: error instanceof EffectV1BundleError ? publicDiagnosticPath(error.path) : "$", severity: "error" }] })}\n`,
