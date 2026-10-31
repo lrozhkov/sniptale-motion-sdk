@@ -1,3 +1,4 @@
+import type { EditorPreset } from "../templates/model.js";
 import type { LocaleText } from "../../../sdk/types.js";
 import type { EditorTimeline } from "./model-types.js";
 import { clamp } from "../../../sdk/protocol.js";
@@ -32,7 +33,7 @@ export function appendCopyLabel(label: unknown): LocaleText {
   return next;
 }
 
-export function normalizePresets(presets: unknown) {
+export function normalizePresets(presets: unknown): EditorPreset[] {
   if (!Array.isArray(presets)) {
     return [];
   }
@@ -42,19 +43,15 @@ export function normalizePresets(presets: unknown) {
       (preset) => Boolean(preset.id) && primitiveText(preset.id, "") !== "",
     )
     .map((preset) => ({
-      clips: deepClone(records(preset.clips)),
+      ...deepClone(preset),
       controls: isRecord(preset.controls) ? deepClone(preset.controls) : {},
-      duration: finiteNumber(preset.duration) || 1,
       id: primitiveText(preset.id, "preset"),
-      label: isRecord(preset.label)
-        ? normalizeLocaleText(preset.label)
-        : { en: primitiveText(preset.id, "preset") },
-      layers: deepClone(records(preset.layers)),
-      scenes: normalizeScenes(
-        preset.scenes ?? [],
-        finiteNumber(preset.duration) || 1,
-      ),
-      timeline: deepClone(preset.timeline ?? { phases: [], tracks: [] }),
+      label:
+        typeof preset.label === "string"
+          ? preset.label
+          : isRecord(preset.label)
+            ? normalizeLocaleText(preset.label)
+            : { en: primitiveText(preset.id, "preset") },
     }));
 }
 
@@ -223,10 +220,6 @@ function normalizeLocaleText(value: unknown): LocaleText {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function records(value: unknown): Record<string, unknown>[] {
-  return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
 function finiteNumber(value: unknown): number {

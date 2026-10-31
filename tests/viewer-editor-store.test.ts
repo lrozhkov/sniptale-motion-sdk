@@ -1,3 +1,5 @@
+import { installPanelsPresetsOwner } from "../src/apps/viewer/panels/presets.js";
+import { normalizePresets } from "../src/apps/viewer/editor/model.js";
 import { createStarterDocument } from "../src/apps/cli/starter.js";
 import {
   normalizeEffectV1ToTemplate,
@@ -99,7 +101,90 @@ describe("viewer editor history transactions", () => {
       assets: new Map(),
     });
     expect(exported.scenes).toEqual(document.scenes);
-    expect(validateEffectV1Document(exported).ok).toBe(true);
+    expect(validateEffectV1Document(exported).diagnostics).toEqual([]);
+  });
+
+  it("captures, applies and exports precise preset data and rejects malformed data before mutation", async () => {
+    const document = createStarterDocument("preset-roundtrip", "standalone");
+    const ctx = createStoreContext();
+    ctx.state.currentTemplate = normalizeEffectV1ToTemplate(document);
+    Object.assign(ctx.deps, {
+      normalizePresets,
+      t: (_key: string, fallback: string) => fallback,
+      translateText: (_label: unknown, fallback: string) => fallback,
+    });
+    installEditorStoreOwner(ctx);
+    installTemplatesControllerOwner(ctx);
+    installPanelsPresetsOwner(ctx);
+    ctx.applyEditorCommand = vi.fn((_command: unknown, mutate: () => void) =>
+      mutate(),
+    );
+    for (const name of [
+      "clearTimelineSelection",
+      "logDiagnostic",
+      "renderControls",
+      "renderTimelineEditor",
+      "renderCurrentFrame",
+    ])
+      ctx[name] = vi.fn();
+    ctx.formatSeconds = String;
+    ctx.toTitleLabel = String;
+    Object.assign(ctx.refs, {
+      durationInput: { value: "" },
+      timeOutput: { textContent: "" },
+      timelineSaveStatus: { textContent: "" },
+    });
+    const source = ctx.getEffectiveTemplate();
+    const preset = ctx.createPresetFromTemplate(source, "precise");
+    preset.duration = 0.02;
+    preset.clips = preset.clips.map((clip: Record<string, unknown>) => ({
+      ...clip,
+      start: 0.001,
+      duration: 0.019,
+    }));
+    preset.scenes = [
+      {
+        id: "main",
+        start: 0.001,
+        duration: 0.019,
+        label: { ru: "Вступление", en: "Intro" },
+      },
+    ];
+    preset.timeline = { phases: [], tracks: [] };
+    preset.extension = { retained: true };
+    const before = structuredClone(preset);
+    ctx.setPresets([preset]);
+    expect(await ctx.applyPreset("precise")).toBe(true);
+    const effective = ctx.getEffectiveTemplate();
+    expect(effective.duration).toBe(0.02);
+    expect(effective.scenes).toEqual(before.scenes);
+    expect(effective.timeline).toEqual({ ...before.timeline, duration: 0.02 });
+    const captured = ctx.createPresetFromTemplate(effective, "recaptured");
+    expect(captured.scenes).toEqual(before.scenes);
+    const exported = buildEffectFilePayload({
+      template: effective,
+      assets: new Map(),
+    });
+    expect(exported.presets).toEqual([before]);
+    expect(validateEffectV1Document(exported).diagnostics).toEqual([]);
+    expect(preset).toEqual(before);
+    for (const patch of [
+      { scenes: [{ id: "broken" }] },
+      { timeline: { tracks: [null] } },
+      { duration: 0 },
+      { duration: "0.02" },
+    ]) {
+      ctx.setPresets([{ ...before, ...patch }]);
+      const override = structuredClone(ctx.getEditorOverride());
+      const timeline = structuredClone(
+        ctx.state.timelineOverrides.get(document.id),
+      );
+      const calls = ctx.applyEditorCommand.mock.calls.length;
+      await expect(ctx.applyPreset("precise")).rejects.toThrow(/Invalid/);
+      expect(ctx.getEditorOverride()).toEqual(override);
+      expect(ctx.state.timelineOverrides.get(document.id)).toEqual(timeline);
+      expect(ctx.applyEditorCommand).toHaveBeenCalledTimes(calls);
+    }
   });
 
   it("stores only asset deltas and restores the loaded base asset", () => {

@@ -34,6 +34,36 @@ describe("viewer editor model", () => {
     ]);
   });
 
+  it("preserves opaque preset payloads and localized metadata without adding defaults", () => {
+    const preset = {
+      id: "precise",
+      label: "Original",
+      controls: { speed: 0 },
+      scenes: [
+        {
+          id: "intro",
+          start: 0.001,
+          duration: 0.019,
+          label: { ru: "Вступление", en: "Intro" },
+          extension: { marker: 7 },
+        },
+      ],
+      extension: { author: "source" },
+    };
+    const before = structuredClone(preset);
+    for (const locale of ["ru", "en"] as const) {
+      setLocale(locale);
+      const normalized = normalizePresets([preset])[0];
+      expect(normalized).toEqual(preset);
+      expect(normalized).not.toBe(preset);
+      expect(normalized?.scenes).not.toBe(preset.scenes);
+      expect(normalized).not.toHaveProperty("duration");
+      expect(normalized).not.toHaveProperty("timeline");
+    }
+    setLocale("ru");
+    expect(preset).toEqual(before);
+  });
+
   it("parses malformed nested records without coercing object fields", () => {
     const invalidNumber = { toString: 0 };
     expect(() =>

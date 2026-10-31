@@ -2,7 +2,11 @@ import type { ViewerAppContext } from "../app/context.js";
 import type { EditorTemplate } from "./model.js";
 import { readEditorTemplate, readTemplateSource } from "./source.js";
 
-function createPresetFromTemplate(ctx: ViewerAppContext, template, id) {
+function createPresetFromTemplate(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  id: string,
+) {
   const presetNumber = String(id).match(/^preset(?:-(\d+))?$/)?.[1];
   const suffix = presetNumber ? ` ${presetNumber}` : "";
   return {
@@ -15,10 +19,7 @@ function createPresetFromTemplate(ctx: ViewerAppContext, template, id) {
         ? { en: `Preset${suffix}`, ru: `Пресет${suffix}` }
         : { en: ctx.toTitleLabel(id), ru: ctx.toTitleLabel(id) },
     layers: ctx.deps.deepClone(template.layers ?? []),
-    scenes: ctx.normalizeScenes(
-      template.scenes ?? [],
-      Number(template.duration) || ctx.getEffectiveDuration(),
-    ),
+    scenes: ctx.deps.deepClone(template.scenes),
     timeline: ctx.deps.deepClone(
       template.timeline ?? { phases: [], tracks: [] },
     ),

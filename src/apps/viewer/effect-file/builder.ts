@@ -1,5 +1,5 @@
 import { EFFECT_V1_SCHEMA } from "../../../sdk/effect-v1/index.js";
-import { deepClone, normalizePresets } from "../editor/model.js";
+import { deepClone } from "../editor/model.js";
 import { stableStringify } from "./stable-json.js";
 
 export function buildTemplateJson(template: any): string {
@@ -68,7 +68,7 @@ export function buildEffectFilePayload(options: {
     ...(base.objectLayout
       ? { objectLayout: deepClone(base.objectLayout) }
       : {}),
-    presets: normalizePresets(template.presets ?? base.presets ?? []),
+    presets: deepClone(template.presets ?? base.presets ?? []),
     program: deepClone(base.program),
     scenes: deepClone(template.scenes ?? base.scenes ?? []),
     schemaVersion: EFFECT_V1_SCHEMA,

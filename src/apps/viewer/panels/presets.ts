@@ -1,3 +1,5 @@
+import { readEditorTimeline } from "../editor/timeline-source.js";
+import { readEditorTemplate } from "../templates/source.js";
 import { readEditorPresets } from "../templates/source.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { createPresetRow } from "./preset-row.js";
@@ -209,34 +211,42 @@ async function applyPreset(ctx: ViewerAppContext, presetId) {
   if (!template || !effectiveTemplate || !preset) {
     return false;
   }
+  const duration = Object.hasOwn(preset, "duration")
+    ? preset.duration
+    : effectiveTemplate.duration;
+  if (
+    typeof duration !== "number" ||
+    !Number.isFinite(duration) ||
+    duration <= 0
+  )
+    throw new Error("Invalid editor preset duration.");
+  const timeline = readEditorTimeline(
+    ctx.deps.deepClone(preset.timeline ?? effectiveTemplate.timeline),
+    duration,
+  );
+  const next = readEditorTemplate(
+    {
+      ...effectiveTemplate,
+      clips: ctx.deps.deepClone(preset.clips ?? effectiveTemplate.clips),
+      duration,
+      layers: ctx.deps.deepClone(preset.layers ?? effectiveTemplate.layers),
+      scenes: ctx.deps.deepClone(preset.scenes ?? effectiveTemplate.scenes),
+    },
+    timeline,
+  );
+  const controls = ctx.deps.buildControlsWithDefaults(
+    effectiveTemplate,
+    preset.controls,
+  );
   ctx.applyEditorCommand({ payload: { presetId }, type: "applyPreset" }, () => {
-    const duration = ctx.deps.clamp(
-      Number(preset.duration ?? effectiveTemplate.duration) ||
-        effectiveTemplate.duration,
-      0.5,
-      120,
-    );
-    const controls = ctx.deps.buildControlsWithDefaults(
-      template,
-      preset.controls ?? {},
-    );
     ctx.state.controls = controls;
     ctx.setEditorOverride({
-      clips: ctx.deps.deepClone(preset.clips ?? effectiveTemplate.clips ?? []),
+      clips: next.clips,
       duration,
-      layers: ctx.deps.deepClone(
-        preset.layers ?? effectiveTemplate.layers ?? [],
-      ),
+      layers: next.layers,
       presets: ctx.deps.deepClone(effectiveTemplate.presets ?? []),
-      scenes: ctx.normalizeScenes(
-        preset.scenes ?? effectiveTemplate.scenes ?? [],
-        duration,
-      ),
+      scenes: next.scenes,
     });
-    const timeline = ctx.deps.normalizeTimeline(
-      preset.timeline ?? effectiveTemplate.timeline,
-      duration,
-    );
     ctx.state.timelineOverrides.set(template.id, timeline);
     ctx.state.selectedPresetId = preset.id;
     ctx.clearTimelineSelection();
