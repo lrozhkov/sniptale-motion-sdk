@@ -1,3 +1,5 @@
+import type { EditorTemplateSource } from "../templates/model.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 import type { LayerNumericPropertyRange } from "./property-range-model.js";
@@ -16,8 +18,10 @@ const BUILTIN_NUMERIC_RANGES = new Map<string, LayerNumericPropertyRange>([
 
 export function getTrackNumericPropertyRange(
   ctx: ViewerAppContext,
-  template,
-  track,
+  template: Pick<EditorTemplateSource, "layers"> | null | undefined,
+  track: Partial<
+    Pick<MotionPathTrack, "id" | "target" | "layerId" | "property">
+  >,
 ): LayerNumericPropertyRange | null {
   const property =
     ctx.inferTrackProperty?.(track) ??

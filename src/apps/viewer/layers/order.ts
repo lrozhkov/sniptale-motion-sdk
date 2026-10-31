@@ -1,3 +1,8 @@
+import { createTimelineDragPreview } from "../timeline/interaction/drag-preview.js";
+import { bindViewerAction } from "../app/bind-action.js";
+import type { LayerOperationActions } from "./actions-contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTemplate } from "../templates/model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   createLayerHierarchyIndex,
@@ -6,64 +11,63 @@ import {
 } from "./hierarchy.js";
 import { reparentLayerSelection } from "./reparent.js";
 
-function beginLayerPanelDrag(ctx: ViewerAppContext, event, layerId) {
-  if (event.button !== 0 || event.target.closest(".layer-icon-button")) {
+function beginLayerPanelDrag(
+  ctx: ViewerAppContext,
+  event: PointerEvent,
+  layerId: string,
+): void {
+  const target = event.currentTarget;
+  const source = ctx.state.currentTemplate;
+  if (
+    !source ||
+    event.button !== 0 ||
+    !(event.target instanceof Element) ||
+    !(target instanceof HTMLElement) ||
+    event.target.closest(".layer-icon-button")
+  )
     return;
-  }
   event.preventDefault();
   event.stopPropagation();
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  if (!template || isLayerOrderLocked(ctx, template, [layerId])) {
-    return;
-  }
-  const row = event.currentTarget.closest(".layer-row");
-  const rowHeight = row?.getBoundingClientRect().height || 38;
+  const template = ctx.getEffectiveTemplate(source);
+  if (!template || isLayerOrderLocked(ctx, template, [layerId])) return;
+  ctx.state.pointerDragCleanup?.();
+  const rowHeight =
+    target.closest(".layer-row")?.getBoundingClientRect().height || 38;
   const startY = event.clientY;
   const originalLayers = ctx.deps.deepClone(template.layers);
-  let appliedVisualDelta = 0;
-  let commandStarted = false;
+  let scheduledDelta = 0;
   ctx.selectLayer(layerId);
-  const onMove = (moveEvent) => {
-    const visualDelta = Math.round(
+  const preview = createTimelineDragPreview(ctx, source, {
+    renderPreview: () => ctx.renderTimelineEditor(source),
+  });
+  const onMove = (moveEvent: MouseEvent) => {
+    const delta = Math.round(
       (moveEvent.clientY - startY) / Math.max(1, rowHeight),
     );
-    if (visualDelta === appliedVisualDelta) {
+    if (delta === scheduledDelta) return;
+    const layers =
+      delta === 0
+        ? ctx.deps.deepClone(originalLayers)
+        : createLayerSiblingMove(originalLayers, [layerId], delta);
+    if (
+      !layers ||
+      !preview.activate(Math.abs(moveEvent.clientY - startY), () =>
+        ctx.beginEditorCommand({
+          payload: { layerIds: [layerId] },
+          type: "reparentLayers",
+        }),
+      )
+    )
       return;
-    }
-    if (visualDelta === 0) {
-      appliedVisualDelta = 0;
-      if (commandStarted) {
-        ctx.setEditorOverride({ layers: ctx.deps.deepClone(originalLayers) });
-        ctx.renderTimelineEditor(ctx.state.currentTemplate);
-        void ctx.renderCurrentFrame();
-      }
-      return;
-    }
-    const result = createLayerSiblingMove(
-      originalLayers,
-      [layerId],
-      visualDelta,
-    );
-    if (!result) {
-      return;
-    }
-    if (!commandStarted) {
-      commandStarted = true;
-      ctx.beginEditorCommand({
-        payload: { layerIds: [layerId] },
-        type: "reparentLayers",
-      });
-    }
-    appliedVisualDelta = visualDelta;
-    ctx.state.dragMoved = true;
-    ctx.setEditorOverride({ layers: result });
-    ctx.renderTimelineEditor(ctx.state.currentTemplate);
-    void ctx.renderCurrentFrame();
+    scheduledDelta = delta;
+    preview.scheduleUpdate(() => ctx.setEditorOverride({ layers }));
   };
-  ctx.bindPointerDrag(event.pointerId, event.currentTarget, onMove);
+  ctx.bindPointerDrag(event.pointerId, target, onMove, () =>
+    preview.finalize(),
+  );
 }
 
-function moveSelectedLayerOrder(ctx: ViewerAppContext, direction) {
+function moveSelectedLayerOrder(ctx: ViewerAppContext, direction: number) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   const rootIds = template ? ctx.getSelectedLayerRootIds(template) : [];
   if (
@@ -87,11 +91,15 @@ function moveSelectedLayerOrder(ctx: ViewerAppContext, direction) {
 }
 
 export function createLayerSiblingMove(
-  sourceLayers,
-  selectedLayerIds,
-  visualDelta,
+  sourceLayers: EffectLayer[],
+  selectedLayerIds: string[],
+  visualDelta: unknown,
 ) {
-  if (!visualDelta) {
+  if (
+    typeof visualDelta !== "number" ||
+    !Number.isInteger(visualDelta) ||
+    !visualDelta
+  ) {
     return null;
   }
   const hierarchy = createLayerHierarchyIndex(sourceLayers);
@@ -109,26 +117,27 @@ export function createLayerSiblingMove(
   const selectedIndexes = siblings
     .map((layer, index) => (selected.has(layer.id) ? index : -1))
     .filter((index) => index >= 0);
+  const firstIndex = selectedIndexes[0];
   if (
+    firstIndex === undefined ||
     selectedIndexes.length !== rootIds.length ||
-    selectedIndexes.some(
-      (index, offset) => index !== selectedIndexes[0] + offset,
-    )
+    selectedIndexes.some((index, offset) => index !== firstIndex + offset)
   ) {
     return null;
   }
   const targetIndex = clamp(
-    selectedIndexes[0] + visualDelta,
+    firstIndex + visualDelta,
     0,
     siblings.length - selectedIndexes.length,
   );
-  if (targetIndex === selectedIndexes[0]) {
+  if (targetIndex === firstIndex) {
     return null;
   }
   const target =
     visualDelta < 0
       ? siblings[targetIndex]
       : siblings[targetIndex + selectedIndexes.length - 1];
+  if (!target) return null;
   const result = reparentLayerSelection(
     sourceLayers,
     rootIds,
@@ -138,18 +147,32 @@ export function createLayerSiblingMove(
   return result.ok ? result.layers : null;
 }
 
-function isLayerOrderLocked(ctx, template, rootIds): boolean {
+function isLayerOrderLocked(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  rootIds: string[],
+): boolean {
   const hierarchy = ctx.getLayerHierarchy(template);
   return getLayerLeafIds(hierarchy, rootIds).some(
     (id) => hierarchy.byId.get(id)?.locked === true,
   );
 }
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-export function installLayersOrderOwner(ctx: ViewerAppContext): void {
-  ctx.beginLayerPanelDrag = beginLayerPanelDrag.bind(undefined, ctx);
-  ctx.moveSelectedLayerOrder = moveSelectedLayerOrder.bind(undefined, ctx);
+export function createLayerOrderActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  LayerOperationActions,
+  "beginLayerPanelDrag" | "moveSelectedLayerOrder"
+> {
+  return {
+    beginLayerPanelDrag: bindViewerAction(beginLayerPanelDrag, getContext),
+    moveSelectedLayerOrder: bindViewerAction(
+      moveSelectedLayerOrder,
+      getContext,
+    ),
+  };
 }

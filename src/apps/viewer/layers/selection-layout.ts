@@ -1,14 +1,15 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type {
+  LayerOperationActions,
+  LayerAlignment,
+} from "./actions-contract.js";
+import type { CanvasSelectionTransformEntry } from "../canvas/selection-transform-math.js";
+import type { CanvasSelectionGestureSnapshot } from "../canvas/selection-transform-state.js";
+import type { CanvasRect } from "../canvas/geometry-contract.js";
+import type { CanvasPropertyUpdates } from "../canvas/contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getAxisAlignedCanvasBox } from "../canvas/selection-bounds.js";
 import { createCanvasSelectionGestureSnapshot } from "../canvas/selection-transform-state.js";
-
-export type LayerAlignment =
-  | "bottom"
-  | "horizontal-center"
-  | "left"
-  | "right"
-  | "top"
-  | "vertical-center";
 
 function alignLayerSelection(ctx: ViewerAppContext, alignment: LayerAlignment) {
   const snapshot = createCanvasSelectionGestureSnapshot(ctx, "move");
@@ -42,8 +43,8 @@ function distributeLayerSelection(
 }
 
 export function createLayerAlignmentUpdates(
-  entries,
-  selectionBox,
+  entries: readonly CanvasSelectionTransformEntry[],
+  selectionBox: CanvasRect,
   alignment: LayerAlignment,
 ) {
   return Object.fromEntries(
@@ -78,7 +79,7 @@ export function createLayerAlignmentUpdates(
 }
 
 export function createLayerDistributionUpdates(
-  entries,
+  entries: readonly CanvasSelectionTransformEntry[],
   axis: "horizontal" | "vertical",
 ) {
   const startProperty = axis === "horizontal" ? "x" : "y";
@@ -91,9 +92,12 @@ export function createLayerDistributionUpdates(
     .sort(
       (left, right) => left.bounds[startProperty] - right.bounds[startProperty],
     );
-  const first = ordered[0].bounds[startProperty];
+  const firstEntry = ordered[0];
+  const lastEntry = ordered.at(-1);
+  if (!firstEntry || !lastEntry || ordered.length < 3) return {};
+  const first = firstEntry.bounds[startProperty];
   const lastEnd =
-    ordered.at(-1).bounds[startProperty] + ordered.at(-1).bounds[sizeProperty];
+    lastEntry.bounds[startProperty] + lastEntry.bounds[sizeProperty];
   const totalSize = ordered.reduce(
     (sum, item) => sum + item.bounds[sizeProperty],
     0,
@@ -114,7 +118,13 @@ export function createLayerDistributionUpdates(
   );
 }
 
-function applyLayerLayoutUpdates(ctx, snapshot, updates, type, payload): void {
+function applyLayerLayoutUpdates(
+  ctx: ViewerAppContext,
+  snapshot: CanvasSelectionGestureSnapshot,
+  updates: Record<string, CanvasPropertyUpdates>,
+  type: "alignLayers" | "distributeLayers",
+  payload: Record<string, string>,
+): void {
   ctx.beginEditorCommand({
     payload: { layerIds: snapshot.layerIds, ...payload },
     type,
@@ -125,7 +135,7 @@ function applyLayerLayoutUpdates(ctx, snapshot, updates, type, payload): void {
   });
 }
 
-function reportUnavailableSelectionLayout(ctx): false {
+function reportUnavailableSelectionLayout(ctx: ViewerAppContext): false {
   ctx.logDiagnostic(
     ctx.deps.t(
       "viewer.inspector.selection.operationUnavailable",
@@ -136,7 +146,17 @@ function reportUnavailableSelectionLayout(ctx): false {
   return false;
 }
 
-export function installLayersSelectionLayoutOwner(ctx: ViewerAppContext): void {
-  ctx.alignLayerSelection = alignLayerSelection.bind(undefined, ctx);
-  ctx.distributeLayerSelection = distributeLayerSelection.bind(undefined, ctx);
+export function createLayerLayoutActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  LayerOperationActions,
+  "alignLayerSelection" | "distributeLayerSelection"
+> {
+  return {
+    alignLayerSelection: bindViewerAction(alignLayerSelection, getContext),
+    distributeLayerSelection: bindViewerAction(
+      distributeLayerSelection,
+      getContext,
+    ),
+  };
 }

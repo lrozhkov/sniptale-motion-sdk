@@ -132,7 +132,7 @@ export function resolveLayerEditorCapabilities(
           "blur",
         ]
       : type === "audio"
-        ? CONTENT_PROPERTIES_BY_TYPE.audio
+        ? (CONTENT_PROPERTIES_BY_TYPE.audio ?? [])
         : type === "customDraw"
           ? ["opacity"]
           : [];

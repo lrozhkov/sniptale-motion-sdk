@@ -1,3 +1,8 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { LayerOperationActions } from "./actions-contract.js";
+import type { EffectLayer } from "../../../sdk/types.js";
+import type { EditorTimeline } from "../editor/model-types.js";
+import type { TrackLayerSource } from "./model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerSubtreeIds, isLayerGroup } from "./hierarchy.js";
 import {
@@ -10,7 +15,9 @@ import {
 } from "./motion-path-remap.js";
 
 function duplicateSelectedLayers(ctx: ViewerAppContext) {
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
+  const source = ctx.state.currentTemplate;
+  if (!source) return;
+  const template = ctx.getEffectiveTemplate(source);
   if (!template) {
     return;
   }
@@ -31,7 +38,8 @@ function duplicateSelectedLayers(ctx: ViewerAppContext) {
     .map((id) => hierarchy.byId.get(id))
     .find(
       (layer) =>
-        layer?.locked || !ctx.canPerformLayerOperation(layer, "duplicate"),
+        layer !== undefined &&
+        (layer.locked || !ctx.canPerformLayerOperation(layer, "duplicate")),
     );
   if (blockedLayer) {
     ctx.logDiagnostic(
@@ -68,8 +76,16 @@ function duplicateSelectedLayers(ctx: ViewerAppContext) {
       ...(isLayerGroup(sourceLayer)
         ? {}
         : {
-            x: (Number(sourceLayer.x) || 0) + 36,
-            y: (Number(sourceLayer.y) || 0) + 36,
+            x:
+              (typeof sourceLayer.x === "number" &&
+              Number.isFinite(sourceLayer.x)
+                ? sourceLayer.x
+                : 0) + 36,
+            y:
+              (typeof sourceLayer.y === "number" &&
+              Number.isFinite(sourceLayer.y)
+                ? sourceLayer.y
+                : 0) + 36,
           }),
     };
     usedLayers.push(duplicate);
@@ -114,7 +130,7 @@ function duplicateSelectedLayers(ctx: ViewerAppContext) {
   });
   ctx.setEditorOverride({ clips, layers });
   ctx.state.timelineOverrides.set(
-    ctx.state.currentTemplate.id,
+    source.id,
     ctx.deps.normalizeTimeline(timeline, template.duration),
   );
   const duplicatedRootIds = rootIds
@@ -135,7 +151,11 @@ function duplicateSelectedLayer(ctx: ViewerAppContext) {
   return ctx.duplicateSelectedLayers();
 }
 
-function createDuplicateLayerId(ctx: ViewerAppContext, layer, layers) {
+function createDuplicateLayerId(
+  ctx: ViewerAppContext,
+  layer: EffectLayer,
+  layers: readonly EffectLayer[],
+) {
   const base =
     layer.type === "text" ||
     layer.type === "rect" ||
@@ -151,9 +171,9 @@ function createDuplicateLayerId(ctx: ViewerAppContext, layer, layers) {
 
 function duplicateLayerTracks(
   ctx: ViewerAppContext,
-  timeline,
-  sourceLayerId,
-  newLayerId,
+  timeline: EditorTimeline,
+  sourceLayerId: string,
+  newLayerId: string,
 ) {
   return (timeline.tracks ?? [])
     .filter((track) => ctx.isTrackOwnedByLayer(track, sourceLayerId))
@@ -170,10 +190,7 @@ function duplicateLayerTracks(
             : "",
         keyframes: (track.keyframes ?? []).map((keyframe) => ({
           ...ctx.deps.deepClone(keyframe),
-          id: String(keyframe.id || "keyframe").replace(
-            sourceLayerId,
-            newLayerId,
-          ),
+          id: (keyframe.id || "keyframe").replace(sourceLayerId, newLayerId),
           value:
             (property === "x" || property === "y") &&
             typeof keyframe.value === "number"
@@ -187,7 +204,9 @@ function duplicateLayerTracks(
 }
 
 function deleteSelectedLayers(ctx: ViewerAppContext) {
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
+  const source = ctx.state.currentTemplate;
+  if (!source) return;
+  const template = ctx.getEffectiveTemplate(source);
   if (!template) {
     return;
   }
@@ -208,7 +227,8 @@ function deleteSelectedLayers(ctx: ViewerAppContext) {
     .map((id) => hierarchy.byId.get(id))
     .find(
       (layer) =>
-        layer?.locked || !ctx.canPerformLayerOperation(layer, "delete"),
+        layer !== undefined &&
+        (layer.locked || !ctx.canPerformLayerOperation(layer, "delete")),
     );
   if (blockedLayer) {
     ctx.logDiagnostic(
@@ -244,7 +264,7 @@ function deleteSelectedLayers(ctx: ViewerAppContext) {
   });
   ctx.setEditorOverride({ clips, layers: removed.layers });
   ctx.state.timelineOverrides.set(
-    ctx.state.currentTemplate.id,
+    source.id,
     ctx.deps.normalizeTimeline(timeline, template.duration),
   );
   ctx.clearTimelineSelection();
@@ -263,20 +283,42 @@ function deleteSelectedLayer(ctx: ViewerAppContext) {
   return ctx.deleteSelectedLayers();
 }
 
-function isTrackOwnedByLayer(ctx: ViewerAppContext, track, layerId) {
+function isTrackOwnedByLayer(track: TrackLayerSource, layerId: string) {
   return (
     track?.layerId === layerId ||
     track?.target === layerId ||
-    String(track?.id || "").startsWith(`${layerId}.`)
+    (track?.id || "").startsWith(`${layerId}.`)
   );
 }
 
-export function installLayersClipboardOwner(ctx: ViewerAppContext): void {
-  ctx.duplicateSelectedLayers = duplicateSelectedLayers.bind(undefined, ctx);
-  ctx.duplicateSelectedLayer = duplicateSelectedLayer.bind(undefined, ctx);
-  ctx.createDuplicateLayerId = createDuplicateLayerId.bind(undefined, ctx);
-  ctx.duplicateLayerTracks = duplicateLayerTracks.bind(undefined, ctx);
-  ctx.deleteSelectedLayers = deleteSelectedLayers.bind(undefined, ctx);
-  ctx.deleteSelectedLayer = deleteSelectedLayer.bind(undefined, ctx);
-  ctx.isTrackOwnedByLayer = isTrackOwnedByLayer.bind(undefined, ctx);
+export function createLayerClipboardActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  LayerOperationActions,
+  | "duplicateSelectedLayers"
+  | "duplicateSelectedLayer"
+  | "createDuplicateLayerId"
+  | "duplicateLayerTracks"
+  | "deleteSelectedLayers"
+  | "deleteSelectedLayer"
+  | "isTrackOwnedByLayer"
+> {
+  return {
+    duplicateSelectedLayers: bindViewerAction(
+      duplicateSelectedLayers,
+      getContext,
+    ),
+    duplicateSelectedLayer: bindViewerAction(
+      duplicateSelectedLayer,
+      getContext,
+    ),
+    createDuplicateLayerId: bindViewerAction(
+      createDuplicateLayerId,
+      getContext,
+    ),
+    duplicateLayerTracks: bindViewerAction(duplicateLayerTracks, getContext),
+    deleteSelectedLayers: bindViewerAction(deleteSelectedLayers, getContext),
+    deleteSelectedLayer: bindViewerAction(deleteSelectedLayer, getContext),
+    isTrackOwnedByLayer,
+  };
 }

@@ -59,7 +59,9 @@ export interface TimelineModelActions {
     selectedSceneIds: ReadonlySet<string>,
     parentSceneId?: string | null,
   ): boolean;
-  inferTrackProperty(track: MotionPathTrack | null | undefined): string | null;
+  inferTrackProperty(
+    track: Partial<Pick<MotionPathTrack, "id" | "property">> | null | undefined,
+  ): string | null;
   getPhaseTrackLayerIds(
     timeline: EditorTimeline | null | undefined,
     phaseId: string,

@@ -1,3 +1,9 @@
+import { createLayerFactoryActions } from "../layers/factory.js";
+import { createLayerClipboardActions } from "../layers/clipboard.js";
+import { createLayerOrderActions } from "../layers/order.js";
+import { createLayerPropertyActions } from "../layers/properties.js";
+import { createLayerLayoutActions } from "../layers/selection-layout.js";
+import { createLayerFocusActions } from "../layers/operations.js";
 import { createFramePresentationActions } from "../rendering/frame.js";
 import { createRenderInputActions } from "../rendering/input-frames.js";
 import { createPreviewQualityActions } from "../rendering/preview-quality.js";
@@ -111,6 +117,13 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createLayerFactoryActions(),
+    ...createLayerClipboardActions(() => ctx),
+    ...createLayerOrderActions(() => ctx),
+    ...createLayerPropertyActions(() => ctx),
+    ...createLayerLayoutActions(() => ctx),
+    ...createLayerFocusActions(() => ctx),
+
     ...createFramePresentationActions(() => ctx),
     ...createRenderInputActions(() => ctx),
     ...createPreviewQualityActions(() => ctx),

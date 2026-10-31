@@ -1,3 +1,4 @@
+import type { LayerHierarchyIndex } from "./hierarchy.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import {
   MAX_LAYER_GROUP_DEPTH,
@@ -107,7 +108,10 @@ export function reparentLayerSelection(
   return { layers: remaining, ok: true, parentId, rootIds: orderedRootIds };
 }
 
-function areLayerRootsContiguous(hierarchy, rootIds): boolean {
+function areLayerRootsContiguous(
+  hierarchy: LayerHierarchyIndex,
+  rootIds: readonly string[],
+): boolean {
   let previousEnd: number | null = null;
   for (const rootId of rootIds) {
     const indexes = getLayerSubtreeIds(hierarchy, rootId)
@@ -122,7 +126,11 @@ function areLayerRootsContiguous(hierarchy, rootIds): boolean {
   return true;
 }
 
-function canMoveToLayerDepth(hierarchy, rootIds, parentId): boolean {
+function canMoveToLayerDepth(
+  hierarchy: LayerHierarchyIndex,
+  rootIds: readonly string[],
+  parentId: string | null,
+): boolean {
   const nextRootDepth = parentId ? getLayerDepth(hierarchy, parentId) + 1 : 0;
   return rootIds.every((rootId) => {
     const rootDepth = getLayerDepth(hierarchy, rootId);

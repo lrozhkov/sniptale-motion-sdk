@@ -177,6 +177,25 @@ export async function assertCanvasTransformFlow({
       )
       .selectOption("screen");
     await selectLayer("card").click();
+    const laneOrder = () =>
+      page
+        .locator(".layer-lane[data-layer-id]")
+        .evaluateAll((nodes) => nodes.map((node) => node.dataset.layerId));
+    const originalOrder = await laneOrder();
+    await page.keyboard.press(`${modifier}+ArrowUp`);
+    await expect.poll(laneOrder).not.toEqual(originalOrder);
+    await page.locator("#undoEditorButton").click();
+    await expect.poll(laneOrder).toEqual(originalOrder);
+    await selectLayer("card").click();
+    await expect(page.locator("#redoEditorButton")).toBeEnabled();
+    await page.keyboard.press(`${modifier}+d`);
+    await expect(selectLayer("rect-1")).toHaveCount(0);
+    await expect(page.locator("#redoEditorButton")).toBeEnabled();
+    await page.keyboard.press("Delete");
+    await expect(selectLayer("card")).toHaveCount(0);
+    await page.locator("#undoEditorButton").click();
+    await expect(selectLayer("card")).toBeVisible();
+    await selectLayer("card").click();
     await selectLayer("title").click({ modifiers: ["Shift"] });
     await expect(selection).toHaveAttribute("data-selection-kind", "multi");
     const groupWidth = await style("width");
@@ -200,6 +219,14 @@ export async function assertCanvasTransformFlow({
     await expect(page.locator("#redoEditorButton")).toBeEnabled();
     await page.locator("#redoEditorButton").click();
     await expect(opacity).toHaveValue("0.5");
+    const beforeAlign = await style("width");
+    await page
+      .locator("#inspectorPanel .inspector-selection-button-grid button")
+      .first()
+      .click();
+    await expect.poll(() => style("width")).not.toBe(beforeAlign);
+    await page.locator("#undoEditorButton").click();
+    await expect.poll(() => style("width")).toBe(beforeAlign);
     const left = await style("left");
     const box = await selection.boundingBox();
     assert.ok(box);
@@ -271,11 +298,15 @@ export async function assertCanvasTransformFlow({
             "invalid-number-preserves-redo",
             "inspector-css-color",
             "inspector-select-value",
+            "keyboard-order-and-undo",
+            "duplicate-rejection-preserves-redo",
+            "delete-and-undo",
             "multi-selection",
             "group-keyboard-scale",
             "group-common-number-and-undo",
             "group-invalid-number-preserves-redo",
             "group-common-number-redo",
+            "group-align-and-undo",
             "group-pointer-move",
             "group-keyboard-rotation-and-undo",
             "export-and-cli-validation",

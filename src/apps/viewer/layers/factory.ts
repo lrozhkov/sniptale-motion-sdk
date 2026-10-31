@@ -1,6 +1,8 @@
-import type { ViewerAppContext } from "../app/context.js";
-
-function createUniqueLayerId(ctx: ViewerAppContext, kind, layers) {
+import type { LayerOperationActions } from "./actions-contract.js";
+const createUniqueLayerId: LayerOperationActions["createUniqueLayerId"] = (
+  kind,
+  layers,
+) => {
   const ids = new Set(layers.map((layer) => layer.id));
   let index = 1;
   let id = `${kind}-${index}`;
@@ -9,8 +11,10 @@ function createUniqueLayerId(ctx: ViewerAppContext, kind, layers) {
     id = `${kind}-${index}`;
   }
   return id;
-}
-
-export function installLayersFactoryOwner(ctx: ViewerAppContext): void {
-  ctx.createUniqueLayerId = createUniqueLayerId.bind(undefined, ctx);
+};
+export function createLayerFactoryActions(): Pick<
+  LayerOperationActions,
+  "createUniqueLayerId"
+> {
+  return { createUniqueLayerId };
 }

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { installLayersClipboardOwner } from "../src/apps/viewer/layers/clipboard";
+import { createLayerClipboardActions } from "../src/apps/viewer/layers/clipboard";
 import { createLayerEditorCapabilityActions } from "../src/apps/viewer/layers/editor-capabilities";
-import { installLayersFactoryOwner } from "../src/apps/viewer/layers/factory";
+import { createLayerFactoryActions } from "../src/apps/viewer/layers/factory";
 import { createLayerGroupingActions } from "../src/apps/viewer/layers/grouping";
 import { createLayerHierarchyActions } from "../src/apps/viewer/layers/hierarchy-controller";
-import { installLayersPropertiesOwner } from "../src/apps/viewer/layers/properties";
+import { createLayerPropertyActions } from "../src/apps/viewer/layers/properties";
 
 describe("viewer structural layer grouping", () => {
   it("groups and ungroups one contiguous selection with atomic commands", () => {
@@ -74,8 +74,11 @@ describe("viewer structural layer grouping", () => {
       createLayerHierarchyActions(() => ctx),
     );
     Object.assign(ctx, createLayerEditorCapabilityActions());
-    installLayersFactoryOwner(ctx);
-    installLayersClipboardOwner(ctx);
+    Object.assign(ctx, createLayerFactoryActions());
+    Object.assign(
+      ctx,
+      createLayerClipboardActions(() => ctx),
+    );
 
     ctx.duplicateSelectedLayers();
     const duplicated = ctx.getEffectiveTemplate();
@@ -130,7 +133,10 @@ describe("viewer structural layer grouping", () => {
       ctx,
       createLayerHierarchyActions(() => ctx),
     );
-    installLayersPropertiesOwner(ctx);
+    Object.assign(
+      ctx,
+      createLayerPropertyActions(() => ctx),
+    );
 
     ctx.toggleLayerVisibility("group-1");
     expect(

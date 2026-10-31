@@ -7,6 +7,7 @@ type DragUpdate = () => void;
 export function createTimelineDragPreview(
   ctx: ViewerAppContext,
   template: EditorTimelineSource,
+  options: { renderPreview?: () => void } = {},
 ) {
   let frame = 0;
   let finalized = false;
@@ -73,7 +74,8 @@ export function createTimelineDragPreview(
     if (full) {
       ctx.renderTimelineEditor(template);
     } else {
-      renderTimelineInteractionPreview(ctx, template);
+      if (options.renderPreview) options.renderPreview();
+      else renderTimelineInteractionPreview(ctx, template);
     }
     if (!isCurrent()) {
       discard();

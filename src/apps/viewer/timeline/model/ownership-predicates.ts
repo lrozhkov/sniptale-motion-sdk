@@ -139,7 +139,7 @@ function timingBelongsToSelectedScene(
 
 function inferTrackProperty(
   _ctx: ViewerAppContext,
-  track: MotionPathTrack | null | undefined,
+  track: Partial<Pick<MotionPathTrack, "id" | "property">> | null | undefined,
 ): string | null {
   if (typeof track?.property === "string") {
     return track.property;

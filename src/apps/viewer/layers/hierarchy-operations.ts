@@ -78,7 +78,7 @@ export function canGroupLayerSelection(
     ok: true,
     orderedRootIds,
     parentId,
-    startIndex: hierarchy.indexById.get(orderedRootIds[0]) ?? 0,
+    startIndex: hierarchy.indexById.get(orderedRootIds[0] ?? "") ?? 0,
   };
 }
 

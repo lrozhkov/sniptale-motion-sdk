@@ -1,18 +1,23 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { LayerOperationActions } from "./actions-contract.js";
+import type { EditorTemplateSource } from "../templates/model.js";
+import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
+import type { TimelineKeyframe } from "../../../sdk/types.js";
 import type { TrackLayerSource } from "./model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerLeafIds, isLayerGroup } from "./hierarchy.js";
 
-function toggleLayerVisibility(ctx: ViewerAppContext, layerId) {
+function toggleLayerVisibility(ctx: ViewerAppContext, layerId: string) {
   toggleLayerBooleanState(ctx, layerId, "visible");
 }
 
-function toggleLayerLock(ctx: ViewerAppContext, layerId) {
+function toggleLayerLock(ctx: ViewerAppContext, layerId: string) {
   toggleLayerBooleanState(ctx, layerId, "locked");
 }
 
 function toggleLayerBooleanState(
   ctx: ViewerAppContext,
-  layerId,
+  layerId: string,
   property: "locked" | "visible",
 ) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
@@ -65,8 +70,8 @@ export function getTrackLayerId(
 
 function hasLayerPropertyKeyframeAtCurrentTime(
   ctx: ViewerAppContext,
-  layerId,
-  property,
+  layerId: string,
+  property: string,
 ) {
   const timeline = ctx.getEffectiveTimeline(ctx.state.currentTemplate);
   const track = timeline.tracks.find(
@@ -75,12 +80,16 @@ function hasLayerPropertyKeyframeAtCurrentTime(
   const time = ctx.snapTime(Number(ctx.refs.timeSlider.value) || 0);
   return Boolean(
     track?.keyframes.some(
-      (keyframe) => Math.abs(Number(keyframe.time) - time) < 0.0001,
+      (keyframe) => Math.abs(keyframe.time - time) < 0.0001,
     ),
   );
 }
 
-function toggleLayerPropertyKeyframe(ctx: ViewerAppContext, layerId, property) {
+function toggleLayerPropertyKeyframe(
+  ctx: ViewerAppContext,
+  layerId: string,
+  property: string,
+) {
   const template = ctx.state.currentTemplate;
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
@@ -98,7 +107,7 @@ function toggleLayerPropertyKeyframe(ctx: ViewerAppContext, layerId, property) {
   const track = timeline.tracks.find((item) => item.id === trackId);
   const existingIndex =
     track?.keyframes.findIndex(
-      (keyframe) => Math.abs(Number(keyframe.time) - time) < 0.0001,
+      (keyframe) => Math.abs(keyframe.time - time) < 0.0001,
     ) ?? -1;
   if (track && existingIndex >= 0) {
     ctx.commitHistory(`toggle-keyframe:${trackId}`);
@@ -139,10 +148,10 @@ function toggleLayerPropertyKeyframe(ctx: ViewerAppContext, layerId, property) {
 
 function revealLayerPropertyTrack(
   ctx: ViewerAppContext,
-  layerId,
-  track,
-  keyframe,
-  time,
+  layerId: string,
+  track: MotionPathTrack | undefined,
+  keyframe: TimelineKeyframe<unknown>,
+  time: number,
 ) {
   if (!track) {
     return;
@@ -167,7 +176,12 @@ function revealLayerPropertyTrack(
   }
 }
 
-function isLayerActiveAtTime(ctx: ViewerAppContext, template, layerId, time) {
+function isLayerActiveAtTime(
+  template: Pick<EditorTemplateSource, "clips"> | null | undefined,
+  layerId: string,
+  time: number,
+) {
+  if (!template) return false;
   const clips = (template.clips ?? []).filter(
     (clip) => clip.layerId === layerId,
   );
@@ -177,19 +191,32 @@ function isLayerActiveAtTime(ctx: ViewerAppContext, template, layerId, time) {
   return clips.some(
     (clip) =>
       clip.enabled !== false &&
-      time >= Number(clip.start || 0) &&
-      time <= Number(clip.start || 0) + Number(clip.duration || 0),
+      time >= clip.start &&
+      time <= clip.start + clip.duration,
   );
 }
 
-export function installLayersPropertiesOwner(ctx: ViewerAppContext): void {
-  ctx.toggleLayerVisibility = toggleLayerVisibility.bind(undefined, ctx);
-  ctx.toggleLayerLock = toggleLayerLock.bind(undefined, ctx);
-  ctx.hasLayerPropertyKeyframeAtCurrentTime =
-    hasLayerPropertyKeyframeAtCurrentTime.bind(undefined, ctx);
-  ctx.toggleLayerPropertyKeyframe = toggleLayerPropertyKeyframe.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isLayerActiveAtTime = isLayerActiveAtTime.bind(undefined, ctx);
+export function createLayerPropertyActions(
+  getContext: () => ViewerAppContext,
+): Pick<
+  LayerOperationActions,
+  | "toggleLayerVisibility"
+  | "toggleLayerLock"
+  | "hasLayerPropertyKeyframeAtCurrentTime"
+  | "toggleLayerPropertyKeyframe"
+  | "isLayerActiveAtTime"
+> {
+  return {
+    toggleLayerVisibility: bindViewerAction(toggleLayerVisibility, getContext),
+    toggleLayerLock: bindViewerAction(toggleLayerLock, getContext),
+    hasLayerPropertyKeyframeAtCurrentTime: bindViewerAction(
+      hasLayerPropertyKeyframeAtCurrentTime,
+      getContext,
+    ),
+    toggleLayerPropertyKeyframe: bindViewerAction(
+      toggleLayerPropertyKeyframe,
+      getContext,
+    ),
+    isLayerActiveAtTime,
+  };
 }

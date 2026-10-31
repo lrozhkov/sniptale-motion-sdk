@@ -1,6 +1,12 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { LayerOperationActions } from "./actions-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 
-function focusLayer(ctx: ViewerAppContext, layerId, preferredTab = null) {
+function focusLayer(
+  ctx: ViewerAppContext,
+  layerId: string,
+  preferredTab: string | null = null,
+) {
   const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
   if (!template?.layers.some((layer) => layer.id === layerId)) {
     return;
@@ -11,6 +17,8 @@ function focusLayer(ctx: ViewerAppContext, layerId, preferredTab = null) {
   }
 }
 
-export function installLayersOperationsOwner(ctx: ViewerAppContext): void {
-  ctx.focusLayer = focusLayer.bind(undefined, ctx);
+export function createLayerFocusActions(
+  getContext: () => ViewerAppContext,
+): Pick<LayerOperationActions, "focusLayer"> {
+  return { focusLayer: bindViewerAction(focusLayer, getContext) };
 }
