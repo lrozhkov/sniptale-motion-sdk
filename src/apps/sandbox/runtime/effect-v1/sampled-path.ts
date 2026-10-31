@@ -1,9 +1,11 @@
+import type { EffectV1Command } from "../../../../sdk/effect-v1/types.js";
+import type { EffectV1Layer } from "./model.js";
 import { drawPath } from "./drawing.js";
 import { n, type RenderState } from "./model.js";
 
 export function drawSampledPath(
-  command: any,
-  layer: any,
+  command: Extract<EffectV1Command, { op: "sampledPath" }>,
+  layer: EffectV1Layer | null,
   state: RenderState,
 ): void {
   const samples = Math.max(2, Math.min(256, Number(command.samples) || 2));

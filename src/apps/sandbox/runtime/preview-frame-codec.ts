@@ -1,8 +1,4 @@
-export type CacheBitmap = {
-  close?: () => void;
-  height: number;
-  width: number;
-};
+export type CacheBitmap = ImageBitmap;
 
 export type RetainedPreviewFrame = {
   borrow?: () => CacheBitmap;
@@ -69,7 +65,7 @@ export function createPreviewFrameRetainer(): (
           encoderCanvas.height = height;
         }
         encoderContext.clearRect(0, 0, width, height);
-        encoderContext.drawImage(bitmap as ImageBitmap, 0, 0);
+        encoderContext.drawImage(bitmap, 0, 0);
         const blob = await waitForCacheCodecOperation(
           encoderCanvas.convertToBlob({ type: "image/png" }),
         );
@@ -80,7 +76,9 @@ export function createPreviewFrameRetainer(): (
           bytes: blob.size,
           height,
           rawBytes,
-          ...createPrimedFrameRestore(() => createImageBitmap(blob)),
+          ...createPrimedFrameRestore(() =>
+            waitForCacheBitmap(createImageBitmap(blob)),
+          ),
           storage: "png" as const,
           width,
         };
@@ -92,15 +90,13 @@ export function createPreviewFrameRetainer(): (
         encoderContext = null;
       }
     }
-    const retained = await waitForCacheCodecOperation(
-      createImageBitmap(bitmap as ImageBitmap),
-    );
+    const retained = await waitForCacheBitmap(createImageBitmap(bitmap));
     return {
       bytes: rawBytes,
       height,
       rawBytes,
       ...createPrimedFrameRestore(
-        () => createImageBitmap(retained),
+        () => waitForCacheBitmap(createImageBitmap(retained)),
         () => retained.close?.(),
       ),
       storage: "bitmap" as const,
@@ -115,22 +111,29 @@ async function retainReusableBitmap(
   height: number,
   rawBytes: number,
 ): Promise<RetainedPreviewFrame> {
-  const retained = await waitForCacheCodecOperation(
-    createImageBitmap(bitmap as ImageBitmap),
-  );
+  const retained = await waitForCacheBitmap(createImageBitmap(bitmap));
   return {
     borrow: () => retained,
     bytes: rawBytes,
     height,
     rawBytes,
     release: () => retained.close?.(),
-    restore: () => createImageBitmap(retained),
+    restore: () => waitForCacheBitmap(createImageBitmap(retained)),
     storage: "bitmap",
     width,
   };
 }
 
-function waitForCacheCodecOperation<T>(operation: Promise<T>): Promise<T> {
+function waitForCacheBitmap(
+  operation: Promise<ImageBitmap>,
+): Promise<ImageBitmap> {
+  return waitForCacheCodecOperation(operation, (bitmap) => bitmap.close());
+}
+
+function waitForCacheCodecOperation<T>(
+  operation: Promise<T>,
+  discardLate?: (value: T) => void,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     let settled = false;
     const timer = globalThis.setTimeout(() => {
@@ -143,6 +146,7 @@ function waitForCacheCodecOperation<T>(operation: Promise<T>): Promise<T> {
     void operation.then(
       (value) => {
         if (settled) {
+          discardLate?.(value);
           return;
         }
         settled = true;

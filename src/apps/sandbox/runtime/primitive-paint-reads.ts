@@ -1,15 +1,20 @@
 import {
   shouldRecordPrimitivePaintRead,
   type PrimitivePaintBounds,
+  type BindingReads,
 } from "./binding-reads.js";
 
-export function recordPrimitivePaintRead(context: any, args: any): void {
+export function recordPrimitivePaintRead(
+  context: PrimitivePaintContext,
+  args: unknown,
+): void {
+  if (!isRecord(args)) return;
   const layerId = args?.layerId ?? args?.layer ?? args?.targetLayerId;
   const reads = context?.__sniptaleBindingReads;
-  if (!reads?.primitivePaintReads || !layerId) {
+  if (!reads?.primitivePaintReads || typeof layerId !== "string" || !layerId) {
     return;
   }
-  const id = String(layerId);
+  const id = layerId;
   if (!shouldRecordPrimitivePaintRead(reads, id)) {
     return;
   }
@@ -26,9 +31,9 @@ export function recordPrimitivePaintRead(context: any, args: any): void {
 }
 
 function inferPrimitiveBounds(
-  context: any,
+  context: PrimitivePaintContext,
   layerId: string,
-  args: any,
+  args: Record<string, unknown>,
 ): PrimitivePaintBounds | null {
   if (!args || typeof args !== "object") {
     return null;
@@ -47,12 +52,12 @@ function inferPrimitiveBounds(
 
 function boundsFromRectArgs(
   layerId: string,
-  args: any,
+  args: Record<string, unknown>,
 ): PrimitivePaintBounds | null {
-  const x = Number(args.x ?? args.left);
-  const y = Number(args.y ?? args.top);
-  const width = Number(args.width ?? args.w);
-  const height = Number(args.height ?? args.h);
+  const x = numberValue(args.x ?? args.left);
+  const y = numberValue(args.y ?? args.top);
+  const width = numberValue(args.width ?? args.w);
+  const height = numberValue(args.height ?? args.h);
   if (
     !Number.isFinite(x) ||
     !Number.isFinite(y) ||
@@ -68,14 +73,23 @@ function boundsFromRectArgs(
 
 function boundsFromPoints(
   layerId: string,
-  args: any,
+  args: Record<string, unknown>,
 ): PrimitivePaintBounds | null {
-  const points = args?.points;
+  const points: unknown = args.points;
   if (!Array.isArray(points) || points.length === 0) {
     return null;
   }
-  const xs = points.map((point) => Number(point?.x)).filter(Number.isFinite);
-  const ys = points.map((point) => Number(point?.y)).filter(Number.isFinite);
+  const entries: unknown[] = points;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const point of entries) {
+    if (!isRecord(point)) return null;
+    const x = numberValue(point.x);
+    const y = numberValue(point.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    xs.push(x);
+    ys.push(y);
+  }
   if (xs.length === 0 || ys.length === 0) {
     return null;
   }
@@ -85,7 +99,7 @@ function boundsFromPoints(
   const maxY = Math.max(...ys);
   const strokeWidth = Math.max(
     0,
-    Number(args.width ?? args.strokeWidth ?? 0) || 0,
+    numberValue(args.width ?? args.strokeWidth ?? 0) || 0,
   );
   return {
     height: Math.max(1, maxY - minY + strokeWidth),
@@ -97,25 +111,33 @@ function boundsFromPoints(
 }
 
 function boundsFromTextArgs(
-  context: any,
+  context: PrimitivePaintContext,
   layerId: string,
-  args: any,
+  args: Record<string, unknown>,
 ): PrimitivePaintBounds | null {
   if (args.text === undefined && args.label === undefined) {
     return null;
   }
-  const x = Number(args.x);
-  const y = Number(args.y);
+  const x = numberValue(args.x);
+  const y = numberValue(args.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     return null;
   }
-  const text = String(args.text ?? args.label ?? "");
+  const rawText = args.text ?? args.label ?? "";
+  if (
+    (typeof rawText !== "string" && typeof rawText !== "number") ||
+    !context.measureText
+  )
+    return null;
+  const text = String(rawText);
   const previousFont = context.font;
-  if (args.font) {
-    context.font = String(args.font);
+  if (typeof args.font === "string" && args.font) context.font = args.font;
+  let metrics;
+  try {
+    metrics = context.measureText(text);
+  } finally {
+    context.font = previousFont;
   }
-  const metrics = context.measureText(text);
-  context.font = previousFont;
   const measuredWidth =
     Number(metrics.width) || parseFontSize(args.font) * text.length * 0.55;
   const maxWidth = finitePositive(args.maxWidth);
@@ -132,8 +154,8 @@ function boundsFromTextArgs(
       ? ascent + descent
       : fallbackHeight,
   );
-  const align = String(args.align ?? args.textAlign ?? "left");
-  const baseline = String(args.baseline ?? args.textBaseline ?? "alphabetic");
+  const align = textOption(args.align ?? args.textAlign, "left");
+  const baseline = textOption(args.baseline ?? args.textBaseline, "alphabetic");
   return {
     height,
     layerId,
@@ -172,7 +194,7 @@ function textTop(
 }
 
 function transformBounds(
-  context: any,
+  context: PrimitivePaintContext,
   bounds: PrimitivePaintBounds,
 ): PrimitivePaintBounds {
   const canvasMatrix =
@@ -210,7 +232,10 @@ function transformBounds(
   };
 }
 
-function removeLogicalCanvasRasterScale(context: any, matrix: any): any {
+function removeLogicalCanvasRasterScale(
+  context: PrimitivePaintContext,
+  matrix: PaintMatrix,
+): PaintMatrix {
   const scaleX = finiteScale(context?.__sniptaleLogicalScaleX);
   const scaleY = finiteScale(context?.__sniptaleLogicalScaleY);
   if (scaleX === 1 && scaleY === 1) {
@@ -227,7 +252,7 @@ function removeLogicalCanvasRasterScale(context: any, matrix: any): any {
 }
 
 function transformPoint(
-  matrix: any,
+  matrix: PaintMatrix,
   x: number,
   y: number,
 ): { x: number; y: number } {
@@ -255,16 +280,48 @@ function unionBounds(
 }
 
 function finitePositive(value: unknown): number | null {
-  const numeric = Number(value);
+  const numeric = numberValue(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
 function finiteScale(value: unknown): number {
-  const numeric = Number(value);
+  const numeric = numberValue(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
 }
 
 function parseFontSize(font: unknown): number {
-  const match = String(font ?? "").match(/(\d+(?:\.\d+)?)px/);
+  const match = (typeof font === "string" ? font : "").match(
+    /(\d+(?:\.\d+)?)px/,
+  );
   return match ? Math.max(1, Number(match[1]) || 48) : 48;
+}
+
+export type PaintMatrix = {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+};
+export type PrimitivePaintContext = {
+  __sniptaleBindingReads?: BindingReads | null;
+  __sniptaleLogicalScaleX?: unknown;
+  __sniptaleLogicalScaleY?: unknown;
+  font?: string | undefined;
+  getTransform?(): PaintMatrix;
+  measureText?(text: string): {
+    width: number;
+    actualBoundingBoxAscent?: number;
+    actualBoundingBoxDescent?: number;
+  };
+};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function numberValue(value: unknown): number {
+  return typeof value === "number" ? value : NaN;
+}
+function textOption(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
 }

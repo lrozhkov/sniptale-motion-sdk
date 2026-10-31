@@ -1,3 +1,8 @@
+import {
+  createNativeBitmapFixture,
+  createNativeCanvasFixture,
+  createNativePortFixture,
+} from "./helpers/native-render-fixtures.js";
 import type { SandboxRuntimeMessage } from "../src/apps/sandbox/runtime/message-boundary.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -50,7 +55,10 @@ function createLoadMessage(): Extract<
 }
 
 describe("sandbox execution router", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   it("routes declarative graph documents through the worker and transfers frames", async () => {
     const harness = createWorkerHarness();
@@ -81,7 +89,7 @@ describe("sandbox execution router", () => {
       [],
     );
 
-    const bitmap = { kind: "asset-bitmap" } as unknown as Transferable;
+    const bitmap = createNativeBitmapFixture();
     const frame = {
       assets: { logo: { bitmap } },
       effectId: "canvas-composition",
@@ -106,8 +114,11 @@ describe("sandbox execution router", () => {
       createWorker: () => harness.worker,
       postToParent,
     });
-    const port = { close: vi.fn() } as unknown as Transferable;
-    const presentationSurface = {} as Transferable;
+    const port = createNativePortFixture({ close: vi.fn() });
+    const presentationSurface = createNativeCanvasFixture({
+      width: 160,
+      height: 90,
+    });
     expect(router.connectDirectRenderPort(port, presentationSurface)).toBe(
       true,
     );
@@ -305,7 +316,7 @@ describe("sandbox execution router", () => {
     });
 
     harness.emit("message", {
-      bitmap: {},
+      bitmap: createNativeBitmapFixture(),
       durationMs: 20,
       kind: "renderFrameResult",
       ok: true,
@@ -348,6 +359,7 @@ describe("sandbox execution router", () => {
 });
 
 describe("sandbox render transferables", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("preserves an id-only asset envelope for the worker cache", () => {
     expect(
       prepareWorkerRenderMessage({
@@ -360,9 +372,20 @@ describe("sandbox render transferables", () => {
     });
   });
 
+  it("rejects non-transferable bitmap impostors before posting", () => {
+    expect(() =>
+      collectRenderTransferables({
+        assets: { a: { bitmap: { width: 1, height: 1, close: vi.fn() } } },
+      }),
+    ).toThrow("native ImageBitmap");
+    expect(() =>
+      collectRenderTransferables({ inputFrames: { source: {} } }),
+    ).toThrow("native ImageBitmap");
+  });
+
   it("deduplicates transferred asset and input frame bitmaps", () => {
-    const asset = {} as Transferable;
-    const frame = {} as Transferable;
+    const asset = createNativeBitmapFixture();
+    const frame = createNativeBitmapFixture();
     expect(
       collectRenderTransferables({
         assets: { a: { bitmap: asset }, b: { bitmap: asset } },

@@ -1,3 +1,4 @@
+import { createRenderContext } from "../src/apps/sandbox/runtime/render-context.js";
 import { describe, expect, it, vi } from "vitest";
 
 import { createSandboxRegistry } from "../src/apps/sandbox/runtime/registry";
@@ -50,4 +51,37 @@ describe("sandbox registry", () => {
     expect(second.dispose).toHaveBeenCalledOnce();
     expect(registry.moduleRevisions.size).toBe(0);
   });
+});
+
+it("preserves renderer receivers and the normalized composition kind", async () => {
+  const registry = createSandboxRegistry();
+  const disposed: string[] = [];
+  const input = {
+    id: "receiver",
+    kind: "legacy",
+    renderFrame() {
+      return this.kind;
+    },
+    dispose() {
+      disposed.push(this.kind);
+    },
+  };
+  registry.registerComposition(input);
+  const context = createRenderContext({ width: 10, height: 10 }, {}, {});
+  expect(await registry.getRenderer("receiver")?.renderFrame(context)).toBe(
+    "composition",
+  );
+  registry.disposeAll();
+  expect(disposed).toEqual(["composition"]);
+});
+
+it("observes asynchronous best-effort renderer disposal", async () => {
+  const registry = createSandboxRegistry();
+  const dispose = vi.fn(async () => {
+    throw new Error("teardown failed");
+  });
+  registry.registerEffect({ id: "async-cleanup", renderFrame() {}, dispose });
+  registry.disposeAll();
+  await Promise.resolve();
+  expect(dispose).toHaveBeenCalledOnce();
 });

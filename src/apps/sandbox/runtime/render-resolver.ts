@@ -1,5 +1,6 @@
 import type {
   EffectScene,
+  EffectClip,
   TimelinePhase,
   TimelineKeyframe,
 } from "../../../sdk/types.js";
@@ -9,6 +10,26 @@ import { evaluateTimelineKeyframes } from "../../../sdk/timeline/keyframe-value.
 import { segment } from "./math.js";
 import { resolveRuntimeMotionPathTrackValue } from "./render-motion-path.js";
 
+export type RuntimeLayerSource = Record<string, unknown> & {
+  id: string;
+  visible?: boolean;
+};
+export type RuntimeResolvedLayer = RuntimeLayerSource & {
+  active: boolean;
+  anchorX: unknown;
+  anchorY: unknown;
+  blur: unknown;
+  opacity: unknown;
+  rotation: unknown;
+  scaleX: unknown;
+  scaleY: unknown;
+  x: unknown;
+  y: unknown;
+  clip: EffectClip | null;
+  clipProgress: number;
+  localTime: number;
+};
+
 type TimelineIndex = {
   activeKeyframesByTrack: Map<MotionPathTrack, TimelineKeyframe<unknown>[]>;
   phasesById: Map<string, TimelinePhase>;
@@ -16,13 +37,16 @@ type TimelineIndex = {
   tracksById: Map<string, MotionPathTrack>;
 };
 
-const clipIndexes = new WeakMap<any[], Map<string, any[]>>();
-const layerIndexes = new WeakMap<any[], Map<string, any>>();
+const clipIndexes = new WeakMap<EffectClip[], Map<string, EffectClip[]>>();
+const layerIndexes = new WeakMap<
+  RuntimeLayerSource[],
+  Map<string, RuntimeLayerSource>
+>();
 const sceneIndexes = new WeakMap<EffectScene[], Map<string, EffectScene>>();
 const timelineIndexes = new WeakMap<object, TimelineIndex>();
 
 export function isLayerActive(
-  clips: any[],
+  clips: EffectClip[],
   layerId: string,
   time: number,
   scenes: EffectScene[] = [],
@@ -41,13 +65,13 @@ export function isLayerActive(
 }
 
 export function resolveLayerState(
-  layers: any[],
-  clips: any[],
+  layers: RuntimeLayerSource[],
+  clips: EffectClip[],
   timeline: RuntimeTimeline,
   layerId: string,
   time: number,
   onTrackRead?: (trackId: string) => void,
-): any {
+): RuntimeResolvedLayer {
   const layer = getLayersById(layers).get(layerId) ?? {
     id: layerId,
     opacity: 1,
@@ -89,7 +113,9 @@ export function resolveLayerState(
     clipProgress: clip
       ? segment(time, clip.start, clip.start + clip.duration)
       : 1,
-    localTime: clip ? Math.max(0, time - clip.start + clip.offset) : time,
+    localTime: clip
+      ? Math.max(0, time - clip.start + (clip.offset ?? 0))
+      : time,
     opacity,
     rotation,
     scaleX,
@@ -208,7 +234,9 @@ function getTimelineIndex(timeline: RuntimeTimeline): TimelineIndex {
   return index;
 }
 
-function getLayersById(layers: any[]): Map<string, any> {
+function getLayersById(
+  layers: RuntimeLayerSource[],
+): Map<string, RuntimeLayerSource> {
   let index = layerIndexes.get(layers);
   if (!index) {
     index = new Map(layers.map((layer) => [layer.id, layer]));
@@ -217,7 +245,7 @@ function getLayersById(layers: any[]): Map<string, any> {
   return index;
 }
 
-function getClipsByLayer(clips: any[]): Map<string, any[]> {
+function getClipsByLayer(clips: EffectClip[]): Map<string, EffectClip[]> {
   let index = clipIndexes.get(clips);
   if (!index) {
     index = new Map();

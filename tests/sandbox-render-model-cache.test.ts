@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createRenderModelCache } from "../src/apps/sandbox/runtime/render-model-cache";
 
@@ -71,3 +71,15 @@ function createRenderModel() {
     },
   };
 }
+
+it("rejects nonnumeric model duration without invoking conversion hooks", () => {
+  const convert = vi.fn(() => 1);
+  const cache = createRenderModelCache();
+  expect(() =>
+    cache.resolve({
+      renderModelId: "unknown-duration",
+      renderModel: { ...createRenderModel(), duration: { valueOf: convert } },
+    }),
+  ).toThrow("duration to be positive");
+  expect(convert).not.toHaveBeenCalled();
+});

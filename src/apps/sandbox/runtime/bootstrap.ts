@@ -24,7 +24,8 @@ export function bootstrapSandboxRuntime(): void {
               type: "module",
             })
         : null,
-    postToParent: parentTransport.post,
+    postToParent: (message, transfer) =>
+      parentTransport.post(message, transfer),
   });
 
   Object.defineProperty(globalThis, "SniptaleSandboxRuntime", {
@@ -41,8 +42,8 @@ export function bootstrapSandboxRuntime(): void {
     const directConnection = parseDirectRenderPortConnection(event.data);
     if (directConnection) {
       router.connectDirectRenderPort(
-        directConnection.port as Transferable,
-        directConnection.presentationSurface as Transferable | undefined,
+        directConnection.port,
+        directConnection.presentationSurface,
       );
       return;
     }

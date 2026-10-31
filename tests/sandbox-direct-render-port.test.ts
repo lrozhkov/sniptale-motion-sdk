@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import {
+  createNativeCanvasFixture,
+  createNativePortFixture,
+} from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createWorkerRuntimeMessageHandler,
@@ -6,13 +10,17 @@ import {
 } from "../src/apps/sandbox/runtime/direct-render-port";
 
 describe("sandbox direct render response port", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("accepts only bounded port connection payloads", () => {
-    const port = { addEventListener: vi.fn(), postMessage: vi.fn() };
-    const presentationSurface = {
+    const port = createNativePortFixture({
+      addEventListener: vi.fn(),
+      postMessage: vi.fn(),
+    });
+    const presentationSurface = createNativeCanvasFixture({
       getContext: vi.fn(),
       height: 90,
       width: 160,
-    };
+    });
     expect(
       parseDirectRenderPortConnection({
         kind: "connectDirectRenderPort",
@@ -45,17 +53,35 @@ describe("sandbox direct render response port", () => {
     ).toBeNull();
   });
 
+  it("rejects structural port and canvas impostors", () => {
+    expect(
+      parseDirectRenderPortConnection({
+        kind: "connectDirectRenderPort",
+        port: { addEventListener: vi.fn(), postMessage: vi.fn() },
+      }),
+    ).toBeNull();
+    expect(
+      parseDirectRenderPortConnection({
+        kind: "connectDirectRenderPort",
+        port: createNativePortFixture(),
+        presentationSurface: { width: 160, height: 90, getContext: vi.fn() },
+      }),
+    ).toBeNull();
+  });
+
   it("sends opted-in worker frame results through the port and acknowledges settlement", async () => {
     const fallbackPost = vi.fn();
-    let portMessageListener: ((event: MessageEvent) => void) | null = null;
-    const port = {
+    const portListener: {
+      current: ((event: MessageEvent<unknown>) => void) | null;
+    } = { current: null };
+    const port = createNativePortFixture({
       addEventListener: vi.fn((_type, listener) => {
-        portMessageListener = listener;
+        portListener.current = listener;
       }),
       close: vi.fn(),
       postMessage: vi.fn(),
       start: vi.fn(),
-    };
+    });
     const handleMessage = vi.fn(async (_message, responseSink) => {
       responseSink(
         {
@@ -69,11 +95,11 @@ describe("sandbox direct render response port", () => {
       responseSink({ kind: "renderFrameResult", requestId: "frame:1" }, []);
     });
     const onPresentationSurface = vi.fn();
-    const presentationSurface = {
+    const presentationSurface = createNativeCanvasFixture({
       getContext: vi.fn(),
       height: 90,
       width: 160,
-    };
+    });
     const handler = createWorkerRuntimeMessageHandler({
       fallbackPost,
       onPresentationSurface,
@@ -102,7 +128,7 @@ describe("sandbox direct render response port", () => {
       requestId: "frame:1",
     });
 
-    portMessageListener?.({
+    portListener.current?.({
       data: {
         effectId: "effect",
         height: 90,

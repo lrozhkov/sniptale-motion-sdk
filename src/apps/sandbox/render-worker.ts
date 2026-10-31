@@ -1,3 +1,4 @@
+import { readWorkerRuntimeScope } from "./runtime/worker-scope.js";
 import { parseSandboxRuntimeMessage } from "./runtime/message-boundary.js";
 import { createSandboxRegistry } from "./runtime/registry.js";
 import { createSandboxRuntimeFacade } from "./runtime/runtime-facade.js";
@@ -5,7 +6,7 @@ import { createSandboxSession } from "./runtime/session.js";
 import { createWorkerRuntimeMessageHandler } from "./runtime/direct-render-port.js";
 import { createDirectPreviewPresenter } from "./runtime/direct-presentation.js";
 
-const scope: any = globalThis;
+const scope = readWorkerRuntimeScope(globalThis);
 const registry = createSandboxRegistry();
 const runtime = createSandboxRuntimeFacade(registry);
 const previewPresenter = createDirectPreviewPresenter();
@@ -35,7 +36,7 @@ Object.defineProperty(globalThis, "SniptaleSandboxRuntime", {
   writable: false,
 });
 
-scope.addEventListener("message", (event: MessageEvent) => {
+scope.addEventListener("message", (event: MessageEvent<unknown>) => {
   handleRuntimeMessage(event);
 });
 

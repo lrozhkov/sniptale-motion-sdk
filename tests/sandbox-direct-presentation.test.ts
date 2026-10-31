@@ -1,18 +1,36 @@
-import { describe, expect, it, vi } from "vitest";
+import {
+  createNativeCanvasFixture,
+  createNativeBitmapFixture,
+} from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDirectPreviewPresenter } from "../src/apps/sandbox/runtime/direct-presentation";
 
 describe("sandbox direct preview presentation", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("rejects structural canvas impostors and resets an existing connection", () => {
+    const presenter = createDirectPreviewPresenter();
+    const surface = createNativeCanvasFixture({
+      getContext: () => ({ clearRect: vi.fn(), drawImage: vi.fn() }),
+    });
+    expect(presenter.connect(surface)).toBe(true);
+    const getContext = vi.fn();
+    expect(presenter.connect({ width: 1, height: 1, getContext })).toBe(false);
+    expect(getContext).not.toHaveBeenCalled();
+    expect(presenter.acquireRenderSurface(1, 1)).toBeNull();
+    expect(presenter.present(createNativeBitmapFixture())).toBe(false);
+  });
+
   it("transfers a rendered bitmap into the connected surface", () => {
     const transferFromImageBitmap = vi.fn();
-    const surface = {
+    const surface = createNativeCanvasFixture({
       getContext: vi.fn((type: string) =>
         type === "bitmaprenderer" ? { transferFromImageBitmap } : null,
       ),
       height: 1,
       width: 1,
-    };
-    const bitmap = { height: 90, width: 160 } as ImageBitmap;
+    });
+    const bitmap = createNativeBitmapFixture({ height: 90, width: 160 });
     const presenter = createDirectPreviewPresenter();
 
     expect(presenter.present(bitmap)).toBe(false);
@@ -28,7 +46,7 @@ describe("sandbox direct preview presentation", () => {
     const clearRect = vi.fn();
     const drawImage = vi.fn();
     const transferFromImageBitmap = vi.fn();
-    const surface = {
+    const surface = createNativeCanvasFixture({
       getContext: vi.fn((type: string) =>
         type === "bitmaprenderer"
           ? { transferFromImageBitmap }
@@ -36,8 +54,8 @@ describe("sandbox direct preview presentation", () => {
       ),
       height: 45,
       width: 80,
-    };
-    const bitmap = { height: 45, width: 80 } as ImageBitmap;
+    });
+    const bitmap = createNativeBitmapFixture({ height: 45, width: 80 });
     const presenter = createDirectPreviewPresenter();
 
     expect(presenter.connect(surface)).toBe(true);
@@ -50,11 +68,11 @@ describe("sandbox direct preview presentation", () => {
   it("can render directly into and commit the connected 2d surface", () => {
     const commit = vi.fn();
     const context = { commit };
-    const surface = {
+    const surface = createNativeCanvasFixture({
       getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
       height: 45,
       width: 80,
-    };
+    });
     const presenter = createDirectPreviewPresenter();
 
     expect(presenter.connect(surface)).toBe(true);
@@ -70,16 +88,16 @@ describe("sandbox direct preview presentation", () => {
       clearRect: vi.fn(),
       drawImage: vi.fn(),
     };
-    const surface = {
+    const surface = createNativeCanvasFixture({
       getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
       height: 1,
       width: 1,
-    };
-    const bitmap = {
+    });
+    const bitmap = createNativeBitmapFixture({
       close: vi.fn(),
       height: 45,
       width: 80,
-    } as unknown as ImageBitmap;
+    });
     const presenter = createDirectPreviewPresenter();
 
     expect(presenter.connect(surface)).toBe(true);
@@ -95,16 +113,16 @@ describe("sandbox direct preview presentation", () => {
       drawImage: vi.fn(),
     };
     const transferFromImageBitmap = vi.fn();
-    const surface = {
+    const surface = createNativeCanvasFixture({
       getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
       height: 90,
       width: 160,
-    };
-    const bitmap = {
+    });
+    const bitmap = createNativeBitmapFixture({
       close: vi.fn(),
       height: 90,
       width: 160,
-    } as unknown as ImageBitmap;
+    });
     const presenter = createDirectPreviewPresenter();
 
     expect(presenter.connect(surface)).toBe(true);
@@ -121,7 +139,7 @@ describe("sandbox direct preview presentation", () => {
     };
     const setWidth = vi.fn();
     const setHeight = vi.fn();
-    const surface = {
+    const surface = createNativeCanvasFixture({
       getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
       get height() {
         return 90;
@@ -135,13 +153,13 @@ describe("sandbox direct preview presentation", () => {
       set width(value: number) {
         setWidth(value);
       },
-    };
+    });
     const presenter = createDirectPreviewPresenter();
 
     expect(presenter.connect(surface)).toBe(true);
-    expect(presenter.present({ height: 90, width: 160 } as ImageBitmap)).toBe(
-      true,
-    );
+    expect(
+      presenter.present(createNativeBitmapFixture({ height: 90, width: 160 })),
+    ).toBe(true);
     expect(setWidth).not.toHaveBeenCalled();
     expect(setHeight).not.toHaveBeenCalled();
   });

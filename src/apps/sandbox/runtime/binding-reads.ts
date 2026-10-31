@@ -68,7 +68,8 @@ export function recordBindingRead(
   if (
     !reads?.[type] ||
     bindingReadScopes.get(reads)?.dependencies === false ||
-    id == null ||
+    (typeof id !== "string" &&
+      (typeof id !== "number" || !Number.isFinite(id))) ||
     id === ""
   ) {
     return;
@@ -87,27 +88,23 @@ export function shouldRecordPrimitivePaintRead(
   return !selectedLayerId || selectedLayerId === layerId;
 }
 
-export function serializeBindingReads(context: any): Record<
-  BindingReadType,
-  string[]
-> & {
+type BindingReadContext =
+  | { __bindingReads?: BindingReads | null }
+  | null
+  | undefined;
+export type SerializedBindingReads = Record<BindingReadType, string[]> & {
   primitiveBounds: PrimitivePaintBounds[];
 };
 export function serializeBindingReads(
-  context: any,
-  options: { primitiveLayerId?: string; selectionOnly?: boolean },
-): Record<BindingReadType, string[]> & {
-  primitiveBounds: PrimitivePaintBounds[];
-};
-export function serializeBindingReads(
-  context: any,
+  context: BindingReadContext,
   options: { primitiveLayerId?: string; selectionOnly?: boolean } = {},
-) {
+): SerializedBindingReads {
   const reads = context?.__bindingReads ?? createBindingReads();
   if (options.selectionOnly) {
-    const primitiveBounds = options.primitiveLayerId
-      ? [reads.primitiveBounds.get(options.primitiveLayerId)].filter(Boolean)
-      : [];
+    const selected = options.primitiveLayerId
+      ? reads.primitiveBounds.get(options.primitiveLayerId)
+      : undefined;
+    const primitiveBounds = selected ? [selected] : [];
     return {
       clips: [],
       controls: [],
@@ -126,9 +123,9 @@ export function serializeBindingReads(
     inputFrames: sortedStrings(reads.inputFrames),
     layerGateReads: sortedStrings(reads.layerGateReads),
     layers: sortedStrings(reads.layers),
-    primitiveBounds: Array.from(
-      reads.primitiveBounds.values() as Iterable<PrimitivePaintBounds>,
-    ).sort((a, b) => a.layerId.localeCompare(b.layerId)),
+    primitiveBounds: Array.from(reads.primitiveBounds.values()).sort((a, b) =>
+      a.layerId.localeCompare(b.layerId),
+    ),
     primitivePaintReads: sortedStrings(reads.primitivePaintReads),
     phases: sortedStrings(reads.phases),
     tracks: sortedStrings(reads.tracks),
@@ -136,7 +133,7 @@ export function serializeBindingReads(
 }
 
 export function serializeFrameBindingReads(
-  context: any,
+  context: BindingReadContext,
   options: { primitiveLayerId?: string; selectionOnly?: boolean } = {},
 ) {
   if (options.selectionOnly && !context?.__bindingReads) {
@@ -145,6 +142,6 @@ export function serializeFrameBindingReads(
   return serializeBindingReads(context, options);
 }
 
-function sortedStrings(values: Iterable<unknown>): string[] {
-  return Array.from(values, String).sort();
+function sortedStrings(values: Iterable<string>): string[] {
+  return Array.from(values).sort();
 }

@@ -8,11 +8,11 @@ import {
 export const PREPARED_RENDER_MODEL = Symbol("preparedRenderModel");
 
 export type PreparedRenderModel = {
-  clips: any[];
+  clips: ReturnType<typeof normalizeClips>;
   duration: number;
-  layers: any[];
-  scenes: any[];
-  timeline: any;
+  layers: ReturnType<typeof normalizeLayers>;
+  scenes: ReturnType<typeof normalizeScenes>;
+  timeline: ReturnType<typeof normalizeTimeline>;
 };
 
 export function createRenderModelCache() {
@@ -22,9 +22,9 @@ export function createRenderModelCache() {
     clear() {
       current = null;
     },
-    resolve<Message extends Record<string | symbol, unknown>>(
-      message: Message,
-    ): Message & Record<string | symbol, unknown> {
+    resolve(
+      message: Record<string | symbol, unknown>,
+    ): Record<string | symbol, unknown> {
       if (message.renderModelId === undefined) {
         return message;
       }
@@ -61,7 +61,7 @@ function parseRenderModel(value: unknown) {
   if (!isRecord(value)) {
     throw new Error("Expected render model to be an object.");
   }
-  const duration = Number(value.duration);
+  const duration = typeof value.duration === "number" ? value.duration : NaN;
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new Error("Expected render model duration to be positive.");
   }
@@ -75,7 +75,7 @@ function parseRenderModel(value: unknown) {
   };
 }
 
-function parseTimeline(value: unknown): Record<string, any> {
+function parseTimeline(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) {
     throw new Error("Expected render model timeline to be an object.");
   }
@@ -85,26 +85,29 @@ function parseTimeline(value: unknown): Record<string, any> {
     if (track.keyframes !== undefined) {
       parseRecordArray(
         track.keyframes,
-        `keyframes for track ${track.id ?? ""}`,
+        `keyframes for track ${typeof track.id === "string" ? track.id : "(invalid)"}`,
       );
     }
   }
   return { ...value, phases, tracks };
 }
 
-function parseRecordArray(value: unknown, field: string): any[] {
-  if (!Array.isArray(value) || value.some((item) => !isRecord(item))) {
+function parseRecordArray(
+  value: unknown,
+  field: string,
+): Record<string, unknown>[] {
+  if (!Array.isArray(value) || !value.every(isRecord)) {
     throw new Error(`Expected ${field} to be an array of objects.`);
   }
   return value;
 }
 
 function prepareRenderModel(model: {
-  clips: any[];
+  clips: Record<string, unknown>[];
   duration: number;
-  layers: any[];
-  scenes: any[];
-  timeline: any;
+  layers: Record<string, unknown>[];
+  scenes: Record<string, unknown>[];
+  timeline: Record<string, unknown>;
 }): PreparedRenderModel {
   const scenes = normalizeScenes(model.scenes, model.duration);
   return {
@@ -116,6 +119,6 @@ function prepareRenderModel(model: {
   };
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

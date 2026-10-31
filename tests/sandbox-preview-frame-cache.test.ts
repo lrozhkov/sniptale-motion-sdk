@@ -1,3 +1,5 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { RetainedPreviewFrame } from "../src/apps/sandbox/runtime/preview-frame-codec.js";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -166,7 +168,7 @@ describe("sandbox preview frame cache", () => {
       createMessage({ controls: { density: 8, theme: "blue" } }),
     )!;
 
-    expect(clones[0].close).toHaveBeenCalledOnce();
+    expect(requiredEntry(clones, 0).close).toHaveBeenCalledOnce();
     expect(await cache.get(changed)).toBeNull();
     expect(cache.getStats()).toMatchObject({ bytes: 0, entries: 0 });
   });
@@ -180,7 +182,7 @@ describe("sandbox preview frame cache", () => {
 
     expect(await cache.get(cache.prepare(createMessage())!)).not.toBeNull();
     expect(cache.getStats()).toMatchObject({ bytes: 500, entries: 2 });
-    expect(clones[0].close).not.toHaveBeenCalled();
+    expect(requiredEntry(clones, 0).close).not.toHaveBeenCalled();
   });
 
   it("never substitutes an adjacent visual frame during replay", async () => {
@@ -365,8 +367,8 @@ describe("sandbox preview frame cache", () => {
     await cache.store(thirdRequest, createBitmap(), undefined);
 
     expect(await cache.get(secondRequest)).toBeNull();
-    expect(clones[0].close).not.toHaveBeenCalled();
-    expect(clones[1].close).toHaveBeenCalledOnce();
+    expect(requiredEntry(clones, 0).close).not.toHaveBeenCalled();
+    expect(requiredEntry(clones, 1).close).toHaveBeenCalledOnce();
     expect(cache.getStats()).toMatchObject({ bytes: 800, entries: 2 });
   });
 
@@ -432,4 +434,137 @@ describe("sandbox preview frame cache", () => {
       resolvePreviewFrameCacheRequest(createMessage({ controls: cyclic })),
     ).toBeNull();
   });
+});
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {
+    throw new Error("Deferred promise is not ready.");
+  };
+  let reject: (reason: unknown) => void = () => {
+    throw new Error("Deferred promise is not ready.");
+  };
+  const promise = new Promise<T>((accept, fail) => {
+    resolve = accept;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
+function retainedFrame(
+  restore = async () => createBitmap(),
+): RetainedPreviewFrame {
+  return {
+    bytes: 400,
+    height: 10,
+    width: 10,
+    rawBytes: 400,
+    release: vi.fn(),
+    restore,
+    storage: "bitmap",
+  };
+}
+
+it.each(["clear", "close"] as const)(
+  "discards encoding that finishes after cache %s",
+  async (action) => {
+    const encoded = deferred<RetainedPreviewFrame>();
+    const cache = createPreviewFrameCache(800, () => encoded.promise);
+    const request = cache.prepare(createMessage());
+    if (!request) throw new Error("Expected cache request.");
+    const stored = cache.store(request, createBitmap(), undefined);
+    cache[action]();
+    const frame = retainedFrame();
+    encoded.resolve(frame);
+    expect(await stored).toBe(false);
+    expect(frame.release).toHaveBeenCalledOnce();
+    expect(cache.getStats()).toMatchObject({ entries: 0, bytes: 0 });
+  },
+);
+
+it("discards decoded bitmaps after their cache entry is invalidated", async () => {
+  const decoded = deferred<ReturnType<typeof createBitmap>>();
+  const frame = retainedFrame(() => decoded.promise);
+  const cache = createPreviewFrameCache(800, async () => frame);
+  const request = cache.prepare(createMessage());
+  if (!request) throw new Error("Expected cache request.");
+  await cache.store(request, createBitmap(), undefined);
+  const restored = cache.get(request, { allowBorrow: false });
+  cache.clear();
+  const bitmap = createBitmap();
+  decoded.resolve(bitmap);
+  expect(await restored).toBeNull();
+  expect(bitmap.close).toHaveBeenCalledOnce();
+  expect(cache.getStats()).toMatchObject({ entries: 0, bytes: 0 });
+});
+
+it("releases a concurrent duplicate instead of replacing and double-counting it", async () => {
+  const first = deferred<RetainedPreviewFrame>();
+  const second = deferred<RetainedPreviewFrame>();
+  const pending = [first, second];
+  const cache = createPreviewFrameCache(800, () => {
+    const operation = pending.shift();
+    if (!operation) throw new Error("Unexpected encoder request.");
+    return operation.promise;
+  });
+  const request = cache.prepare(createMessage());
+  if (!request) throw new Error("Expected cache request.");
+  const one = cache.store(request, createBitmap(), undefined);
+  const two = cache.store(request, createBitmap(), undefined);
+  const firstFrame = retainedFrame();
+  const secondFrame = retainedFrame();
+  first.resolve(firstFrame);
+  expect(await one).toBe(true);
+  second.resolve(secondFrame);
+  expect(await two).toBe(false);
+  expect(secondFrame.release).toHaveBeenCalledOnce();
+  expect(firstFrame.release).not.toHaveBeenCalled();
+  expect(cache.getStats()).toMatchObject({
+    entries: 1,
+    bytes: 400,
+    rawBytes: 400,
+  });
+});
+
+it.each([
+  "duration",
+  "fps",
+  "frameIndex",
+  "width",
+  "height",
+  "effectId",
+  "renderQuality",
+])("rejects unknown cache %s without coercion", (key) => {
+  const convert = vi.fn(() => 1);
+  expect(
+    resolvePreviewFrameCacheRequest(
+      createMessage({ [key]: { valueOf: convert, toString: convert } }),
+    ),
+  ).toBeNull();
+  expect(convert).not.toHaveBeenCalled();
+});
+
+it("keeps a replacement entry when an invalidated decoder fails", async () => {
+  const decoded = deferred<ReturnType<typeof createBitmap>>();
+  const first = retainedFrame(() => decoded.promise);
+  const second = retainedFrame();
+  let retained = 0;
+  const cache = createPreviewFrameCache(800, async () =>
+    retained++ === 0 ? first : second,
+  );
+  const oldRequest = cache.prepare(createMessage());
+  if (!oldRequest) throw new Error("Expected cache request.");
+  await cache.store(oldRequest, createBitmap(), undefined);
+  const result = cache.get(oldRequest, { allowBorrow: false });
+  cache.clear();
+  const current = cache.prepare(createMessage());
+  if (!current) throw new Error("Expected cache request.");
+  await cache.store(current, createBitmap(), undefined);
+  decoded.reject(new Error("decoder failed"));
+  expect(await result).toBeNull();
+  expect(cache.getStats()).toMatchObject({
+    entries: 1,
+    bytes: 400,
+    rawBytes: 400,
+  });
+  expect(first.release).toHaveBeenCalledOnce();
+  expect(second.release).not.toHaveBeenCalled();
 });

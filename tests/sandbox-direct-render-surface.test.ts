@@ -1,11 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { createNativeCanvasFixture } from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDirectRenderSurfaceLease } from "../src/apps/sandbox/runtime/direct-render-surface";
 
 describe("sandbox direct render surface lease", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("claims the presentation surface once for the output-sized canvas", () => {
-    const fallbackCanvas = { fallback: true };
-    const surface = { height: 720, width: 1280 };
+    const fallbackCanvas = createNativeCanvasFixture({ fallback: true });
+    const surface = createNativeCanvasFixture({ height: 720, width: 1280 });
     const presenter = {
       acquireRenderSurface: vi.fn(() => surface),
       isRenderSurface: vi.fn((candidate) => candidate === surface),
@@ -27,7 +29,7 @@ describe("sandbox direct render surface lease", () => {
   });
 
   it("keeps cache renders on pooled canvases", () => {
-    const fallbackCanvas = { fallback: true };
+    const fallbackCanvas = createNativeCanvasFixture({ fallback: true });
     const presenter = {
       acquireRenderSurface: vi.fn(),
       isRenderSurface: vi.fn(),

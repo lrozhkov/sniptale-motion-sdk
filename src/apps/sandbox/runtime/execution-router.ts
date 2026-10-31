@@ -12,18 +12,16 @@ type SandboxSession = {
 
 type WorkerLike = {
   addEventListener(
-    type: "error" | "message",
-    listener: (event: any) => void,
+    type: "message",
+    listener: (event: MessageEvent<unknown>) => void,
   ): void;
+  addEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
   postMessage(message: unknown, transfer?: Transferable[]): void;
   terminate(): void;
 };
 
-type DirectRenderPortLike = Transferable & {
-  close?: () => void;
-};
-
-type DirectPresentationSurfaceLike = Transferable;
+type DirectRenderPortLike = MessagePort;
+type DirectPresentationSurfaceLike = OffscreenCanvas;
 
 export function createSandboxExecutionRouter({
   createForegroundSession,
@@ -125,7 +123,7 @@ export function createSandboxExecutionRouter({
     }
   }
 
-  function handleWorkerMessage(event: MessageEvent): void {
+  function handleWorkerMessage(event: MessageEvent<unknown>): void {
     const message = parseSandboxWorkerResponse(event.data);
     if (!message || message.kind === "workerReady") {
       return;
@@ -154,7 +152,7 @@ export function createSandboxExecutionRouter({
     }
     const bitmap =
       message.kind === "renderFrameResult" && message.ok
-        ? (message.bitmap as Transferable)
+        ? message.bitmap
         : null;
     const response =
       message.kind === "loadEffectDocumentResult" && message.ok
@@ -252,14 +250,18 @@ export function createSandboxExecutionRouter({
   }
 }
 
-export function prepareWorkerRenderMessage(message: Record<string, any>) {
-  if (message.assets === undefined) {
-    return { ...message };
-  }
+export function prepareWorkerRenderMessage(
+  message: Record<string, unknown>,
+): Record<string, unknown> {
+  if (message.assets === undefined) return { ...message };
+  if (!isRecord(message.assets)) throw new Error("Invalid render assets.");
   const assets = Object.fromEntries(
-    Object.entries(message.assets ?? {}).map(([id, asset]: [string, any]) => [
+    Object.entries(message.assets).map(([id, asset]) => [
       id,
-      asset?.svgText && !asset.svgVector
+      isRecord(asset) &&
+      typeof asset.svgText === "string" &&
+      asset.svgText &&
+      !asset.svgVector
         ? { ...asset, svgVector: serializeSvgVectorAsset(asset) }
         : asset,
     ]),
@@ -268,13 +270,27 @@ export function prepareWorkerRenderMessage(message: Record<string, any>) {
 }
 
 export function collectRenderTransferables(
-  message: Record<string, any>,
+  message: Record<string, unknown>,
 ): Transferable[] {
-  const values = [
-    ...Object.values(message.assets ?? {}).map((asset: any) => asset?.bitmap),
-    ...Object.values(message.inputFrames ?? {}).map(
-      (frame: any) => frame?.bitmap ?? frame,
-    ),
-  ].filter(Boolean) as Transferable[];
+  const values: ImageBitmap[] = [];
+  for (const [field, unwrap] of [
+    ["assets", true],
+    ["inputFrames", false],
+  ] as const) {
+    const entries = message[field];
+    if (entries === undefined) continue;
+    if (!isRecord(entries)) throw new Error(`Invalid render ${field}.`);
+    for (const entry of Object.values(entries)) {
+      const value =
+        isRecord(entry) && (unwrap || "bitmap" in entry) ? entry.bitmap : entry;
+      if (value == null) continue;
+      if (typeof ImageBitmap === "undefined" || !(value instanceof ImageBitmap))
+        throw new Error("Render transfer requires a native ImageBitmap.");
+      values.push(value);
+    }
+  }
   return Array.from(new Set(values));
+}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

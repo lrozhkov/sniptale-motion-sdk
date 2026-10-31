@@ -1,3 +1,4 @@
+import type { RuntimeCanvas } from "./canvas-model.js";
 import { closeAssetBitmaps } from "./render-assets.js";
 import { createRenderContext, renderSvgToCanvas } from "./render-context.js";
 import { serializeFrameBindingReads } from "./binding-reads.js";
@@ -42,16 +43,17 @@ export async function renderSandboxFrame(
     message.profileRender === true ? startedAt - queuedAt : null,
   );
   let context: ReturnType<typeof createRenderContext> | null = null;
-  let resolvedMessage = message;
+  const resolvedMessage = message;
   let canvasLease: FrameCanvasLease | null = null;
-  let canvasProfiler: ReturnType<typeof createCanvasOperationProfiler> | null =
-    null;
+  let canvasProfiler: ReturnType<
+    typeof createCanvasOperationProfiler<RuntimeCanvas>
+  > | null = null;
   let directRenderSurfaceLease: ReturnType<
     typeof createDirectRenderSurfaceLease
   > | null = null;
   try {
     let phaseStartedAt = performance.now();
-    resolvedMessage = renderModelCache.resolve(message);
+    renderModelCache.resolve(resolvedMessage);
     recordSandboxRenderProfilePhase(profile, "modelResolveMs", phaseStartedAt);
     const renderer = registry.getRenderer(resolvedMessage.effectId);
     if (!renderer) {
@@ -85,7 +87,7 @@ export async function renderSandboxFrame(
     phaseStartedAt = performance.now();
     canvasLease = canvasPool.beginFrame(String(resolvedMessage.effectId));
     const pooledCreateCanvas = canvasLease.createCanvas;
-    directRenderSurfaceLease = createDirectRenderSurfaceLease({
+    const surfaceLease = createDirectRenderSurfaceLease({
       cacheRequest,
       directPresentation,
       fallback: pooledCreateCanvas,
@@ -93,7 +95,9 @@ export async function renderSandboxFrame(
       presenter: previewPresenter,
       width: resolvedMessage.width,
     });
-    const createFrameCanvas = directRenderSurfaceLease.createCanvas;
+    directRenderSurfaceLease = surfaceLease;
+    const createFrameCanvas = (width: number, height: number) =>
+      surfaceLease.createCanvas(width, height);
     canvasProfiler =
       profile && message.profileCanvasOperations === true
         ? createCanvasOperationProfiler(createFrameCanvas, profile)
@@ -104,8 +108,11 @@ export async function renderSandboxFrame(
       height: resolvedMessage.height,
       width: resolvedMessage.width,
     };
+    const profiler = canvasProfiler;
     const createLogicalCanvas = createLogicalCanvasFactory({
-      createCanvas: canvasProfiler?.createCanvas ?? createFrameCanvas,
+      createCanvas: profiler
+        ? (width, height) => profiler.createCanvas(width, height)
+        : createFrameCanvas,
       outputHeight: resolvedMessage.outputHeight ?? resolvedMessage.height,
       outputWidth: resolvedMessage.outputWidth ?? resolvedMessage.width,
       renderHeight: resolvedMessage.height,
@@ -147,8 +154,12 @@ export async function renderSandboxFrame(
           },
         );
     recordSandboxRenderProfilePhase(profile, "normalizeMs", phaseStartedAt);
-    const previewWidth = bitmap ? bitmap.width : result.width;
-    const previewHeight = bitmap ? bitmap.height : result.height;
+    const previewWidth = bitmap
+      ? bitmap.width
+      : readDirectResultDimension(result, "width");
+    const previewHeight = bitmap
+      ? bitmap.height
+      : readDirectResultDimension(result, "height");
     phaseStartedAt = performance.now();
     const bindingReads = serializeFrameBindingReads(
       context,
@@ -257,4 +268,20 @@ export async function renderSandboxFrame(
     }
     closeAssetBitmaps(resolvedMessage.inputFrames);
   }
+}
+
+function readDirectResultDimension(
+  value: unknown,
+  key: "width" | "height",
+): number {
+  if (value === null || typeof value !== "object" || !(key in value))
+    throw new Error("Missing direct render dimensions.");
+  const dimension: unknown = Reflect.get(value, key);
+  if (
+    typeof dimension !== "number" ||
+    !Number.isFinite(dimension) ||
+    dimension <= 0
+  )
+    throw new Error("Invalid direct render dimensions.");
+  return dimension;
 }

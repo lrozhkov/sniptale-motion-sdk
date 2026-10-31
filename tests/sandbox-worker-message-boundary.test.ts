@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseSandboxWorkerResponse } from "../src/apps/sandbox/runtime/worker-message-boundary";
 import { SANDBOX_RENDER_PROFILE_FIELDS } from "../src/sdk/render-profile";
@@ -8,6 +9,7 @@ const renderProfile = Object.fromEntries(
 );
 
 describe("sandbox worker response boundary", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("accepts worker readiness and valid load results", () => {
     expect(parseSandboxWorkerResponse({ kind: "workerReady" })).toEqual({
       kind: "workerReady",
@@ -68,6 +70,19 @@ describe("sandbox worker response boundary", () => {
     });
   });
 
+  it("rejects ordinary objects as transferable frame results", () => {
+    expect(
+      parseSandboxWorkerResponse({
+        kind: "renderFrameResult",
+        ok: true,
+        bitmap: {},
+        durationMs: 1,
+        requestId: "frame:impostor",
+        sequenceId: 1,
+      }),
+    ).toBeNull();
+  });
+
   it("accepts transferable frame results and rejects malformed payloads", () => {
     expect(
       parseSandboxWorkerResponse({
@@ -79,7 +94,7 @@ describe("sandbox worker response boundary", () => {
     ).toBeNull();
     expect(
       parseSandboxWorkerResponse({
-        bitmap: {},
+        bitmap: createNativeBitmapFixture(),
         durationMs: 12.5,
         kind: "renderFrameResult",
         ok: true,
@@ -100,7 +115,7 @@ describe("sandbox worker response boundary", () => {
     ).toMatchObject({ kind: "renderFrameResult", ok: true });
     expect(
       parseSandboxWorkerResponse({
-        bitmap: {},
+        bitmap: createNativeBitmapFixture(),
         durationMs: 2,
         kind: "renderFrameResult",
         ok: true,
@@ -111,7 +126,7 @@ describe("sandbox worker response boundary", () => {
     ).toBeNull();
     expect(
       parseSandboxWorkerResponse({
-        bitmap: {},
+        bitmap: createNativeBitmapFixture(),
         durationMs: 2,
         kind: "renderFrameResult",
         ok: true,
@@ -122,7 +137,7 @@ describe("sandbox worker response boundary", () => {
     ).toBeNull();
     expect(
       parseSandboxWorkerResponse({
-        bitmap: {},
+        bitmap: createNativeBitmapFixture(),
         durationMs: 2,
         kind: "renderFrameResult",
         ok: true,

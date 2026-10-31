@@ -95,7 +95,8 @@ export function createSandboxRuntimeFacade(
     get three() {
       return optional.three;
     },
-    __prepareRuntimeCapabilities: optional.prepare,
+    __prepareRuntimeCapabilities: (capabilities: unknown) =>
+      optional.prepare(capabilities),
   };
   for (const property of ["React", "THREE", "r3f", "three"]) {
     Object.defineProperty(runtime, property, { configurable: false });

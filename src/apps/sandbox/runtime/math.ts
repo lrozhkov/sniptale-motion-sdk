@@ -12,7 +12,20 @@ export function deterministicRandom(seed: unknown): number {
   if (seed == null) {
     return 0.986326;
   }
-  const text = String(seed);
+  let text: string;
+  switch (typeof seed) {
+    case "string":
+      text = seed;
+      break;
+    case "number":
+    case "boolean":
+    case "bigint":
+    case "symbol":
+      text = String(seed);
+      break;
+    default:
+      throw new Error("Random seed must be a primitive value.");
+  }
   let hash = 2166136261;
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);
@@ -27,20 +40,27 @@ export function interpolatePoints(
   values: unknown,
   easingName: string,
 ): unknown {
-  const sourcePoints = Array.isArray(points) ? points : [];
-  const sourceValues = Array.isArray(values) ? values : [];
+  const pointValues: unknown[] = Array.isArray(points) ? points : [];
+  const sourcePoints = pointValues.filter(
+    (point): point is number =>
+      typeof point === "number" && Number.isFinite(point),
+  );
+  if (pointValues.length !== sourcePoints.length)
+    throw new Error("Interpolation points must be finite numbers.");
+  const sourceValues: unknown[] = Array.isArray(values) ? values : [];
   if (sourcePoints.length === 0 || sourceValues.length === 0) {
     return null;
   }
-  if (value <= sourcePoints[0]) {
+  const first = sourcePoints[0];
+  if (first !== undefined && value <= first) {
     return sourceValues[0];
   }
   for (let index = 0; index < sourcePoints.length - 1; index += 1) {
-    if (value <= sourcePoints[index + 1]) {
-      const t = ease(
-        easingName,
-        segment(value, sourcePoints[index], sourcePoints[index + 1]),
-      );
+    const start = sourcePoints[index];
+    const end = sourcePoints[index + 1];
+    if (start === undefined || end === undefined) continue;
+    if (value <= end) {
+      const t = ease(easingName, segment(value, start, end));
       return interpolateTimelineValue(
         sourceValues[index],
         sourceValues[index + 1],

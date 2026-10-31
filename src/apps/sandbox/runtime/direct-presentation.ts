@@ -1,108 +1,98 @@
-export type DirectPreviewSurface = {
-  getContext(
-    type: "2d" | "bitmaprenderer",
-    options?: { desynchronized?: boolean },
-  ): any;
-  height: number;
-  width: number;
-};
+import type { RuntimeCanvas, RuntimeCanvasContext } from "./canvas-model.js";
 
-type DirectPreviewPresentOptions = {
-  reusable?: boolean;
-};
+export type DirectPreviewSurface = RuntimeCanvas;
+type PresentationContext =
+  | { kind: "2d"; value: RuntimeCanvasContext }
+  | { kind: "bitmaprenderer"; value: ImageBitmapRenderingContext };
+
+export function isDirectPreviewSurface(
+  value: unknown,
+): value is DirectPreviewSurface {
+  return (
+    (typeof OffscreenCanvas !== "undefined" &&
+      value instanceof OffscreenCanvas) ||
+    (typeof HTMLCanvasElement !== "undefined" &&
+      value instanceof HTMLCanvasElement)
+  );
+}
 
 export function createDirectPreviewPresenter() {
-  let context: any = null;
-  let contextType: "2d" | "bitmaprenderer" | null = null;
+  let context: PresentationContext | null = null;
   let surface: DirectPreviewSurface | null = null;
-
   return {
     canPresentReusableBitmap(): boolean {
-      return contextType === "2d";
+      return context?.kind === "2d";
     },
-    acquireRenderSurface(width: number, height: number) {
-      if (!surface || !context || contextType !== "2d") {
-        return null;
-      }
+    acquireRenderSurface(
+      width: number,
+      height: number,
+    ): DirectPreviewSurface | null {
+      if (!surface || context?.kind !== "2d") return null;
       syncSurfaceSize(surface, width, height);
       return surface;
     },
     commitRenderSurface(candidate: unknown): boolean {
-      if (
-        !surface ||
-        !context ||
-        contextType !== "2d" ||
-        candidate !== surface
-      ) {
+      if (!surface || context?.kind !== "2d" || candidate !== surface)
         return false;
+      const target = context.value;
+      if ("commit" in target && typeof target.commit === "function") {
+        const result: unknown = Reflect.apply(target.commit, target, []);
+        void Promise.resolve(result).catch(() => {});
       }
-      context.commit?.();
       return true;
     },
-    connect(nextSurface: DirectPreviewSurface): boolean {
-      const canvasContext = getPreviewSurfaceContext(nextSurface, "2d");
-      const nextContext =
-        canvasContext ??
-        getPreviewSurfaceContext(nextSurface, "bitmaprenderer");
-      if (!nextContext) {
-        context = null;
-        contextType = null;
-        surface = null;
-        return false;
-      }
-      context = nextContext;
-      contextType = canvasContext ? "2d" : "bitmaprenderer";
-      surface = nextSurface;
-      return true;
+    connect(nextSurface: unknown): boolean {
+      context = isDirectPreviewSurface(nextSurface)
+        ? getPreviewSurfaceContext(nextSurface)
+        : null;
+      surface =
+        context && isDirectPreviewSurface(nextSurface) ? nextSurface : null;
+      return context !== null;
     },
     isRenderSurface(candidate: unknown): boolean {
-      return Boolean(surface && contextType === "2d" && candidate === surface);
+      return Boolean(
+        surface && context?.kind === "2d" && candidate === surface,
+      );
     },
     present(
       bitmap: ImageBitmap,
-      options: DirectPreviewPresentOptions = {},
+      options: { reusable?: boolean } = {},
     ): boolean {
-      if (!surface || !context) {
-        return false;
-      }
+      if (!surface || !context) return false;
       syncSurfaceSize(surface, bitmap.width, bitmap.height);
-      if (contextType === "bitmaprenderer") {
-        context.transferFromImageBitmap(bitmap);
+      if (context.kind === "bitmaprenderer") {
+        context.value.transferFromImageBitmap(bitmap);
       } else {
-        context.clearRect(0, 0, surface.width, surface.height);
-        context.drawImage(bitmap, 0, 0);
-        if (options.reusable !== true) {
-          bitmap.close?.();
-        }
+        context.value.clearRect(0, 0, surface.width, surface.height);
+        context.value.drawImage(bitmap, 0, 0);
+        if (options.reusable !== true) bitmap.close();
       }
       return true;
     },
   };
 }
-
 function syncSurfaceSize(
   surface: DirectPreviewSurface,
   width: number,
   height: number,
 ): void {
-  if (surface.width !== width) {
-    surface.width = width;
-  }
-  if (surface.height !== height) {
-    surface.height = height;
-  }
+  if (surface.width !== width) surface.width = width;
+  if (surface.height !== height) surface.height = height;
 }
-
 function getPreviewSurfaceContext(
   surface: DirectPreviewSurface,
-  type: "2d" | "bitmaprenderer",
-): any {
+): PresentationContext | null {
   try {
-    return surface.getContext(
-      type,
-      type === "2d" ? { desynchronized: true } : undefined,
-    );
+    const value = surface.getContext("2d", { desynchronized: true });
+    if (value) return { kind: "2d", value };
   } catch {
-    return null;
+    /* Try the supported fallback context. */
   }
+  try {
+    const value = surface.getContext("bitmaprenderer");
+    if (value) return { kind: "bitmaprenderer", value };
+  } catch {
+    /* This surface cannot present frames. */
+  }
+  return null;
 }

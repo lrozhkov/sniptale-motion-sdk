@@ -1,16 +1,31 @@
+import type { RuntimeCanvasContext } from "./canvas-model.js";
+import type { drawImageAsset as DrawImageAsset } from "./render-assets.js";
+import type {
+  HydratedSvgPart,
+  ParsedSvgVector,
+  SvgDrawOptions,
+} from "./svg-vector-model.js";
+import {
+  readSvgVectorAsset,
+  readSvgDrawOptions,
+  readSvgPartTransformResult,
+  readSvgPartFilterResult,
+} from "./svg-vector-boundary.js";
 import { roundRect } from "./math.js";
 import { parseSvgAsset } from "./svg-vector-parser.js";
 
 export function drawSvgVectorAsset(
-  context: any,
-  asset: any,
-  args: any,
-  drawImageAsset: any,
+  context: RuntimeCanvasContext,
+  value: unknown,
+  options: unknown,
+  drawImageAsset: typeof DrawImageAsset,
 ) {
+  const asset = readSvgVectorAsset(value);
+  const args = readSvgDrawOptions(options);
   if (
     (!asset?.svgText && !asset?.svgVector) ||
     typeof Path2D === "undefined" ||
-    (!asset.svgVector && typeof DOMParser === "undefined")
+    (!asset?.svgVector && typeof DOMParser === "undefined")
   ) {
     drawImageAsset(context, asset, args);
     return;
@@ -20,82 +35,94 @@ export function drawSvgVectorAsset(
     alpha = 1,
     composite = "source-over",
     filter = "none",
-    height = asset.height ?? parsed.height,
-    partFilter,
-    partGroups,
-    partIds,
+    height = asset?.height ?? parsed.height,
     partTransform,
     shadowBlur = 0,
     shadowColor = "transparent",
-    width = asset.width ?? parsed.width,
+    width = asset?.width ?? parsed.width,
     x = 0,
     y = 0,
   } = args ?? {};
   context.save();
-  context.globalAlpha *= alpha;
-  context.globalCompositeOperation = composite;
-  context.filter = filter;
-  context.shadowBlur = shadowBlur;
-  context.shadowColor = shadowColor;
-  context.translate(x, y);
-  context.scale(width / parsed.width, height / parsed.height);
-  parsed.parts.forEach((part: any, index: number) => {
-    if (!matchesSvgPart(part, { partFilter, partGroups, partIds })) {
-      return;
-    }
-    drawSvgPart(context, part, index, parsed, partTransform);
-  });
-  context.restore();
+  try {
+    context.globalAlpha *= alpha;
+    context.globalCompositeOperation = composite;
+    context.filter = filter;
+    context.shadowBlur = shadowBlur;
+    context.shadowColor = shadowColor;
+    context.translate(x, y);
+    context.scale(width / parsed.width, height / parsed.height);
+    parsed.parts.forEach((part: HydratedSvgPart, index: number) => {
+      if (!matchesSvgPart(part, args)) {
+        return;
+      }
+      drawSvgPart(context, part, index, parsed, partTransform);
+    });
+  } finally {
+    context.restore();
+  }
 }
 
 function drawSvgPart(
-  context: any,
-  part: any,
+  context: RuntimeCanvasContext,
+  part: HydratedSvgPart,
   index: number,
-  parsed: any,
-  partTransform: any,
+  parsed: ParsedSvgVector,
+  partTransform: SvgDrawOptions["partTransform"],
 ) {
   const transform =
     typeof partTransform === "function"
-      ? (partTransform(part, index, parsed) ?? {})
+      ? readSvgPartTransformResult(partTransform(part, index, parsed))
       : {};
   const partAlpha = (transform.alpha ?? 1) * (part.opacity ?? 1);
   if (partAlpha <= 0) {
     return;
   }
   context.save();
-  context.globalAlpha *= partAlpha;
-  if (transform.composite)
-    context.globalCompositeOperation = transform.composite;
-  if (transform.filter) context.filter = transform.filter;
-  context.translate(transform.x ?? 0, transform.y ?? 0);
-  const originX = transform.originX ?? part.cx ?? parsed.width * 0.5;
-  const originY = transform.originY ?? part.cy ?? parsed.height * 0.5;
-  if (transform.rotate || transform.scale) {
-    context.translate(originX, originY);
-    context.rotate(transform.rotate ?? 0);
-    const scale = transform.scale ?? 1;
-    context.scale(scale, scale);
-    context.translate(-originX, -originY);
+  try {
+    context.globalAlpha *= partAlpha;
+    if (transform.composite)
+      context.globalCompositeOperation = transform.composite;
+    if (transform.filter) context.filter = transform.filter;
+    context.translate(transform.x ?? 0, transform.y ?? 0);
+    const originX = transform.originX ?? part.cx ?? parsed.width * 0.5;
+    const originY = transform.originY ?? part.cy ?? parsed.height * 0.5;
+    if (transform.rotate || transform.scale) {
+      context.translate(originX, originY);
+      context.rotate(transform.rotate ?? 0);
+      const scale = transform.scale ?? 1;
+      context.scale(scale, scale);
+      context.translate(-originX, -originY);
+    }
+    context.lineCap =
+      part.strokeLineCap === "round" || part.strokeLineCap === "square"
+        ? part.strokeLineCap
+        : "butt";
+    context.lineJoin =
+      part.strokeLineJoin === "round" || part.strokeLineJoin === "bevel"
+        ? part.strokeLineJoin
+        : "miter";
+    context.lineWidth = part.strokeWidth ?? 1;
+    if (part.fill) {
+      context.fillStyle = part.fill;
+    }
+    if (part.stroke) {
+      context.strokeStyle = part.stroke;
+    }
+    if (part.type === "path") {
+      drawPathPart(context, part);
+    } else {
+      drawRectPart(context, part);
+    }
+  } finally {
+    context.restore();
   }
-  context.lineCap = part.strokeLineCap ?? "butt";
-  context.lineJoin = part.strokeLineJoin ?? "miter";
-  context.lineWidth = part.strokeWidth ?? 1;
-  if (part.fill) {
-    context.fillStyle = part.fill;
-  }
-  if (part.stroke) {
-    context.strokeStyle = part.stroke;
-  }
-  if (part.type === "path") {
-    drawPathPart(context, part);
-  } else {
-    drawRectPart(context, part);
-  }
-  context.restore();
 }
 
-function drawPathPart(context: any, part: any) {
+function drawPathPart(
+  context: RuntimeCanvasContext,
+  part: Extract<HydratedSvgPart, { type: "path" }>,
+) {
   if (part.fill) {
     context.fill(part.path);
   }
@@ -104,7 +131,10 @@ function drawPathPart(context: any, part: any) {
   }
 }
 
-function drawRectPart(context: any, part: any) {
+function drawRectPart(
+  context: RuntimeCanvasContext,
+  part: Extract<HydratedSvgPart, { type: "rect" }>,
+) {
   roundRect(context, part.x, part.y, part.width, part.height, part.rx);
   if (part.fill) {
     context.fill();
@@ -114,8 +144,14 @@ function drawRectPart(context: any, part: any) {
   }
 }
 
-function matchesSvgPart(part: any, filters: any) {
-  if (typeof filters.partFilter === "function" && !filters.partFilter(part)) {
+function matchesSvgPart(
+  part: HydratedSvgPart,
+  filters: Pick<SvgDrawOptions, "partFilter" | "partIds" | "partGroups">,
+) {
+  if (
+    typeof filters.partFilter === "function" &&
+    !readSvgPartFilterResult(filters.partFilter(part))
+  ) {
     return false;
   }
   if (

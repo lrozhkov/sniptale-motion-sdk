@@ -56,7 +56,7 @@ describe("sandbox preview cache session", () => {
   });
 
   it("keeps the weak-GPU playback cache compact instead of retaining raw frames", async () => {
-    const bitmap = { height: 90, width: 160 };
+    const bitmap = { close: vi.fn(), height: 90, width: 160 };
     const cacheRequest = { key: "frame:1" };
     const previewFrameCache = { store: vi.fn(async () => true) };
 

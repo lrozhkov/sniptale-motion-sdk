@@ -26,6 +26,7 @@ export type SandboxWorkerResponse =
     }
   | {
       [key: string]: unknown;
+      bitmap?: ImageBitmap;
       durationMs: number;
       error?: string;
       kind: "renderFrameResult";
@@ -124,14 +125,22 @@ export function parseSandboxWorkerResponse(
       !isOptionalNonNegativeFiniteNumber(value.previewCacheTotalFrames) ||
       !isOptionalPreviewCacheStorage(value.previewCacheStorage) ||
       (value.renderProfile !== undefined && !renderProfile) ||
-      (value.ok && !isRecord(value.bitmap) && !isValidPresentedFrame(value))
+      (value.bitmap !== undefined && !isNativeBitmap(value.bitmap)) ||
+      (value.ok && value.bitmap === undefined && !isValidPresentedFrame(value))
     ) {
       return null;
     }
+    const { bitmap, ...metadata } = value;
     return {
-      ...value,
+      ...metadata,
+      durationMs: value.durationMs,
+      kind: "renderFrameResult",
+      ok: value.ok,
+      requestId: value.requestId,
+      sequenceId: value.sequenceId,
+      ...(isNativeBitmap(bitmap) ? { bitmap } : {}),
       ...(renderProfile ? { renderProfile } : {}),
-    } as SandboxWorkerResponse;
+    };
   }
   return null;
 }
@@ -167,7 +176,7 @@ function isRenderProgressPhase(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -205,4 +214,8 @@ function isOptionalPreviewCacheStorage(
     value === "none" ||
     value === "png"
   );
+}
+
+function isNativeBitmap(value: unknown): value is ImageBitmap {
+  return typeof ImageBitmap !== "undefined" && value instanceof ImageBitmap;
 }

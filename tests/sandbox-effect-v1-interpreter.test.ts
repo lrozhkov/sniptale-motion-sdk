@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { createRuntimeCanvasFixture } from "./helpers/runtime-canvas.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EFFECT_V1_SCHEMA } from "../src/sdk/effect-v1";
 import { createEffectV1GraphRenderer } from "../src/apps/sandbox/runtime/effect-v1/interpreter";
@@ -6,11 +8,43 @@ import { evaluateEffectV1Expression } from "../src/apps/sandbox/runtime/effect-v
 import { createBindingReads } from "../src/apps/sandbox/runtime/binding-reads";
 
 describe("sandbox Effect v1 interpreter", () => {
+  it("rejects unbranded runtime image inputs before invoking the drawing adapter", async () => {
+    const runtime = { drawImageAsset: vi.fn() };
+    const document = createDocument([
+      { op: "image", input: "source", x: 0, y: 0, width: 10, height: 10 },
+    ]);
+    document.kind = "targetEffect";
+    const renderer = createEffectV1GraphRenderer(document, runtime);
+    await expect(
+      renderer.renderFrame({
+        width: 10,
+        height: 10,
+        createCanvas: () => createCanvas(10, 10, []),
+        inputFrames: { source: { width: 10, height: 10 } },
+        track: (_id, fallback) => fallback,
+        resolveLayer: () => null,
+      }),
+    ).rejects.toThrow("native ImageBitmap");
+    expect(runtime.drawImageAsset).not.toHaveBeenCalled();
+  });
+
+  it("reports an unavailable Canvas 2D context at the frame boundary", async () => {
+    const renderer = createEffectV1GraphRenderer(createDocument([]), {});
+    await expect(
+      renderer.renderFrame({
+        width: 10,
+        height: 10,
+        createCanvas: () => createRuntimeCanvasFixture(null, 10, 10),
+        track: (_id, fallback) => fallback,
+        resolveLayer: () => null,
+      }),
+    ).rejects.toThrow("Canvas 2D context is unavailable");
+  });
   it.each(["source-atop", "destination-in"])(
     "preserves the agreed %s compositing operation",
     async (blend) => {
       const context = createPassContext();
-      const canvas = { width: 32, height: 32, getContext: () => context };
+      const canvas = createRuntimeCanvasFixture(context, 32, 32);
       const renderer = createEffectV1GraphRenderer(
         createDocument([
           {
@@ -34,6 +68,8 @@ describe("sandbox Effect v1 interpreter", () => {
         progress: 0.5,
         controls: {},
         inputFrames: {},
+        track: (_id, fallback) => fallback,
+        resolveLayer: () => null,
       });
       expect(context.globalCompositeOperation).toBe(blend);
     },
@@ -41,7 +77,7 @@ describe("sandbox Effect v1 interpreter", () => {
 
   it("rejects an unsupported blend instead of silently substituting source-over", async () => {
     const context = createPassContext();
-    const canvas = { width: 32, height: 32, getContext: () => context };
+    const canvas = createRuntimeCanvasFixture(context, 32, 32);
     const renderer = createEffectV1GraphRenderer(
       createDocument([
         {
@@ -65,6 +101,8 @@ describe("sandbox Effect v1 interpreter", () => {
         progress: 0,
         controls: {},
         inputFrames: {},
+        track: (_id, fallback) => fallback,
+        resolveLayer: () => null,
       }),
     ).rejects.toThrow("Unsupported Effect v1 blend");
   });
@@ -72,7 +110,7 @@ describe("sandbox Effect v1 interpreter", () => {
   it("reports primitive bounds after graph group and layer transforms", async () => {
     const bindingReads = createBindingReads();
     const context = createGeometryTrackingContext();
-    const canvas = { getContext: () => context, height: 720, width: 1280 };
+    const canvas = createRuntimeCanvasFixture(context, 1280, 720);
     const renderer = createEffectV1GraphRenderer(
       createDocument([
         {
@@ -147,14 +185,11 @@ describe("sandbox Effect v1 interpreter", () => {
     const rootContext = createGeometryTrackingContext();
     const passContext = createGeometryTrackingContext();
     const canvases = [
-      { getContext: () => rootContext, height: 300, width: 400 },
-      {
+      createRuntimeCanvasFixture(rootContext, 400, 300),
+      createRuntimeCanvasFixture(passContext, 100, 100, {
         __sniptaleLogicalHeight: 100,
         __sniptaleLogicalWidth: 100,
-        getContext: () => passContext,
-        height: 100,
-        width: 100,
-      },
+      }),
     ];
     const renderer = createEffectV1GraphRenderer(
       createDocument([
@@ -191,7 +226,11 @@ describe("sandbox Effect v1 interpreter", () => {
       __bindingReads: bindingReads,
       assets: {},
       controls: {},
-      createCanvas: () => canvases.shift(),
+      createCanvas: () => {
+        const canvas = canvases.shift();
+        if (!canvas) throw new Error("Canvas fixtures exhausted.");
+        return canvas;
+      },
       duration: 2,
       frameIndex: 0,
       height: 300,
@@ -220,7 +259,13 @@ describe("sandbox Effect v1 interpreter", () => {
   });
 
   it("draws type-owned runtime inputs without evaluating bundle code", async () => {
-    const source = { height: 100, width: 200 };
+    class Bitmap {
+      height = 100;
+      width = 200;
+      close() {}
+    }
+    vi.stubGlobal("ImageBitmap", Bitmap);
+    const source = new Bitmap();
     const runtime = {
       drawImageAsset: vi.fn(),
       drawSvgVectorAsset: vi.fn(),
@@ -318,7 +363,7 @@ describe("sandbox Effect v1 interpreter", () => {
       width: 200,
     });
 
-    const args = runtime.drawSvgVectorAsset.mock.calls[0][2];
+    const args = requiredEntry(runtime.drawSvgVectorAsset.mock.calls, 0)[2];
     expect(args.alpha).toBe(1);
     expect(args.partTransform({ cx: 11 }, 1, { parts: [{}, {}] })).toEqual({
       alpha: 1.5,
@@ -515,11 +560,7 @@ describe("sandbox Effect v1 interpreter", () => {
       save: record("save"),
       setTransform: record("setTransform"),
     };
-    const canvas = {
-      getContext: () => context,
-      height: 2160,
-      width: 3840,
-    };
+    const canvas = createRuntimeCanvasFixture(context, 3840, 2160);
     const renderer = createEffectV1GraphRenderer(
       createDocument([{ color: "#101820", op: "clear" }]),
       {},
@@ -560,20 +601,14 @@ describe("sandbox Effect v1 interpreter", () => {
     const drawImage = vi.fn();
     const rootContext = createPassContext({ drawImage });
     const passContext = createPassContext();
-    const rootCanvas = {
+    const rootCanvas = createRuntimeCanvasFixture(rootContext, 3840, 2160, {
       __sniptaleLogicalHeight: 720,
       __sniptaleLogicalWidth: 1280,
-      getContext: () => rootContext,
-      height: 2160,
-      width: 3840,
-    };
-    const passCanvas = {
+    });
+    const passCanvas = createRuntimeCanvasFixture(passContext, 3840, 2160, {
       __sniptaleLogicalHeight: 720,
       __sniptaleLogicalWidth: 1280,
-      getContext: () => passContext,
-      height: 2160,
-      width: 3840,
-    };
+    });
     const canvases = [rootCanvas, passCanvas];
     const renderer = createEffectV1GraphRenderer(
       createDocument([
@@ -601,7 +636,11 @@ describe("sandbox Effect v1 interpreter", () => {
     await renderer.renderFrame({
       assets: {},
       controls: {},
-      createCanvas: () => canvases.shift(),
+      createCanvas: () => {
+        const canvas = canvases.shift();
+        if (!canvas) throw new Error("Canvas fixtures exhausted.");
+        return canvas;
+      },
       duration: 2,
       frameIndex: 0,
       height: 720,
@@ -622,13 +661,10 @@ describe("sandbox Effect v1 interpreter", () => {
       __sniptaleLogicalScaleX: 3,
       __sniptaleLogicalScaleY: 3,
     });
-    const canvas = {
+    const canvas = createRuntimeCanvasFixture(context, 3840, 2160, {
       __sniptaleLogicalHeight: 720,
       __sniptaleLogicalWidth: 1280,
-      getContext: () => context,
-      height: 2160,
-      width: 3840,
-    };
+    });
     const renderer = createEffectV1GraphRenderer(
       createDocument([
         {
@@ -751,7 +787,7 @@ function createCanvas(
   });
   context.createRadialGradient = context.createLinearGradient;
   context.measureText = (text: string) => ({ width: text.length * 8 });
-  const canvas = { getContext: () => context, height, width };
+  const canvas = createRuntimeCanvasFixture(context, width, height);
   return canvas;
 
   function record(name: string) {
@@ -834,3 +870,5 @@ function createGeometryTrackingContext(): any {
     };
   }
 }
+
+afterEach(() => vi.unstubAllGlobals());

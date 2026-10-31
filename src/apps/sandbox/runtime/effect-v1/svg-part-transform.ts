@@ -1,10 +1,14 @@
+import type {
+  SvgPartTransform,
+  SvgPartTransformResult,
+} from "../svg-part-model.js";
 import { getLogicalCanvasScale } from "../logical-canvas.js";
 import { isRecord, n, type RenderState, v, withItem } from "./model.js";
 
 export function createSvgPartTransform(
   value: unknown,
   state: RenderState,
-): any {
+): SvgPartTransform | undefined {
   if (!isRecord(value)) return undefined;
   if (value.kind === "preset") {
     const resolved = Object.fromEntries(
@@ -12,10 +16,12 @@ export function createSvgPartTransform(
         .filter(([key]) => key !== "kind")
         .map(([key, expression]) => [key, v(expression, state)]),
     );
+    if (!state.runtime.svgPartTransform)
+      throw new Error("SVG part transforms are unavailable.");
     return state.runtime.svgPartTransform(resolved);
   }
   if (value.kind !== "custom") return undefined;
-  return (part: any, index: number, parsed: any) =>
+  return (part, index, parsed) =>
     withItem(
       state,
       {
@@ -27,8 +33,11 @@ export function createSvgPartTransform(
     );
 }
 
-function resolveCustomSvgPartTransform(value: any, state: RenderState) {
-  const result: Record<string, unknown> = {};
+function resolveCustomSvgPartTransform(
+  value: Record<string, unknown>,
+  state: RenderState,
+): SvgPartTransformResult {
+  const result: SvgPartTransformResult = {};
   for (const key of [
     "alpha",
     "originX",
@@ -37,7 +46,7 @@ function resolveCustomSvgPartTransform(value: any, state: RenderState) {
     "scale",
     "x",
     "y",
-  ]) {
+  ] as const) {
     if (value[key] !== undefined) result[key] = n(value[key], state);
   }
   if (value.blur !== undefined) {

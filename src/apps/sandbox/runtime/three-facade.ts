@@ -9,6 +9,26 @@ import {
   shouldBypassThreeRenderForBindingAudit,
 } from "./three-render-plan.js";
 
+type R3fRoot = ReturnType<typeof createRoot>;
+type R3fConfigureOptions = NonNullable<Parameters<R3fRoot["configure"]>[0]>;
+type FrameDimensions = { width?: number; height?: number; dpr?: number };
+type ThreeFrameOptions = FrameDimensions & {
+  rendererParameters?: THREE.WebGLRendererParameters;
+  toneMapping?: THREE.ToneMapping;
+};
+type R3fFrameOptions = FrameDimensions & {
+  camera?: R3fConfigureOptions["camera"];
+  gl?: THREE.WebGLRendererParameters;
+  linear?: boolean;
+  flat?: boolean;
+  configure?: R3fConfigureOptions;
+};
+type ThreeRenderOptions = {
+  clearColor?: THREE.ColorRepresentation;
+  clearAlpha?: number;
+};
+type R3fRenderOptions = { timestamp?: number };
+
 const THREE_CATALOGUE = Object.freeze({
   AmbientLight: THREE.AmbientLight,
   BoxGeometry: THREE.BoxGeometry,
@@ -49,11 +69,11 @@ export function createThreeSandboxFacade({
   return Object.freeze({
     THREE: createCuratedThreeFacade(),
     r3f: Object.freeze({
-      createFrameRenderer: (options: any = {}) =>
+      createFrameRenderer: (options: R3fFrameOptions = {}) =>
         createR3fFrameRenderer(options, getRenderViewport, isBindingAudit),
     }),
     three: Object.freeze({
-      createFrameRenderer: (options: any = {}) =>
+      createFrameRenderer: (options: ThreeFrameOptions = {}) =>
         createThreeFrameRenderer(options, getRenderViewport, isBindingAudit),
     }),
   });
@@ -86,7 +106,7 @@ function createCuratedThreeFacade() {
 }
 
 function createThreeFrameRenderer(
-  options: any = {},
+  options: ThreeFrameOptions = {},
   getRenderViewport: () => { height?: number; width?: number } | null,
   isBindingAudit: () => boolean,
 ) {
@@ -133,7 +153,7 @@ function createThreeFrameRenderer(
     async render(
       scene: THREE.Object3D,
       camera: THREE.Camera,
-      renderOptions: any = {},
+      renderOptions: ThreeRenderOptions = {},
     ) {
       if (isBindingAudit()) {
         return createBindingAuditBitmap(
@@ -179,7 +199,7 @@ function createThreeFrameRenderer(
 }
 
 function createR3fFrameRenderer(
-  options: any = {},
+  options: R3fFrameOptions = {},
   getRenderViewport: () => { height?: number; width?: number } | null,
   isBindingAudit: () => boolean,
 ) {
@@ -187,11 +207,11 @@ function createR3fFrameRenderer(
   const requestedWidth = positiveNumber(options.width, 1280);
   const requestedHeight = positiveNumber(options.height, 720);
   const canvas = createWebGlCanvas(requestedWidth, requestedHeight);
-  let configured: Promise<any> | null = null;
+  let configured: ReturnType<R3fRoot["configure"]> | null = null;
   let currentHeight = 0;
   let currentWidth = 0;
   let root: ReturnType<typeof createRoot> | null = null;
-  let store: any = null;
+  let store: ReturnType<R3fRoot["render"]> | null = null;
 
   function ensureRoot() {
     const size = resolveThreeRenderSize(
@@ -227,7 +247,7 @@ function createR3fFrameRenderer(
 
   return Object.freeze({
     canvas,
-    async render(element: ReactNode, renderOptions: any = {}) {
+    async render(element: ReactNode, renderOptions: R3fRenderOptions = {}) {
       if (isBindingAudit()) {
         return createBindingAuditBitmap(
           resolveThreeRenderSize(
@@ -243,6 +263,7 @@ function createR3fFrameRenderer(
       flushSync(() => {
         store = active.root.render(element);
       });
+      if (!store) throw new Error("R3F frame renderer did not create a store.");
       const state = store.getState();
       if (
         active.size.width !== currentWidth ||
@@ -295,7 +316,7 @@ function configureWebGlRenderer(
   renderer: THREE.WebGLRenderer,
   width: number,
   height: number,
-  options: any,
+  options: ThreeFrameOptions,
 ) {
   renderer.setPixelRatio(positiveNumber(options.dpr, 1));
   renderer.setSize(width, height, false);

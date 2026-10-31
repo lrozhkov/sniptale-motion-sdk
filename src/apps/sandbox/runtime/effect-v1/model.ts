@@ -1,4 +1,6 @@
-import type { RuntimeCanvas } from "../canvas-model.js";
+import type { createSandboxRuntimeFacade } from "../runtime-facade.js";
+import type { RuntimeResolvedLayer } from "../render-resolver.js";
+import type { RuntimeCanvas, RuntimeCanvasContext } from "../canvas-model.js";
 import type { BindingReads } from "../binding-reads.js";
 import type { EffectV1Command } from "../../../../sdk/effect-v1/types.js";
 import {
@@ -8,17 +10,31 @@ import {
   type EffectV1EvaluationContext,
 } from "./expression.js";
 
-type EffectV1RenderContext = EffectV1EvaluationContext & {
+export type EffectV1Layer = Pick<
+  RuntimeResolvedLayer,
+  "active" | "opacity" | "x" | "y"
+>;
+
+export interface EffectV1RenderContext extends EffectV1EvaluationContext {
+  resolveLayer(id: string): EffectV1Layer | null;
   width: number;
   height: number;
   createCanvas(width: number, height: number): RuntimeCanvas;
   __bindingReads?: BindingReads | null;
-};
+}
 export type RenderState = {
-  canvas: any;
-  context: any;
-  passes: Map<string, any>;
-  runtime: any;
+  canvas: RuntimeCanvas;
+  context: RuntimeCanvasContext;
+  passes: Map<
+    string,
+    { canvas: RuntimeCanvas; bindingReads: BindingReads | null }
+  >;
+  runtime: Partial<
+    Pick<
+      ReturnType<typeof createSandboxRuntimeFacade>,
+      "drawImageAsset" | "drawSvgVectorAsset" | "svgPartTransform"
+    >
+  >;
   scope: Omit<EffectV1EvaluationScope, "context"> & {
     context: EffectV1RenderContext;
   };
@@ -27,9 +43,9 @@ export type RenderState = {
 export function resolveCommandLayer(
   command: EffectV1Command,
   state: RenderState,
-): any {
+): EffectV1Layer | null {
   return command.layerId
-    ? state.scope.context.resolveLayer(String(command.layerId))
+    ? state.scope.context.resolveLayer(command.layerId)
     : null;
 }
 
@@ -63,6 +79,6 @@ export function valueOr(
   return value === undefined ? fallback : n(value, state);
 }
 
-export function isRecord(value: unknown): value is Record<string, any> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

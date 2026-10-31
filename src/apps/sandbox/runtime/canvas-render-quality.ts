@@ -23,6 +23,7 @@ export function installCanvasRenderQuality(
     globalThis.CanvasRenderingContext2D?.prototype,
   ].filter(Boolean);
   for (const prototype of prototypes) {
+    if (!prototype) continue;
     for (const property of REDUCED_NUMERIC_EFFECT_PROPERTIES) {
       wrapSetter(prototype, property, (value) =>
         resolveQuality() === "reduced" ? 0 : value,
@@ -33,7 +34,8 @@ export function installCanvasRenderQuality(
     );
     wrapSetter(prototype, "globalCompositeOperation", (value) =>
       resolveQuality() === "reduced" &&
-      REDUCED_EXPENSIVE_BLEND_MODES.has(String(value))
+      typeof value === "string" &&
+      REDUCED_EXPENSIVE_BLEND_MODES.has(value)
         ? "source-over"
         : value,
     );
@@ -44,7 +46,7 @@ export function installCanvasRenderQuality(
 }
 
 function wrapSetter(
-  prototype: any,
+  prototype: object,
   property: string,
   transform: (value: unknown) => unknown,
 ): void {
@@ -54,8 +56,8 @@ function wrapSetter(
   }
   Object.defineProperty(prototype, property, {
     ...descriptor,
-    set(value) {
-      return descriptor.set?.call(this, transform(value));
+    set: function (this: unknown, value: unknown): void {
+      descriptor.set?.call(this, transform(value));
     },
   });
 }

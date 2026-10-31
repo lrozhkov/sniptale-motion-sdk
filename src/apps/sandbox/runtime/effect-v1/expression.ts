@@ -4,7 +4,7 @@ export type EffectV1EvaluationContext = {
   [key: string]: unknown;
   controls?: Record<string, unknown>;
   inputFrames?: Record<string, unknown>;
-  assets?: Record<string, { bitmap?: unknown; [key: string]: unknown }>;
+  assets?: Record<string, unknown>;
   track(id: string, fallback: number): unknown;
   resolveLayer(id: string): unknown;
 };

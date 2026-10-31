@@ -1,3 +1,18 @@
+import type { BitmapAsset } from "../render-assets.js";
+import type { EffectV1Command } from "../../../../sdk/effect-v1/types.js";
+import type { EffectV1Layer } from "./model.js";
+import type { RuntimeCanvasContext } from "../canvas-model.js";
+type CommandStyle = Pick<
+  Extract<EffectV1Command, { op: "shape" }>,
+  "layerId" | "alpha" | "blend" | "filter" | "shadow"
+>;
+type PathPaint = {
+  fill?: unknown;
+  stroke?: unknown;
+  lineWidth?: unknown;
+  lineCap?: CanvasLineCap;
+  lineJoin?: CanvasLineJoin;
+};
 import { effectV1Text } from "./expression.js";
 import { isRecord, n, type RenderState, v, valueOr } from "./model.js";
 import { drawCanvasPathSegments, trimPolyline } from "./path-drawing.js";
@@ -10,7 +25,11 @@ import {
   recordTextPrimitive,
 } from "./primitive-geometry.js";
 
-export function drawShape(command: any, layer: any, state: RenderState): void {
+export function drawShape(
+  command: Extract<EffectV1Command, { op: "shape" }>,
+  layer: EffectV1Layer | null,
+  state: RenderState,
+): void {
   const c = state.context;
   withCommandStyle(command, layer, state, () => {
     const x = n(command.x, state);
@@ -51,12 +70,16 @@ export function drawShape(command: any, layer: any, state: RenderState): void {
   });
 }
 
-export function drawText(command: any, layer: any, state: RenderState): void {
+export function drawText(
+  command: Extract<EffectV1Command, { op: "text" }>,
+  layer: EffectV1Layer | null,
+  state: RenderState,
+): void {
   const c = state.context;
   withCommandStyle(command, layer, state, () => {
     c.fillStyle = resolvePaint(command.fill ?? "#fff", c, state);
-    c.textAlign = String(command.align ?? "left");
-    c.textBaseline = String(command.baseline ?? "alphabetic");
+    c.textAlign = command.align ?? "left";
+    c.textBaseline = command.baseline ?? "alphabetic";
     const size = valueOr(command.fontSize, 16, state);
     const fontFamily = effectV1Text(
       v(command.fontFamily ?? "system-ui", state),
@@ -79,7 +102,7 @@ export function drawText(command: any, layer: any, state: RenderState): void {
       x,
       y,
     });
-    const left = textLeft(x, measuredWidth, String(command.align ?? "left"));
+    const left = textLeft(x, measuredWidth, command.align ?? "left");
     if (reveal < 1) {
       c.save();
       c.beginPath();
@@ -110,7 +133,7 @@ export function drawText(command: any, layer: any, state: RenderState): void {
 }
 
 function fillText(
-  context: any,
+  context: RuntimeCanvasContext,
   text: string,
   x: number,
   y: number,
@@ -126,16 +149,26 @@ function textLeft(x: number, width: number, align: string): number {
   return x;
 }
 
-export function drawImage(command: any, layer: any, state: RenderState): void {
+export function drawImage(
+  command: Extract<EffectV1Command, { op: "image" }>,
+  layer: EffectV1Layer | null,
+  state: RenderState,
+): void {
   const input = command.input
-    ? state.scope.context.inputFrames?.[String(command.input)]
+    ? state.scope.context.inputFrames?.[command.input]
     : null;
-  const asset = input
-    ? { bitmap: input }
-    : state.scope.context.assets?.[String(command.assetId)];
+  const asset = readBitmapAsset(
+    input
+      ? { bitmap: input }
+      : command.assetId
+        ? state.scope.context.assets?.[command.assetId]
+        : undefined,
+  );
   if (!asset?.bitmap) return;
   withCommandStyle(command, layer, state, () => {
     recordRotatedPrimitiveRect(command, state);
+    if (!state.runtime.drawImageAsset)
+      throw new Error("Image drawing is unavailable.");
     state.runtime.drawImageAsset(state.context, asset, {
       alpha: 1,
       composite: state.context.globalCompositeOperation,
@@ -152,19 +185,26 @@ export function drawImage(command: any, layer: any, state: RenderState): void {
   });
 }
 
-export function drawPath(command: any, layer: any, state: RenderState): void {
-  if (Array.isArray(command.segments)) {
-    drawSegmentPath(command, layer, state);
+export function drawPath(
+  command: Extract<EffectV1Command, { op: "path" | "polyline" }>,
+  layer: EffectV1Layer | null,
+  state: RenderState,
+): void {
+  if (command.op === "path" && command.segments) {
+    drawSegmentPath({ ...command, segments: command.segments }, layer, state);
     return;
   }
   const points = Array.isArray(command.points)
-    ? command.points.map((point: any) => ({
+    ? command.points.map((point) => ({
         x: n(point?.x, state),
         y: n(point?.y, state),
       }))
     : [];
   if (points.length < 2) return;
-  const visible = trimPolyline(points, valueOr(command.progress, 1, state));
+  const visible = trimPolyline(
+    points,
+    valueOr("progress" in command ? command.progress : 1, 1, state),
+  );
   const first = visible[0];
   if (!first) return;
   withCommandStyle(command, layer, state, () => {
@@ -173,12 +213,18 @@ export function drawPath(command: any, layer: any, state: RenderState): void {
     c.beginPath();
     c.moveTo(first.x, first.y);
     for (const point of visible.slice(1)) c.lineTo(point.x, point.y);
-    if (command.closed === true) c.closePath();
+    if (command.op === "path" && command.closed === true) c.closePath();
     paintPath(command, state);
   });
 }
 
-function drawSegmentPath(command: any, layer: any, state: RenderState): void {
+function drawSegmentPath(
+  command: Extract<EffectV1Command, { op: "path" }> & {
+    segments: NonNullable<Extract<EffectV1Command, { op: "path" }>["segments"]>;
+  },
+  layer: EffectV1Layer | null,
+  state: RenderState,
+): void {
   if (command.segments.length === 0) return;
   withCommandStyle(command, layer, state, () => {
     recordSegmentPathPrimitive(command, state);
@@ -187,7 +233,7 @@ function drawSegmentPath(command: any, layer: any, state: RenderState): void {
   });
 }
 
-function paintPath(command: any, state: RenderState): void {
+function paintPath(command: PathPaint, state: RenderState): void {
   const c = state.context;
   if (command.fill != null) {
     c.fillStyle = resolvePaint(command.fill, c, state);
@@ -203,8 +249,8 @@ function paintPath(command: any, state: RenderState): void {
 }
 
 export function withCommandStyle(
-  command: any,
-  layer: any,
+  command: CommandStyle,
+  layer: EffectV1Layer | null,
   state: RenderState,
   draw: () => void,
 ): void {
@@ -214,7 +260,7 @@ export function withCommandStyle(
     c.globalAlpha *=
       valueOr(command.alpha, 1, state) * valueOr(layer?.opacity, 1, state);
     if (command.blend !== undefined) {
-      c.globalCompositeOperation = sanitizeBlend(String(command.blend));
+      c.globalCompositeOperation = sanitizeBlend(command.blend);
     }
     if (command.filter !== undefined) {
       c.filter = resolveFilter(command.filter, state);
@@ -228,8 +274,8 @@ export function withCommandStyle(
 }
 
 export async function withSavedState(
-  command: any,
-  layer: any,
+  command: CommandStyle,
+  layer: EffectV1Layer | null,
   state: RenderState,
   draw: () => Promise<void>,
 ): Promise<void> {
@@ -239,7 +285,7 @@ export async function withSavedState(
     c.globalAlpha *=
       valueOr(command.alpha, 1, state) * valueOr(layer?.opacity, 1, state);
     if (command.blend !== undefined) {
-      c.globalCompositeOperation = sanitizeBlend(String(command.blend));
+      c.globalCompositeOperation = sanitizeBlend(command.blend);
     }
     if (command.filter !== undefined) {
       c.filter = resolveFilter(command.filter, state);
@@ -263,7 +309,11 @@ function applyShadow(value: unknown, state: RenderState): void {
   state.context.shadowOffsetY = n(value.y, state) * scale.y;
 }
 
-export function resolvePaint(value: unknown, c: any, state: RenderState): any {
+export function resolvePaint(
+  value: unknown,
+  c: RuntimeCanvasContext,
+  state: RenderState,
+): string | CanvasGradient {
   if (!isRecord(value) || value.op) return effectV1Text(v(value, state));
   if (value.kind === "linearGradient" || value.kind === "radialGradient") {
     const gradient =
@@ -282,7 +332,9 @@ export function resolvePaint(value: unknown, c: any, state: RenderState): any {
             n(value.y1, state),
             n(value.r1, state),
           );
-    for (const stop of Array.isArray(value.stops) ? value.stops : []) {
+    const stops: unknown[] = Array.isArray(value.stops) ? value.stops : [];
+    for (const stop of stops) {
+      if (!isRecord(stop)) throw new Error("Invalid Effect v1 gradient stop.");
       gradient.addColorStop(
         n(stop.offset, state),
         effectV1Text(v(stop.color, state)),
@@ -290,7 +342,7 @@ export function resolvePaint(value: unknown, c: any, state: RenderState): any {
     }
     return gradient;
   }
-  return String(value.color ?? "transparent");
+  return effectV1Text(value.color ?? "transparent");
 }
 
 export function resolveFilter(value: unknown, state: RenderState): string {
@@ -309,16 +361,33 @@ export function resolveFilter(value: unknown, state: RenderState): string {
   return parts.join(" ") || "none";
 }
 
-function sanitizeBlend(value: string): any {
-  if (
-    ![
-      "source-over",
-      "screen",
-      "lighter",
-      "source-atop",
-      "destination-in",
-    ].includes(value)
-  )
-    throw new Error(`Unsupported Effect v1 blend: ${value}`);
-  return value;
+function sanitizeBlend(value: unknown): GlobalCompositeOperation {
+  switch (value) {
+    case "source-over":
+    case "screen":
+    case "lighter":
+    case "source-atop":
+    case "destination-in":
+      return value;
+    default:
+      throw new Error(
+        `Unsupported Effect v1 blend: ${typeof value === "string" ? value : "(invalid)"}`,
+      );
+  }
+}
+
+function readBitmapAsset(value: unknown): BitmapAsset | null {
+  if (!isRecord(value) || value.bitmap == null) return null;
+  const bitmap = value.bitmap;
+  if (typeof ImageBitmap === "undefined" || !(bitmap instanceof ImageBitmap))
+    throw new Error("Effect v1 image requires a native ImageBitmap.");
+  return {
+    bitmap,
+    ...(typeof value.width === "number" && Number.isFinite(value.width)
+      ? { width: value.width }
+      : {}),
+    ...(typeof value.height === "number" && Number.isFinite(value.height)
+      ? { height: value.height }
+      : {}),
+  };
 }

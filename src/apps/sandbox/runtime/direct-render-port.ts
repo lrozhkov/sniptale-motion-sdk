@@ -2,25 +2,11 @@ import type { SandboxRuntimeMessage } from "./message-boundary.js";
 
 type MessageSink = (message: unknown, transfer?: Transferable[]) => void;
 
-type MessagePortLike = {
-  addEventListener: (
-    type: "message",
-    listener: (event: MessageEvent) => void,
-  ) => void;
-  close?: () => void;
-  postMessage: (message: unknown, transfer?: Transferable[]) => void;
-  start?: () => void;
-};
-
-export type DirectPresentationSurface = {
-  getContext(type: "2d" | "bitmaprenderer"): unknown;
-  height: number;
-  width: number;
-};
+export type DirectPresentationSurface = OffscreenCanvas;
 
 export type DirectRenderPortConnection = {
   kind: "connectDirectRenderPort";
-  port: MessagePortLike;
+  port: MessagePort;
   presentationSurface?: DirectPresentationSurface;
 };
 
@@ -31,18 +17,11 @@ export function parseDirectRenderPortConnection(
     return null;
   }
   const port = value.port;
-  const validPort =
-    isRecord(port) &&
-    typeof port.postMessage === "function" &&
-    typeof port.addEventListener === "function";
-  if (!validPort) {
-    return null;
-  }
+  if (!isNativeMessagePort(port)) return null;
   const presentationSurface = value.presentationSurface;
   if (
     presentationSurface !== undefined &&
-    (!isRecord(presentationSurface) ||
-      typeof presentationSurface.getContext !== "function" ||
+    (!isOffscreenSurface(presentationSurface) ||
       !isPositiveFiniteNumber(presentationSurface.width) ||
       !isPositiveFiniteNumber(presentationSurface.height))
   ) {
@@ -50,12 +29,8 @@ export function parseDirectRenderPortConnection(
   }
   return {
     kind: "connectDirectRenderPort",
-    port: port as MessagePortLike,
-    ...(presentationSurface === undefined
-      ? {}
-      : {
-          presentationSurface: presentationSurface as DirectPresentationSurface,
-        }),
+    port,
+    ...(isOffscreenSurface(presentationSurface) ? { presentationSurface } : {}),
   };
 }
 
@@ -75,8 +50,8 @@ export function createWorkerRuntimeMessageHandler({
     ): Promise<void>;
   };
 }) {
-  let directPort: MessagePortLike | null = null;
-  return (event: MessageEvent) => {
+  let directPort: MessagePort | null = null;
+  return (event: MessageEvent<unknown>) => {
     const connection = parseDirectRenderPortConnection(event.data);
     if (connection) {
       if (connection.presentationSurface) {
@@ -134,8 +109,8 @@ export function createWorkerRuntimeMessageHandler({
 
 function createDirectResponseSink(
   requestId: string,
-  getPort: () => MessagePortLike | null,
-  setPort: (port: MessagePortLike | null) => void,
+  getPort: () => MessagePort | null,
+  setPort: (port: MessagePort | null) => void,
   fallbackPost: MessageSink,
 ): MessageSink {
   return (response: unknown, transfer: Transferable[] = []) => {
@@ -148,7 +123,8 @@ function createDirectResponseSink(
       if (
         !response ||
         typeof response !== "object" ||
-        (response as Record<string, unknown>).kind !== "renderFrameProgress"
+        ("kind" in response ? response.kind : undefined) !==
+          "renderFrameProgress"
       ) {
         fallbackPost({ kind: "directRenderSettled", requestId });
       }
@@ -159,10 +135,20 @@ function createDirectResponseSink(
   };
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isPositiveFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function isNativeMessagePort(value: unknown): value is MessagePort {
+  return typeof MessagePort !== "undefined" && value instanceof MessagePort;
+}
+
+function isOffscreenSurface(value: unknown): value is OffscreenCanvas {
+  return (
+    typeof OffscreenCanvas !== "undefined" && value instanceof OffscreenCanvas
+  );
 }

@@ -488,3 +488,11 @@ describe("sandbox render result normalization", () => {
     );
   });
 });
+
+it("does not stringify unknown binding IDs", () => {
+  const reads = createBindingReads();
+  const convert = vi.fn(() => "spoofed");
+  recordBindingRead(reads, "layers", { toString: convert });
+  expect(convert).not.toHaveBeenCalled();
+  expect(reads.layers.size).toBe(0);
+});

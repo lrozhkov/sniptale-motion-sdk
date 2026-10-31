@@ -1,3 +1,4 @@
+import { createRuntimeCanvasFixture } from "./helpers/runtime-canvas.js";
 import { describe, expect, it, vi } from "vitest";
 import {
   EFFECT_V1_SCHEMA,
@@ -142,7 +143,7 @@ describe("standalone object layout", () => {
         rect: vi.fn(),
         clip: vi.fn(),
       };
-      const canvas = { width: 800, height: 400, getContext: () => c };
+      const canvas = createRuntimeCanvasFixture(c, 800, 400);
       const renderer = createEffectV1GraphRenderer(doc, {});
       for (const time of [0, 1, 2, 1]) {
         await renderer.renderFrame({
@@ -151,6 +152,7 @@ describe("standalone object layout", () => {
           time,
           progress: time / 2,
           createCanvas: () => canvas,
+          track: (_id, fallback) => fallback,
           controls: {},
           resolveLayer: () => null,
         });

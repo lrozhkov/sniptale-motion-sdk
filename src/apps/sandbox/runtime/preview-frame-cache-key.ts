@@ -16,29 +16,32 @@ export type PreviewFrameCacheRequest = {
 };
 
 export function applyPreviewFrameCacheSample(
-  message: Record<string, any>,
+  message: Record<string, unknown>,
   request: PreviewFrameCacheRequest,
 ): void {
-  const duration = Math.max(0.001, Number(message.duration) || 1);
+  const duration = Math.max(0.001, numberValue(message.duration) || 1);
   message.frameIndex = request.frameIndex;
   message.time = request.sampleTime;
   message.progress = request.sampleTime / duration;
 }
 
 export function resolvePreviewFrameCacheRequest(
-  message: Record<string, any>,
+  message: Record<string, unknown>,
 ): PreviewFrameCacheRequest | null {
   if (
     message.previewCacheEnabled !== true ||
     message.previewCacheWarm !== true ||
     typeof message.renderModelId !== "string" ||
+    typeof message.effectId !== "string" ||
+    typeof message.renderQuality !== "string" ||
+    (message.inputFrames !== undefined && !isRecord(message.inputFrames)) ||
     hasInputFrames(message.inputFrames)
   ) {
     return null;
   }
-  const frameIndex = Number(message.frameIndex);
-  const fps = Number(message.fps);
-  const duration = Number(message.duration);
+  const frameIndex = numberValue(message.frameIndex);
+  const fps = numberValue(message.fps);
+  const duration = numberValue(message.duration);
   if (
     !Number.isFinite(frameIndex) ||
     frameIndex < 0 ||
@@ -54,20 +57,30 @@ export function resolvePreviewFrameCacheRequest(
   if (controls === null || target === null) {
     return null;
   }
+  const width = numberValue(message.width);
+  const height = numberValue(message.height);
+  const outputWidth = numberValue(message.outputWidth ?? message.width);
+  const outputHeight = numberValue(message.outputHeight ?? message.height);
+  if (
+    [width, height, outputWidth, outputHeight].some(
+      (size) => !Number.isFinite(size) || size <= 0,
+    )
+  )
+    return null;
   const contentRevision = JSON.stringify([
-    String(message.effectId),
+    message.effectId,
     message.renderModelId,
     typeof message.renderAssetsId === "string" ? message.renderAssetsId : "",
     controls,
     target,
   ]);
   const surfaceRevision = JSON.stringify([
-    Number(message.width),
-    Number(message.height),
-    Number(message.outputWidth ?? message.width),
-    Number(message.outputHeight ?? message.height),
+    width,
+    height,
+    outputWidth,
+    outputHeight,
     fps,
-    String(message.renderQuality),
+    message.renderQuality,
   ]);
   const terminalFrameIndex = Math.max(0, Math.round(duration * fps));
   const range = resolvePreviewCacheFrameRange(
@@ -106,35 +119,27 @@ function resolvePreviewCacheFrameRange(
   if (value === undefined) {
     return { endFrame: completeRangeEndFrame, startFrame: 0 };
   }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  const range = value as Record<string, unknown>;
+  if (!isRecord(value)) return null;
+  const { startFrame: start, endFrame: end } = value;
   if (
-    !Number.isSafeInteger(range.startFrame) ||
-    Number(range.startFrame) < 0 ||
-    !Number.isSafeInteger(range.endFrame) ||
-    Number(range.endFrame) <= Number(range.startFrame)
-  ) {
+    typeof start !== "number" ||
+    typeof end !== "number" ||
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start < 0 ||
+    end <= start
+  )
     return null;
-  }
-  const startFrame = Math.min(
-    completeRangeEndFrame - 1,
-    Number(range.startFrame),
-  );
+  const startFrame = Math.min(completeRangeEndFrame - 1, start);
   const endFrame = Math.max(
     startFrame + 1,
-    Math.min(completeRangeEndFrame, Number(range.endFrame)),
+    Math.min(completeRangeEndFrame, end),
   );
   return { endFrame, startFrame };
 }
 
 function hasInputFrames(value: unknown): boolean {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    Object.values(value as Record<string, unknown>).some(Boolean)
-  );
+  return isRecord(value) && Object.values(value).some(Boolean);
 }
 
 function stableSerialize(value: unknown): string | null {
@@ -180,8 +185,8 @@ function serializeValue(
           .join(",")}]`,
     );
   }
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
+  if (isRecord(value)) {
+    const record = value;
     const keys = Object.keys(record).sort();
     if (keys.length > MAX_CACHE_COLLECTION_ITEMS) {
       throw new Error("Cache signature object is too large.");
@@ -215,4 +220,11 @@ function withAncestor(
   } finally {
     ancestors.delete(value);
   }
+}
+
+function numberValue(value: unknown): number {
+  return typeof value === "number" ? value : NaN;
+}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

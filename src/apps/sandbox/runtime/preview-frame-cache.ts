@@ -29,7 +29,11 @@ export function createPreviewFrameCache(
   ) => Promise<RetainedPreviewFrame> = createPreviewFrameRetainer(),
 ) {
   const byteBudget = Math.max(0, Number(maxBytes) || 0);
-  const entries = new Map<string, CacheEntry>();
+  let entries = new Map<string, CacheEntry>();
+  const requestOwners = new WeakMap<
+    PreviewFrameCacheRequest,
+    Map<string, CacheEntry>
+  >();
   const frameIndexesBySurface = new Map<string, Set<number>>();
   let activeContentRevision: string | null = null;
   let bytes = 0;
@@ -43,6 +47,7 @@ export function createPreviewFrameCache(
       entry.frame.release();
     }
     entries.clear();
+    entries = new Map();
     frameIndexesBySurface.clear();
     bytes = 0;
     evictions = 0;
@@ -50,7 +55,7 @@ export function createPreviewFrameCache(
   }
 
   function prepare(
-    message: Record<string, any>,
+    message: Record<string, unknown>,
   ): PreviewFrameCacheRequest | null {
     const request = resolvePreviewFrameCacheRequest(message);
     if (!request) {
@@ -60,6 +65,7 @@ export function createPreviewFrameCache(
       clear();
       activeContentRevision = request.contentRevision;
     }
+    requestOwners.set(request, entries);
     return request;
   }
 
@@ -67,6 +73,10 @@ export function createPreviewFrameCache(
     request: PreviewFrameCacheRequest,
     options: { allowBorrow?: boolean } = {},
   ) {
+    if (requestOwners.get(request) !== entries) {
+      misses += 1;
+      return null;
+    }
     const entryKey = request.key;
     const entry = entries.get(entryKey);
     const bindingKey = request.bindingLayerId;
@@ -90,7 +100,19 @@ export function createPreviewFrameCache(
         bitmap = await pending;
       }
     } catch {
-      removeEntry(entryKey, entry);
+      if (
+        requestOwners.get(request) === entries &&
+        entries.get(entryKey) === entry
+      )
+        removeEntry(entryKey, entry);
+      misses += 1;
+      return null;
+    }
+    if (
+      requestOwners.get(request) !== entries ||
+      entries.get(entryKey) !== entry
+    ) {
+      if (!reusable) bitmap.close();
       misses += 1;
       return null;
     }
@@ -110,6 +132,7 @@ export function createPreviewFrameCache(
     bindingReads: unknown,
     options: { allowReusableBitmap?: boolean } = {},
   ): Promise<boolean> {
+    if (requestOwners.get(request) !== entries) return false;
     const existing = entries.get(request.key);
     if (existing) {
       if (request.bindingLayerId && bindingReads !== undefined) {
@@ -131,6 +154,17 @@ export function createPreviewFrameCache(
           ),
       });
     } catch {
+      return false;
+    }
+    if (requestOwners.get(request) !== entries) {
+      retainedFrame.release();
+      return false;
+    }
+    const winner = entries.get(request.key);
+    if (winner) {
+      if (request.bindingLayerId && bindingReads !== undefined)
+        winner.bindingReads.set(request.bindingLayerId, bindingReads);
+      retainedFrame.release();
       return false;
     }
     const entryBytes = Math.max(0, Number(retainedFrame.bytes) || 0);
@@ -190,13 +224,16 @@ export function createPreviewFrameCache(
     },
     get,
     getStats(request?: PreviewFrameCacheRequest) {
-      const surfaceFrames = request
-        ? countFramesInRange(
-            frameIndexesBySurface.get(request.surfaceRevision),
-            request.rangeStartFrame,
-            request.rangeEndFrame,
-          )
-        : entries.size;
+      const surfaceFrames =
+        request && requestOwners.get(request) === entries
+          ? countFramesInRange(
+              frameIndexesBySurface.get(request.surfaceRevision),
+              request.rangeStartFrame,
+              request.rangeEndFrame,
+            )
+          : request
+            ? 0
+            : entries.size;
       const totalFrames = request?.totalFrames ?? 0;
       const storageKinds = new Set(
         Array.from(entries.values(), (entry) => entry.frame.storage),
@@ -214,7 +251,7 @@ export function createPreviewFrameCache(
           storageKinds.size === 0
             ? "none"
             : storageKinds.size === 1
-              ? storageKinds.values().next().value
+              ? (storageKinds.values().next().value ?? "none")
               : "mixed",
         totalFrames,
       };

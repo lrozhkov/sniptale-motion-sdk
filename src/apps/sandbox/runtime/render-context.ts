@@ -189,7 +189,8 @@ function createTrackedControls(
       if (typeof property === "string" && Object.hasOwn(target, property)) {
         recordBindingRead(bindingReads, "controls", property);
       }
-      return Reflect.get(target, property, receiver);
+      const value: unknown = Reflect.get(target, property, receiver);
+      return value;
     },
   });
 }

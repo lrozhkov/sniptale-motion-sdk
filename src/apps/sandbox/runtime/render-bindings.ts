@@ -67,10 +67,13 @@ export function resolveBindingValue(
     );
   }
   if (definition.multiplier != null) {
-    value = multiplyBindingValue(value, Number(definition.multiplier) || 0);
+    value = multiplyBindingValue(
+      value,
+      readNumericModifier(definition.multiplier),
+    );
   }
   if (definition.offset != null) {
-    value = addBindingValue(value, Number(definition.offset) || 0);
+    value = addBindingValue(value, readNumericModifier(definition.offset));
   }
   return value;
 }
@@ -80,7 +83,8 @@ function multiplyBindingValue(value: unknown, multiplier: number): unknown {
     return value * multiplier;
   }
   if (Array.isArray(value)) {
-    return value.map((item) =>
+    const entries: unknown[] = value;
+    return entries.map((item) =>
       typeof item === "number" ? item * multiplier : item,
     );
   }
@@ -92,7 +96,8 @@ function addBindingValue(value: unknown, offset: number): unknown {
     return value + offset;
   }
   if (Array.isArray(value)) {
-    return value.map((item) =>
+    const entries: unknown[] = value;
+    return entries.map((item) =>
       typeof item === "number" ? item + offset : item,
     );
   }
@@ -101,4 +106,15 @@ function addBindingValue(value: unknown, offset: number): unknown {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readNumericModifier(value: unknown): number {
+  if (
+    typeof value !== "number" &&
+    typeof value !== "string" &&
+    typeof value !== "boolean"
+  )
+    return 0;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }

@@ -1,9 +1,64 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createBindingReads } from "../src/apps/sandbox/runtime/binding-reads";
 import { recordPrimitivePaintRead } from "../src/apps/sandbox/runtime/primitive-paint-reads";
 
 describe("sandbox primitive paint reads", () => {
+  it("rejects unknown identities and coordinates without conversion hooks", () => {
+    const convert = vi.fn(() => 10);
+    const value = { toString: convert, valueOf: convert };
+    const reads = createBindingReads();
+    const context = createPaintContext(reads, { width: 10 });
+    recordPrimitivePaintRead(context, {
+      layerId: value,
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
+    expect(reads.primitivePaintReads.size).toBe(0);
+    recordPrimitivePaintRead(context, {
+      layerId: "box",
+      x: value,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
+    expect(reads.primitiveBounds.size).toBe(0);
+    expect(convert).not.toHaveBeenCalled();
+  });
+
+  it("does not construct bounds from coordinates of different invalid points", () => {
+    const reads = createBindingReads();
+    recordPrimitivePaintRead(createPaintContext(reads, { width: 10 }), {
+      layerId: "path",
+      points: [
+        { x: 0, y: NaN },
+        { x: NaN, y: 20 },
+      ],
+    });
+    expect(reads.primitiveBounds.size).toBe(0);
+  });
+
+  it("restores the canvas font when text measurement fails", () => {
+    const context = {
+      __sniptaleBindingReads: createBindingReads(),
+      font: "10px sans-serif",
+      measureText() {
+        throw new Error("measurement failed");
+      },
+    };
+    expect(() =>
+      recordPrimitivePaintRead(context, {
+        layerId: "text",
+        text: "Title",
+        font: "40px Inter",
+        x: 0,
+        y: 0,
+      }),
+    ).toThrow("measurement failed");
+    expect(context.font).toBe("10px sans-serif");
+  });
   it("records measured text bounds for layer primitives", () => {
     const reads = createBindingReads();
     const context = createPaintContext(reads, {
@@ -147,8 +202,8 @@ describe("sandbox primitive paint reads", () => {
 });
 
 function createPaintContext(
-  reads,
-  metrics,
+  reads: ReturnType<typeof createBindingReads>,
+  metrics: Partial<TextMetrics> & { width: number },
   transform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 },
 ) {
   return {

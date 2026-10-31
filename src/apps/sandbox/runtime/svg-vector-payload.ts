@@ -1,23 +1,28 @@
-export type SerializedSvgVectorPart = {
+type SvgPartStyle = {
   cx: number;
   cy: number;
   fill: string | null;
   groupId: string | null;
   groupIds: string[];
-  height?: number;
   id: string;
   opacity: number;
-  pathData?: string;
-  rx?: number;
   stroke: string | null;
   strokeLineCap: string;
   strokeLineJoin: string;
   strokeWidth: number;
-  type: "path" | "rect";
-  width?: number;
-  x?: number;
-  y?: number;
 };
+export type SerializedSvgVectorPart = SvgPartStyle &
+  (
+    | { type: "path"; pathData: string }
+    | {
+        type: "rect";
+        height: number;
+        width: number;
+        x: number;
+        y: number;
+        rx: number;
+      }
+  );
 
 export type SerializedSvgVector = {
   height: number;
@@ -51,7 +56,7 @@ export function parseSerializedSvgVector(
     if (!part) {
       return null;
     }
-    pathDataLength += part.pathData?.length ?? 0;
+    pathDataLength += part.type === "path" ? part.pathData.length : 0;
     if (pathDataLength > MAX_PATH_DATA_LENGTH) {
       return null;
     }
@@ -146,13 +151,15 @@ function readStringArray(
   maxItems: number,
   maxLength: number,
 ): string[] | null {
-  return Array.isArray(value) &&
-    value.length <= maxItems &&
-    value.every((item) => typeof item === "string" && item.length <= maxLength)
-    ? [...value]
-    : null;
+  if (!Array.isArray(value) || value.length > maxItems) return null;
+  const entries: unknown[] = value;
+  const strings = entries.filter(
+    (item): item is string =>
+      typeof item === "string" && item.length <= maxLength,
+  );
+  return strings.length === entries.length ? strings : null;
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

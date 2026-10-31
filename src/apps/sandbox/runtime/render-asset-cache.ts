@@ -109,7 +109,8 @@ export function createRenderAssetCache() {
             !previous.has(bitmap)
           ) {
             previous.add(bitmap);
-            bitmap.close();
+            const result: unknown = Reflect.apply(bitmap.close, bitmap, []);
+            void Promise.resolve(result).catch(() => {});
           }
         }
         throw error;

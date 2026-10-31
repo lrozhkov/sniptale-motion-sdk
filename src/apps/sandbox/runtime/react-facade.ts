@@ -27,7 +27,8 @@ function renderElement(node: unknown): string {
     return renderElement(props.children);
   }
   if (typeof node.type === "function") {
-    return renderElement(node.type(props));
+    const result: unknown = Reflect.apply(node.type, node, [props]);
+    return renderElement(result);
   }
   if (typeof node.type !== "string") {
     return "";

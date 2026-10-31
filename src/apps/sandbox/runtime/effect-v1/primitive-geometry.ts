@@ -1,16 +1,21 @@
-import type { EffectV1PathSegment } from "../../../../sdk/effect-v1/types.js";
+import type { RuntimeCanvasContext } from "../canvas-model.js";
+import type { BindingReads } from "../binding-reads.js";
+import type {
+  EffectV1Command,
+  EffectV1PathSegment,
+} from "../../../../sdk/effect-v1/types.js";
 import { recordPrimitivePaintRead } from "../primitive-paint-reads.js";
 import { n, type RenderState, valueOr } from "./model.js";
 
 export function attachPrimitiveBindingReads(
-  context: any,
-  bindingReads: any,
+  context: RuntimeCanvasContext,
+  bindingReads: BindingReads | null | undefined,
 ): void {
-  context.__sniptaleBindingReads = bindingReads;
+  context.__sniptaleBindingReads = bindingReads ?? null;
 }
 
 export function recordPrimitiveRect(
-  context: any,
+  context: RuntimeCanvasContext,
   layerId: unknown,
   rect: { height: number; width: number; x: number; y: number },
 ): void {
@@ -18,7 +23,7 @@ export function recordPrimitiveRect(
 }
 
 export function recordCenteredPrimitiveRect(
-  command: any,
+  command: { layerId?: string },
   state: RenderState,
   width: number,
   height: number,
@@ -32,7 +37,7 @@ export function recordCenteredPrimitiveRect(
 }
 
 export function recordRotatedPrimitiveRect(
-  command: any,
+  command: Extract<EffectV1Command, { op: "image" }>,
   state: RenderState,
 ): void {
   const context = state.context;
@@ -51,7 +56,7 @@ export function recordRotatedPrimitiveRect(
 }
 
 export function recordTextPrimitive(
-  command: any,
+  command: Extract<EffectV1Command, { op: "text" }>,
   state: RenderState,
   resolved: {
     font: string;
@@ -74,7 +79,7 @@ export function recordTextPrimitive(
 }
 
 export function recordPolylinePrimitive(
-  command: any,
+  command: { layerId?: string; lineWidth?: unknown },
   state: RenderState,
   points: Array<{ x: number; y: number }>,
 ): void {
@@ -86,7 +91,7 @@ export function recordPolylinePrimitive(
 }
 
 export function recordSegmentPathPrimitive(
-  command: any,
+  command: Extract<EffectV1Command, { op: "path" }>,
   state: RenderState,
 ): void {
   recordPolylinePrimitive(
@@ -96,7 +101,10 @@ export function recordSegmentPathPrimitive(
   );
 }
 
-function resolveSegmentBoundsPoints(command: any, state: RenderState) {
+function resolveSegmentBoundsPoints(
+  command: Extract<EffectV1Command, { op: "path" }>,
+  state: RenderState,
+) {
   const points: Array<{ x: number; y: number }> = [];
   const add = (x: unknown, y: unknown) =>
     points.push({ x: n(x, state), y: n(y, state) });

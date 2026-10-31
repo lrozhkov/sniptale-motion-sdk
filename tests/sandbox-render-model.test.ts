@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   isLayerActive,
   normalizeClips,
   normalizeLayers,
+  normalizeScenes,
   normalizeTimeline,
   resolveLayerState,
   resolvePhaseProgress,
@@ -87,7 +89,7 @@ describe("sandbox render model normalization", () => {
       },
     ]);
     expect(timeline.tracks).toHaveLength(1);
-    expect(timeline.tracks[0].keyframes).toEqual([
+    expect(requiredEntry(timeline.tracks, 0).keyframes).toEqual([
       {
         enabled: true,
         easing: "linear",
@@ -380,4 +382,32 @@ describe("sandbox render model resolver", () => {
     expect(resolveTrackValue(timeline, "layer-1.opacity", 1, 0.25)).toBe(0.25);
     expect(resolveTrackValue(timeline, "layer-1.y", 1, -1)).toBe(-1);
   });
+});
+
+it("keeps scene locale maps instead of coercing them to object text", () => {
+  const labels = { ru: "Вступление", en: "Intro" };
+  const scenes = normalizeScenes(
+    [{ id: "intro", label: labels, start: 0, duration: 1 }],
+    1,
+  );
+  expect(scenes[0]?.label).toEqual(labels);
+});
+
+it("does not invoke unknown metadata conversion hooks while normalizing a model", () => {
+  const convert = vi.fn(() => 1);
+  const value = { toString: convert, valueOf: convert };
+  expect(normalizeLayers([{ id: value, width: value, height: value }])).toEqual(
+    [],
+  );
+  const scenes = normalizeScenes(
+    [{ id: "scene", label: value, start: value, duration: value }],
+    1,
+  );
+  expect(scenes[0]).toMatchObject({
+    id: "scene",
+    label: "",
+    start: 0,
+    duration: 1,
+  });
+  expect(convert).not.toHaveBeenCalled();
 });

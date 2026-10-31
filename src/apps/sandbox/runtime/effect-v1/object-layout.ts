@@ -1,12 +1,20 @@
+import type { RuntimeCanvasContext } from "../canvas-model.js";
 import type { EffectV1ObjectLayout } from "../../../../sdk/effect-v1/types.js";
 import { resolveEffectV1ObjectRenderBounds } from "../../../../sdk/effect-v1/object-handles.js";
 
 export function applyEffectV1ObjectLayout(
   layout: EffectV1ObjectLayout | undefined,
-  context: any,
-  canvasContext: any,
-): any {
-  if (!layout) return context;
+  context: {
+    width: number;
+    height: number;
+    controls?: Record<string, unknown>;
+  },
+  canvasContext: Pick<
+    RuntimeCanvasContext,
+    "translate" | "scale" | "beginPath" | "rect" | "clip"
+  >,
+): { width: number; height: number } {
+  if (!layout) return { width: context.width, height: context.height };
   const scaled = layout.resize === "scale";
   const bounds = scaled
     ? resolveEffectV1ObjectRenderBounds(layout, context.controls ?? {})
@@ -23,6 +31,6 @@ export function applyEffectV1ObjectLayout(
   canvasContext.rect(bounds.x, bounds.y, bounds.width, bounds.height);
   canvasContext.clip();
   return scaled
-    ? { ...context, width: layout.width, height: layout.height }
-    : context;
+    ? { width: layout.width, height: layout.height }
+    : { width: context.width, height: context.height };
 }

@@ -16,6 +16,131 @@ describe("sandbox SVG vector owners", () => {
     globalThis.Path2D = originalPath2D;
   });
 
+  it("invalidates cached SVG text even when its length stays the same", () => {
+    let parses = 0;
+    installSvgGlobals(() => {
+      parses += 1;
+      return createSvgDocument(
+        node("svg", { viewBox: `0 0 ${parses * 10} 10` }),
+      );
+    });
+    const asset = {
+      id: "same-size-update",
+      cacheKey: "same",
+      svgText: "<svg>A</svg>",
+    };
+    const first = parseSvgAsset(asset);
+    asset.svgText = "<svg>B</svg>";
+    const second = parseSvgAsset(asset);
+    expect(first.width).toBe(10);
+    expect(second.width).toBe(20);
+    expect(second).not.toBe(first);
+    expect(parses).toBe(2);
+  });
+
+  it("invalidates a mutated serialized vector under the same identity", () => {
+    installSvgGlobals(() => createSvgDocument(node("svg", {})));
+    const asset = {
+      id: "serialized-update",
+      cacheKey: "same",
+      svgVector: { width: 10, height: 10, parts: [] },
+    };
+    expect(parseSvgAsset(asset).width).toBe(10);
+    asset.svgVector.width = 20;
+    expect(parseSvgAsset(asset).width).toBe(20);
+  });
+
+  it("rejects unknown drawing values without calling conversion hooks", () => {
+    const convert = vi.fn(() => 1);
+    const context = createCanvasContextSpy();
+    expect(() =>
+      drawSvgVectorAsset(
+        context,
+        {
+          id: "unknown-options",
+          svgVector: { width: 10, height: 10, parts: [] },
+        },
+        { x: { valueOf: convert } },
+        vi.fn(),
+      ),
+    ).toThrow("Invalid SVG numeric x");
+    expect(convert).not.toHaveBeenCalled();
+    expect(context.save).not.toHaveBeenCalled();
+  });
+
+  it.each(["filter", "paint", "transform"])(
+    "restores canvas state when %s fails",
+    (failure) => {
+      installSvgGlobals(() =>
+        createSvgDocument(
+          node("svg", { viewBox: "0 0 10 10" }, [
+            node("rect", { width: "10", height: "10", fill: "#fff" }),
+          ]),
+        ),
+      );
+      const context = createCanvasContextSpy();
+      const convert = vi.fn(() => 2);
+      const options =
+        failure === "filter"
+          ? {
+              partFilter: () => {
+                throw new Error("callback failed");
+              },
+            }
+          : failure === "transform"
+            ? { partTransform: () => ({ x: { valueOf: convert } }) }
+            : {};
+      if (failure === "paint")
+        context.fill.mockImplementation(() => {
+          throw new Error("paint failed");
+        });
+      expect(() =>
+        drawSvgVectorAsset(
+          context,
+          { id: `state-${failure}`, svgText: "<svg><rect/></svg>" },
+          options,
+          vi.fn(),
+        ),
+      ).toThrow();
+      expect(context.restore).toHaveBeenCalledTimes(
+        failure === "paint" ? 2 : 1,
+      );
+      expect(convert).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["filter", "transform"])(
+    "rejects asynchronous part %s callbacks and observes rejected promises",
+    async (kind) => {
+      installSvgGlobals(() =>
+        createSvgDocument(
+          node("svg", { viewBox: "0 0 10 10" }, [
+            node("rect", { width: "10", height: "10", fill: "#fff" }),
+          ]),
+        ),
+      );
+      const callback = async () => {
+        throw new Error("asynchronous callback failed");
+      };
+      const options =
+        kind === "filter"
+          ? { partFilter: callback }
+          : { partTransform: callback };
+      const context = createCanvasContextSpy();
+      expect(() =>
+        drawSvgVectorAsset(
+          context,
+          { id: `async-${kind}`, svgText: "<svg><rect/></svg>" },
+          options,
+          vi.fn(),
+        ),
+      ).toThrow("must be synchronous");
+      expect(context.fill).not.toHaveBeenCalled();
+      expect(context.restore).toHaveBeenCalledOnce();
+      await Promise.resolve();
+    },
+  );
+
   it("parses SVG vector parts with inherited state and cache", () => {
     let parseCalls = 0;
     installSvgGlobals(() => {
@@ -128,7 +253,7 @@ describe("sandbox SVG vector owners", () => {
       },
     });
 
-    expect(parsed.parts[0].path).toMatchObject({ d: "M0 0 L10 10" });
+    expect(parsed.parts[0]).toMatchObject({ path: { d: "M0 0 L10 10" } });
   });
 
   it("renders SVG vector parts with filters, transforms, and part filters", () => {
@@ -280,7 +405,7 @@ describe("sandbox SVG vector owners", () => {
         reveal: 0.5,
         scaleFrom: 1,
         stagger: 0.8,
-      })({}, index, { parts }).alpha;
+      })({}, index, { parts }).alpha ?? 1;
 
     expect(alphaFor("reverse", 4)).toBeGreaterThan(alphaFor("reverse", 0));
     expect(alphaFor("center", 2)).toBeGreaterThan(alphaFor("center", 0));
@@ -308,7 +433,16 @@ function createSvgDocument(root: any) {
   };
 }
 
-function node(tagName: string, attrs: Record<string, string>, children = []) {
+type SvgNodeFixture = {
+  children: SvgNodeFixture[];
+  getAttribute(name: string): string | null;
+  tagName: string;
+};
+function node(
+  tagName: string,
+  attrs: Record<string, string>,
+  children: SvgNodeFixture[] = [],
+): SvgNodeFixture {
   return {
     children,
     getAttribute(name: string) {
@@ -343,3 +477,23 @@ function createCanvasContextSpy(): any {
     translate: vi.fn(),
   };
 }
+
+it("reads SVG preset options without invoking conversion hooks", () => {
+  const convert = vi.fn(() => 1);
+  const value = { valueOf: convert, toString: convert };
+  const transform = createSvgPartTransform({
+    reveal: value,
+    spread: value,
+    blur: value,
+    rotate: value,
+    angle: value,
+    mode: value,
+    ease: value,
+    order: value,
+  });
+  const result = transform({ cx: 0, cy: 0 }, 0, { parts: [{}] });
+  expect(result.alpha).toBe(1);
+  expect(Number.isFinite(result.x)).toBe(true);
+  expect(Number.isFinite(result.y)).toBe(true);
+  expect(convert).not.toHaveBeenCalled();
+});

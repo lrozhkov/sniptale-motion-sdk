@@ -1,7 +1,6 @@
 import type {
   EffectV1Command,
   EffectV1Document,
-  EffectV1GraphProgram,
 } from "../../../../sdk/effect-v1/types.js";
 import { applyEffectV1ObjectLayout } from "./object-layout.js";
 import {
@@ -25,6 +24,7 @@ import {
   n,
   resolveCommandLayer,
   type RenderState,
+  type EffectV1RenderContext,
   v,
   valueOr,
   withItem,
@@ -32,22 +32,27 @@ import {
 
 export function createEffectV1GraphRenderer(
   document: EffectV1Document,
-  runtime: any,
+  runtime: RenderState["runtime"],
 ) {
-  const program = document.program as EffectV1GraphProgram;
+  const program = document.program;
   return {
     id: document.id,
     kind: document.kind === "standalone" ? "composition" : "effect",
     meta: { label: document.label },
-    async renderFrame(context: any) {
+    async renderFrame(context: EffectV1RenderContext) {
       const canvas = context.createCanvas(context.width, context.height);
       const canvasContext = canvas.getContext("2d");
+      if (!canvasContext)
+        throw new Error("Effect v1 Canvas 2D context is unavailable.");
       canvasContext.clearRect(0, 0, context.width, context.height);
-      const logicalContext = applyEffectV1ObjectLayout(
-        document.objectLayout,
-        context,
-        canvasContext,
-      );
+      const logicalContext = {
+        ...context,
+        ...applyEffectV1ObjectLayout(
+          document.objectLayout,
+          context,
+          canvasContext,
+        ),
+      };
       const state: RenderState = {
         canvas,
         context: canvasContext,
@@ -131,7 +136,7 @@ async function executeCommand(
           valueOr(command.scaleX, 1, state),
           valueOr(command.scaleY, 1, state),
         );
-        await executeCommands(command.commands as EffectV1Command[], state);
+        await executeCommands(command.commands, state);
       });
       return;
     case "clip":
@@ -144,12 +149,12 @@ async function executeCommand(
           n(command.height, state),
         );
         c.clip();
-        await executeCommands(command.commands as EffectV1Command[], state);
+        await executeCommands(command.commands, state);
       });
       return;
     case "when":
-      if (Boolean(v(command.condition, state))) {
-        await executeCommands(command.commands as EffectV1Command[], state);
+      if (v(command.condition, state)) {
+        await executeCommands(command.commands, state);
       }
       return;
     case "let": {
@@ -161,7 +166,7 @@ async function executeCommand(
         for (const [name, expression] of Object.entries(bindings)) {
           next[name] = v(expression, state);
         }
-        await executeCommands(command.commands as EffectV1Command[], state);
+        await executeCommands(command.commands, state);
       } finally {
         state.scope.vars = previous;
       }
@@ -227,6 +232,8 @@ async function executeCommand(
         const x = n(command.x, state);
         const y = n(command.y, state);
         recordPrimitiveRect(c, command.layerId, { height, width, x, y });
+        if (!state.runtime.drawSvgVectorAsset)
+          throw new Error("SVG drawing is unavailable.");
         state.runtime.drawSvgVectorAsset(c, asset, {
           alpha: 1,
           composite: c.globalCompositeOperation,
@@ -248,7 +255,10 @@ async function executeCommand(
 }
 
 async function executeItems(
-  command: any,
+  command: Extract<
+    EffectV1Command,
+    { op: "forEach" | "forGrid" | "forRange" | "stableOrderBy" }
+  >,
   items: unknown[],
   state: RenderState,
 ): Promise<void> {
@@ -257,17 +267,25 @@ async function executeItems(
   try {
     for (let index = 0; index < items.length; index += 1) {
       state.scope.item = items[index];
-      const variable = String(command.itemVar ?? command.indexVar ?? "index");
-      state.scope.vars = { ...previousVars, [variable]: items[index], index };
+      const item = items[index];
+      const variable =
+        command.op === "forRange"
+          ? (command.indexVar ?? "index")
+          : "itemVar" in command
+            ? (command.itemVar ?? "index")
+            : "index";
+      state.scope.vars = { ...previousVars, [variable]: item, index };
       if (command.op === "forGrid") {
-        state.scope.vars[String(command.rowVar ?? "row")] = (
-          items[index] as any
-        ).row;
-        state.scope.vars[String(command.columnVar ?? "column")] = (
-          items[index] as any
-        ).column;
+        if (
+          !isRecord(item) ||
+          typeof item.row !== "number" ||
+          typeof item.column !== "number"
+        )
+          throw new Error("Invalid Effect v1 grid item.");
+        state.scope.vars[command.rowVar ?? "row"] = item.row;
+        state.scope.vars[command.columnVar ?? "column"] = item.column;
       }
-      await executeCommands(command.commands as EffectV1Command[], state);
+      await executeCommands(command.commands, state);
     }
   } finally {
     state.scope.item = previousItem;

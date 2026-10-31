@@ -5,6 +5,7 @@ import {
   clamp,
   deterministicRandom,
   interpolateTimelineValue,
+  interpolatePoints,
   resolveTimelineEase,
   segment,
 } from "../src/apps/sandbox/runtime/math";
@@ -13,6 +14,23 @@ describe("sandbox runtime math", () => {
   it("keeps deterministic random stable for seeds", () => {
     expect(deterministicRandom("sniptale")).toBe(0.522721);
     expect(deterministicRandom(null)).toBe(0.986326);
+  });
+
+  it("does not invoke object conversions in random seeds or interpolation points", () => {
+    let conversions = 0;
+    const value = {
+      [Symbol.toPrimitive]() {
+        conversions += 1;
+        return 1;
+      },
+    };
+    expect(() => deterministicRandom(value)).toThrow("primitive");
+    expect(() => interpolatePoints(0.5, [0, value], [0, 10], "linear")).toThrow(
+      "finite numbers",
+    );
+    expect(conversions).toBe(0);
+    expect(interpolatePoints(0.5, [0, 1], [0, 10], "linear")).toBe(5);
+    expect(interpolatePoints(0, [], [], "linear")).toBeNull();
   });
 
   it("normalizes segments and clamps values", () => {

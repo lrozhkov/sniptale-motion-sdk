@@ -1,3 +1,4 @@
+import type { EffectV1Layer } from "./model.js";
 import type { BindingReads } from "../binding-reads.js";
 import type { RuntimeCanvasContext } from "../canvas-model.js";
 import type { EffectV1Command } from "../../../../sdk/effect-v1/types.js";
@@ -17,7 +18,7 @@ type ExecuteCommands = (
 ) => Promise<void>;
 
 export async function renderEffectV1Pass(
-  command: any,
+  command: Extract<EffectV1Command, { op: "renderPass" }>,
   state: RenderState,
   executeCommands: ExecuteCommands,
 ): Promise<void> {
@@ -33,18 +34,18 @@ export async function renderEffectV1Pass(
   );
   attachPrimitiveBindingReads(passState.context, bindingReads);
   passState.context.clearRect(0, 0, width, height);
-  await executeCommands(command.commands as EffectV1Command[], passState);
-  state.passes.set(String(command.id), { bindingReads, canvas });
+  await executeCommands(command.commands, passState);
+  state.passes.set(command.id, { bindingReads, canvas });
 }
 
 export function compositeEffectV1Pass(
-  command: any,
-  layer: any,
+  command: Extract<EffectV1Command, { op: "compositePass" }>,
+  layer: EffectV1Layer | null,
   state: RenderState,
 ): void {
-  const passEntry = state.passes.get(String(command.passId));
+  const passEntry = state.passes.get(command.passId);
   if (!passEntry) return;
-  const pass = passEntry.canvas ?? passEntry;
+  const pass = passEntry.canvas;
   const passSize = getLogicalCanvasSize(pass);
   withCommandStyle(command, layer, state, () => {
     const context = state.context;

@@ -10,7 +10,7 @@ export type BitmapAsset = {
 };
 export type ImageAssetDrawOptions = PrimitiveLayerReference & {
   alpha?: number;
-  fit?: "contain" | "cover";
+  fit?: "contain" | "cover" | "fill";
   height?: number;
   opacity?: number;
   rotate?: number;
@@ -141,7 +141,8 @@ export function closeAssetBitmaps(assets: unknown): void {
   for (const asset of Object.values(assets)) {
     const bitmap: unknown = isRecord(asset) ? (asset.bitmap ?? asset) : asset;
     if (isRecord(bitmap) && typeof bitmap.close === "function") {
-      bitmap.close();
+      const result: unknown = Reflect.apply(bitmap.close, bitmap, []);
+      void Promise.resolve(result).catch(() => {});
     }
   }
 }
