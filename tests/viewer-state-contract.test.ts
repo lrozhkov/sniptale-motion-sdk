@@ -1,3 +1,6 @@
+import type { PreviewAudioState } from "../src/apps/viewer/playback/audio-state.js";
+import type { PendingSandboxRequest } from "../src/apps/viewer/transport/state.js";
+import type { Mp4ExportState } from "../src/apps/viewer/video-export/state.js";
 import type { PlaybackVideoCacheState } from "../src/apps/viewer/playback/video-cache-state.js";
 import type {
   RenderTemplateSnapshot,
@@ -30,6 +33,11 @@ describe("viewer state contracts", () => {
       state.currentTemplate,
     ).toEqualTypeOf<EditorTemplateSource | null>();
     expectTypeOf(state.selectedLayers).toEqualTypeOf<string[]>();
+    expectTypeOf(state.pending).toEqualTypeOf<
+      Map<string, PendingSandboxRequest>
+    >();
+    expectTypeOf(state.mp4Export).toEqualTypeOf<Mp4ExportState>();
+    expectTypeOf(state.previewAudio).toEqualTypeOf<PreviewAudioState>();
     expectTypeOf(
       state.previewVideoCache,
     ).toEqualTypeOf<PlaybackVideoCacheState>();

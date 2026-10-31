@@ -1,3 +1,4 @@
+import type { ViewerTransportState, SandboxRequest } from "./state.js";
 export class SandboxRequestTimeoutError extends Error {
   recoveryStarted = false;
 
@@ -21,27 +22,45 @@ export class SandboxRuntimeRecoveryError extends Error {
   }
 }
 
+type SandboxFrame = Pick<HTMLIFrameElement, "src"> & {
+  contentWindow: Pick<Window, "postMessage"> | null;
+};
+
 export function postToSandboxWithTimeout(
-  state: any,
-  sandboxFrame: HTMLIFrameElement,
-  message: any,
+  state: Pick<ViewerTransportState, "pending" | "directRenderResponsePort"> & {
+    directRenderEffectIds?: ReadonlySet<string>;
+  },
+  sandboxFrame: SandboxFrame,
+  message: SandboxRequest,
   timeoutMs: number,
   transfer: Transferable[] = [],
-): Promise<any> {
-  return new Promise<any>((resolve, reject) => {
+): Promise<unknown> {
+  const requestId = message.requestId;
+  const requestKind = message.kind;
+  const requestTarget =
+    typeof message.effectId === "string"
+      ? message.effectId
+      : typeof message.moduleId === "string"
+        ? message.moduleId
+        : "";
+  return new Promise<unknown>((resolve, reject) => {
+    if (state.pending.has(requestId)) {
+      reject(new Error("Duplicate sandbox request id."));
+      return;
+    }
     const expire = () => {
-      state.pending.delete(message.requestId);
+      state.pending.delete(requestId);
       reject(
         new SandboxRequestTimeoutError(
-          message.requestId,
-          String(message.kind ?? "unknown"),
+          requestId,
+          requestKind,
           timeoutMs,
-          String(message.effectId ?? message.moduleId ?? ""),
+          requestTarget,
         ),
       );
     };
     const timer = window.setTimeout(expire, timeoutMs);
-    state.pending.set(message.requestId, {
+    state.pending.set(requestId, {
       expire,
       reject,
       resolve,
@@ -51,7 +70,7 @@ export function postToSandboxWithTimeout(
     const target = sandboxFrame.contentWindow;
     if (!target) {
       window.clearTimeout(timer);
-      state.pending.delete(message.requestId);
+      state.pending.delete(requestId);
       reject(new Error("Sandbox frame is not available."));
       return;
     }
@@ -63,7 +82,8 @@ export function postToSandboxWithTimeout(
       // while the render worker or GPU driver is busy. Results still return on
       // the direct port, so large bitmaps do not take the iframe hop.
       message.previewCacheEnabled !== true &&
-      state.directRenderEffectIds?.has?.(message.effectId)
+      typeof message.effectId === "string" &&
+      state.directRenderEffectIds?.has(message.effectId)
         ? state.directRenderResponsePort
         : null;
     if (directPort) {
@@ -75,13 +95,20 @@ export function postToSandboxWithTimeout(
         // port was closed during a sandbox restart.
       }
     }
-    const targetOrigin = new URL(sandboxFrame.src, window.location.href).origin;
-    target.postMessage(message, targetOrigin, transfer);
+    try {
+      const targetOrigin = new URL(sandboxFrame.src, window.location.href)
+        .origin;
+      target.postMessage(message, targetOrigin, transfer);
+    } catch (error) {
+      window.clearTimeout(timer);
+      state.pending.delete(requestId);
+      reject(error);
+    }
   });
 }
 
 export function refreshPendingSandboxRequestTimeout(
-  state: any,
+  state: Pick<ViewerTransportState, "pending">,
   requestId: string,
 ): boolean {
   const pending = state.pending.get(requestId);
@@ -98,11 +125,10 @@ export function refreshPendingSandboxRequestTimeout(
   return true;
 }
 
-export function cancelPendingSandboxRequests(state: any): number {
-  const pending = Array.from(state.pending.values()) as Array<{
-    reject?: (error: Error) => void;
-    timer: number;
-  }>;
+export function cancelPendingSandboxRequests(
+  state: Pick<ViewerTransportState, "pending">,
+): number {
+  const pending = Array.from(state.pending.values());
   state.pending.clear();
   for (const request of pending) {
     window.clearTimeout(request.timer);
@@ -130,23 +156,45 @@ export function shouldReportSandboxRequestFailure(error: unknown): boolean {
   );
 }
 
-export function completePending(state: any, message: any) {
-  const pending = state.pending.get(message.requestId);
+export function completePending(
+  state: Pick<ViewerTransportState, "pending">,
+  message: unknown,
+): void {
+  const requestId = readRequestId(message);
+  if (requestId === null) return;
+  const pending = state.pending.get(requestId);
   if (!pending) {
     return;
   }
   window.clearTimeout(pending.timer);
-  state.pending.delete(message.requestId);
+  state.pending.delete(requestId);
   pending.resolve(message);
 }
 
-export function completeRender(state: any, message: any) {
-  const pending = state.pending.get(message.requestId);
+export function completeRender(
+  state: Pick<ViewerTransportState, "pending"> & { staleResponses: number },
+  message: unknown,
+): void {
+  const requestId = readRequestId(message);
+  if (requestId === null) return;
+  const pending = state.pending.get(requestId);
   if (!pending) {
     state.staleResponses += 1;
     return;
   }
   window.clearTimeout(pending.timer);
-  state.pending.delete(message.requestId);
+  state.pending.delete(requestId);
   pending.resolve(message);
+}
+
+function readRequestId(value: unknown): string | null {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    !("requestId" in value)
+  )
+    return null;
+  const requestId = value.requestId;
+  return typeof requestId === "string" ? requestId : null;
 }

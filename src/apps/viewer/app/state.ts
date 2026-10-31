@@ -1,3 +1,6 @@
+import { createPreviewAudioState } from "../playback/audio-state.js";
+import { createViewerTransportState } from "../transport/state.js";
+import { createVideoExportState } from "../video-export/state.js";
 import { createPlaybackVideoCacheState } from "../playback/video-cache-state.js";
 import { createViewerRenderingState } from "../rendering/state.js";
 import { createCanvasViewportState } from "../canvas/viewport-state.js";
@@ -17,6 +20,9 @@ import {
 
 export function createViewerState() {
   return {
+    ...createPreviewAudioState(),
+    ...createViewerTransportState(),
+    ...createVideoExportState(),
     ...createPlaybackVideoCacheState(),
     ...createViewerRenderingState(),
     ...createCanvasViewportState(),
@@ -47,7 +53,6 @@ export function createViewerState() {
     droppedFrames: 0,
     directLiveProfileCompleteKeys: new Set<string>(),
     directLiveRenderKeys: new Set<string>(),
-    directRenderResponsePort: null,
     directRenderEffectIds: new Set<string>(),
     effectIds: new Set<string>(),
     expandedSceneIds: new Set<string>(),
@@ -66,31 +71,11 @@ export function createViewerState() {
     lastRenderMs: 0,
     loadedModules: new Set<string>(),
     loopPlayback: true,
-    modules: new Map(),
     moveLinkedKeys: true,
-    mp4Export: {
-      audioBuffer: null,
-      audioOptions: [],
-      cancelRequested: false,
-      customHeight: 720,
-      customWidth: 1280,
-      dialogOpen: false,
-      fps: 30,
-      inFlight: false,
-      sizePreset: "1280x720",
-      status: "",
-      videoOptions: [],
-      videoStatusToken: 0,
-    },
-    pack: null,
-    pending: new Map(),
     playing: false,
     previewGuides: false,
     previewRasterHeight: COMPOSITION_DESIGN_HEIGHT,
     previewRasterWidth: COMPOSITION_DESIGN_WIDTH,
-    previewAudio: {
-      active: new Map(),
-    },
     previewCacheEnabled: false,
     previewFrameCacheBytes: 0,
     previewFrameCacheComplete: false,
@@ -130,7 +115,6 @@ export function createViewerState() {
     rendererContractRefreshing: false,
     sandboxReady: false,
     sandboxRecoveryAttempts: 0,
-    sandboxRecoveryKey: null,
     sandboxRecoveryPending: false,
     sandboxRuntimeGeneration: 0,
     sandboxAssetCacheKeys: new Set<string>(),

@@ -1,3 +1,4 @@
+import type { SandboxRequest } from "./state.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   cancelPendingSandboxRequests,
@@ -8,7 +9,7 @@ const MAX_CONSECUTIVE_RECOVERIES = 1;
 
 async function requestSandbox(
   ctx: ViewerAppContext,
-  message: Record<string, any>,
+  message: SandboxRequest,
   timeoutMs: number,
   transfer: Transferable[] = [],
 ) {
@@ -33,11 +34,15 @@ async function requestSandbox(
 
 export function recoverSandboxRuntime(
   ctx: ViewerAppContext,
-  request: Record<string, any>,
+  request: Record<string, unknown>,
 ): boolean {
   const recoveryKey =
     ctx.state.currentTemplate?.id ??
-    String(request.effectId ?? request.moduleId ?? "runtime");
+    (typeof request.effectId === "string"
+      ? request.effectId
+      : typeof request.moduleId === "string"
+        ? request.moduleId
+        : "runtime");
   if (ctx.state.sandboxRecoveryKey !== recoveryKey) {
     ctx.state.sandboxRecoveryKey = recoveryKey;
     ctx.state.sandboxRecoveryAttempts = 0;

@@ -1,31 +1,24 @@
 import type { ViewerAppContext } from "../app/context.js";
 
-export type TimelinePreviewAudioClip = {
-  asset: any;
-  duration: number;
-  key: string;
-  offset: number;
-  start: number;
-  volume: number;
-};
+import type {
+  ActivePreviewAudio,
+  TimelinePreviewAudioClip,
+} from "./audio-state.js";
+export type { TimelinePreviewAudioClip } from "./audio-state.js";
 
-type ActivePreviewAudio = {
-  audio: HTMLAudioElement;
-  url: string | null;
-};
-
-type PreviewAudioState = {
-  active: Map<string, ActivePreviewAudio>;
-  clipDuration?: number;
-  clips?: TimelinePreviewAudioClip[];
-  clipTemplate?: any;
-};
-
-function isRecord(value: unknown): value is Record<string, any> {
-  return Boolean(value && typeof value === "object");
+type AudioAssetsContext = { state: { assets: ReadonlyMap<string, unknown> } };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function finiteNumber(value: unknown, fallback: number): number {
+  if (
+    value !== null &&
+    typeof value !== "number" &&
+    typeof value !== "string" &&
+    typeof value !== "boolean"
+  )
+    return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
@@ -34,74 +27,80 @@ function clampUnit(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function isAudioLayer(layer: any): boolean {
+function isAudioLayer(layer: unknown): boolean {
   return (
-    layer?.type === "audio" ||
-    layer?.kind === "audio" ||
-    layer?.mediaType === "audio"
+    isRecord(layer) &&
+    (layer?.type === "audio" ||
+      layer?.kind === "audio" ||
+      layer?.mediaType === "audio")
   );
 }
 
-function isAudioAsset(asset: any): boolean {
-  const mimeType = String(asset?.mimeType ?? asset?.blob?.type ?? "");
-  return asset?.kind === "audio" || mimeType.startsWith("audio/");
+function isAudioAsset(asset: unknown): asset is Record<string, unknown> {
+  if (!isRecord(asset)) return false;
+  const mimeType =
+    typeof asset.mimeType === "string"
+      ? asset.mimeType
+      : asset.blob instanceof Blob
+        ? asset.blob.type
+        : "";
+  return asset.kind === "audio" || mimeType.startsWith("audio/");
 }
 
-function getAudioAsset(ctx: ViewerAppContext, layer: any, clip: any): any {
+function getAudioAsset(
+  ctx: AudioAssetsContext,
+  layer: Record<string, unknown> | null | undefined,
+  clip: Record<string, unknown>,
+): unknown {
   const assetId =
-    clip?.assetId ?? layer?.assetId ?? layer?.audioAssetId ?? layer?.sourceId;
+    clip.assetId ?? layer?.assetId ?? layer?.audioAssetId ?? layer?.sourceId;
   return typeof assetId === "string" ? ctx.state.assets.get(assetId) : null;
 }
 
-function getAudioUrl(
-  ctx: ViewerAppContext,
-  asset: any,
-): {
+function getAudioUrl(asset: Record<string, unknown>): {
   url: string | null;
   revokeUrl: string | null;
 } {
-  if (asset?.blob instanceof Blob) {
+  if (asset.blob instanceof Blob) {
     const url = URL.createObjectURL(asset.blob);
     return { revokeUrl: url, url };
   }
-  if (typeof asset?.dataUrl === "string") {
-    return { revokeUrl: null, url: asset.dataUrl };
-  }
-  if (typeof ctx.dataUrlToBlob === "function" && asset?.dataUrl) {
-    const blob = ctx.dataUrlToBlob(
-      asset.dataUrl,
-      String(asset.mimeType ?? "application/octet-stream"),
-    );
-    const url = URL.createObjectURL(blob);
-    return { revokeUrl: url, url };
-  }
-  return { revokeUrl: null, url: null };
+  return {
+    revokeUrl: null,
+    url: typeof asset.dataUrl === "string" ? asset.dataUrl : null,
+  };
 }
 
-function getClipVolume(layer: any, clip: any): number {
+function getClipVolume(
+  layer: Record<string, unknown> | null | undefined,
+  clip: Record<string, unknown>,
+): number {
   const layerVolume = finiteNumber(layer?.volume, 1);
   const clipVolume = finiteNumber(clip?.volume, 1);
   return clampUnit(layerVolume * clipVolume);
 }
 
 export function collectTimelinePreviewAudioClips(
-  ctx: ViewerAppContext,
-  template: any,
+  ctx: AudioAssetsContext,
+  template: unknown,
   duration: number,
 ): TimelinePreviewAudioClip[] {
-  const layers = Array.isArray(template?.layers) ? template.layers : [];
-  const clips = Array.isArray(template?.clips) ? template.clips : [];
-  const layersById = new Map<string, Record<string, any>>(
-    layers
-      .filter((layer) => isRecord(layer) && typeof layer.id === "string")
-      .map((layer) => [layer.id, layer]),
-  );
+  if (!isRecord(template)) return [];
+  const layers: unknown[] = Array.isArray(template.layers)
+    ? template.layers
+    : [];
+  const clips: unknown[] = Array.isArray(template.clips) ? template.clips : [];
+  const layersById = new Map<string, Record<string, unknown>>();
+  for (const layer of layers) {
+    if (isRecord(layer) && typeof layer.id === "string")
+      layersById.set(layer.id, layer);
+  }
   const timelineClips =
     clips.length > 0
       ? clips
-      : layers.map((layer) => ({
+      : Array.from(layersById.keys(), (id) => ({
           duration,
-          layerId: layer.id,
+          layerId: id,
           offset: 0,
           start: 0,
         }));
@@ -130,12 +129,19 @@ export function collectTimelinePreviewAudioClips(
     if (start >= duration || clipDuration <= 0) {
       continue;
     }
-    const layerId = String(clip.layerId ?? layer?.id ?? "audio");
+    const layerId =
+      typeof clip.layerId === "string"
+        ? clip.layerId
+        : typeof layer?.id === "string"
+          ? layer.id
+          : "audio";
+    const assetId = typeof asset.id === "string" ? asset.id : "asset";
+    const offset = Math.max(0, finiteNumber(clip.offset ?? layer?.offset, 0));
     audioClips.push({
       asset,
       duration: Math.min(clipDuration, duration - start),
-      key: `${layerId}:${asset.id ?? "asset"}:${start}:${clip.offset ?? 0}`,
-      offset: Math.max(0, finiteNumber(clip.offset ?? layer?.offset, 0)),
+      key: `${layerId}:${assetId}:${start}:${offset}`,
+      offset,
       start,
       volume: getClipVolume(layer, clip),
     });
@@ -161,24 +167,24 @@ function seekAudio(audio: HTMLAudioElement, time: number): void {
   }
 }
 
-function ensurePreviewAudioState(ctx: ViewerAppContext) {
-  ctx.state.previewAudio ??= { active: new Map() };
-  ctx.state.previewAudio.active ??= new Map();
-  return ctx.state.previewAudio as PreviewAudioState;
-}
-
-function stopPreviewAudio(ctx: ViewerAppContext): void {
-  const previewAudio = ensurePreviewAudioState(ctx);
+export function stopPreviewAudio(ctx: Pick<ViewerAppContext, "state">): void {
+  const previewAudio = ctx.state.previewAudio;
   for (const item of previewAudio.active.values()) {
     stopActiveAudio(item);
   }
   previewAudio.active.clear();
-  previewAudio.clipDuration = undefined;
-  previewAudio.clips = undefined;
-  previewAudio.clipTemplate = undefined;
+  previewAudio.clipDuration = null;
+  previewAudio.clips = null;
+  previewAudio.clipTemplate = null;
 }
 
-function syncPreviewAudio(ctx: ViewerAppContext, time: number): void {
+export function syncPreviewAudio(
+  ctx: Pick<
+    ViewerAppContext,
+    "state" | "getRenderTemplateSnapshot" | "getEffectiveDuration"
+  >,
+  time: number,
+): void {
   if (!ctx.state.playing || !ctx.state.currentTemplate) {
     stopPreviewAudio(ctx);
     return;
@@ -186,7 +192,7 @@ function syncPreviewAudio(ctx: ViewerAppContext, time: number): void {
   const template = ctx.getRenderTemplateSnapshot(ctx.state.currentTemplate);
   const duration = ctx.getEffectiveDuration(ctx.state.currentTemplate);
   const activeKeys = new Set<string>();
-  const previewAudio = ensurePreviewAudioState(ctx);
+  const previewAudio = ctx.state.previewAudio;
   if (
     previewAudio.clipTemplate !== template ||
     previewAudio.clipDuration !== duration ||
@@ -209,7 +215,7 @@ function syncPreviewAudio(ctx: ViewerAppContext, time: number): void {
     const targetTime = clip.offset + time - clip.start;
     let active = previewAudio.active.get(clip.key);
     if (!active) {
-      const { revokeUrl, url } = getAudioUrl(ctx, clip.asset);
+      const { revokeUrl, url } = getAudioUrl(clip.asset);
       if (!url) {
         continue;
       }
@@ -223,9 +229,11 @@ function syncPreviewAudio(ctx: ViewerAppContext, time: number): void {
     }
     active.audio.volume = clip.volume;
     if (active.audio.paused) {
-      void active.audio.play().catch(() => {
-        stopActiveAudio(active);
-        previewAudio.active.delete(clip.key);
+      const item = active;
+      void item.audio.play().catch(() => {
+        stopActiveAudio(item);
+        if (previewAudio.active.get(clip.key) === item)
+          previewAudio.active.delete(clip.key);
       });
     }
   }

@@ -140,7 +140,13 @@ describe("viewer app support owners", () => {
     const second = createViewerState();
 
     first.assets.set("asset", {});
-    first.pending.set("request", {});
+    first.pending.set("request", {
+      expire: vi.fn(),
+      reject: vi.fn(),
+      resolve: vi.fn(),
+      timeoutMs: 100,
+      timer: 0,
+    });
 
     expect(first.loopPlayback).toBe(true);
     expect(first.mp4Export).toMatchObject({
