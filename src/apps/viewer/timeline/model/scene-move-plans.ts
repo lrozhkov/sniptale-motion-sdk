@@ -1,126 +1,23 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+
+import type {
+  SceneMovePlan,
+  MovePlanOptions,
+  KeyframeMoveItem,
+  PhaseMoveItem,
+  ClipMoveItem,
+  TimelineWindow,
+} from "./move-plan-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
-
-function createPhaseMovePlan(
-  ctx: ViewerAppContext,
-  effectiveTemplate,
-  phaseIds,
-  totalDuration,
-  includeLinkedKeys = true,
-) {
-  const timeline = ctx.deps.deepClone(
-    effectiveTemplate?.timeline ?? { phases: [], tracks: [] },
-  );
-  const selected = new Set(phaseIds);
-  const rawPhaseItems = (timeline.phases ?? [])
-    .filter((phase) => selected.has(phase.id) && !phase.locked)
-    .map((phase) => ({
-      duration: Number(phase.duration) || 0.05,
-      phase,
-      phaseId: phase.id,
-      start: Number(phase.start) || 0,
-    }));
-  const keyframeItems = [];
-  const bounds = [];
-  const addBound = (start, end = start) => bounds.push({ end, start });
-  const seenKeyframes = new Set();
-  const keyframedPhaseIds = new Set();
-  if (includeLinkedKeys) {
-    (timeline.tracks ?? []).forEach((track) => {
-      (track.keyframes ?? []).forEach((keyframe) => {
-        const key = `${track.id}:${keyframe.id}`;
-        const phaseId =
-          typeof keyframe?.phaseId === "string"
-            ? keyframe.phaseId
-            : track.phaseId;
-        if (
-          seenKeyframes.has(key) ||
-          !ctx.keyframeBelongsToSelectedPhase(keyframe, track, selected)
-        ) {
-          return;
-        }
-        seenKeyframes.add(key);
-        if (phaseId) {
-          keyframedPhaseIds.add(phaseId);
-        }
-        const time = Number(keyframe.time) || 0;
-        keyframeItems.push({
-          keyframe,
-          keyframeId: keyframe.id,
-          time,
-          track,
-          trackId: track.id,
-        });
-        addBound(time);
-      });
-    });
-  }
-  const phaseItems = rawPhaseItems.filter(
-    (item) => !keyframedPhaseIds.has(item.phaseId),
-  );
-  phaseItems.forEach((item) =>
-    addBound(item.start, item.start + item.duration),
-  );
-  const minStart = bounds.length
-    ? Math.min(...bounds.map((item) => item.start))
-    : 0;
-  const maxEnd = bounds.length
-    ? Math.max(...bounds.map((item) => item.end))
-    : totalDuration;
-  return {
-    keyframeItems,
-    maxDelta: totalDuration - maxEnd,
-    minDelta: -minStart,
-    phaseItems,
-    timeline,
-  };
-}
-
-function applyPhaseMovePlan(
-  ctx: ViewerAppContext,
-  template,
-  plan,
-  deltaTime,
-  options: any = {},
-) {
-  if (!template || !plan) {
-    return;
-  }
-  const totalDuration = ctx.getEffectiveDuration(template);
-  const delta =
-    ctx.snapDuration(Math.abs(deltaTime)) * Math.sign(deltaTime || 0);
-  plan.phaseItems.forEach((item) => {
-    item.phase.start = ctx.snapTime(
-      ctx.deps.clamp(item.start + delta, 0, totalDuration - item.duration),
-    );
-  });
-  plan.keyframeItems.forEach((item) => {
-    item.keyframe.time = ctx.snapTime(
-      ctx.deps.clamp(item.time + delta, 0, totalDuration),
-    );
-  });
-  (plan.timeline.tracks ?? []).forEach((track) => {
-    track.keyframes = [...(track.keyframes ?? [])].sort(
-      (a, b) => a.time - b.time,
-    );
-  });
-  ctx.state.timelineOverrides.set(
-    template.id,
-    ctx.deps.normalizeTimeline(plan.timeline, totalDuration),
-  );
-  if (options.render === false) {
-    return;
-  }
-  ctx.renderTimelineEditor(template);
-  void ctx.renderCurrentFrame();
-}
 
 function createSceneMovePlan(
   ctx: ViewerAppContext,
-  effectiveTemplate,
-  sceneIds,
-  totalDuration,
+  effectiveTemplate: EditorTemplate,
+  sceneIds: string[],
+  totalDuration: number,
   includeLinkedKeys = true,
-) {
+): SceneMovePlan {
   const scenes = ctx.normalizeScenes(
     effectiveTemplate.scenes ?? [],
     totalDuration,
@@ -141,17 +38,21 @@ function createSceneMovePlan(
   }));
   const clips = ctx.deps.deepClone(effectiveTemplate.clips ?? []);
   const timeline = ctx.deps.deepClone(
-    effectiveTemplate.timeline ?? { phases: [], tracks: [] },
+    effectiveTemplate.timeline ?? {
+      duration: totalDuration,
+      phases: [],
+      tracks: [],
+    },
   );
   const globalLayerIds = ctx.getGlobalTimelineLayerIds(
     effectiveTemplate,
     scenes,
   );
-  const clipItems = [];
-  const phaseItems = [];
-  const keyframeItems = [];
-  const bounds = [];
-  const addBound = (start, end = start) => {
+  const clipItems: ClipMoveItem[] = [];
+  const phaseItems: PhaseMoveItem[] = [];
+  const keyframeItems: KeyframeMoveItem[] = [];
+  const bounds: TimelineWindow[] = [];
+  const addBound = (start: number, end = start) => {
     bounds.push({ end, start });
   };
   sceneItems.forEach((item) =>
@@ -201,7 +102,8 @@ function createSceneMovePlan(
     });
     const seenKeyframes = new Set();
     (timeline.tracks ?? []).forEach((track) => {
-      if (globalLayerIds.has(ctx.getTrackLayerId(track))) {
+      const trackLayerId = ctx.getTrackLayerId(track);
+      if (trackLayerId !== null && globalLayerIds.has(trackLayerId)) {
         return;
       }
       (track.keyframes ?? []).forEach((keyframe) => {
@@ -251,11 +153,11 @@ function createSceneMovePlan(
 
 function applySceneMovePlan(
   ctx: ViewerAppContext,
-  template,
-  plan,
-  deltaTime,
-  options: any = {},
-) {
+  template: { id: string } | null | undefined,
+  plan: SceneMovePlan | null | undefined,
+  deltaTime: number,
+  options: MovePlanOptions = {},
+): void {
   if (!template || !plan) {
     return;
   }
@@ -299,11 +201,9 @@ function applySceneMovePlan(
   void ctx.renderCurrentFrame();
 }
 
-export function installModelPhaseSceneMovePlansOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.createPhaseMovePlan = createPhaseMovePlan.bind(undefined, ctx);
-  ctx.applyPhaseMovePlan = applyPhaseMovePlan.bind(undefined, ctx);
-  ctx.createSceneMovePlan = createSceneMovePlan.bind(undefined, ctx);
-  ctx.applySceneMovePlan = applySceneMovePlan.bind(undefined, ctx);
+export function createSceneMoveActions(getContext: () => ViewerAppContext) {
+  return {
+    createSceneMovePlan: bindViewerAction(createSceneMovePlan, getContext),
+    applySceneMovePlan: bindViewerAction(applySceneMovePlan, getContext),
+  };
 }

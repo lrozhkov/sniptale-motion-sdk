@@ -68,7 +68,7 @@ function beginClipDrag(
             }
           : null;
       })
-      .filter(Boolean);
+      .filter((item) => item !== null);
   ctx.state.selectedClips =
     mode === "move" ? originals.map((item) => item.layerId) : [layerId];
   ctx.state.selectedLayers = [];
@@ -103,7 +103,7 @@ function beginClipDrag(
     const rawDelta = ctx.timelineDeltaFromPixels(pointerDelta, rect, template);
     const deltaTime =
       mode === "move" ? ctx.deps.clamp(rawDelta, minDelta, maxDelta) : rawDelta;
-    if (mode === "move") {
+    if (clipMovePlan) {
       preview.scheduleUpdate(
         () =>
           ctx.applyClipMovePlan(template, clipMovePlan, deltaTime, {

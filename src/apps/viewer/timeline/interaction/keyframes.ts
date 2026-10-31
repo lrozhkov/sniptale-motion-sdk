@@ -2,31 +2,6 @@ import type { KeyframeSelectionRef } from "../model/selection-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 import { getPairedMotionPathKeyframeRef } from "../model/motion-path-mutations.js";
 
-function collectKeyframeParentLinks(
-  ctx: ViewerAppContext,
-  template,
-  trackId,
-  keyframeId,
-  links,
-) {
-  const track = template.timeline?.tracks?.find((item) => item.id === trackId);
-  const keyframe = track?.keyframes?.find((item) => item.id === keyframeId);
-  if (!track || !keyframe) {
-    return;
-  }
-  links.trackIds.add(track.id);
-  links.keyframes.add(ctx.keyframeLinkKey(track.id, keyframe.id));
-  const layerId = ctx.getTrackLayerId(track);
-  if (layerId) {
-    links.clipLayerIds.add(layerId);
-  }
-  if (keyframe.phaseId || track.phaseId) {
-    links.phaseIds.add(keyframe.phaseId ?? track.phaseId);
-  }
-  if (keyframe.sceneId || track.sceneId) {
-    links.sceneIds.add(keyframe.sceneId ?? track.sceneId);
-  }
-}
 function findSelectedKeyframe(ctx: ViewerAppContext, timeline) {
   const selected = ctx.getPrimaryKeyframeSelection();
   if (!selected) {
@@ -88,8 +63,8 @@ function updateSelectedKeyframe(
   }
   const pairedRef = getPairedMotionPathKeyframeRef(
     timeline,
-    trackId,
-    keyframeId,
+    track.id,
+    keyframe.id,
   );
   const pairedTrack = pairedRef
     ? timeline.tracks.find((item) => item.id === pairedRef.trackId)
@@ -191,10 +166,6 @@ export function getSelectedKeyframeRefs(
   return Array.from(unique.values());
 }
 export function installInteractionKeyframesOwner(ctx: ViewerAppContext): void {
-  ctx.collectKeyframeParentLinks = collectKeyframeParentLinks.bind(
-    undefined,
-    ctx,
-  );
   ctx.findSelectedKeyframe = findSelectedKeyframe.bind(undefined, ctx);
   ctx.updateSelectedKeyframe = updateSelectedKeyframe.bind(undefined, ctx);
   ctx.addKeyframeAtPlayhead = addKeyframeAtPlayhead.bind(undefined, ctx);

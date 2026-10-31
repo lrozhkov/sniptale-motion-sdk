@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { deepClone } from "../src/apps/viewer/editor/model";
-import { installModelPhaseSceneMovePlansOwner } from "../src/apps/viewer/timeline/model/phase-scene-move-plans";
-import { installTimelineOwnershipPredicatesOwner } from "../src/apps/viewer/timeline/model/ownership-predicates";
+import { createSceneMoveActions } from "../src/apps/viewer/timeline/model/scene-move-plans";
+import { createTimelineOwnershipPredicates } from "../src/apps/viewer/timeline/model/ownership-predicates";
 
 describe("viewer scene move ownership", () => {
   it("does not move cross-scene global layer timing with a scene", () => {
@@ -14,8 +14,14 @@ describe("viewer scene move ownership", () => {
         start + duration <= scene.start + scene.duration,
       normalizeScenes: (scenes: any[]) => scenes,
     };
-    installTimelineOwnershipPredicatesOwner(ctx);
-    installModelPhaseSceneMovePlansOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineOwnershipPredicates(() => ctx),
+    );
+    Object.assign(
+      ctx,
+      createSceneMoveActions(() => ctx),
+    );
     const template = {
       clips: [
         { duration: 8, layerId: "background", sceneId: null, start: 0 },

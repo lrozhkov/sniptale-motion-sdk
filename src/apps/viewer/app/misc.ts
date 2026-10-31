@@ -1,6 +1,11 @@
+import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { ViewerAppContext } from "./context.js";
 
-function findSceneIdAtTime(ctx: ViewerAppContext, template, time) {
+export function findSceneIdAtTime(
+  ctx: ViewerAppContext,
+  template: EditorTimelineSource | null | undefined,
+  time: number,
+): string | null {
   const effectiveTemplate = ctx.getEffectiveTemplate(template);
   const at = Number(time) || 0;
   return (
@@ -17,12 +22,12 @@ function findSceneIdAtTime(ctx: ViewerAppContext, template, time) {
       )?.id ?? null
   );
 }
-function findPhaseIdAtTime(
+export function findPhaseIdAtTime(
   ctx: ViewerAppContext,
-  template,
-  time,
-  layerId = null,
-) {
+  template: EditorTimelineSource | null | undefined,
+  time: number,
+  layerId: string | null = null,
+): string | null {
   const timeline = ctx.getEffectiveTimeline(template);
   const at = Number(time) || 0;
   return (
@@ -49,11 +54,6 @@ function setAllSceneRowsExpanded(ctx: ViewerAppContext, expanded) {
     ? new Set(scenes.map((scene) => scene.id))
     : new Set();
   ctx.renderTimelineEditor(ctx.state.currentTemplate);
-}
-function isTimeInsideAnyScene(ctx: ViewerAppContext, time, windows) {
-  return windows.some(
-    (window) => time >= window.start - 0.0001 && time < window.end - 0.0001,
-  );
 }
 function deleteSelectedTimelineItem(ctx: ViewerAppContext) {
   const template = ctx.state.currentTemplate;
@@ -170,10 +170,7 @@ function cssEscape(_ctx: ViewerAppContext, value) {
 }
 
 export function installAppMiscOwner(ctx: ViewerAppContext): void {
-  ctx.findSceneIdAtTime = findSceneIdAtTime.bind(undefined, ctx);
-  ctx.findPhaseIdAtTime = findPhaseIdAtTime.bind(undefined, ctx);
   ctx.setAllSceneRowsExpanded = setAllSceneRowsExpanded.bind(undefined, ctx);
-  ctx.isTimeInsideAnyScene = isTimeInsideAnyScene.bind(undefined, ctx);
   ctx.deleteSelectedTimelineItem = deleteSelectedTimelineItem.bind(
     undefined,
     ctx,

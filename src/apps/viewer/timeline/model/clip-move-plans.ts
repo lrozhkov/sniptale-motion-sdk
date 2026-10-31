@@ -1,16 +1,37 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import type {
+  TimelineKeyframe,
+  EffectClip,
+  EffectScene,
+} from "../../../../sdk/types.js";
+import type {
+  SceneMoveBounds,
+  ClipMovePlan,
+  MovePlanOptions,
+  KeyframeMoveItem,
+  PhaseMoveItem,
+  TimelineWindow,
+} from "./move-plan-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
 function createClipMovePlan(
   ctx: ViewerAppContext,
-  effectiveTemplate,
-  layerIds,
-  totalDuration,
+  effectiveTemplate: EditorTemplate | null | undefined,
+  layerIds: string[],
+  totalDuration: number,
   includeLinkedKeys = true,
-) {
+): ClipMovePlan {
   const selected = new Set(layerIds);
   const clips = ctx.deps.deepClone(effectiveTemplate?.clips ?? []);
   const timeline = ctx.deps.deepClone(
-    effectiveTemplate?.timeline ?? { phases: [], tracks: [] },
+    effectiveTemplate?.timeline ?? {
+      duration: totalDuration,
+      phases: [],
+      tracks: [],
+    },
   );
   const movablePhaseIds = includeLinkedKeys
     ? ctx.getClipMovablePhaseIds(timeline, clips, selected)
@@ -29,16 +50,20 @@ function createClipMovePlan(
     sceneId: item.clip.sceneId ?? null,
     start: item.start,
   }));
-  const scenesById = new Map<string, any>(
+  const scenesById = new Map<string, EffectScene>(
     (effectiveTemplate?.scenes ?? []).map((scene) => [scene.id, scene]),
   );
-  const keyframeItems = [];
-  const phaseItems = [];
-  const bounds = [];
-  const sceneBounds = new Map<string, any>();
-  const minDeltas = [];
-  const maxDeltas = [];
-  const addBound = (start, end = start, sceneId = null) => {
+  const keyframeItems: KeyframeMoveItem[] = [];
+  const phaseItems: PhaseMoveItem[] = [];
+  const bounds: TimelineWindow[] = [];
+  const sceneBounds = new Map<string, SceneMoveBounds>();
+  const minDeltas: number[] = [];
+  const maxDeltas: number[] = [];
+  const addBound = (
+    start: number,
+    end = start,
+    sceneId: string | null = null,
+  ) => {
     bounds.push({ end, start });
     if (!sceneId) {
       return;
@@ -142,11 +167,11 @@ function createClipMovePlan(
 
 function keyframeCanMoveWithClip(
   ctx: ViewerAppContext,
-  timeline,
-  track,
-  keyframe,
-  clipOrWindow,
-) {
+  timeline: EditorTimeline | null | undefined,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  clipOrWindow: { sceneId?: string | null } | null | undefined,
+): boolean {
   const clipSceneId = clipOrWindow?.sceneId ?? null;
   if (!clipSceneId) {
     return true;
@@ -156,26 +181,26 @@ function keyframeCanMoveWithClip(
 }
 
 function keyframePhaseCanMoveWithClip(
-  ctx: ViewerAppContext,
-  timeline,
-  track,
-  keyframe,
-  movablePhaseIds,
-) {
+  _ctx: ViewerAppContext,
+  _timeline: EditorTimeline | null | undefined,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  movablePhaseIds: ReadonlySet<string>,
+): boolean {
   const phaseId = keyframe?.phaseId ?? track?.phaseId;
   return !phaseId || movablePhaseIds.has(phaseId);
 }
 
 function getClipMovablePhaseIds(
   ctx: ViewerAppContext,
-  timeline,
-  clips,
-  selectedLayerIds,
-) {
+  timeline: EditorTimeline,
+  clips: EffectClip[],
+  selectedLayerIds: ReadonlySet<string>,
+): Set<string> {
   const explicitPhaseIds = new Set(
     (timeline.phases ?? []).map((phase) => phase.id),
   );
-  const phaseOwners = new Map();
+  const phaseOwners = new Map<string, Set<string>>();
   for (const track of timeline.tracks ?? []) {
     const layerId = ctx.getTrackLayerId(track);
     for (const keyframe of track.keyframes ?? []) {
@@ -183,13 +208,12 @@ function getClipMovablePhaseIds(
       if (!phaseId || !explicitPhaseIds.has(phaseId)) {
         continue;
       }
-      if (!phaseOwners.has(phaseId)) {
-        phaseOwners.set(phaseId, new Set());
-      }
-      phaseOwners.get(phaseId).add(layerId ?? "__scene__");
+      const owners = phaseOwners.get(phaseId) ?? new Set<string>();
+      owners.add(layerId ?? "__scene__");
+      phaseOwners.set(phaseId, owners);
     }
   }
-  const movable = new Set();
+  const movable = new Set<string>();
   for (const [phaseId, owners] of phaseOwners) {
     if ([...owners].every((owner) => selectedLayerIds.has(owner))) {
       movable.add(phaseId);
@@ -208,11 +232,11 @@ function getClipMovablePhaseIds(
 
 function applyClipMovePlan(
   ctx: ViewerAppContext,
-  template,
-  plan,
-  deltaTime,
-  options: any = {},
-) {
+  template: { id: string } | null | undefined,
+  plan: ClipMovePlan | null | undefined,
+  deltaTime: number,
+  options: MovePlanOptions = {},
+): void {
   if (!template || !plan) {
     return;
   }
@@ -251,13 +275,21 @@ function applyClipMovePlan(
   void ctx.renderCurrentFrame();
 }
 
-export function installModelClipMovePlansOwner(ctx: ViewerAppContext): void {
-  ctx.createClipMovePlan = createClipMovePlan.bind(undefined, ctx);
-  ctx.keyframeCanMoveWithClip = keyframeCanMoveWithClip.bind(undefined, ctx);
-  ctx.keyframePhaseCanMoveWithClip = keyframePhaseCanMoveWithClip.bind(
-    undefined,
-    ctx,
-  );
-  ctx.getClipMovablePhaseIds = getClipMovablePhaseIds.bind(undefined, ctx);
-  ctx.applyClipMovePlan = applyClipMovePlan.bind(undefined, ctx);
+export function createClipMoveActions(getContext: () => ViewerAppContext) {
+  return {
+    createClipMovePlan: bindViewerAction(createClipMovePlan, getContext),
+    keyframeCanMoveWithClip: bindViewerAction(
+      keyframeCanMoveWithClip,
+      getContext,
+    ),
+    keyframePhaseCanMoveWithClip: bindViewerAction(
+      keyframePhaseCanMoveWithClip,
+      getContext,
+    ),
+    getClipMovablePhaseIds: bindViewerAction(
+      getClipMovablePhaseIds,
+      getContext,
+    ),
+    applyClipMovePlan: bindViewerAction(applyClipMovePlan, getContext),
+  };
 }

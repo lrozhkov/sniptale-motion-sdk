@@ -1,3 +1,4 @@
+import type { TrackLayerSource } from "./model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { getLayerLeafIds, isLayerGroup } from "./hierarchy.js";
 
@@ -44,7 +45,9 @@ function toggleLayerBooleanState(
   void ctx.renderCurrentFrame();
 }
 
-function getTrackLayerId(ctx: ViewerAppContext, track) {
+export function getTrackLayerId(
+  track: TrackLayerSource | null | undefined,
+): string | null {
   if (typeof track?.layerId === "string") {
     return track.layerId;
   }
@@ -55,7 +58,7 @@ function getTrackLayerId(ctx: ViewerAppContext, track) {
     return track.target;
   }
   if (typeof track?.id === "string" && track.id.includes(".")) {
-    return track.id.split(".")[0];
+    return track.id.slice(0, track.id.indexOf("."));
   }
   return null;
 }
@@ -182,7 +185,6 @@ function isLayerActiveAtTime(ctx: ViewerAppContext, template, layerId, time) {
 export function installLayersPropertiesOwner(ctx: ViewerAppContext): void {
   ctx.toggleLayerVisibility = toggleLayerVisibility.bind(undefined, ctx);
   ctx.toggleLayerLock = toggleLayerLock.bind(undefined, ctx);
-  ctx.getTrackLayerId = getTrackLayerId.bind(undefined, ctx);
   ctx.hasLayerPropertyKeyframeAtCurrentTime =
     hasLayerPropertyKeyframeAtCurrentTime.bind(undefined, ctx);
   ctx.toggleLayerPropertyKeyframe = toggleLayerPropertyKeyframe.bind(

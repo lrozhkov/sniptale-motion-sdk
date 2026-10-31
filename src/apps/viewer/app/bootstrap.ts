@@ -42,8 +42,6 @@ import { installCanvasSelectionTransformKeyboardOwner } from "../canvas/selectio
 import { installCanvasSelectionLevelOwner } from "../canvas/selection-level.js";
 import { installCanvasIsolationBreadcrumbOwner } from "../canvas/isolation-breadcrumb.js";
 import { installCanvasMarqueeOwner } from "../canvas/marquee.js";
-import { installModelOwnershipLinksOwner } from "../timeline/model/ownership-links.js";
-import { installTimelineOwnershipPredicatesOwner } from "../timeline/model/ownership-predicates.js";
 import { installInspectorOwnershipEditorsOwner } from "../inspector/ownership-editors.js";
 import { installInspectorOwnershipSummaryOwner } from "../inspector/ownership-summary.js";
 import { installModelSelectionStateOwner } from "../timeline/model/selection-state.js";
@@ -77,8 +75,6 @@ import { installInspectorKeyframeSegmentOwner } from "../inspector/keyframe-segm
 import { installInspectorKeyframeEditOwner } from "../inspector/keyframe-edit.js";
 import { installInspectorKeyframeSelectionOwner } from "../inspector/keyframe-selection.js";
 import { installInteractionKeyframePropertiesOwner } from "../timeline/interaction/keyframe-properties.js";
-import { installModelPhaseSceneMovePlansOwner } from "../timeline/model/phase-scene-move-plans.js";
-import { installModelClipMovePlansOwner } from "../timeline/model/clip-move-plans.js";
 import { installTimelineTimingPropertiesOwner } from "../timeline/model/timing-properties.js";
 import { installTemplatesSelectionOwner } from "../templates/selection.js";
 import { installCompositionWorkspaceViewOwner } from "../templates/workspace-view-state.js";
@@ -131,7 +127,6 @@ import { installTimelinePhaseGroupViewOwner } from "../timeline/view/phase-group
 import { installTimelinePropertyTrackViewOwner } from "../timeline/view/property-track.js";
 import { installTimelineSelectionViewOwner } from "../timeline/view/selection.js";
 import { installViewSceneGroupOwner } from "../timeline/view/scene-group.js";
-import { installModelOwnershipOwner } from "../timeline/model/ownership.js";
 import { installInteractionDragOwner } from "../timeline/interaction/drag.js";
 import { installInteractionKeyframesOwner } from "../timeline/interaction/keyframes.js";
 import { installInteractionKeyframeClipboardOwner } from "../timeline/interaction/keyframe-clipboard.js";
@@ -198,7 +193,6 @@ export function startViewerApp(): void {
   installTimelinePropertyTrackViewOwner(ctx);
   installTimelineSelectionViewOwner(ctx);
   installViewSceneGroupOwner(ctx);
-  installModelOwnershipOwner(ctx);
   installInteractionDragOwner(ctx);
   installInteractionKeyframesOwner(ctx);
   installInteractionKeyframeClipboardOwner(ctx);
@@ -256,8 +250,6 @@ export function startViewerApp(): void {
   installCanvasPropertyUpdatesOwner(ctx);
   installCanvasSelectionTransformOwner(ctx);
   installCanvasSelectionTransformKeyboardOwner(ctx);
-  installModelOwnershipLinksOwner(ctx);
-  installTimelineOwnershipPredicatesOwner(ctx);
   installInspectorOwnershipEditorsOwner(ctx);
   installInspectorOwnershipSummaryOwner(ctx);
   installModelSelectionStateOwner(ctx);
@@ -284,8 +276,6 @@ export function startViewerApp(): void {
   installInspectorKeyframeCurveHandlesOwner(ctx);
   installInspectorKeyframeEditOwner(ctx);
   installInspectorKeyframeSelectionOwner(ctx);
-  installModelPhaseSceneMovePlansOwner(ctx);
-  installModelClipMovePlansOwner(ctx);
   installTimelineTimingPropertiesOwner(ctx);
   installTemplatesComboboxOwner(ctx);
   installTemplatesSelectionOwner(ctx);

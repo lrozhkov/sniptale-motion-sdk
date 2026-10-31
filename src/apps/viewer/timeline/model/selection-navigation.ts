@@ -159,9 +159,8 @@ function applyTimelineSelectionItem(ctx: ViewerAppContext, item) {
 }
 
 function scrollSelectedTimelineItemIntoView(ctx: ViewerAppContext) {
-  const range = ctx.getSelectedTimelineRange(
-    ctx.getEffectiveTemplate(ctx.state.currentTemplate),
-  );
+  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
+  const range = template ? ctx.getSelectedTimelineRange(template) : null;
   requestAnimationFrame(() => {
     const element = range?.selector
       ? ctx.refs.timelineTracks.querySelector(range.selector)

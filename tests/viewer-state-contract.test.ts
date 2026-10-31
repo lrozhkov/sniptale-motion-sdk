@@ -4,6 +4,15 @@ import type {
   TimelineTrackRow,
 } from "../src/apps/viewer/timeline/model/row-tree-model.js";
 import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import type {
+  ClipMovePlan,
+  PhaseMovePlan,
+  SceneMovePlan,
+} from "../src/apps/viewer/timeline/model/move-plan-model.js";
+import type {
+  OwnershipLinks,
+  SelectedTimelineRange,
+} from "../src/apps/viewer/timeline/model/ownership-model.js";
 import type { CanvasTransformPreview } from "../src/apps/viewer/canvas/transform-state.js";
 import type { KeyframeClipboardEntry } from "../src/apps/viewer/timeline/state.js";
 import type { RendererBindingReads } from "../src/apps/viewer/app/binding-reads.js";
@@ -32,6 +41,30 @@ import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 
 describe("viewer state contracts", () => {
+  it("keeps timeline action payloads typed at the application boundary", () => {
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createClipMovePlan"]>
+    >().toEqualTypeOf<ClipMovePlan>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createPhaseMovePlan"]>
+    >().toEqualTypeOf<PhaseMovePlan>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["createSceneMovePlan"]>
+    >().toEqualTypeOf<SceneMovePlan>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["buildSelectedOwnershipLinks"]>
+    >().toEqualTypeOf<OwnershipLinks>();
+    expectTypeOf<
+      ReturnType<ViewerAppContext["getSelectedTimelineRange"]>
+    >().toEqualTypeOf<SelectedTimelineRange | null>();
+    expectTypeOf<
+      Parameters<ViewerAppContext["isTimeInsideRange"]>[0]
+    >().toBeNumber();
+    expectTypeOf<
+      ClipMovePlan["keyframeItems"][number]["keyframe"]["value"]
+    >().toBeUnknown();
+  });
+
   it("exposes typed editor state without a root any", () => {
     const state = createViewerState();
     expectTypeOf(state).not.toBeAny();

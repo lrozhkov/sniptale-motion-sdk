@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { clamp } from "../src/sdk/protocol";
 import { deepClone, normalizeTimeline } from "../src/apps/viewer/editor/model";
-import { installModelClipMovePlansOwner } from "../src/apps/viewer/timeline/model/clip-move-plans";
+import { createClipMoveActions } from "../src/apps/viewer/timeline/model/clip-move-plans";
 
 describe("viewer timeline layer interval move contract", () => {
   it("moves a layer clip with owned keyframes and clamps to its scene", () => {
@@ -162,6 +162,9 @@ function createClipMoveContext() {
     ctx.lastTemplateId = key;
     return originalSet(key, value);
   };
-  installModelClipMovePlansOwner(ctx);
+  Object.assign(
+    ctx,
+    createClipMoveActions(() => ctx),
+  );
   return ctx;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { installTimelineOwnershipPredicatesOwner } from "../src/apps/viewer/timeline/model/ownership-predicates";
+import { createTimelineOwnershipPredicates } from "../src/apps/viewer/timeline/model/ownership-predicates";
 import { installTimelineRowTreeOwner } from "../src/apps/viewer/timeline/model/row-tree";
 import { installModelSelectionNavigationOwner } from "../src/apps/viewer/timeline/model/selection-navigation";
 
@@ -13,7 +13,10 @@ describe("viewer timeline ownership predicates", () => {
       getKeyframeOwnershipSceneId: () => null,
       state: { currentTemplate: template },
     };
-    installTimelineOwnershipPredicatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineOwnershipPredicates(() => ctx),
+    );
 
     const track = { id: "background.opacity" };
     const keyframe = { id: "background-end", time: 8 };
@@ -80,7 +83,10 @@ describe("viewer timeline ownership predicates", () => {
         start + duration <= scene.start + scene.duration,
       normalizeScenes: (scenes: any[]) => scenes,
     };
-    installTimelineOwnershipPredicatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineOwnershipPredicates(() => ctx),
+    );
     installTimelineRowTreeOwner(ctx);
 
     const tree = ctx.createTimelineRowTree({
@@ -111,7 +117,10 @@ describe("viewer timeline ownership predicates", () => {
     const ctx: any = {
       getTrackLayerId: (track: any) => track.layerId ?? track.target ?? null,
     };
-    installTimelineOwnershipPredicatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineOwnershipPredicates(() => ctx),
+    );
 
     const timeline = {
       tracks: [
@@ -148,7 +157,10 @@ describe("viewer timeline ownership predicates", () => {
         track.layerId ?? (track.target === "scene" ? null : track.target),
       normalizeScenes: (scenes: any[]) => scenes,
     };
-    installTimelineOwnershipPredicatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineOwnershipPredicates(() => ctx),
+    );
     installTimelineRowTreeOwner(ctx);
 
     const tree = ctx.createTimelineRowTree({
@@ -247,7 +259,10 @@ describe("viewer timeline ownership predicates", () => {
       getTrackLayerId: () => null,
       normalizeScenes: (scenes: any[]) => scenes,
     };
-    installTimelineOwnershipPredicatesOwner(ctx);
+    Object.assign(
+      ctx,
+      createTimelineOwnershipPredicates(() => ctx),
+    );
     installTimelineRowTreeOwner(ctx);
 
     const tree = ctx.createTimelineRowTree({

@@ -106,7 +106,8 @@ function getSceneTimelineSummary(
   let tracks = 0;
   let keyframes = 0;
   for (const track of timeline.tracks ?? []) {
-    if (globalLayerIds.has(ctx.getTrackLayerId(track))) {
+    const trackLayerId = ctx.getTrackLayerId(track);
+    if (trackLayerId !== null && globalLayerIds.has(trackLayerId)) {
       continue;
     }
     const sceneKeyframes = (track.keyframes ?? []).filter((keyframe) =>

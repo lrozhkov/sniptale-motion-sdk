@@ -1,13 +1,32 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import type { EditorTemplate } from "../../templates/model.js";
+import type { EditorTimeline } from "../../editor/model-types.js";
+import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import type {
+  TimelineKeyframe,
+  EffectClip,
+  EffectScene,
+  TimelinePhase,
+} from "../../../../sdk/types.js";
+import type { TimelineWindow } from "./move-plan-model.js";
 import type { ViewerAppContext } from "../../app/context.js";
 
-function clipBelongsToScene(ctx: ViewerAppContext, clip, scene) {
+function clipBelongsToScene(
+  ctx: ViewerAppContext,
+  clip: EffectClip | null | undefined,
+  scene: EffectScene,
+): boolean {
   if (typeof clip?.sceneId === "string") {
     return clip.sceneId === scene.id;
   }
   return ctx.timeBelongsToScene(Number(clip?.start) || 0, scene);
 }
 
-function isGlobalTimelineClip(ctx: ViewerAppContext, clip, scenes) {
+function isGlobalTimelineClip(
+  ctx: ViewerAppContext,
+  clip: EffectClip | null | undefined,
+  scenes: EffectScene[],
+): boolean {
   if (typeof clip?.sceneId === "string" || scenes.length <= 1) {
     return false;
   }
@@ -20,12 +39,12 @@ function isGlobalTimelineClip(ctx: ViewerAppContext, clip, scenes) {
 
 function getGlobalTimelineLayerIds(
   ctx: ViewerAppContext,
-  template,
-  scenes = ctx.normalizeScenes(
+  template: EditorTemplate | null | undefined,
+  scenes: EffectScene[] = ctx.normalizeScenes(
     template?.scenes ?? [],
     Number(template?.duration) || 0,
   ),
-) {
+): Set<string> {
   return new Set<string>(
     (template?.clips ?? [])
       .filter((clip) => ctx.isGlobalTimelineClip(clip, scenes))
@@ -33,7 +52,11 @@ function getGlobalTimelineLayerIds(
   );
 }
 
-function phaseBelongsToScene(ctx: ViewerAppContext, phase, scene) {
+function phaseBelongsToScene(
+  ctx: ViewerAppContext,
+  phase: TimelinePhase | null | undefined,
+  scene: EffectScene,
+): boolean {
   if (typeof phase?.sceneId === "string") {
     return phase.sceneId === scene.id;
   }
@@ -42,11 +65,13 @@ function phaseBelongsToScene(ctx: ViewerAppContext, phase, scene) {
 
 function keyframeBelongsToScene(
   ctx: ViewerAppContext,
-  track,
-  keyframe,
-  scene,
-  timeline = ctx.getEffectiveTimeline(ctx.state.currentTemplate),
-) {
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+  scene: EffectScene,
+  timeline: EditorTimeline = ctx.getEffectiveTimeline(
+    ctx.state.currentTemplate,
+  ),
+): boolean {
   const sceneId = ctx.getKeyframeOwnershipSceneId(timeline, track, keyframe);
   if (sceneId) {
     return sceneId === scene.id;
@@ -63,22 +88,30 @@ function keyframeBelongsToScene(
   );
 }
 
-function timeBelongsToScene(ctx: ViewerAppContext, time, scene) {
+function timeBelongsToScene(
+  _ctx: ViewerAppContext,
+  time: number,
+  scene: EffectScene,
+): boolean {
   const sceneStart = Number(scene.start) || 0;
   const sceneEnd = sceneStart + Number(scene.duration || 0);
   return time >= sceneStart - 0.0001 && time < sceneEnd - 0.0001;
 }
 
-function keyframeLinkKey(ctx: ViewerAppContext, trackId, keyframeId) {
+function keyframeLinkKey(
+  _ctx: ViewerAppContext,
+  trackId: string,
+  keyframeId: string,
+): string {
   return `${trackId}:${keyframeId}`;
 }
 
 function keyframeBelongsToSelectedPhase(
-  ctx: ViewerAppContext,
-  keyframe,
-  track,
-  selectedPhaseIds,
-) {
+  _ctx: ViewerAppContext,
+  keyframe: TimelineKeyframe<unknown>,
+  track: MotionPathTrack,
+  selectedPhaseIds: ReadonlySet<string>,
+): boolean {
   if (typeof keyframe?.phaseId === "string") {
     return selectedPhaseIds.has(keyframe.phaseId);
   }
@@ -89,12 +122,12 @@ function keyframeBelongsToSelectedPhase(
 
 function timingBelongsToSelectedScene(
   ctx: ViewerAppContext,
-  item,
-  fallbackTime,
-  windows,
-  selectedSceneIds,
-  parentSceneId = null,
-) {
+  item: { sceneId?: string | null },
+  fallbackTime: number,
+  windows: TimelineWindow[],
+  selectedSceneIds: ReadonlySet<string>,
+  parentSceneId: string | null = null,
+): boolean {
   const sceneId =
     typeof item?.sceneId === "string" ? item.sceneId : parentSceneId;
   if (sceneId) {
@@ -103,7 +136,10 @@ function timingBelongsToSelectedScene(
   return ctx.isTimeInsideAnyScene(Number(fallbackTime) || 0, windows);
 }
 
-function inferTrackProperty(ctx: ViewerAppContext, track) {
+function inferTrackProperty(
+  _ctx: ViewerAppContext,
+  track: MotionPathTrack | null | undefined,
+): string | null {
   if (typeof track?.property === "string") {
     return track.property;
   }
@@ -113,7 +149,11 @@ function inferTrackProperty(ctx: ViewerAppContext, track) {
   return null;
 }
 
-function getPhaseTrackLayerIds(ctx: ViewerAppContext, timeline, phaseId) {
+function getPhaseTrackLayerIds(
+  ctx: ViewerAppContext,
+  timeline: EditorTimeline | null | undefined,
+  phaseId: string,
+): Set<string> {
   const owners = new Set<string>();
   for (const track of timeline?.tracks ?? []) {
     if (track?.phaseId === phaseId) {
@@ -131,10 +171,10 @@ function getPhaseTrackLayerIds(ctx: ViewerAppContext, timeline, phaseId) {
 
 function isPhaseCompatibleWithLayer(
   ctx: ViewerAppContext,
-  timeline,
-  phaseId,
-  layerId,
-) {
+  timeline: EditorTimeline,
+  phaseId: string | null | undefined,
+  layerId: string | null | undefined,
+): boolean {
   if (!phaseId) {
     return true;
   }
@@ -145,31 +185,47 @@ function isPhaseCompatibleWithLayer(
   return owners.has(layerId ?? "__scene__");
 }
 
-export function installTimelineOwnershipPredicatesOwner(
-  ctx: ViewerAppContext,
-): void {
-  ctx.clipBelongsToScene = clipBelongsToScene.bind(undefined, ctx);
-  ctx.isGlobalTimelineClip = isGlobalTimelineClip.bind(undefined, ctx);
-  ctx.getGlobalTimelineLayerIds = getGlobalTimelineLayerIds.bind(
-    undefined,
-    ctx,
+function isTimeInsideAnyScene(
+  _ctx: ViewerAppContext,
+  time: number,
+  windows: TimelineWindow[],
+): boolean {
+  return windows.some(
+    (window) => time >= window.start - 0.0001 && time < window.end - 0.0001,
   );
-  ctx.phaseBelongsToScene = phaseBelongsToScene.bind(undefined, ctx);
-  ctx.keyframeBelongsToScene = keyframeBelongsToScene.bind(undefined, ctx);
-  ctx.timeBelongsToScene = timeBelongsToScene.bind(undefined, ctx);
-  ctx.keyframeLinkKey = keyframeLinkKey.bind(undefined, ctx);
-  ctx.keyframeBelongsToSelectedPhase = keyframeBelongsToSelectedPhase.bind(
-    undefined,
-    ctx,
-  );
-  ctx.timingBelongsToSelectedScene = timingBelongsToSelectedScene.bind(
-    undefined,
-    ctx,
-  );
-  ctx.inferTrackProperty = inferTrackProperty.bind(undefined, ctx);
-  ctx.getPhaseTrackLayerIds = getPhaseTrackLayerIds.bind(undefined, ctx);
-  ctx.isPhaseCompatibleWithLayer = isPhaseCompatibleWithLayer.bind(
-    undefined,
-    ctx,
-  );
+}
+
+export function createTimelineOwnershipPredicates(
+  getContext: () => ViewerAppContext,
+) {
+  return {
+    isTimeInsideAnyScene: bindViewerAction(isTimeInsideAnyScene, getContext),
+    clipBelongsToScene: bindViewerAction(clipBelongsToScene, getContext),
+    isGlobalTimelineClip: bindViewerAction(isGlobalTimelineClip, getContext),
+    getGlobalTimelineLayerIds: bindViewerAction(
+      getGlobalTimelineLayerIds,
+      getContext,
+    ),
+    phaseBelongsToScene: bindViewerAction(phaseBelongsToScene, getContext),
+    keyframeBelongsToScene: bindViewerAction(
+      keyframeBelongsToScene,
+      getContext,
+    ),
+    timeBelongsToScene: bindViewerAction(timeBelongsToScene, getContext),
+    keyframeLinkKey: bindViewerAction(keyframeLinkKey, getContext),
+    keyframeBelongsToSelectedPhase: bindViewerAction(
+      keyframeBelongsToSelectedPhase,
+      getContext,
+    ),
+    timingBelongsToSelectedScene: bindViewerAction(
+      timingBelongsToSelectedScene,
+      getContext,
+    ),
+    inferTrackProperty: bindViewerAction(inferTrackProperty, getContext),
+    getPhaseTrackLayerIds: bindViewerAction(getPhaseTrackLayerIds, getContext),
+    isPhaseCompatibleWithLayer: bindViewerAction(
+      isPhaseCompatibleWithLayer,
+      getContext,
+    ),
+  };
 }

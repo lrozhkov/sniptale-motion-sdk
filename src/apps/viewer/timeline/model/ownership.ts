@@ -1,183 +1,24 @@
+import { bindViewerAction } from "../../app/bind-action.js";
+import {
+  findTemplateScene,
+  findTemplatePhase,
+} from "../../templates/fallbacks.js";
+import type { EditorTemplate } from "../../templates/model.js";
+import type { MotionPathTrack } from "../../../../shared/timeline/motion-path.js";
+import type {
+  TimelineKeyframe,
+  TimelinePhase,
+  EffectScene,
+} from "../../../../sdk/types.js";
+
 import type { ViewerAppContext } from "../../app/context.js";
 
-function createSelectedKeyframeSegmentRange(
+function frameTimelineRange(
   ctx: ViewerAppContext,
-  track,
-  visibleKeyframes,
-  duration,
-) {
-  const selected = ctx.getPrimaryKeyframeSelection();
-  if (
-    !selected ||
-    selected.trackId !== track.id ||
-    !visibleKeyframes.some((keyframe) => keyframe.id === selected.keyframeId)
-  ) {
-    return null;
-  }
-  const keyframes = [...(track.keyframes ?? [])].sort(
-    (a, b) => a.time - b.time,
-  );
-  const index = keyframes.findIndex(
-    (keyframe) => keyframe.id === selected.keyframeId,
-  );
-  const from = index >= 0 ? keyframes[index] : null;
-  const to =
-    index >= 0 && index < keyframes.length - 1 ? keyframes[index + 1] : null;
-  if (!from || !to || to.time <= from.time) {
-    return null;
-  }
-  const range = document.createElement("div");
-  range.className = "keyframe-segment-range";
-  range.dataset.trackId = track.id;
-  range.dataset.fromKeyframeId = from.id;
-  range.dataset.toKeyframeId = to.id;
-  range.title = ctx.deps
-    .t("viewer.timeline.curveSegmentRange", "Curve segment {start} → {end}")
-    .replace("{start}", ctx.formatSeconds(from.time))
-    .replace("{end}", ctx.formatSeconds(to.time));
-  range.style.left = `${ctx.timelinePercent(from.time, duration)}%`;
-  range.style.width = `${Math.max(0.2, ctx.timelinePercent(to.time, duration) - ctx.timelinePercent(from.time, duration))}%`;
-  range.addEventListener("pointerdown", (event) =>
-    ctx.beginKeyframeSegmentDrag(event, track.id, from.id, to.id, "move"),
-  );
-  const startEdge = document.createElement("span");
-  startEdge.className = "keyframe-segment-edge start";
-  startEdge.addEventListener("pointerdown", (event) =>
-    ctx.beginKeyframeSegmentDrag(event, track.id, from.id, to.id, "start"),
-  );
-  const endEdge = document.createElement("span");
-  endEdge.className = "keyframe-segment-edge end";
-  endEdge.addEventListener("pointerdown", (event) =>
-    ctx.beginKeyframeSegmentDrag(event, track.id, from.id, to.id, "end"),
-  );
-  range.append(startEdge, endEdge);
-  return range;
-}
-function getSelectedTimelineRange(ctx: ViewerAppContext, template) {
-  const item = ctx.state.selectedItem ?? { type: "effect" };
-  const timeline = template.timeline ?? { phases: [], tracks: [] };
-  if (item.type === "scene") {
-    const scene = ctx
-      .normalizeScenes(template.scenes ?? [], template.duration)
-      .find((entry) => entry.id === item.sceneId);
-    return scene
-      ? {
-          end: scene.start + scene.duration,
-          sceneId: scene.id,
-          selector: `.scene-block[data-scene-id="${ctx.cssEscape(scene.id)}"]`,
-          start: scene.start,
-        }
-      : null;
-  }
-  if (item.type === "clip" || item.type === "layer") {
-    const clip = (template.clips ?? []).find(
-      (entry) => entry.layerId === item.layerId,
-    );
-    if (item.type === "layer" && !clip) {
-      const sceneId = ctx.normalizeScenes(
-        template.scenes ?? [],
-        template.duration,
-      )[0]?.id;
-      return {
-        end: template.duration,
-        sceneId: sceneId ?? null,
-        selector: `.timeline-lane.layer-lane[data-layer-id="${ctx.cssEscape(item.layerId)}"]`,
-        start: 0,
-      };
-    }
-    const scenes = ctx.normalizeScenes(
-      template.scenes ?? [],
-      template.duration,
-    );
-    const sceneId =
-      clip && ctx.isGlobalTimelineClip(clip, scenes)
-        ? null
-        : (clip?.sceneId ??
-          ctx.findSceneIdAtTime(ctx.state.currentTemplate, clip?.start ?? 0));
-    return clip
-      ? {
-          end: clip.start + clip.duration,
-          sceneId,
-          selector:
-            item.type === "layer"
-              ? `.timeline-lane.layer-lane[data-layer-id="${ctx.cssEscape(clip.layerId)}"]`
-              : `.clip-block[data-layer-id="${ctx.cssEscape(clip.layerId)}"]`,
-          start: clip.start,
-        }
-      : null;
-  }
-  if (item.type === "phase") {
-    const phase = (timeline.phases ?? []).find(
-      (entry) => entry.id === item.phaseId,
-    );
-    const sceneId =
-      phase?.sceneId ??
-      ctx.findSceneIdAtTime(ctx.state.currentTemplate, phase?.start ?? 0);
-    return phase
-      ? {
-          end: phase.start + phase.duration,
-          sceneId,
-          selector: `.phase-block[data-phase-id="${ctx.cssEscape(phase.id)}"]`,
-          start: phase.start,
-        }
-      : null;
-  }
-  if (item.type === "keyframe") {
-    const refsToFrame = ctx.getSelectedKeyframeRefs();
-    const keyframes = refsToFrame
-      .map((ref) => {
-        const track = (timeline.tracks ?? []).find(
-          (entry) => entry.id === ref.trackId,
-        );
-        const keyframe = track?.keyframes.find(
-          (entry) => entry.id === ref.keyframeId,
-        );
-        return track && keyframe ? { keyframe, track } : null;
-      })
-      .filter(Boolean);
-    if (keyframes.length === 0) {
-      return null;
-    }
-    const start = Math.min(...keyframes.map((entry) => entry.keyframe.time));
-    const end = Math.max(...keyframes.map((entry) => entry.keyframe.time));
-    const primary = keyframes[keyframes.length - 1];
-    return {
-      end,
-      sceneId:
-        ctx.getKeyframeOwnershipSceneId(
-          timeline,
-          primary.track,
-          primary.keyframe,
-        ) ??
-        ctx.findSceneIdAtTime(ctx.state.currentTemplate, primary.keyframe.time),
-      selector: `.keyframe-point[data-track-id="${ctx.cssEscape(primary.track.id)}"][data-keyframe-id="${ctx.cssEscape(primary.keyframe.id)}"]`,
-      start,
-    };
-  }
-  if (item.type === "track") {
-    const track = (timeline.tracks ?? []).find(
-      (entry) => entry.id === item.trackId,
-    );
-    const times = (track?.keyframes ?? [])
-      .map((keyframe) => Number(keyframe.time))
-      .filter(Number.isFinite);
-    if (!track || times.length === 0) {
-      return null;
-    }
-    const start = Math.min(...times);
-    const end = Math.max(...times);
-    return {
-      end,
-      sceneId:
-        track.sceneId ??
-        ctx.findSceneIdAtTime(ctx.state.currentTemplate, start),
-      selector: `.timeline-lane[data-track-id="${ctx.cssEscape(track.id)}"]`,
-      start,
-    };
-  }
-  return { end: template.duration, sceneId: null, selector: null, start: 0 };
-}
-function frameTimelineRange(ctx: ViewerAppContext, start, end, duration) {
+  start: number,
+  end: number,
+  duration: number,
+): void {
   const nextState = ctx.deps.calculateFrameTimelineRangeState(
     start,
     end,
@@ -189,10 +30,20 @@ function frameTimelineRange(ctx: ViewerAppContext, start, end, duration) {
     ctx.deps.clamp(nextState.center, 0, Math.max(0.001, Number(duration) || 1)),
   );
 }
-function isTimeInsideRange(ctx: ViewerAppContext, time, start, end) {
+function isTimeInsideRange(
+  _ctx: ViewerAppContext,
+  time: number,
+  start: number,
+  end: number,
+): boolean {
   return time >= start - 0.0001 && time <= end + 0.0001;
 }
-function isRangeInsideScene(ctx: ViewerAppContext, start, duration, scene) {
+function isRangeInsideScene(
+  ctx: ViewerAppContext,
+  start: number,
+  duration: number,
+  scene: EffectScene | null | undefined,
+): boolean {
   if (!scene) {
     return false;
   }
@@ -202,11 +53,15 @@ function isRangeInsideScene(ctx: ViewerAppContext, start, duration, scene) {
       scene.start + scene.duration + ctx.deps.TIMING_BOUNDARY_TOLERANCE
   );
 }
-function isPhaseSceneBoundaryInvalid(ctx: ViewerAppContext, template, phase) {
+function isPhaseSceneBoundaryInvalid(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+  phase: TimelinePhase | null | undefined,
+): boolean {
   if (!phase?.sceneId) {
     return false;
   }
-  const scene = ctx.findTemplateScene(template, phase.sceneId);
+  const scene = findTemplateScene(ctx, template, phase.sceneId);
   return Boolean(
     scene &&
     !ctx.isRangeInsideScene(
@@ -218,10 +73,10 @@ function isPhaseSceneBoundaryInvalid(ctx: ViewerAppContext, template, phase) {
 }
 function isKeyframeTimingInvalid(
   ctx: ViewerAppContext,
-  template,
-  track,
-  keyframe,
-) {
+  template: EditorTemplate,
+  track: MotionPathTrack,
+  keyframe: TimelineKeyframe<unknown>,
+): boolean {
   const time = Number(keyframe?.time);
   if (
     !Number.isFinite(time) ||
@@ -230,7 +85,8 @@ function isKeyframeTimingInvalid(
   ) {
     return true;
   }
-  const phase = ctx.findTemplatePhase(
+  const phase = findTemplatePhase(
+    ctx,
     template,
     keyframe?.phaseId ?? track?.phaseId,
   );
@@ -249,7 +105,7 @@ function isKeyframeTimingInvalid(
     track,
     keyframe,
   );
-  const scene = ctx.findTemplateScene(template, sceneId);
+  const scene = findTemplateScene(ctx, template, sceneId);
   return Boolean(
     scene &&
     !ctx.isTimeInsideBoundaryRange(
@@ -259,38 +115,53 @@ function isKeyframeTimingInvalid(
     ),
   );
 }
-function isTimeInsideBoundaryRange(ctx: ViewerAppContext, time, start, end) {
+function isTimeInsideBoundaryRange(
+  ctx: ViewerAppContext,
+  time: number,
+  start: number,
+  end: number,
+): boolean {
   return (
     time >= start - ctx.deps.TIMING_BOUNDARY_TOLERANCE &&
     time <= end + ctx.deps.TIMING_BOUNDARY_TOLERANCE
   );
 }
-function isRangeInvalid(ctx: ViewerAppContext, start, duration, totalDuration) {
+function isRangeInvalid(
+  ctx: ViewerAppContext,
+  start: number,
+  duration: number,
+  totalDuration: number,
+): boolean {
   return ctx.deps.isRangeInvalidModel(start, duration, totalDuration);
 }
-function hasInvalidTiming(ctx: ViewerAppContext, template) {
+function hasInvalidTiming(
+  ctx: ViewerAppContext,
+  template: EditorTemplate,
+): boolean {
   return ctx.deps.hasInvalidTimingModel(
     template,
     ctx.createEditorValidationOptions(),
   );
 }
 
-export function installModelOwnershipOwner(ctx: ViewerAppContext): void {
-  ctx.createSelectedKeyframeSegmentRange =
-    createSelectedKeyframeSegmentRange.bind(undefined, ctx);
-  ctx.getSelectedTimelineRange = getSelectedTimelineRange.bind(undefined, ctx);
-  ctx.frameTimelineRange = frameTimelineRange.bind(undefined, ctx);
-  ctx.isTimeInsideRange = isTimeInsideRange.bind(undefined, ctx);
-  ctx.isRangeInsideScene = isRangeInsideScene.bind(undefined, ctx);
-  ctx.isPhaseSceneBoundaryInvalid = isPhaseSceneBoundaryInvalid.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isKeyframeTimingInvalid = isKeyframeTimingInvalid.bind(undefined, ctx);
-  ctx.isTimeInsideBoundaryRange = isTimeInsideBoundaryRange.bind(
-    undefined,
-    ctx,
-  );
-  ctx.isRangeInvalid = isRangeInvalid.bind(undefined, ctx);
-  ctx.hasInvalidTiming = hasInvalidTiming.bind(undefined, ctx);
+export function createTimelineRangeActions(getContext: () => ViewerAppContext) {
+  return {
+    frameTimelineRange: bindViewerAction(frameTimelineRange, getContext),
+    isTimeInsideRange: bindViewerAction(isTimeInsideRange, getContext),
+    isRangeInsideScene: bindViewerAction(isRangeInsideScene, getContext),
+    isPhaseSceneBoundaryInvalid: bindViewerAction(
+      isPhaseSceneBoundaryInvalid,
+      getContext,
+    ),
+    isKeyframeTimingInvalid: bindViewerAction(
+      isKeyframeTimingInvalid,
+      getContext,
+    ),
+    isTimeInsideBoundaryRange: bindViewerAction(
+      isTimeInsideBoundaryRange,
+      getContext,
+    ),
+    isRangeInvalid: bindViewerAction(isRangeInvalid, getContext),
+    hasInvalidTiming: bindViewerAction(hasInvalidTiming, getContext),
+  };
 }

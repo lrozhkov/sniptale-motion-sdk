@@ -77,7 +77,7 @@ function beginPhaseDrag(ctx: ViewerAppContext, event, phaseId, mode) {
     const rawDelta = ctx.timelineDeltaFromPixels(pointerDelta, rect, template);
     const deltaTime =
       mode === "move" ? ctx.deps.clamp(rawDelta, minDelta, maxDelta) : rawDelta;
-    if (mode === "move") {
+    if (phaseMovePlan) {
       preview.scheduleUpdate(
         () =>
           ctx.applyPhaseMovePlan(template, phaseMovePlan, deltaTime, {
@@ -172,7 +172,7 @@ function beginSceneDrag(ctx: ViewerAppContext, event, sceneId, mode) {
     totalDuration,
   );
   const scene = scenes.find((item) => item.id === sceneId);
-  if (!template || !scene || scene.locked) {
+  if (!template || !effectiveTemplate || !scene || scene.locked) {
     return;
   }
   const body =
@@ -208,7 +208,7 @@ function beginSceneDrag(ctx: ViewerAppContext, event, sceneId, mode) {
             }
           : null;
       })
-      .filter(Boolean);
+      .filter((item) => item !== null);
   ctx.state.selectedScenes =
     mode === "move" ? originals.map((item) => item.sceneId) : [sceneId];
   ctx.state.selectedClips = [];
@@ -244,7 +244,7 @@ function beginSceneDrag(ctx: ViewerAppContext, event, sceneId, mode) {
     const rawDelta = ctx.timelineDeltaFromPixels(pointerDelta, rect, template);
     const deltaTime =
       mode === "move" ? ctx.deps.clamp(rawDelta, minDelta, maxDelta) : rawDelta;
-    if (mode === "move") {
+    if (sceneMovePlan) {
       preview.scheduleUpdate(
         () =>
           ctx.applySceneMovePlan(template, sceneMovePlan, deltaTime, {

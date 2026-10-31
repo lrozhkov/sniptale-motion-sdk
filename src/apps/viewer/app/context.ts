@@ -1,3 +1,5 @@
+import type { TimelineModelActions } from "../timeline/model/actions.js";
+import type { TrackLayerSource } from "../layers/model.js";
 import type { Mp4ExportActions } from "../video-export/actions.js";
 import type { ViewerAsset } from "../assets/state.js";
 import type { RenderAssetTransfer } from "../rendering/state.js";
@@ -17,7 +19,8 @@ import type { EditorTimelineSource } from "../editor/timeline-source.js";
 import type { EditorTemplate } from "../templates/model.js";
 import type { EditorTimeline } from "../editor/model-types.js";
 
-export interface ViewerAppContext extends Mp4ExportActions {
+export interface ViewerAppContext
+  extends Mp4ExportActions, TimelineModelActions {
   deps: ViewerAppDependencies;
   lastPlaybackAudioTs: number;
   playbackAnimationFrame: number | null;
@@ -46,7 +49,18 @@ export interface ViewerAppContext extends Mp4ExportActions {
     parent: TimelineTrackParent,
   ): TimelineKeyframe<unknown>[];
   renderCurrentFrame(options?: RenderOptions): Promise<void>;
+  getPrimaryKeyframeSelection(): KeyframeSelectionRef | null;
   getSelectedKeyframeRefs(): KeyframeSelectionRef[];
+  getTrackLayerId(track: TrackLayerSource | null | undefined): string | null;
+  findSceneIdAtTime(
+    template: EditorTimelineSource | null | undefined,
+    time: number,
+  ): string | null;
+  findPhaseIdAtTime(
+    template: EditorTimelineSource | null | undefined,
+    time: number,
+    layerId?: string | null,
+  ): string | null;
   getEditorOverride(template?: unknown): Record<string, unknown>;
   setEditorOverride(patch: unknown): void;
   getEffectiveDuration(template?: unknown): number;

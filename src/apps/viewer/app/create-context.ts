@@ -1,3 +1,13 @@
+import { createTimelineSelectionRangeActions } from "../timeline/model/selection-range.js";
+import { createTimelineRangeActions } from "../timeline/model/ownership.js";
+import { getPrimaryKeyframeSelection } from "../timeline/model/selection-consistency.js";
+import { findSceneIdAtTime, findPhaseIdAtTime } from "./misc.js";
+import { getTrackLayerId } from "../layers/properties.js";
+import { createOwnershipLinkActions } from "../timeline/model/ownership-links.js";
+import { createSceneMoveActions } from "../timeline/model/scene-move-plans.js";
+import { createTimelineOwnershipPredicates } from "../timeline/model/ownership-predicates.js";
+import { createClipMoveActions } from "../timeline/model/clip-move-plans.js";
+import { createPhaseMoveActions } from "../timeline/model/phase-move-plans.js";
 import { createLazyExportFeatures } from "./lazy-export-features.js";
 import { logDiagnostic } from "./diagnostics.js";
 import { dataUrlToBlob, rasterizeSvgAsset } from "../assets/file-import.js";
@@ -27,6 +37,15 @@ export function createViewerContext(): ViewerAppContext {
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
     ...createLazyExportFeatures(() => ctx),
+    ...createTimelineSelectionRangeActions(() => ctx),
+    ...createTimelineRangeActions(() => ctx),
+
+    ...createTimelineOwnershipPredicates(() => ctx),
+    ...createClipMoveActions(() => ctx),
+    ...createPhaseMoveActions(() => ctx),
+    ...createSceneMoveActions(() => ctx),
+    ...createOwnershipLinkActions(() => ctx),
+
     deps: viewerAppDependencies,
     state: createViewerState(),
     refs,
@@ -63,6 +82,16 @@ export function createViewerContext(): ViewerAppContext {
     },
     renderCurrentFrame(options) {
       return renderCurrentFrame(ctx, options);
+    },
+    getTrackLayerId,
+    findSceneIdAtTime(template, time) {
+      return findSceneIdAtTime(ctx, template, time);
+    },
+    findPhaseIdAtTime(template, time, layerId) {
+      return findPhaseIdAtTime(ctx, template, time, layerId);
+    },
+    getPrimaryKeyframeSelection() {
+      return getPrimaryKeyframeSelection(ctx.state);
     },
     getSelectedKeyframeRefs() {
       return getSelectedKeyframeRefs(ctx);

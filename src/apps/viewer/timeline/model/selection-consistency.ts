@@ -188,7 +188,5 @@ function resetTimelineSelection(state: ViewerSelectionState): void {
 export function installTimelineSelectionConsistencyOwner(
   ctx: ViewerAppContext,
 ): void {
-  ctx.getPrimaryKeyframeSelection = () =>
-    getPrimaryKeyframeSelection(ctx.state);
   ctx.reconcileTimelineSelection = reconcileTimelineSelection.bind(null, ctx);
 }
