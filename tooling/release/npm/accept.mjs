@@ -126,6 +126,34 @@ try {
     );
     assert.equal(result.ok, true);
     assert.equal(result.proof.runtime, "not-run");
+    const destination = join(project, `exports/${kind}.sniptale-effect.json`);
+    const exported = await invoke(
+      `export-${kind}`,
+      [
+        "export",
+        `effects/${kind.toLowerCase()}/effect.sniptale-effect.json`,
+        "--output",
+        destination,
+      ],
+      project,
+    );
+    const bytes = await readFile(destination);
+    assert.equal(exported.byteLength, bytes.length);
+    assert.equal(
+      exported.sha256,
+      createHash("sha256").update(bytes).digest("hex"),
+    );
+    assert.equal(exported.proof.runtime, "not-run");
+    assert.equal(
+      (
+        await invoke(
+          `validate-export-${kind}`,
+          ["validate", destination],
+          project,
+        )
+      ).ok,
+      true,
+    );
   }
   await acceptInstalledStudio({
     cli,
@@ -159,6 +187,31 @@ try {
     (await invoke("relative-asset", ["validate", effectFile], project)).ok,
     true,
   );
+  const portable = join(project, "exports/with-asset.sniptale-effect.json");
+  await invoke(
+    "export-relative-asset",
+    ["export", effectFile, "--output", portable],
+    project,
+  );
+  await rm(join(assetDirectory, "mark.svg"));
+  assert.equal(
+    (await invoke("validate-portable-asset", ["validate", portable], project))
+      .ok,
+    true,
+  );
+  const exportedBytes = await readFile(portable);
+  assert.equal(
+    (
+      await invoke(
+        "repeat-export",
+        ["export", portable, "--output", portable],
+        project,
+        1,
+      )
+    ).diagnostics[0].code,
+    "EEXIST",
+  );
+  assert.deepEqual(await readFile(portable), exportedBytes);
   document.assets[0].path = "../outside.svg";
   await writeFile(effectFile, JSON.stringify(document));
   assert.equal(

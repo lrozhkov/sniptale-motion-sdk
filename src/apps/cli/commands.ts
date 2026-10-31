@@ -14,6 +14,7 @@ import {
 import { parseCliArguments } from "./arguments.js";
 import { MotionCliError } from "./errors.js";
 import { initProject, newEffect } from "./project.js";
+import { exportMotionEffect } from "./export.js";
 
 export async function runMotionCli(
   argv: string[],
@@ -84,6 +85,22 @@ export async function runMotionCli(
           runtime: "not-run",
         },
       };
+    } else if (args.command === "export") {
+      if (!args.positional || !args.values.output)
+        throw new MotionCliError(
+          "ARGUMENTS",
+          "export requires a file and --output <file>.",
+        );
+      result = await exportMotionEffect(
+        resolve(context.cwd, args.positional),
+        resolve(context.cwd, args.values.output),
+        {
+          ...(args.values["asset-root"]
+            ? { assetRoot: resolve(context.cwd, args.values["asset-root"]) }
+            : {}),
+          ...(context.signal ? { signal: context.signal } : {}),
+        },
+      );
     } else if (args.command === "studio") {
       await runStudioCommand(
         context,

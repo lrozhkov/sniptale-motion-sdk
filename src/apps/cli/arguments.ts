@@ -13,9 +13,10 @@ export function parseCliArguments(argv: string[]) {
       ? { "no-open": { type: "boolean" as const } }
       : {}),
     ...(command === "new" ? { kind: { type: "string" as const } } : {}),
-    ...(command === "validate"
+    ...(command === "validate" || command === "export"
       ? { "asset-root": { type: "string" as const } }
       : {}),
+    ...(command === "export" ? { output: { type: "string" as const } } : {}),
   } as const;
   let parsed;
   try {
@@ -41,14 +42,23 @@ export function parseCliArguments(argv: string[]) {
   }
   const locale = parseLocale(parsed.values.locale);
   if (
-    !["help", "init", "new", "validate", "doctor", "docs", "studio"].includes(
-      command,
-    )
+    ![
+      "help",
+      "init",
+      "new",
+      "validate",
+      "export",
+      "doctor",
+      "docs",
+      "studio",
+    ].includes(command)
   ) {
     throw new MotionCliError("ARGUMENTS", `Unknown command: ${command}`);
   }
-  const minimum = command === "new" || command === "validate" ? 1 : 0;
-  const maximum = ["init", "new", "validate", "studio"].includes(command)
+  const minimum = ["new", "validate", "export"].includes(command) ? 1 : 0;
+  const maximum = ["init", "new", "validate", "export", "studio"].includes(
+    command,
+  )
     ? 1
     : 0;
   if (
@@ -70,6 +80,10 @@ export function parseCliArguments(argv: string[]) {
       version: parsed.values.version === true,
       kind:
         typeof parsed.values.kind === "string" ? parsed.values.kind : undefined,
+      output:
+        typeof parsed.values.output === "string"
+          ? parsed.values.output
+          : undefined,
       "asset-root":
         typeof parsed.values["asset-root"] === "string"
           ? parsed.values["asset-root"]

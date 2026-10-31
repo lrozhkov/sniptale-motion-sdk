@@ -89,7 +89,7 @@ export async function materializeEffectV1Bundle(
     const digest = await sha256EffectV1Bytes(bytes);
     if (
       asset.byteLength !== undefined &&
-      Number(asset.byteLength) !== bytes.byteLength
+      asset.byteLength !== bytes.byteLength
     ) {
       throw new EffectV1BundleError(
         "ASSET_BYTE_LENGTH_MISMATCH",
