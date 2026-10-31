@@ -5,13 +5,19 @@ import type {
   EditorTemplateSource,
 } from "../templates/model.js";
 
-type ControlField = { element: HTMLElement; readValue(): string };
+import {
+  createControlField,
+  controlUnitLabel,
+  type ControlField,
+} from "./control-fields.js";
+import { createControlGroupContainers } from "./control-groups.js";
+import { createControlIcon } from "./control-icons.js";
+import { resolveEffectV1ControlGroup } from "../../../sdk/effect-v1/control-presentation-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
   renderControlPresetSelector,
   syncControlPresetSelection,
 } from "./control-presets.js";
-import { createCssColorField } from "../controls/css-color-field.js";
 
 function renderControls(
   ctx: ViewerAppContext,
@@ -33,24 +39,36 @@ function renderControls(
     ctx.refs.controlsPanel.append(empty);
     return;
   }
+  const groups = createControlGroupContainers(
+    ctx.refs.controlsPanel,
+    template,
+    ctx.deps,
+  );
   for (const control of controls) {
     const row = document.createElement("div");
     row.className = "control-row";
     const label = document.createElement("span");
     label.className = "control-row-label";
     label.textContent = ctx.deps.translateText(control.label, control.id);
-    const field = createControlInput(
-      ctx,
+    if (control.icon) label.prepend(createControlIcon(control.icon));
+    const field = createControlField(
+      ctx.deps,
       control,
       ctx.state.controls[control.id] ?? control.defaultValue,
     );
     const input = field.element;
-    nameControlInputs(ctx, input, label.textContent);
+    const unit = controlUnitLabel(control, ctx.deps);
+    nameControlInputs(
+      ctx,
+      input,
+      `${ctx.deps.translateText(control.label, control.id)}${unit ? ` (${unit})` : ""}`,
+    );
     row.dataset.controlId = control.id;
     input.dataset.controlId = control.id;
     let editSessionActive = false;
     const updateControl = () => {
       const value = readInputValue(field, control);
+      if (typeof value === "number" && !Number.isFinite(value)) return;
       if (Object.is(ctx.state.controls[control.id], value)) {
         return;
       }
@@ -82,7 +100,19 @@ function renderControls(
     input.addEventListener("focusout", finishEditSession);
     input.addEventListener("pointercancel", finishEditSession);
     row.append(label, input);
-    ctx.refs.controlsPanel.append(row);
+    if (unit) {
+      const suffix = document.createElement("span");
+      suffix.className = "control-unit";
+      suffix.textContent = unit;
+      suffix.setAttribute("aria-hidden", "true");
+      row.append(suffix);
+    }
+    const group =
+      control.group && groups.has(control.group)
+        ? control.group
+        : (resolveEffectV1ControlGroup(control.group, template.controlGroups) ??
+          "advanced");
+    (groups.get(group) ?? ctx.refs.controlsPanel).append(row);
   }
 }
 
@@ -91,6 +121,8 @@ function nameControlInputs(
   root: HTMLElement,
   label: string,
 ): void {
+  if (root.getAttribute("role") === "group")
+    root.setAttribute("aria-label", label);
   const inputs = isValueInput(root)
     ? [root]
     : Array.from(root.querySelectorAll("input, select, textarea")).filter(
@@ -113,72 +145,16 @@ function nameControlInputs(
     );
   }
 }
-function createControlInput(
-  ctx: ViewerAppContext,
-  control: EditorControl,
-  currentValue: unknown = control.defaultValue,
-): ControlField {
-  if (control.kind === "color") {
-    const element = createCssColorField({
-      invalidMessage: ctx.deps.t(
-        "viewer.controls.invalidColor",
-        "Enter a CSS color or none.",
-      ),
-      pickerLabel: ctx.deps.t("viewer.controls.colorPicker", "Color picker"),
-      value: controlValueText(currentValue ?? control.defaultValue),
-      valueLabel: ctx.deps.t("viewer.controls.colorValue", "CSS color value"),
-    });
-    return { element, readValue: () => element.value };
-  }
-  if (Array.isArray(control.options) && control.options.length > 0) {
-    const select = document.createElement("select");
-    for (const option of control.options) {
-      const item = document.createElement("option");
-      item.value = String(option.value);
-      item.textContent = ctx.deps.translateText(
-        option.label,
-        String(option.value),
-      );
-      select.append(item);
-    }
-    select.value = controlValueText(currentValue ?? control.defaultValue);
-    return { element: select, readValue: () => select.value };
-  }
-  if (control.kind === "text") {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = controlValueText(currentValue ?? control.defaultValue);
-    return { element: input, readValue: () => input.value };
-  }
-  const wrap = document.createElement("div");
-  wrap.className = "control-inline";
-  const range = document.createElement("input");
-  range.type = "range";
-  range.min = String(control.min ?? 0);
-  range.max = String(control.max ?? 1);
-  range.step = String(control.step ?? 0.01);
-  range.value = controlValueText(currentValue ?? control.defaultValue);
-  const value = document.createElement("input");
-  value.type = "number";
-  value.min = range.min;
-  value.max = range.max;
-  value.step = range.step;
-  value.value = range.value;
-  range.addEventListener("input", () => {
-    value.value = range.value;
-  });
-  value.addEventListener("input", () => {
-    range.value = value.value;
-  });
-  wrap.append(range, value);
-  return { element: wrap, readValue: () => range.value };
-}
 function readInputValue(
   field: ControlField,
   control: EditorControl,
 ): string | number {
   const value = field.readValue();
-  return control.kind === "number" ? Number(value) : value;
+  return control.kind === "number"
+    ? value.trim() === ""
+      ? NaN
+      : Number(value)
+    : value;
 }
 
 function isValueInput(
@@ -189,14 +165,6 @@ function isValueInput(
     element instanceof HTMLSelectElement ||
     element instanceof HTMLTextAreaElement
   );
-}
-
-function controlValueText(value: unknown): string {
-  return typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-    ? String(value)
-    : "";
 }
 
 export function createControlPanelActions(

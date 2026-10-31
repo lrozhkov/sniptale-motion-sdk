@@ -25,6 +25,7 @@ import { inspectSkillKit } from "./skill-kit.js";
 import { MOTION_COMPATIBILITY } from "../../shared/compatibility.js";
 import { readProjectContract } from "./project-contract.js";
 import { checkMotionUpdate } from "./updates/check.js";
+import { inspectControlAuthoring } from "./authoring-quality.js";
 
 export async function runMotionCli(
   argv: string[],
@@ -87,10 +88,15 @@ export async function runMotionCli(
           ? resolve(context.cwd, args.values["asset-root"])
           : undefined,
       );
-      const { document: _document, ...validation } =
-        parseEffectV1Source(source);
+      const { document, ...validation } = parseEffectV1Source(source);
+      const authoringDiagnostics =
+        args.values.authoring && document
+          ? inspectControlAuthoring(document)
+          : [];
       result = {
         ...validation,
+        ok: validation.ok && authoringDiagnostics.length === 0,
+        diagnostics: [...validation.diagnostics, ...authoringDiagnostics],
         file,
         proof: {
           schema: validation.ok ? "passed" : "failed",

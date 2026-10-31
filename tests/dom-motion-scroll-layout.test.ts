@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { build } from "esbuild";
 import { chromium, type Browser } from "@playwright/test";
@@ -5,16 +6,19 @@ import { chromium, type Browser } from "@playwright/test";
 let browser: Browser;
 let bundle: string;
 beforeAll(async () => {
-  bundle = (
-    await build({
-      entryPoints: ["src/sdk/dom-motion/index.ts"],
-      bundle: true,
-      write: false,
-      format: "iife",
-      globalName: "MotionSDK",
-      platform: "browser",
-    })
-  ).outputFiles[0].text;
+  bundle = requiredEntry(
+    (
+      await build({
+        entryPoints: ["src/sdk/dom-motion/index.ts"],
+        bundle: true,
+        write: false,
+        format: "iife",
+        globalName: "MotionSDK",
+        platform: "browser",
+      })
+    ).outputFiles,
+    0,
+  ).text;
   browser = await chromium.launch();
 }, 30000);
 afterAll(async () => {
@@ -53,55 +57,60 @@ describe("DOM motion source scrollport geometry", () => {
         );
         await page.addScriptTag({ content: bundle });
         const proof = await page.evaluate(async (css) => {
-          const s = (window as any).MotionSDK.createDomMotionSurface(
-            document.getElementById("host"),
-            {
-              schemaVersion: "sniptale.dom-motion.v1",
-              id: "geometry",
-              label: { ru: "Геометрия", en: "Geometry" },
-              duration: 6,
-              width: 400,
-              height: 240,
-              html: `<!doctype html><style>html,body{margin:0;height:100%}.frame{height:100%;display:flex;flex-direction:column}.header{height:40px;flex:none}.scroll{flex:1;display:flex;overflow:auto;scrollbar-gutter:stable}.left{flex:0 0 70%}.right{flex:1}#panel{height:500px;background:white}${css}</style><div class="frame"><header class="header">Заголовок</header><main class="scroll"><div class="left">Описание</div><aside class="right"><section id="panel">Состояние</section></aside></main></div>`,
-              bindings: [
+          const host = document.getElementById("host");
+          if (!host) throw new Error("DOM motion host is missing.");
+          const s = window.MotionSDK.createDomMotionSurface(host, {
+            schemaVersion: "sniptale.dom-motion.v1",
+            id: "geometry",
+            label: { ru: "Геометрия", en: "Geometry" },
+            duration: 6,
+            width: 400,
+            height: 240,
+            html: `<!doctype html><style>html,body{margin:0;height:100%}.frame{height:100%;display:flex;flex-direction:column}.header{height:40px;flex:none}.scroll{flex:1;display:flex;overflow:auto;scrollbar-gutter:stable}.left{flex:0 0 70%}.right{flex:1}#panel{height:500px;background:white}${css}</style><div class="frame"><header class="header">Заголовок</header><main class="scroll"><div class="left">Описание</div><aside class="right"><section id="panel">Состояние</section></aside></main></div>`,
+            bindings: [
+              {
+                id: "panel",
+                label: { ru: "Состояние", en: "Status" },
+                selector: "#panel",
+                stagger: 0,
+                depth: 0,
+                lift: 0,
+                spread: 0,
+              },
+            ],
+            timeline: {
+              phases: [],
+              tracks: [
                 {
-                  id: "panel",
-                  label: { ru: "Состояние", en: "Status" },
-                  selector: "#panel",
-                  stagger: 0,
-                  depth: 0,
-                  lift: 0,
-                  spread: 0,
+                  id: "panel.assembly",
+                  target: "panel",
+                  property: "assembly",
+                  keyframes: [{ time: 0, value: 1 }],
+                },
+                {
+                  id: "page.x",
+                  target: "page",
+                  property: "x",
+                  keyframes: [
+                    { time: 0, value: 10 },
+                    { time: 5, value: 0 },
+                  ],
                 },
               ],
-              timeline: {
-                phases: [],
-                tracks: [
-                  {
-                    id: "panel.assembly",
-                    target: "panel",
-                    property: "assembly",
-                    keyframes: [{ time: 0, value: 1 }],
-                  },
-                  {
-                    id: "page.x",
-                    target: "page",
-                    property: "x",
-                    keyframes: [
-                      { time: 0, value: 10 },
-                      { time: 5, value: 0 },
-                    ],
-                  },
-                ],
-              },
             },
-          );
+          });
           await s.ready;
-          const d = s.frame.contentDocument,
-            scroller = d.querySelector(".scroll"),
-            nodes = [...d.querySelectorAll("*")],
+          const d = s.frame.contentDocument;
+          if (!d || !d.defaultView)
+            throw new Error("DOM motion frame is not loaded.");
+          const realm = d.defaultView;
+          const scroller = d.querySelector(".scroll");
+          if (!(scroller instanceof realm.HTMLElement))
+            throw new Error("Scroll fixture is missing.");
+          const nodes = [...d.querySelectorAll("*")],
             styles = nodes.map((n) => n.getAttribute("style"));
-          const rect = (n) => {
+          const rect = (n: Element | null) => {
+            if (!n) throw new Error("Geometry fixture is missing.");
             const r = n.getBoundingClientRect();
             return { x: r.x, y: r.y, width: r.width, height: r.height };
           };
@@ -113,12 +122,8 @@ describe("DOM motion source scrollport geometry", () => {
             gutter =
               scroller.offsetWidth -
               scroller.clientWidth -
-              parseFloat(
-                d.defaultView.getComputedStyle(scroller).borderLeftWidth,
-              ) -
-              parseFloat(
-                d.defaultView.getComputedStyle(scroller).borderRightWidth,
-              );
+              parseFloat(realm.getComputedStyle(scroller).borderLeftWidth) -
+              parseFloat(realm.getComputedStyle(scroller).borderRightWidth);
           s.render(4.5);
           d.body.style.transform = "none";
           d.documentElement.style.perspective = "none";

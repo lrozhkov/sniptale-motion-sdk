@@ -1,9 +1,14 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createQaRun } from "./wrapper-runner.mjs";
+import { createQaRun, runQaWrapper } from "./wrapper-runner.ts";
 
 const roots: string[] = [];
 
@@ -14,6 +19,28 @@ afterEach(() => {
 });
 
 describe("QA wrapper run logs", () => {
+  it.each([0, -1, 1.5, 256, "0"])(
+    "does not turn a failed wrapper into success for exitCode=%s",
+    async (exitCode) => {
+      const previous = process.exitCode;
+      try {
+        const output = createOutput();
+        const session = await runQaWrapper(
+          "qa:fixture",
+          async () => {
+            throw Object.assign(new Error("fixture failure"), { exitCode });
+          },
+          { repoRoot: createRoot(), terminalOut: output, terminalErr: output },
+        );
+        expect(process.exitCode).toBe(1);
+        expect(readFileSync(session.logPath, "utf8")).toContain(
+          "status=failed",
+        );
+      } finally {
+        process.exitCode = previous;
+      }
+    },
+  );
   it("tees stdout and stderr into a unique .tmp log with run metadata", async () => {
     const root = createRoot();
     const stdout = createOutput();
@@ -83,17 +110,24 @@ describe("QA wrapper run logs", () => {
 });
 
 function createRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "effect-sdk-qa-log-"));
+  const base = resolve(".tmp/tests");
+  mkdirSync(base, { recursive: true });
+  const root = mkdtempSync(join(base, "effect-sdk-qa-log-"));
   roots.push(root);
   return root;
 }
 
-function createOutput(): { value(): string; write(chunk: unknown): boolean } {
+function createOutput(): {
+  value(): string;
+  write(chunk: string | Uint8Array): boolean;
+} {
   const chunks: string[] = [];
   return {
     value: () => chunks.join(""),
     write: (chunk) => {
-      chunks.push(String(chunk));
+      chunks.push(
+        typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
+      );
       return true;
     },
   };

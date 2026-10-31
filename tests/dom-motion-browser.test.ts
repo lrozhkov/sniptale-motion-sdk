@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { build } from "esbuild";
 import { chromium, type Browser, type Page } from "@playwright/test";
@@ -5,16 +6,19 @@ import { chromium, type Browser, type Page } from "@playwright/test";
 let browser: Browser;
 let bundle: string;
 beforeAll(async () => {
-  bundle = (
-    await build({
-      entryPoints: ["src/sdk/dom-motion/index.ts"],
-      bundle: true,
-      write: false,
-      format: "iife",
-      globalName: "MotionSDK",
-      platform: "browser",
-    })
-  ).outputFiles[0].text;
+  bundle = requiredEntry(
+    (
+      await build({
+        entryPoints: ["src/sdk/dom-motion/index.ts"],
+        bundle: true,
+        write: false,
+        format: "iife",
+        globalName: "MotionSDK",
+        platform: "browser",
+      })
+    ).outputFiles,
+    0,
+  ).text;
   browser = await chromium.launch();
 }, 30000);
 afterAll(async () => {
@@ -76,11 +80,10 @@ async function mount(page: Page, source = documentSource()) {
   );
   await page.addScriptTag({ content: bundle });
   await page.evaluate(async (input) => {
-    const runtime = window as any;
-    runtime.surface = runtime.MotionSDK.createDomMotionSurface(
-      document.getElementById("host"),
-      input,
-    );
+    const runtime = window;
+    const host = document.getElementById("host");
+    if (!host) throw new Error("DOM motion host is missing.");
+    runtime.surface = runtime.MotionSDK.createDomMotionSurface(host, input);
     await runtime.surface.ready;
   }, source);
 }
@@ -94,47 +97,57 @@ describe("live HTML SDK surface", () => {
       const expected = await page.screenshot();
       await mount(page);
       const proof = await page.evaluate(() => {
-        const s = (window as any).surface,
-          d = s.frame.contentDocument;
+        const s = window.surface;
+        const d = s.frame.contentDocument;
+        if (!d || !d.defaultView)
+          throw new Error("DOM motion frame is not loaded.");
+        const realm = d.defaultView;
+        const htmlElement = (selector: string) => {
+          const element = d.querySelector(selector);
+          if (!(element instanceof realm.HTMLElement))
+            throw new Error(`Expected HTML element ${selector}.`);
+          return element;
+        };
         const nodes = [...d.querySelectorAll("*")],
           styles = nodes.map((n) => n.getAttribute("style"));
-        const sourceHeight = d.querySelector("#trip").offsetHeight;
+        const sourceHeight = htmlElement("#trip").offsetHeight;
         s.render(3);
         const during = {
           same: nodes.every((n) => n.isConnected),
           count: d.querySelectorAll("*").length,
           nodeCount: nodes.length,
-          heading: d.querySelector("h2").style.transform,
-          panel: d.querySelector("#trip").style.transform,
-          value: d.querySelector("input").value,
+          heading: htmlElement("h2").style.transform,
+          panel: htmlElement("#trip").style.transform,
+          value: (() => {
+            const input = d.querySelector("input");
+            if (!input) throw new Error("Source input is missing.");
+            return input.value;
+          })(),
           elements: s.elementCount,
-          heightPreserved:
-            d.querySelector("#trip").offsetHeight === sourceHeight,
-          background: d.defaultView.getComputedStyle(d.querySelector("#trip"))
+          heightPreserved: htmlElement("#trip").offsetHeight === sourceHeight,
+          background: d.defaultView.getComputedStyle(htmlElement("#trip"))
             .backgroundColor,
-          innerDepth: d.querySelector(".details").style.transformStyle,
-          innerShadow: d.defaultView.getComputedStyle(
-            d.querySelector(".details"),
-          ).boxShadow,
-          innerDisplay: d.defaultView.getComputedStyle(
-            d.querySelector(".details"),
-          ).display,
+          innerDepth: htmlElement(".details").style.transformStyle,
+          innerShadow: d.defaultView.getComputedStyle(htmlElement(".details"))
+            .boxShadow,
+          innerDisplay: d.defaultView.getComputedStyle(htmlElement(".details"))
+            .display,
           headingLift: new d.defaultView.DOMMatrixReadOnly(
-            d.defaultView.getComputedStyle(d.querySelector("h2")).transform,
+            d.defaultView.getComputedStyle(htmlElement("h2")).transform,
           ).m42,
-          levels: [...d.querySelectorAll("h2,p,input")].map(
-            (node) => node.style.transform,
+          levels: ["h2", "p", "input"].map(
+            (selector) => htmlElement(selector).style.transform,
           ),
         };
         s.render(6);
         const laterBackground = d.defaultView.getComputedStyle(
-          d.querySelector("#trip"),
+          htmlElement("#trip"),
         ).backgroundColor;
         s.render(8);
         const panelBeforeText = {
           camera: d.body.style.transformStyle,
-          heading: d.querySelector("h2").style.transform,
-          background: d.defaultView.getComputedStyle(d.querySelector("#trip"))
+          heading: htmlElement("h2").style.transform,
+          background: d.defaultView.getComputedStyle(htmlElement("#trip"))
             .backgroundColor,
         };
         s.render(10);
@@ -147,7 +160,7 @@ describe("live HTML SDK surface", () => {
           .filter((item) => item.before !== item.after);
         s.setVisibleTargets(["page"]);
         s.render(10);
-        const gated = d.querySelector("#trip").style.visibility;
+        const gated = htmlElement("#trip").style.visibility;
         s.setVisibleTargets(["page", "trip"]);
         s.render(10);
         return {
@@ -226,13 +239,15 @@ describe("live HTML SDK surface", () => {
         ),
       );
       const result = await page.evaluate(() => {
-        const d = (window as any).surface.frame.contentDocument;
+        const d = window.surface.frame.contentDocument;
+        if (!d) throw new Error("DOM motion frame is not loaded.");
         return {
-          compromised: (window as any).compromised === true,
+          compromised: "compromised" in window && window.compromised === true,
           active: d.querySelectorAll("script,iframe,[onerror],[action]").length,
-          href: d.querySelector("a").getAttribute("href"),
-          policy: d.querySelector('meta[http-equiv="Content-Security-Policy"]')
-            .content,
+          href: d.querySelector("a")?.getAttribute("href"),
+          policy: [...d.querySelectorAll("meta")].find(
+            (meta) => meta.httpEquiv === "Content-Security-Policy",
+          )?.content,
         };
       });
       expect(result.compromised).toBe(false);
@@ -251,7 +266,7 @@ describe("live HTML SDK surface", () => {
       await mount(page);
       expect(
         await page.evaluate(async (input) => {
-          const runtime = window as any,
+          const runtime = window,
             host = document.getElementById("host")!;
           runtime.surface.dispose();
           const s = runtime.MotionSDK.createDomMotionSurface(host, input);
@@ -275,18 +290,20 @@ describe("live HTML SDK surface", () => {
         mounted: 0,
       });
       const input = documentSource();
-      input.bindings.push({ ...input.bindings[0], id: "duplicate" });
+      input.bindings.push({
+        ...requiredEntry(input.bindings, 0),
+        id: "duplicate",
+      });
       input.timeline.tracks.push({
-        ...input.timeline.tracks[1],
+        ...requiredEntry(input.timeline.tracks, 1),
         id: "duplicate.assembly",
         target: "duplicate",
       });
       expect(
         await page.evaluate(async (source) => {
-          const s = (window as any).MotionSDK.createDomMotionSurface(
-            document.getElementById("host"),
-            source,
-          );
+          const host = document.getElementById("host");
+          if (!host) throw new Error("DOM motion host is missing.");
+          const s = window.MotionSDK.createDomMotionSurface(host, source);
           try {
             await s.ready;
             return "accepted";

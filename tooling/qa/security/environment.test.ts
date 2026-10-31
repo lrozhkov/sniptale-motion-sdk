@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSecurityEnvironment, NPM_REGISTRY } from "./environment.mjs";
+import { createSecurityEnvironment, NPM_REGISTRY } from "./environment.ts";
 
 describe("security scanner environment", () => {
   it("removes scope, configuration, and runtime injection overrides", () => {

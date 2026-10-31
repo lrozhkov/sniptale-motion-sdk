@@ -6,7 +6,7 @@ The security boundary treats effect documents, imported files, asset contents, b
 
 - Effect JSON to SDK model: strict Effect v1 validation rejects unknown schema shapes, unsafe references, executable formats, and invalid graph bounds. Proof: `src/sdk/effect-v1/` and `npm run effect:validate`.
 - Viewer to sandbox: message-boundary owners parse known message kinds and required fields before dispatch, and validate effect documents before registration. Proof: focused transport tests.
-- Sandbox runtime source: QA policy rejects direct use of `fetch`, XHR, WebSocket, EventSource, WebTransport, beacon, WebRTC connection, worker `importScripts`, browser storage, extension namespaces, `eval`, and `new Function`. Proof: `tooling/qa/policy/guardrails.mjs` through `npm run qa:checkpoint`. This source scanner covers the enumerated APIs; exposed browser capabilities still require security review.
+- Sandbox runtime source: QA policy rejects direct use of `fetch`, XHR, WebSocket, EventSource, WebTransport, beacon, WebRTC connection, worker `importScripts`, browser storage, extension namespaces, `eval`, and `new Function`. Proof: `tooling/qa/policy/guardrails.ts` through `npm run qa:checkpoint`. This source scanner covers the enumerated APIs; exposed browser capabilities still require security review.
 
 Asset paths must be relative, must not contain a parent segment or scheme, and must resolve inside the selected local asset root. SVG validation rejects executable or externally loaded content. Imported path-backed assets are materialized before editor state adopts them; transient preview media remains session-only.
 

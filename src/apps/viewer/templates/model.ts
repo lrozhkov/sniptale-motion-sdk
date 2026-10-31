@@ -5,6 +5,12 @@ import type {
   LocaleText,
 } from "../../../sdk/types.js";
 import type { EditorTimeline } from "../editor/model-types.js";
+import type {
+  EffectV1ControlUnit,
+  EffectV1ControlPresentation,
+  EffectV1ControlIcon,
+  EffectV1ControlGroup,
+} from "../../../sdk/effect-v1/control-presentation-model.js";
 
 export type EditorText = LocaleText | string | null;
 export type EditorPreset = Record<string, unknown> & {
@@ -22,12 +28,20 @@ export type EditorControl = Record<string, unknown> & {
   step?: number;
   order?: number;
   group?: string;
-  options?: { value: string | number; label?: EditorText }[];
+  unit?: EffectV1ControlUnit;
+  presentation?: EffectV1ControlPresentation;
+  icon?: EffectV1ControlIcon;
+  options?: {
+    value: string | number;
+    label?: EditorText;
+    icon?: EffectV1ControlIcon;
+  }[];
 };
 export type EditorTemplateMetadata = {
   default?: boolean;
   assets?: string[];
   controls?: EditorControl[];
+  controlGroups?: EffectV1ControlGroup[];
   presets?: unknown[];
   label?: EditorText;
   description?: EditorText;

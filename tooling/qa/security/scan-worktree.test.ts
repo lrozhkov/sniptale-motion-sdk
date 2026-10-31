@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const scanner = resolve("tooling/qa/security/scan-worktree.mjs");
+const scanner = resolve("tooling/qa/security/scan-worktree.ts");
 
 describe("Gitleaks worktree candidate", () => {
   it("includes force-staged files hidden by Git ignore rules and a split index", () => {

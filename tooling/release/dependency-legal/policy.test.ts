@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { checkLegalSettings, relativeRepoPath } from "./boundary.mjs";
+import { checkLegalSettings, relativeRepoPath } from "./boundary.ts";
 import { BASE_POLICY } from "./test-support";
 
 const COMMIT = "a".repeat(40);
@@ -71,7 +71,7 @@ it("allows only commit-addressed pinned provenance", () => {
   };
   expect(
     checkLegalSettings({ ...BASE_POLICY, pinnedSources: [pinned] })
-      .pinnedSources[0].originUrl,
+      .pinnedSources[0]?.originUrl,
   ).toContain(COMMIT);
 
   for (const mutableOrigin of [

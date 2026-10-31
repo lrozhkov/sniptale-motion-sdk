@@ -9,6 +9,9 @@ export function normalizeEffectV1ToTemplate(
     category: "effect-v1",
     clips: structuredClone(document.clips),
     controls: structuredClone(document.controls),
+    ...(document.controlGroups !== undefined
+      ? { controlGroups: structuredClone(document.controlGroups) }
+      : {}),
     ...(document.controlPresets
       ? {
           controlPresets: structuredClone(document.controlPresets),

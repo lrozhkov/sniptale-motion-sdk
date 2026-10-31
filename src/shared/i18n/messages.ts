@@ -1284,6 +1284,20 @@ export const messages = {
       },
     },
     controls: {
+      groups: {
+        content: { ru: "Содержимое", en: "Content" },
+        typography: { ru: "Типографика", en: "Typography" },
+        appearance: { ru: "Оформление", en: "Appearance" },
+        geometry: { ru: "Геометрия", en: "Geometry" },
+        processing: { ru: "Обработка", en: "Processing" },
+        animation: { ru: "Анимация", en: "Animation" },
+        advanced: { ru: "Дополнительно", en: "Advanced" },
+      },
+      units: {
+        count: { ru: "шт.", en: "units" },
+        s: { ru: "с", en: "s" },
+        ms: { ru: "мс", en: "ms" },
+      },
       visualPreset: { en: "Visual style", ru: "Визуальный стиль" },
       customVisualPreset: { en: "Custom", ru: "Свои настройки" },
       title: { en: "Controls", ru: "Параметры" },

@@ -1,3 +1,14 @@
+import type {
+  EffectV1Document,
+  EffectV1Kind,
+  EffectV1Command,
+} from "../src/sdk/effect-v1/types";
+import type { ViewerAsset } from "../src/apps/viewer/assets/state";
+import { createViewerState } from "../src/apps/viewer/app/state";
+import { readEditorTemplate } from "../src/apps/viewer/templates/source";
+import { normalizeTimeline } from "../src/apps/viewer/editor/model";
+import { buildCurrentEffectFile } from "../src/apps/viewer/effect-file/current-source";
+import { responseObject } from "../tooling/test/fixtures/response";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -15,23 +26,22 @@ import {
 } from "../src/apps/viewer/effect-file/validation";
 import { SNIPTALE_EFFECT_FILE_SCHEMA } from "../src/apps/viewer/app/constants";
 import { createEffectExportReadinessActions } from "../src/apps/viewer/effect-file/service";
-import { createEffectFileActions } from "../src/apps/viewer/effect-file/import-export";
 
 describe("Effect v1 file builder", () => {
   it("round-trips an imported display label without source-file metadata", () => {
     const template = createTemplate();
     const originalLabel = { ...template.label };
-    const ctx = {} as any;
-    Object.assign(
-      ctx,
-      createEffectExportReadinessActions(() => ctx),
-    );
-    template.label = ctx.appendImportedLabel(template.label);
+    const actions = createEffectExportReadinessActions(() => {
+      throw new Error("Display label copying must not read viewer state.");
+    });
+    template.label = actions.appendImportedLabel(template.label);
 
     const source = buildEffectFileSource({ assets: createAssets(), template });
     const validation = validateSniptaleEffectFile(source);
 
     expect(validation).toMatchObject({ errors: [], ok: true });
+    if (!validation.payload)
+      throw new Error("Expected a validated Effect v1 payload.");
     expect(validation.payload.label).not.toHaveProperty("source");
     expect(template.effectV1.label).toEqual(originalLabel);
     expect(validation.payload.label).toEqual(originalLabel);
@@ -58,24 +68,24 @@ describe("Effect v1 file builder", () => {
       opacity: 0,
       sessionOnly: "not exported",
     };
-    const ctx = {
+    const state = createViewerState();
+    state.assets = createAssets();
+    state.controls = controlValues;
+    state.currentTemplate = template;
+    const source = buildCurrentEffectFile({
       deps: { buildEffectFileSource },
-      getEffectiveTemplate: (current) => current,
-      state: {
-        assets: createAssets(),
-        controls: controlValues,
-        currentTemplate: template,
-        modules: new Map(),
-      },
-    } as any;
-    Object.assign(
-      ctx,
-      createEffectFileActions(() => ctx),
-    );
-    const source = ctx.buildCurrentEffectFile();
+      getEffectiveTemplate: () =>
+        readEditorTemplate(
+          template,
+          normalizeTimeline(template.timeline, template.duration),
+        ),
+      state,
+    });
     const validation = validateSniptaleEffectFile(source);
 
     expect(validation).toMatchObject({ errors: [], ok: true });
+    if (!validation.payload)
+      throw new Error("Expected a validated Effect v1 payload.");
     expect(
       validation.payload.controls.map((control) => control.defaultValue),
     ).toEqual(["", 0, "#ff9900"]);
@@ -86,6 +96,8 @@ describe("Effect v1 file builder", () => {
       "#ff9900",
     ]);
     const normalized = normalizeEffectFilePayload(validation.payload, []);
+    if (!normalized)
+      throw new Error("Expected the validated effect to normalize.");
     const reexported = buildEffectFilePayload({
       assets: createAssets(),
       template: normalized.template,
@@ -133,7 +145,7 @@ describe("Effect v1 file builder", () => {
 
   it("removes editor-only timeline duration from a strict Effect v1 export", () => {
     const template = createTemplate();
-    template.timeline.duration = template.duration;
+    responseObject(template.timeline).duration = template.duration;
     const payload = buildEffectFilePayload({
       assets: createAssets(),
       template,
@@ -232,7 +244,7 @@ describe("Effect v1 file builder", () => {
     ).toThrow(/not an Effect v1/i);
 
     const template = createTemplate();
-    template.effectV1.program = {
+    responseObject(template.effectV1).program = {
       fixtureId: "legacy-local-fixture",
       kind: "localFixture",
     };
@@ -259,6 +271,8 @@ describe("Effect v1 file validation", () => {
       schemaVersion: SNIPTALE_EFFECT_FILE_SCHEMA,
     });
     expect(validation).toMatchObject({ errors: [], ok: true });
+    if (!validation.payload)
+      throw new Error("Expected a validated Effect v1 payload.");
     expect(normalized).toMatchObject({
       document: { kind: "standalone" },
       template: {
@@ -284,6 +298,8 @@ describe("Effect v1 file validation", () => {
       }),
     );
 
+    if (!transition || !targetEffect)
+      throw new Error("Expected kind adapters to normalize.");
     expect(transition.template).toMatchObject({
       kind: "transitionEffect",
       target: "transitionBoundary",
@@ -299,7 +315,10 @@ describe("Effect v1 file validation", () => {
       'SniptaleEffect.define({"schemaVersion":"sniptale.effect.v3"});',
     );
     const executable = createTemplate().effectV1;
-    executable.renderer = { kind: "compiled-js", source: "return 1" };
+    responseObject(executable).renderer = {
+      kind: "compiled-js",
+      source: "return 1",
+    };
     const v1 = validateSniptaleEffectFile(JSON.stringify(executable));
 
     expect(v3.ok).toBe(false);
@@ -309,7 +328,7 @@ describe("Effect v1 file validation", () => {
   });
 
   it("does not coerce unknown asset metadata during editor validation", () => {
-    const convert = vi.fn(() => {
+    const convert = vi.fn<() => never>(() => {
       throw new Error("must not coerce");
     });
     const unsafe = { toString: convert, valueOf: convert };
@@ -349,8 +368,8 @@ describe("Effect v1 file validation", () => {
   });
 });
 
-function createTemplate(kind = "standalone"): any {
-  const document = {
+function createTemplate(kind: EffectV1Kind = "standalone") {
+  const document: EffectV1Document = {
     assets: [
       {
         height: 64,
@@ -382,11 +401,11 @@ function createTemplate(kind = "standalone"): any {
       commands: [
         { color: "#101820", op: "clear" },
         ...(kind === "transition"
-          ? ["from", "to"]
+          ? (["from", "to"] as const)
           : kind === "targetEffect"
-            ? ["source"]
+            ? (["source"] as const)
             : []
-        ).map((input) => ({
+        ).map((input): EffectV1Command => ({
           input,
           op: "image",
           x: 0,
@@ -439,7 +458,7 @@ function createTemplate(kind = "standalone"): any {
   };
 }
 
-function createAssets(): Map<string, any> {
+function createAssets(): Map<string, ViewerAsset> {
   return new Map([
     [
       "asset-logo",

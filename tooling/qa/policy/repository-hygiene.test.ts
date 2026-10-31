@@ -22,7 +22,7 @@ import {
   inspectRootTopology,
   isSkillMarkdownPath,
   isTemporaryFilePath,
-} from "./repository-hygiene.mjs";
+} from "./repository-hygiene.ts";
 
 describe("repository hygiene policy", () => {
   it("rejects retired product and effect identities without an allowlist", () => {
@@ -337,7 +337,7 @@ describe("repository hygiene policy", () => {
         "node_modules/pkg/index.js",
         "public/packs/demo/manifest.json",
         "tests/fixtures/local-renderer.js",
-        "tooling/test/fixtures/local-pack.mjs",
+        "tooling/test/fixtures/local-pack.ts",
         "tests/unit.test.ts",
       ]),
     ).toEqual([

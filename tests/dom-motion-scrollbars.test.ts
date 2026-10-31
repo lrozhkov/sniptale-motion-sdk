@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { build } from "esbuild";
 import { chromium, type Browser } from "@playwright/test";
@@ -6,16 +7,19 @@ import { parseDomMotionTimeline } from "../src/sdk/dom-motion/validation.js";
 let browser: Browser;
 let bundle: string;
 beforeAll(async () => {
-  bundle = (
-    await build({
-      entryPoints: ["src/sdk/dom-motion/index.ts"],
-      bundle: true,
-      write: false,
-      format: "iife",
-      globalName: "MotionSDK",
-      platform: "browser",
-    })
-  ).outputFiles[0].text;
+  bundle = requiredEntry(
+    (
+      await build({
+        entryPoints: ["src/sdk/dom-motion/index.ts"],
+        bundle: true,
+        write: false,
+        format: "iife",
+        globalName: "MotionSDK",
+        platform: "browser",
+      })
+    ).outputFiles,
+    0,
+  ).text;
   browser = await chromium.launch();
 }, 30000);
 afterAll(async () => {
@@ -45,7 +49,7 @@ describe("DOM motion native scrollbars", () => {
           6,
           new Set(["page"]),
         ),
-      ).toThrow();
+      ).toThrow(/DOM motion keyframe value/u);
   });
   it("suppresses flight overflow and reveals real scrollbars deterministically after assembly", async () => {
     const page = await browser.newPage({
@@ -57,66 +61,70 @@ describe("DOM motion native scrollbars", () => {
       );
       await page.addScriptTag({ content: bundle });
       await page.evaluate(async () => {
-        const runtime = window as any;
-        runtime.surface = runtime.MotionSDK.createDomMotionSurface(
-          document.getElementById("host"),
-          {
-            schemaVersion: "sniptale.dom-motion.v1",
-            id: "scroll-demo",
-            label: { ru: "Прокрутка", en: "Scrolling" },
-            duration: 6,
-            width: 400,
-            height: 240,
-            html: '<!doctype html><style>body{margin:0}.scroll{height:200px;overflow:auto;scrollbar-color:rgb(40,80,120) rgb(230,240,250)}#panel{height:500px}</style><div class="scroll"><section id="panel">Содержимое</section></div>',
-            bindings: [
+        const runtime = window;
+        const host = document.getElementById("host");
+        if (!host) throw new Error("DOM motion host is missing.");
+        runtime.surface = runtime.MotionSDK.createDomMotionSurface(host, {
+          schemaVersion: "sniptale.dom-motion.v1",
+          id: "scroll-demo",
+          label: { ru: "Прокрутка", en: "Scrolling" },
+          duration: 6,
+          width: 400,
+          height: 240,
+          html: '<!doctype html><style>body{margin:0}.scroll{height:200px;overflow:auto;scrollbar-color:rgb(40,80,120) rgb(230,240,250)}#panel{height:500px}</style><div class="scroll"><section id="panel">Содержимое</section></div>',
+          bindings: [
+            {
+              id: "panel",
+              label: { ru: "Панель", en: "Panel" },
+              selector: "#panel",
+              stagger: 0,
+              depth: 100,
+              spread: -1500,
+            },
+          ],
+          timeline: {
+            phases: [],
+            tracks: [
               {
-                id: "panel",
-                label: { ru: "Панель", en: "Panel" },
-                selector: "#panel",
-                stagger: 0,
-                depth: 100,
-                spread: -1500,
+                id: "panel.assembly",
+                target: "panel",
+                property: "assembly",
+                keyframes: [
+                  { time: 0, value: 0 },
+                  { time: 5, value: 1 },
+                ],
+              },
+              {
+                id: "page.scrollbarOpacity",
+                target: "page",
+                property: "scrollbarOpacity",
+                keyframes: [
+                  { time: 0, value: 0, easing: "hold" },
+                  { time: 5, value: 0 },
+                  { time: 6, value: 1 },
+                ],
               },
             ],
-            timeline: {
-              phases: [],
-              tracks: [
-                {
-                  id: "panel.assembly",
-                  target: "panel",
-                  property: "assembly",
-                  keyframes: [
-                    { time: 0, value: 0 },
-                    { time: 5, value: 1 },
-                  ],
-                },
-                {
-                  id: "page.scrollbarOpacity",
-                  target: "page",
-                  property: "scrollbarOpacity",
-                  keyframes: [
-                    { time: 0, value: 0, easing: "hold" },
-                    { time: 5, value: 0 },
-                    { time: 6, value: 1 },
-                  ],
-                },
-              ],
-            },
           },
-        );
+        });
         await runtime.surface.ready;
       });
       const proof = await page.evaluate(() => {
-        const s = (window as any).surface,
-          d = s.frame.contentDocument,
-          node = d.querySelector(".scroll"),
-          root = d.documentElement;
+        const s = window.surface;
+        const d = s.frame.contentDocument;
+        if (!d || !d.defaultView)
+          throw new Error("DOM motion frame is not loaded.");
+        const node = d.querySelector(".scroll");
+        if (!(node instanceof d.defaultView.HTMLElement))
+          throw new Error("Scroll fixture is missing.");
+        const realm = d.defaultView;
+        const root = d.documentElement;
         const original = node.getAttribute("style"),
-          originalColor = d.defaultView.getComputedStyle(node).scrollbarColor;
+          originalColor = realm.getComputedStyle(node).scrollbarColor;
         const snapshot = (time: number) => {
           s.render(time);
           return {
-            color: d.defaultView.getComputedStyle(node).scrollbarColor,
+            color: realm.getComputedStyle(node).scrollbarColor,
             overflow: root.style.overflow,
             width: node.offsetWidth,
             height: node.offsetHeight,

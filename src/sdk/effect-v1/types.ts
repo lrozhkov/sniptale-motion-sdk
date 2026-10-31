@@ -1,3 +1,4 @@
+import type { EffectV1ControlGroup } from "./control-presentation-model.js";
 import type {
   ControlDefinition,
   EffectControlPreset,
@@ -442,6 +443,7 @@ export type EffectV1Document = {
   assets: EffectV1Asset[];
   clips: EffectClip[];
   controls: ControlDefinition[];
+  controlGroups?: EffectV1ControlGroup[];
   description?: LocaleText;
   duration: number;
   id: string;

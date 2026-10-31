@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry";
 import { readDomMotionTemplateDocument } from "../src/apps/viewer/dom-motion/template.js";
 import { describe, expect, it } from "vitest";
 import {
@@ -46,10 +47,12 @@ describe("DOM motion document boundary", () => {
   it("parses the embedded viewer document without asserting the surrounding template", () => {
     expect(readDomMotionTemplateDocument(null)).toBeNull();
     expect(readDomMotionTemplateDocument({ id: "plain" })).toBeNull();
-    expect(() => readDomMotionTemplateDocument({ domMotion: true })).toThrow();
+    expect(() => readDomMotionTemplateDocument({ domMotion: true })).toThrow(
+      "Invalid DOM motion schema",
+    );
     expect(() =>
       readDomMotionTemplateDocument({ domMotion: { id: "fake" } }),
-    ).toThrow();
+    ).toThrow("Invalid DOM motion schema");
     const input = source();
     const embedded = readDomMotionTemplateDocument({ domMotion: input });
     expect(embedded?.id).toBe("retreat");
@@ -64,61 +67,62 @@ describe("DOM motion document boundary", () => {
     };
     const parsed = parseDomMotionDocument(input);
     expect(parsed).not.toHaveProperty("renderer");
-    expect(parsed.bindings[0].parts).toBe("h2");
-    input.bindings[0].depth = 999;
-    expect(parsed.bindings[0].depth).toBe(100);
+    expect(requiredEntry(parsed.bindings, 0).parts).toBe("h2");
+    requiredEntry(input.bindings, 0).depth = 999;
+    expect(requiredEntry(parsed.bindings, 0).depth).toBe(100);
   });
   it.each([NaN, Infinity, 0, -1, 301, "10"])(
     "rejects unbounded duration %s",
     (duration) => {
-      expect(() => parseDomMotionDocument({ ...source(), duration })).toThrow();
+      expect(() => parseDomMotionDocument({ ...source(), duration })).toThrow(
+        "Invalid DOM motion duration",
+      );
     },
   );
   it("bounds layer lift while allowing assembly from either side", () => {
     const input = source();
-    expect(
-      parseDomMotionDocument({
-        ...input,
-        bindings: [
-          {
-            ...input.bindings[0],
-            lift: -100,
-            spread: -20,
-            tiltY: 20,
-            partDelay: 0.2,
-          },
-        ],
-      }).bindings[0].spread,
-    ).toBe(-20);
+    const geometry = parseDomMotionDocument({
+      ...input,
+      bindings: [
+        {
+          ...requiredEntry(input.bindings, 0),
+          lift: -100,
+          spread: -20,
+          tiltY: 20,
+          partDelay: 0.2,
+        },
+      ],
+    });
+    expect(requiredEntry(geometry.bindings, 0).spread).toBe(-20);
     for (const partDelay of [-0.01, 2.01, NaN, "0.2"])
       expect(() =>
         parseDomMotionDocument({
           ...input,
-          bindings: [{ ...input.bindings[0], partDelay }],
+          bindings: [{ ...requiredEntry(input.bindings, 0), partDelay }],
         }),
       ).toThrow(/partDelay/);
     expect(() =>
       parseDomMotionDocument({
         ...input,
-        bindings: [{ ...input.bindings[0], lift: -2001 }],
+        bindings: [{ ...requiredEntry(input.bindings, 0), lift: -2001 }],
       }),
     ).toThrow(/lift/);
     expect(() =>
       parseDomMotionDocument({
         ...input,
-        bindings: [{ ...input.bindings[0], tiltX: 46 }],
+        bindings: [{ ...requiredEntry(input.bindings, 0), tiltX: 46 }],
       }),
     ).toThrow(/tiltX/);
     expect(() =>
       parseDomMotionDocument({
         ...input,
-        bindings: [{ ...input.bindings[0], partLift: 2001 }],
+        bindings: [{ ...requiredEntry(input.bindings, 0), partLift: 2001 }],
       }),
     ).toThrow(/partLift/);
     expect(() =>
       parseDomMotionDocument({
         ...input,
-        bindings: [{ ...input.bindings[0], lift: 2001 }],
+        bindings: [{ ...requiredEntry(input.bindings, 0), lift: 2001 }],
       }),
     ).toThrow(/lift/);
   });
@@ -138,9 +142,9 @@ describe("DOM motion document boundary", () => {
   });
   it("rejects duplicate and reserved binding identifiers", () => {
     const input = source();
-    input.bindings.push({ ...input.bindings[0] });
+    input.bindings.push({ ...requiredEntry(input.bindings, 0) });
     expect(() => parseDomMotionDocument(input)).toThrow(/Duplicate/);
-    input.bindings = [{ ...input.bindings[0], id: "page" }];
+    input.bindings = [{ ...requiredEntry(input.bindings, 0), id: "page" }];
     expect(() => parseDomMotionDocument(input)).toThrow(/Duplicate/);
   });
   it("requires observable assembly tracks and rejects unimplemented phase/path data", () => {
@@ -170,21 +174,22 @@ describe("DOM motion document boundary", () => {
   it("restricts page assembly and panel opacity/blur to preserve descendant depth", () => {
     const input = source();
     const targets = new Set(["page", "trip"]);
-    for (const [target, property] of [
-      ["page", "assembly"],
-      ["trip", "opacity"],
-      ["trip", "blur"],
-      ["trip", "scrollbarOpacity"],
-      ["missing", "assembly"],
-      ["page", "javascript"],
-    ]) {
+    const prohibited: [string, string, string][] = [
+      ["page", "assembly", "Invalid DOM motion property owner"],
+      ["trip", "opacity", "Invalid DOM motion property owner"],
+      ["trip", "blur", "Invalid DOM motion property owner"],
+      ["trip", "scrollbarOpacity", "Invalid DOM motion property owner"],
+      ["missing", "assembly", "Invalid DOM motion track"],
+      ["page", "javascript", "Invalid DOM motion track"],
+    ];
+    for (const [target, property, message] of prohibited) {
       expect(() =>
         parseDomMotionTimeline(
           {
             phases: [],
             tracks: [
               {
-                ...input.timeline.tracks[0],
+                ...requiredEntry(input.timeline.tracks, 0),
                 id: `${target}.${property}`,
                 target,
                 property,
@@ -194,7 +199,7 @@ describe("DOM motion document boundary", () => {
           10,
           targets,
         ),
-      ).toThrow();
+      ).toThrow(message);
     }
   });
   it("accepts bounded panel geometry tracks alongside assembly", () => {
@@ -209,7 +214,7 @@ describe("DOM motion document boundary", () => {
       "scale",
     ]) {
       const track = {
-        ...input.timeline.tracks[0],
+        ...requiredEntry(input.timeline.tracks, 0),
         id: `trip.${property}`,
         property,
       };
@@ -241,7 +246,7 @@ describe("DOM motion document boundary", () => {
   });
   it("rejects unordered, duplicate, nonfinite and out-of-range keys", () => {
     const input = source(),
-      track = input.timeline.tracks[0];
+      track = requiredEntry(input.timeline.tracks, 0);
     for (const keyframes of [
       [
         { time: 2, value: 0 },
@@ -260,12 +265,12 @@ describe("DOM motion document boundary", () => {
           ...input,
           timeline: { phases: [], tracks: [{ ...track, keyframes }] },
         }),
-      ).toThrow();
+      ).toThrow(/DOM motion keyframe/u);
     }
   });
   it("validates easing handles and enabled flags at the receiving boundary", () => {
     const input = source(),
-      track = input.timeline.tracks[0];
+      track = requiredEntry(input.timeline.tracks, 0);
     for (const patch of [
       { easing: "eval" },
       { easing: "bezier", handles: { x1: -1, y1: 0, x2: 1, y2: 1 } },
@@ -282,7 +287,7 @@ describe("DOM motion document boundary", () => {
             ],
           },
         }),
-      ).toThrow();
+      ).toThrow(/DOM motion/u);
     }
   });
 });

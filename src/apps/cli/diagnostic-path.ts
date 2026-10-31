@@ -1,6 +1,7 @@
 import { EFFECT_V1_JSON_SCHEMA } from "../../sdk/effect-v1/schema.js";
+import { SUPPORTED_LOCALES } from "../../shared/i18n/config.js";
 
-const fields = new Set<string>();
+const fields = new Set<string>(SUPPORTED_LOCALES);
 const visited = new WeakSet<object>();
 function collect(value: unknown): void {
   if (value === null || typeof value !== "object" || visited.has(value)) return;

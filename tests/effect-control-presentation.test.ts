@@ -1,3 +1,5 @@
+import { requireEffectV1Fixture } from "../tooling/test/fixtures/effect-v1-documents.ts";
+import { requiredEntry } from "./helpers/required-entry";
 import { expect, it } from "vitest";
 import { validateEffectV1Controls } from "../src/sdk/effect-v1/scene-validation.js";
 import { validateLocaleText } from "../src/sdk/effect-v1/validation-shared.js";
@@ -203,19 +205,24 @@ it("preserves presentation and English-only handles through normalization, copyi
   };
   const result = validateEffectV1Document(source);
   expect(result.ok).toBe(true);
-  const template = normalizeEffectV1ToTemplate(source as never);
+  const template = normalizeEffectV1ToTemplate(requireEffectV1Fixture(source));
   const copied = structuredClone(template);
-  const exported = buildEffectFilePayload({
-    template: copied,
-    assets: new Map(),
-    controlValues: { mode: 1 },
+  const exported = requireEffectV1Fixture(
+    buildEffectFilePayload({
+      template: copied,
+      assets: new Map(),
+      controlValues: { mode: 1 },
+    }),
+  );
+  expect(requiredEntry(exported.controls, 0)).toEqual({
+    ...control,
+    defaultValue: 1,
   });
-  expect(exported.controls[0]).toEqual({ ...control, defaultValue: 1 });
   expect(exported.objectLayout).toEqual(source.objectLayout);
   expect(exported).not.toHaveProperty("description");
   expect(validateEffectV1Document(exported).ok).toBe(true);
-  expect(source.controls[0].defaultValue).toBe(0);
-  expect(template.controls?.[0].defaultValue).toBe(0);
+  expect(requiredEntry(source.controls, 0).defaultValue).toBe(0);
+  expect(template.controls?.[0]?.defaultValue).toBe(0);
 });
 
 import { isEffectV1LocaleTag } from "../src/sdk/effect-v1/locale-tags.js";
@@ -340,17 +347,22 @@ it.each(["My edited title", "", "Title"])(
         ],
       },
     };
-    const template = normalizeEffectV1ToTemplate(doc as never);
+    const template = normalizeEffectV1ToTemplate(requireEffectV1Fixture(doc));
     const controls = { title: value };
     const copied = structuredClone(controls);
     expect(buildControlsWithDefaults(template, copied)).toEqual(controls);
-    const exported = buildEffectFilePayload({
-      template,
-      assets: new Map(),
-      controlValues: copied,
-    });
-    expect(exported.controls[0].defaultValue).toBe(value);
-    expect(exported.controls[0].localizedDefaultValue).toEqual(
+    const exported = requireEffectV1Fixture(
+      buildEffectFilePayload({
+        template,
+        assets: new Map(),
+        controlValues: copied,
+      }),
+    );
+    expect(requiredEntry(exported.controls, 0).defaultValue).toBe(value);
+    const textControl = requiredEntry(exported.controls, 0);
+    if (textControl.kind !== "text")
+      throw new Error("Expected the exported text control.");
+    expect(textControl.localizedDefaultValue).toEqual(
       localizedText.localizedDefaultValue,
     );
     const validation = validateEffectV1Document(exported);

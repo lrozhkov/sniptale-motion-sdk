@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   inspectDependencyAge,
   readRegistryPackages,
-} from "./dependency-age.mjs";
+} from "./dependency-age.ts";
 
 describe("dependency release age", () => {
   const now = Date.parse("2026-10-30T12:00:00Z");
-  const packages = [{ name: "example", version: "1.0.0" }];
+  const packages: [{ name: string; version: string }] = [
+    { name: "example", version: "1.0.0" },
+  ];
   const metadata = (published: string) => ({
     example: { time: { "1.0.0": published } },
   });
@@ -66,7 +68,9 @@ describe("dependency release age", () => {
       { ...entry, integrity: "sha1-abc" },
       { ...entry, version: "latest" },
     ]) {
-      expect(() => readRegistryPackages(lock(invalid))).toThrow();
+      expect(() => readRegistryPackages(lock(invalid))).toThrow(
+        /exact registry/u,
+      );
     }
   });
   it("rejects registry identity drift and obsolete temporary fixes", () => {

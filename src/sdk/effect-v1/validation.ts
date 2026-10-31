@@ -1,3 +1,4 @@
+import { validateEffectV1ControlGroups } from "./control-groups-validation.js";
 import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { isUnknownArray } from "./validation-shared.js";
 import type { EffectV1ValidationErrorReport } from "./diagnostics.js";
@@ -39,6 +40,7 @@ import {
 } from "./validation-shared.js";
 
 const ROOT_KEYS = new Set([
+  "controlGroups",
   "assets",
   "clips",
   "controls",
@@ -141,7 +143,12 @@ function validateEffectV1DocumentInternal(
   const layers = validateEffectV1Layers(input.layers, assets, report);
   const scenes = validateEffectV1Scenes(input.scenes, duration, report);
   validateEffectV1Clips(input.clips, layers, scenes, duration, report);
-  const controlIds = validateEffectV1Controls(input.controls, report);
+  validateEffectV1ControlGroups(input.controlGroups, report);
+  const controlIds = validateEffectV1Controls(
+    input.controls,
+    report,
+    input.controlGroups,
+  );
   validateEffectV1ControlPresets(input, report);
   validateEffectV1EditorRegion(input, report);
   const trackIds = validateEffectV1Timeline(

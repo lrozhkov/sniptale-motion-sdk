@@ -1,3 +1,4 @@
+import { controlGroupsSchema } from "./schema-control-presentation.js";
 import { localeTextSchema as localeText } from "./schema-locale-text.js";
 import {
   editorRegionSchema,
@@ -857,6 +858,7 @@ export const EFFECT_V1_JSON_SCHEMA = Object.freeze({
     assets: { items: { $ref: "#/$defs/asset" }, maxItems: 256, type: "array" },
     clips: { items: { $ref: "#/$defs/clip" }, type: "array" },
     controls: { items: { $ref: "#/$defs/control" }, type: "array" },
+    controlGroups: controlGroupsSchema,
     controlPresets: controlPresetsSchema,
     defaultControlPresetId: identifier,
     description: localeText,

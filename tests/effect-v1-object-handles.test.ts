@@ -1,3 +1,6 @@
+import { responseObject } from "../tooling/test/fixtures/response.ts";
+import { requireEffectV1Fixture } from "../tooling/test/fixtures/effect-v1-documents.ts";
+import { requiredEntry } from "./helpers/required-entry";
 import { describe, expect, it, vi } from "vitest";
 import {
   EFFECT_V1_SCHEMA,
@@ -77,16 +80,19 @@ describe("external object handles", () => {
     expect(layout.width).toBe(380);
     expect(() =>
       resolveEffectV1ObjectRenderBounds(layout, { tx: NaN, ty: 1 }),
-    ).toThrow();
+    ).toThrow("Object handle coordinates must be finite numbers.");
     expect(() =>
       resolveEffectV1ObjectRenderBounds(layout, { tx: 1000001, ty: 1 }),
-    ).toThrow();
+    ).toThrow("Object handle coordinates must be finite numbers.");
     expect(() =>
       resolveEffectV1ObjectRenderBounds(
-        { ...layout, handles: [{ ...layout.handles![0], padding: -1 }] },
+        {
+          ...layout,
+          handles: [{ ...requiredEntry(layout.handles ?? [], 0), padding: -1 }],
+        },
         { tx: 1, ty: 1 },
       ),
-    ).toThrow();
+    ).toThrow("Object handle padding must be between 0 and 256.");
   });
 
   it.each([0, Math.PI / 2, -0.7])(
@@ -108,31 +114,35 @@ describe("external object handles", () => {
           { x: NaN, y: 0, width: 380, height: 160, rotation: 0 },
           scene,
         ),
-      ).toThrow();
+      ).toThrow("Object placement and scene point must be finite.");
     },
   );
 
   it("validates and preserves handles and edited coordinates through export", () => {
     const result = validateEffectV1Document(document());
     expect(result.ok).toBe(true);
-    const exported = buildEffectFilePayload({
-      template: normalizeEffectV1ToTemplate(result.document!),
-      assets: new Map(),
-      controlValues: { tx: -300, ty: 500 },
-    });
+    const exported = requireEffectV1Fixture(
+      buildEffectFilePayload({
+        template: normalizeEffectV1ToTemplate(
+          requireEffectV1Fixture(document()),
+        ),
+        assets: new Map(),
+        controlValues: { tx: -300, ty: 500 },
+      }),
+    );
     expect(exported.objectLayout).toEqual(layout);
     expect(validateEffectV1Document(exported).ok).toBe(true);
-    expect(exported.controls[0].defaultValue).toBe(-300);
+    expect(requiredEntry(exported.controls, 0).defaultValue).toBe(-300);
   });
 
   it.each([
     null,
     [],
     Array(9).fill(layout.handles![0]),
-    [{ ...layout.handles![0], xControl: "missing" }],
-    [{ ...layout.handles![0], yControl: "tx" }],
-    [{ ...layout.handles![0], padding: 257 }],
-    [{ ...layout.handles![0], extra: 1 }],
+    [{ ...requiredEntry(layout.handles ?? [], 0), xControl: "missing" }],
+    [{ ...requiredEntry(layout.handles ?? [], 0), yControl: "tx" }],
+    [{ ...requiredEntry(layout.handles ?? [], 0), padding: 257 }],
+    [{ ...requiredEntry(layout.handles ?? [], 0), extra: 1 }],
     [layout.handles![0], layout.handles![0]],
   ])("rejects malformed handle declarations", (handles) => {
     const doc = document();
@@ -152,17 +162,17 @@ describe("external object handles", () => {
         objectLayout: { ...doc.objectLayout, resize: "reflow" },
       }).ok,
     ).toBe(false);
-    delete (doc.controls[0] as { min?: number }).min;
+    delete responseObject(doc, "controls", 0).min;
     expect(validateEffectV1Document(doc).ok).toBe(false);
   });
 
   it("renders external content in an expanded viewport without changing graph body dimensions", () => {
     const c = {
-      translate: vi.fn(),
-      scale: vi.fn(),
-      beginPath: vi.fn(),
-      rect: vi.fn(),
-      clip: vi.fn(),
+      translate: vi.fn<CanvasRenderingContext2D["translate"]>(),
+      scale: vi.fn<CanvasRenderingContext2D["scale"]>(),
+      beginPath: vi.fn<CanvasRenderingContext2D["beginPath"]>(),
+      rect: vi.fn<CanvasRenderingContext2D["rect"]>(),
+      clip: vi.fn<() => void>(),
     };
     const result = applyEffectV1ObjectLayout(
       layout,

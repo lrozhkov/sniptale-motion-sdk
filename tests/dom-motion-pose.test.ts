@@ -1,17 +1,21 @@
+import { requiredEntry } from "./helpers/required-entry";
 import { build } from "esbuild";
 import { chromium } from "@playwright/test";
 import { expect, it } from "vitest";
 
 it("keeps an assembled element in its held foreground pose until its independent flight ends", async () => {
-  const bundle = (
-    await build({
-      entryPoints: ["src/sdk/dom-motion/index.ts"],
-      bundle: true,
-      write: false,
-      format: "iife",
-      globalName: "MotionSDK",
-    })
-  ).outputFiles[0].text;
+  const bundle = requiredEntry(
+    (
+      await build({
+        entryPoints: ["src/sdk/dom-motion/index.ts"],
+        bundle: true,
+        write: false,
+        format: "iife",
+        globalName: "MotionSDK",
+      })
+    ).outputFiles,
+    0,
+  ).text;
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage({
@@ -22,7 +26,9 @@ it("keeps an assembled element in its held foreground pose until its independent
     );
     await page.addScriptTag({ content: bundle });
     const proof = await page.evaluate(async () => {
-      const runtime = window as any;
+      const runtime = window;
+      const host = document.getElementById("host");
+      if (!host) throw new Error("DOM motion host is missing.");
       const flight = (property: string, value: number, final = 0) => ({
         id: `brand.${property}`,
         target: "brand",
@@ -33,42 +39,41 @@ it("keeps an assembled element in its held foreground pose until its independent
           { time: 10, value: final },
         ],
       });
-      const surface = runtime.MotionSDK.createDomMotionSurface(
-        document.getElementById("host"),
-        {
-          schemaVersion: "sniptale.dom-motion.v1",
-          id: "brand-flight",
-          label: { ru: "Логотип", en: "Logo" },
-          duration: 10,
-          width: 400,
-          height: 240,
-          html: '<style>body{margin:0}header{height:40px}#brand{display:inline-block;width:80px;height:30px}</style><header><a id="brand" style="color:#333">SD Pro</a></header><main>Алтайский рассвет</main>',
-          bindings: [
-            {
-              id: "brand",
-              label: { ru: "Логотип", en: "Logo" },
-              selector: "#brand",
-              stagger: 0,
-              depth: 0,
-              spread: 0,
-            },
-          ],
-          timeline: {
-            phases: [],
-            tracks: [
-              flight("assembly", 1, 1),
-              flight("x", 130),
-              flight("y", 90),
-              flight("z", 300),
-              flight("scale", 2, 1),
-            ],
+      const surface = runtime.MotionSDK.createDomMotionSurface(host, {
+        schemaVersion: "sniptale.dom-motion.v1",
+        id: "brand-flight",
+        label: { ru: "Логотип", en: "Logo" },
+        duration: 10,
+        width: 400,
+        height: 240,
+        html: '<style>body{margin:0}header{height:40px}#brand{display:inline-block;width:80px;height:30px}</style><header><a id="brand" style="color:#333">SD Pro</a></header><main>Алтайский рассвет</main>',
+        bindings: [
+          {
+            id: "brand",
+            label: { ru: "Логотип", en: "Logo" },
+            selector: "#brand",
+            stagger: 0,
+            depth: 0,
+            spread: 0,
           },
+        ],
+        timeline: {
+          phases: [],
+          tracks: [
+            flight("assembly", 1, 1),
+            flight("x", 130),
+            flight("y", 90),
+            flight("z", 300),
+            flight("scale", 2, 1),
+          ],
         },
-      );
+      });
       await surface.ready;
-      const doc = surface.frame.contentDocument,
-        node = doc.getElementById("brand"),
-        initial = node.getAttribute("style");
+      const doc = surface.frame.contentDocument;
+      if (!doc) throw new Error("DOM motion frame is not loaded.");
+      const node = doc.getElementById("brand");
+      if (!node) throw new Error("Brand fixture is missing.");
+      const initial = node.getAttribute("style");
       surface.render(3);
       const held = {
         transform: node.style.transform,

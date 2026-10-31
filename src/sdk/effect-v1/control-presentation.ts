@@ -1,3 +1,6 @@
+import { resolveEffectV1ControlGroup } from "./control-presentation-model.js";
+import { validateEffectV1ControlIcon } from "./control-groups-validation.js";
+import { validateEffectV1ControlMetadata } from "./control-metadata-validation.js";
 import {
   isRecord,
   rejectUnknownKeys,
@@ -5,16 +8,7 @@ import {
   validateLocaleText,
 } from "./validation-shared.js";
 
-const GROUPS = new Set([
-  "content",
-  "typography",
-  "appearance",
-  "geometry",
-  "processing",
-  "animation",
-  "advanced",
-]);
-const OPTION_KEYS = new Set(["value", "label"]);
+const OPTION_KEYS = new Set(["value", "label", "icon"]);
 
 export function validateControlPresentation(
   control: Record<string, unknown>,
@@ -23,17 +17,26 @@ export function validateControlPresentation(
     error(code: string, path: string, message: string): void;
     warning(code: string, path: string, message: string): void;
   },
+  controlGroups?: unknown,
 ): void {
   if (
     control["group"] !== undefined &&
     requireIdentifier(control["group"], `${path}.group`, report) &&
-    !GROUPS.has(control["group"])
+    resolveEffectV1ControlGroup(control["group"], controlGroups) === null
   ) {
-    report.warning(
-      "CONTROL_GROUP_UNKNOWN",
-      `${path}.group`,
-      "Unknown control group is presented in Advanced.",
-    );
+    if (controlGroups === undefined) {
+      report.warning(
+        "CONTROL_GROUP_UNKNOWN",
+        `${path}.group`,
+        "Unknown control group is presented in Advanced.",
+      );
+    } else {
+      report.error(
+        "CONTROL_GROUP_REFERENCE",
+        `${path}.group`,
+        "Control group must reference a semantic root or declared custom group.",
+      );
+    }
   }
   if (
     control["order"] !== undefined &&
@@ -47,6 +50,7 @@ export function validateControlPresentation(
       "Expected a non-negative safe integer.",
     );
   }
+  validateEffectV1ControlMetadata(control, path, report);
   const localizedDefault = control["localizedDefaultValue"];
   if (localizedDefault !== undefined) {
     if (control["kind"] !== "text") {
@@ -90,6 +94,7 @@ export function validateControlPresentation(
       return;
     }
     rejectUnknownKeys(option, OPTION_KEYS, optionPath, report);
+    validateEffectV1ControlIcon(option.icon, `${optionPath}.icon`, report);
     validateLocaleText(option["label"], `${optionPath}.label`, false, report);
     const value = option["value"];
     const valid =

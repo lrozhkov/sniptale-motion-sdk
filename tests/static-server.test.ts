@@ -10,8 +10,8 @@ import { request } from "node:http";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { startStaticServer } from "../tooling/http/static-server.mjs";
-import { startServer as startSmokeServer } from "../tooling/test/smoke/server.mjs";
+import { startStaticServer } from "../tooling/http/static-server.ts";
+import { startServer as startSmokeServer } from "../tooling/test/smoke/server.ts";
 
 const cleanup: string[] = [];
 

@@ -1,3 +1,6 @@
+import { responseObject } from "../tooling/test/fixtures/response.ts";
+import { requireEffectV1Fixture } from "../tooling/test/fixtures/effect-v1-documents.ts";
+import { requiredEntry } from "./helpers/required-entry";
 import { expect, it } from "vitest";
 import {
   resolveEffectV1EditorRegion,
@@ -84,14 +87,16 @@ function source(): EffectV1Document {
 it("validates and roundtrips the region separately from instance geometry", () => {
   const doc = source();
   expect(validateEffectV1Document(doc).ok).toBe(true);
-  const out = buildEffectFilePayload({
-    template: normalizeEffectV1ToTemplate(doc),
-    assets: new Map(),
-    controlValues: { x: 17, y: 32, w: 64, h: 24 },
-  });
+  const out = requireEffectV1Fixture(
+    buildEffectFilePayload({
+      template: normalizeEffectV1ToTemplate(doc),
+      assets: new Map(),
+      controlValues: { x: 17, y: 32, w: 64, h: 24 },
+    }),
+  );
   expect(out.editorRegion).toEqual(doc.editorRegion);
   expect(validateEffectV1Document(out).ok).toBe(true);
-  expect(out.controls[0].defaultValue).toBe(17);
+  expect(requiredEntry(out.controls, 0).defaultValue).toBe(17);
 });
 it.each([
   { width: 1280, height: 720 },
@@ -107,7 +112,7 @@ it.each([
   ]) {
     const rect = resolveEffectV1EditorRegion(doc, controls, size)!;
     const patch = updateEffectV1EditorRegion(doc, controls, rect, size);
-    for (const key of Object.keys(controls))
+    for (const key of ["x", "y", "w", "h"] as const)
       expect(patch[key]).toBeCloseTo(controls[key], 9);
     expect(rect.x).toBeGreaterThanOrEqual(0);
     expect(rect.x + rect.width).toBeLessThanOrEqual(size.width);
@@ -128,9 +133,13 @@ it("clamps off-frame moves and oversized resize, returning only four geometry co
 });
 it("handles zero travel and rejects non-finite inputs", () => {
   const doc = source();
-  doc.editorRegion!.inset = 0;
-  if (doc.controls[2].kind === "number") doc.controls[2].max = 100;
-  if (doc.controls[3].kind === "number") doc.controls[3].max = 100;
+  if (!doc.editorRegion)
+    throw new Error("Region fixture is missing its editor region.");
+  doc.editorRegion.inset = 0;
+  const widthControl = requiredEntry(doc.controls, 2);
+  if (widthControl.kind === "number") widthControl.max = 100;
+  const heightControl = requiredEntry(doc.controls, 3);
+  if (heightControl.kind === "number") heightControl.max = 100;
   expect(
     updateEffectV1EditorRegion(
       doc,
@@ -141,10 +150,10 @@ it("handles zero travel and rejects non-finite inputs", () => {
   ).toEqual({ x: 37, y: 81, w: 100, h: 100 });
   expect(() =>
     resolveEffectV1EditorRegion(doc, {}, { width: 0, height: 100 }),
-  ).toThrow();
+  ).toThrow("Expected a positive finite target size.");
   expect(() =>
     resolveEffectV1EditorRegion(doc, { x: NaN }, { width: 100, height: 100 }),
-  ).toThrow();
+  ).toThrow("Invalid region value: x");
   expect(() =>
     updateEffectV1EditorRegion(
       doc,
@@ -152,7 +161,7 @@ it("handles zero travel and rejects non-finite inputs", () => {
       { x: 0, y: 0, width: -1, height: 1 },
       { width: 100, height: 100 },
     ),
-  ).toThrow();
+  ).toThrow("Expected a finite rectangle with positive dimensions.");
   delete doc.editorRegion;
   expect(
     resolveEffectV1EditorRegion(doc, {}, { width: 100, height: 100 }),
@@ -164,78 +173,78 @@ it("handles zero travel and rejects non-finite inputs", () => {
       { x: 0, y: 0, width: 1, height: 1 },
       { width: 100, height: 100 },
     ),
-  ).toThrow();
+  ).toThrow("Document has no editor region.");
 });
 it.each([
   [
-    (d: any) => {
+    (d: Record<string, unknown>) => {
       d.editorRegion = null;
     },
     "EDITOR_REGION",
   ],
   [
-    (d: any) => {
+    (d: Record<string, unknown>) => {
       d.kind = "standalone";
     },
     "EDITOR_REGION_KIND",
   ],
   [
-    (d: any) => {
-      d.editorRegion.xControl = "missing";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "editorRegion").xControl = "missing";
     },
     "EDITOR_REGION_CONTROL",
   ],
   [
-    (d: any) => {
-      d.editorRegion.xControl = "y";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "editorRegion").xControl = "y";
     },
     "EDITOR_REGION_DUPLICATE",
   ],
   [
-    (d: any) => {
-      d.editorRegion.inset = 0.3;
+    (d: Record<string, unknown>) => {
+      responseObject(d, "editorRegion").inset = 0.3;
     },
     "EDITOR_REGION_INSET",
   ],
   [
-    (d: any) => {
-      d.editorRegion.units = "pixels";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "editorRegion").units = "pixels";
     },
     "EDITOR_REGION_COORDINATES",
   ],
   [
-    (d: any) => {
-      d.editorRegion.extra = 1;
+    (d: Record<string, unknown>) => {
+      responseObject(d, "editorRegion").extra = 1;
     },
     "UNKNOWN_FIELD",
   ],
   [
-    (d: any) => {
-      d.editorRegion.label = { ru: "Фокус" };
+    (d: Record<string, unknown>) => {
+      responseObject(d, "editorRegion").label = { ru: "Фокус" };
     },
     "LOCALE_EN_REQUIRED",
   ],
   [
-    (d: any) => {
-      d.controls[0].group = "appearance";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controls", 0).group = "appearance";
     },
     "EDITOR_REGION_CONTROL",
   ],
   [
-    (d: any) => {
-      d.controls[2].min = 0;
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controls", 2).min = 0;
     },
     "EDITOR_REGION_CONTROL",
   ],
   [
-    (d: any) => {
-      d.controls[2].max = 100;
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controls", 2).max = 100;
     },
     "EDITOR_REGION_CONTROL",
   ],
   [
-    (d: any) => {
-      d.controls[0].options = [
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controls", 0).options = [
         { value: 0, label: { en: "Zero" } },
         { value: 50, label: { en: "Center" } },
       ];
@@ -243,7 +252,7 @@ it.each([
     "EDITOR_REGION_CONTROL",
   ],
 ])("rejects invalid region metadata", (mutate, code) => {
-  const doc = source();
+  const doc = responseObject(source());
   mutate(doc);
   expect(
     validateEffectV1Document(doc).diagnostics.map((d) => d.code),

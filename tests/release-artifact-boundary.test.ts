@@ -9,7 +9,7 @@ import {
   inspectRetiredArtifactIdentity,
   verifyReleaseArtifact,
   writeDeclarationManifest,
-} from "../tooling/release/artifact-boundary.mjs";
+} from "../tooling/release/artifact-boundary.ts";
 
 describe("release artifact boundary", () => {
   it("rejects retired identities in release paths and content", () => {
@@ -461,6 +461,15 @@ describe("release artifact boundary", () => {
     );
   });
 
+  it("rejects malformed declaration syntax through the public compiler API", async () => {
+    const root = await createArtifact();
+    await writeLegalArtifact(root);
+    await writeSdkDeclaration(root, "index", "export type Broken = ;");
+    await expect(verifyReleaseArtifact(root)).rejects.toThrow(
+      /sdk\/index\.d\.ts: content does not parse as its release file type/,
+    );
+  });
+
   it("rejects unpaired and semantically invalid declarations", async () => {
     const root = await createArtifact();
     await writeLegalArtifact(root);
@@ -554,20 +563,24 @@ describe("release artifact boundary", () => {
   });
 });
 
-async function createArtifact() {
+async function createArtifact(): Promise<string> {
   const repositoryRoot = await mkdtemp(join(tmpdir(), "effect-sdk-release-"));
   const artifactRoot = join(repositoryRoot, "dist");
   await mkdir(artifactRoot);
   return artifactRoot;
 }
 
-async function writeArtifact(root, path, source) {
+async function writeArtifact(
+  root: string,
+  path: string,
+  source: string | Uint8Array,
+): Promise<void> {
   const target = join(root, path);
   await mkdir(join(target, ".."), { recursive: true });
   await writeFile(target, source);
 }
 
-async function writeLegalArtifact(root) {
+async function writeLegalArtifact(root: string): Promise<void> {
   await writeArtifact(root, "LICENSE", "MIT License");
   await writeArtifact(root, "NOTICE", "Notice");
   await writeArtifact(root, "THIRD_PARTY_DEPENDENCIES.json", "{}");
@@ -575,7 +588,11 @@ async function writeLegalArtifact(root) {
   await writeArtifact(root, "LICENSES/dependencies/example.txt", "MIT");
 }
 
-async function writeSdkDeclaration(root, owner, source) {
+async function writeSdkDeclaration(
+  root: string,
+  owner: string,
+  source: string,
+): Promise<void> {
   const declarationPath = `sdk/${owner}.d.ts`;
   const mapPath = `${declarationPath}.map`;
   const declarationSource = `${source}\n//# sourceMappingURL=${owner}.d.ts.map`;
@@ -610,6 +627,6 @@ async function writeSdkDeclaration(root, owner, source) {
   );
 }
 
-function digest(source) {
+function digest(source: string | Uint8Array): string {
   return createHash("sha256").update(source).digest("hex");
 }

@@ -1,8 +1,9 @@
+import { responseField } from "../../test/fixtures/response.ts";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { formatSource, loadFormattingOptions } from "./options.mjs";
+import { formatSource, loadFormattingOptions } from "./options.ts";
 
 describe("canonical formatting", () => {
   it.each([
@@ -38,7 +39,7 @@ describe("canonical formatting", () => {
       [cli, "--stdin-filepath", "example.ts", "--config", ".oxfmtrc.json"],
       { input: "const value=1;", encoding: "utf8" },
     );
-    expect(good.status, good.stderr).toBe(0);
+    expect(good.status).toBe(0);
     expect(good.stdout).toContain("const value = 1;");
     const bad = spawnSync(
       process.execPath,
@@ -59,7 +60,11 @@ describe("canonical formatting", () => {
       sortPackageJson: false,
       embeddedLanguageFormatting: "off",
     });
-    const editor = JSON.parse(readFileSync(".vscode/settings.json", "utf8"));
-    expect(editor["[markdown]"]["editor.formatOnSave"]).toBe(false);
+    const editor: unknown = JSON.parse(
+      readFileSync(".vscode/settings.json", "utf8"),
+    );
+    expect(responseField(editor, "[markdown]", "editor.formatOnSave")).toBe(
+      false,
+    );
   });
 });

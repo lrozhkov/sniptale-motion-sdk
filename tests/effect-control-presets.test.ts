@@ -1,3 +1,9 @@
+import {
+  responseObject,
+  responseArray,
+} from "../tooling/test/fixtures/response.ts";
+import { requireEffectV1Fixture } from "../tooling/test/fixtures/effect-v1-documents.ts";
+import { requiredEntry } from "./helpers/required-entry";
 import { expect, it } from "vitest";
 import {
   validateEffectV1Document,
@@ -114,19 +120,24 @@ it("accepts named visual presets and preserves them through edited export", () =
     ),
   ).toEqual([]);
   const template = normalizeEffectV1ToTemplate(doc);
-  const exported = buildEffectFilePayload({
-    template,
-    assets: new Map(),
-    controlValues: { title: "Edited", ink: "#123456" },
-  });
+  const exported = requireEffectV1Fixture(
+    buildEffectFilePayload({
+      template,
+      assets: new Map(),
+      controlValues: { title: "Edited", ink: "#123456" },
+    }),
+  );
   expect(exported.controlPresets).toEqual(doc.controlPresets);
   expect(exported.defaultControlPresetId).toBe(doc.defaultControlPresetId);
   expect(validateEffectV1Document(exported).ok).toBe(true);
-  expect(exported.controls[1].localizedDefaultValue).toEqual({
+  const textControl = requiredEntry(exported.controls, 1);
+  if (textControl.kind !== "text")
+    throw new Error("Expected the exported text control.");
+  expect(textControl.localizedDefaultValue).toEqual({
     en: "Title",
     ru: "Заголовок",
   });
-  expect(exported.controls[1].defaultValue).toBe("Edited");
+  expect(requiredEntry(exported.controls, 1).defaultValue).toBe("Edited");
 });
 it.each(["ru", "en"])(
   "applies new-instance style after localizing %s without changing text or handles",
@@ -164,7 +175,7 @@ it("preserves opaque instance controls when applying validated visual values", (
   expect(current).toEqual(before);
   expect(() =>
     applyEffectV1ControlPresetValues(source(), current, { ink: false }),
-  ).toThrow();
+  ).toThrow(/CONTROL_PRESET_VALUE/u);
 });
 it.each([
   [null, "CONTROL_PRESET_VALUES"],
@@ -190,7 +201,7 @@ it.each([
   ).toContain(code);
   expect(() =>
     applyEffectV1ControlPresetValues(doc, { title: "Keep" }, values),
-  ).toThrow();
+  ).toThrow(code);
 });
 it("applies validated user visual overrides and rejects unknown built-in preset IDs", () => {
   const doc = source();
@@ -201,95 +212,101 @@ it("applies validated user visual overrides and rejects unknown built-in preset 
       { ink: "#abc" },
     ),
   ).toEqual({ title: "Keep", ink: "#abc" });
-  expect(() => applyEffectV1ControlPreset(doc, {}, "unknown")).toThrow();
+  expect(() => applyEffectV1ControlPreset(doc, {}, "unknown")).toThrow(
+    "Unknown control preset: unknown",
+  );
 });
 it.each([
   [
-    (d: any) => {
+    (d: Record<string, unknown>) => {
       d.controlPresets = [];
     },
     "CONTROL_PRESETS",
   ],
   [
-    (d: any) => {
+    (d: Record<string, unknown>) => {
       delete d.controlPresets;
     },
     "CONTROL_PRESETS",
   ],
   [
-    (d: any) => {
+    (d: Record<string, unknown>) => {
       delete d.defaultControlPresetId;
     },
     "CONTROL_PRESET_DEFAULT",
   ],
   [
-    (d: any) => {
+    (d: Record<string, unknown>) => {
       d.defaultControlPresetId = "missing";
     },
     "CONTROL_PRESET_DEFAULT",
   ],
   [
-    (d: any) => {
-      d.controlPresets[1].id = d.controlPresets[0].id;
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 1).id = responseObject(
+        d,
+        "controlPresets",
+        0,
+      ).id;
     },
     "CONTROL_PRESET_DUPLICATE",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0].label = { ru: "Тема" };
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 0).label = { ru: "Тема" };
     },
     "LOCALE_EN_REQUIRED",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0].theme.id = "bad id";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 0, "theme").id = "bad id";
     },
     "IDENTIFIER",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0].theme = null;
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 0).theme = null;
     },
     "CONTROL_PRESET_IDENTITY",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0].theme.html = "bad";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 0, "theme").html = "bad";
     },
     "UNKNOWN_FIELD",
   ],
   [
-    (d: any) => {
-      d.controlPresets[1].theme.label = { en: "Other" };
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 1, "theme").label = { en: "Other" };
     },
     "CONTROL_PRESET_IDENTITY_CONFLICT",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0].run = "code";
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 0).run = "code";
     },
     "UNKNOWN_FIELD",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0] = null;
+    (d: Record<string, unknown>) => {
+      d.controlPresets = [null, ...responseArray(d, "controlPresets").slice(1)];
     },
     "CONTROL_PRESET",
   ],
   [
-    (d: any) => {
-      d.controlPresets[0].values = { title: "Bad" };
+    (d: Record<string, unknown>) => {
+      responseObject(d, "controlPresets", 0).values = { title: "Bad" };
     },
     "CONTROL_PRESET_PROTECTED",
   ],
   [
-    (d: any) => {
-      delete d.controls[0].group;
+    (d: Record<string, unknown>) => {
+      delete responseObject(d, "controls", 0).group;
     },
     "CONTROL_PRESET_PROTECTED",
   ],
 ])("rejects invalid preset contract", (mutate, code) => {
-  const d = source();
+  const d = responseObject(source());
   mutate(d);
   expect(validateEffectV1Document(d).diagnostics.map((x) => x.code)).toContain(
     code,

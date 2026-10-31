@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import vitestConfig from "../../configs/qa/vitest";
-import { inspectRepositoryHygiene } from "./repository-hygiene.mjs";
+import { inspectRepositoryHygiene } from "./repository-hygiene.ts";
 
 const APP_OWNER_MAX_LINES = 600;
 const SMOKE_ENTRYPOINT_MAX_LINES = 150;
@@ -57,8 +57,9 @@ describe("architecture guardrails", () => {
       "tsconfig.json",
       "tooling/configs/typescript/sdk.json",
       "tooling/configs/typescript/product.json",
+      "tooling/configs/typescript/tooling.json",
     ]) {
-      expect(JSON.parse(read(file)).compilerOptions).toMatchObject({
+      expect(readRecord(file).compilerOptions).toMatchObject({
         strict: true,
         noImplicitAny: true,
         strictNullChecks: true,
@@ -85,9 +86,9 @@ describe("architecture guardrails", () => {
     const misplacedRoles = repositoryFiles
       .filter((file) => /(?:^|\/)[^/]*(?:harness|wrapper)[^/]*$/i.test(file))
       .filter((file) => !file.startsWith("tooling/"));
-    const packageJson = JSON.parse(read("package.json"));
-    const staleCommands = Object.entries(packageJson.scripts)
-      .filter(([, command]) => String(command).includes("scripts/"))
+    const scripts = readScripts();
+    const staleCommands = Object.entries(scripts)
+      .filter(([, command]) => command.includes("scripts/"))
       .map(([name]) => name);
 
     expect(existsSync(join(process.cwd(), "scripts"))).toBe(false);
@@ -96,42 +97,45 @@ describe("architecture guardrails", () => {
     ).toEqual([]);
     expect(misplacedRoles).toEqual([]);
     expect(staleCommands).toEqual([]);
-    expect(JSON.parse(read("tsconfig.json")).include).not.toContain("scripts");
+    expect(readRecord("tsconfig.json").include).not.toContain("scripts");
   });
 
   it("exposes checkpoint as the canonical logged QA wrapper", () => {
-    const packageJson = JSON.parse(read("package.json"));
-    const checkpoint = read("tooling/qa/wrappers/checkpoint.mjs");
+    const scripts = readScripts();
+    const checkpoint = read("tooling/qa/wrappers/checkpoint.ts");
 
-    expect(packageJson.scripts["qa:seamgate"]).toBeUndefined();
-    expect(packageJson.scripts["qa:checkpoint"]).toBe(
-      "node tooling/qa/wrappers/checkpoint.mjs",
+    expect(scripts["qa:seamgate"]).toBeUndefined();
+    expect(scripts["qa:checkpoint"]).toBe(
+      "node --import tsx tooling/qa/wrappers/checkpoint.ts",
     );
     expect(checkpoint).toContain('runQaWrapper("qa:checkpoint"');
-    expect(checkpoint).toContain("tooling/qa/policy/guardrails.mjs");
+    expect(checkpoint).toContain("tooling/qa/policy/guardrails.ts");
 
-    const unobservedWrappers = Object.entries(packageJson.scripts)
+    const unobservedWrappers = Object.entries(scripts)
       .filter(
         ([name, command]) =>
           name.startsWith("qa:") &&
-          String(command).startsWith("node tooling/qa/wrappers/"),
+          command.startsWith("node --import tsx tooling/qa/wrappers/"),
       )
       .filter(([, command]) => {
-        const entrypoint = String(command).split(" ")[1];
-        return !read(entrypoint).includes("runQaWrapper");
+        const entrypoint = command.split(" ").at(-1);
+        return (
+          entrypoint === undefined || !read(entrypoint).includes("runQaWrapper")
+        );
       })
       .map(([name]) => name);
     expect(unobservedWrappers).toEqual([]);
   });
 
   it("keeps local command entrypoints in their tooling owners", () => {
-    const scripts = JSON.parse(read("package.json")).scripts;
+    const scripts = readScripts();
 
     expect(scripts).toEqual({
-      build: "npm run release:legal && node tooling/build/run.mjs",
-      "build:npm": "node tooling/release/npm/build.mjs",
-      "build:local": "node tooling/build/run.mjs --include-local-demo-pack",
-      dev: "node tooling/vite/dev.mjs",
+      build: "npm run release:legal && node --import tsx tooling/build/run.ts",
+      "build:npm": "node --import tsx tooling/release/npm/build.ts",
+      "build:local":
+        "node --import tsx tooling/build/run.ts --include-local-demo-pack",
+      dev: "node --import tsx tooling/vite/dev.ts",
       "effect:corpus": "tsx tooling/effect-v1/corpus/generate.ts",
       "effect:corpus:check": "tsx tooling/effect-v1/corpus/verify.ts",
       "effect:new": "tsx tooling/effect-v1/new.ts",
@@ -142,32 +146,37 @@ describe("architecture guardrails", () => {
       "effect:schema:check":
         "tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json --check",
       "effect:validate": "tsx tooling/effect-v1/validate.ts",
-      format: "node tooling/qa/formatting/run.mjs",
-      "format:write": "node tooling/qa/formatting/run.mjs --write",
+      format: "node --import tsx tooling/qa/formatting/run.ts",
+      "format:write": "node --import tsx tooling/qa/formatting/run.ts --write",
+      "lint:tooling":
+        "node node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json tooling tests/smoke tests/smoke.spec.ts",
+      "typecheck:tooling":
+        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/tooling.json",
       "lint:product":
         "node node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json src",
       qa: "npm run qa:checkpoint && npm run qa:build",
-      "qa:build": "node tooling/qa/wrappers/build.mjs",
-      "qa:checkpoint": "node tooling/qa/wrappers/checkpoint.mjs",
-      "qa:closeout": "node tooling/qa/wrappers/closeout.mjs",
-      "qa:coverage": "node tooling/qa/wrappers/coverage.mjs",
-      "qa:dependencies": "node tooling/qa/security/dependency-age.mjs",
+      "qa:build": "node --import tsx tooling/qa/wrappers/build.ts",
+      "qa:checkpoint": "node --import tsx tooling/qa/wrappers/checkpoint.ts",
+      "qa:closeout": "node --import tsx tooling/qa/wrappers/closeout.ts",
+      "qa:coverage": "node --import tsx tooling/qa/wrappers/coverage.ts",
+      "qa:dependencies":
+        "node --import tsx tooling/qa/security/dependency-age.ts",
       "qa:licenses":
-        "node tooling/release/dependency-legal/audit-full-lock.mjs",
-      "qa:preflight": "node tooling/qa/wrappers/preflight.mjs",
-      "qa:security": "node tooling/qa/wrappers/security.mjs",
+        "node --import tsx tooling/release/dependency-legal/audit-full-lock.ts",
+      "qa:preflight": "node --import tsx tooling/qa/wrappers/preflight.ts",
+      "qa:security": "node --import tsx tooling/qa/wrappers/security.ts",
       "release:legal":
-        "node tooling/release/dependency-legal/generate-production-legal.mjs",
+        "node --import tsx tooling/release/dependency-legal/generate-production-legal.ts",
       "release:legal:check":
-        "node tooling/release/dependency-legal/validate-production-legal.mjs",
-      serve: "node tooling/http/serve.mjs",
+        "node --import tsx tooling/release/dependency-legal/validate-production-legal.ts",
+      serve: "node --import tsx tooling/http/serve.ts",
       test: "vitest run --config tooling/configs/qa/vitest.ts",
       "test:coverage":
         "vitest run --coverage --config tooling/configs/qa/vitest.ts",
-      "test:npm": "node tooling/release/npm/accept.mjs",
-      "test:smoke": "node tooling/test/smoke/run.mjs",
+      "test:npm": "node --import tsx tooling/release/npm/accept.ts",
+      "test:smoke": "node --import tsx tooling/test/smoke/run.ts",
       typecheck:
-        "npm run typecheck:workspace && npm run typecheck:product && npm run typecheck:sdk",
+        "npm run typecheck:workspace && npm run typecheck:product && npm run typecheck:tooling && npm run typecheck:sdk",
       "typecheck:workspace":
         "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/workspace.json",
       "typecheck:product":
@@ -178,9 +187,9 @@ describe("architecture guardrails", () => {
   });
 
   it("keeps publication security proof history-independent and traceable", () => {
-    const wrapper = read("tooling/qa/wrappers/security.mjs");
-    const worktree = read("tooling/qa/security/scan-worktree.mjs");
-    const environment = read("tooling/qa/security/environment.mjs");
+    const wrapper = read("tooling/qa/wrappers/security.ts");
+    const worktree = read("tooling/qa/security/scan-worktree.ts");
+    const environment = read("tooling/qa/security/environment.ts");
     const gitleaksConfig = read("tooling/configs/qa/gitleaks.toml");
 
     expect(wrapper).toContain('runQaWrapper("qa:security"');
@@ -231,21 +240,23 @@ describe("architecture guardrails", () => {
   });
 
   it("keeps release build stages in their required order", () => {
-    expectSourceOrder(read("tooling/build/run.mjs"), [
-      'await rm("dist"',
-      '"node_modules/@typescript/native/bin/tsc"',
-      'await writeDeclarationManifest("dist");',
-      '"tooling/configs/vite/viewer.ts"',
-      '"tooling/configs/vite/sandbox.ts"',
-      "await cp(legalPath",
-      "await runProductionLegalValidation",
-      'await verifyReleaseArtifact("dist");',
-    ]);
+    expect(
+      collectSourceOrder(read("tooling/build/run.ts"), [
+        'await rm("dist"',
+        '"node_modules/@typescript/native/bin/tsc"',
+        'await writeDeclarationManifest("dist");',
+        '"tooling/configs/vite/viewer.ts"',
+        '"tooling/configs/vite/sandbox.ts"',
+        "await cp(legalPath",
+        "await runProductionLegalValidation",
+        'await verifyReleaseArtifact("dist");',
+      ]),
+    ).toBe(true);
   });
 
   it("keeps entrypoints thin", () => {
     for (const [file, maxLines] of THIN_ENTRYPOINTS) {
-      expect(lineCount(file), file).toBeLessThanOrEqual(maxLines);
+      expect(lineCount(file)).toBeLessThanOrEqual(maxLines);
     }
   });
 
@@ -342,13 +353,13 @@ describe("architecture guardrails", () => {
   });
 
   it("keeps coverage wired into the full QA build", () => {
-    const packageJson = JSON.parse(read("package.json"));
-    const buildWrapper = read("tooling/qa/wrappers/build.mjs");
+    const scripts = readScripts();
+    const buildWrapper = read("tooling/qa/wrappers/build.ts");
 
-    expect(packageJson.scripts["qa:coverage"]).toBe(
-      "node tooling/qa/wrappers/coverage.mjs",
+    expect(scripts["qa:coverage"]).toBe(
+      "node --import tsx tooling/qa/wrappers/coverage.ts",
     );
-    expect(packageJson.scripts["test:coverage"]).toBe(
+    expect(scripts["test:coverage"]).toBe(
       "vitest run --coverage --config tooling/configs/qa/vitest.ts",
     );
     expect(collectNpmRunSteps(buildWrapper)).toEqual([
@@ -372,14 +383,14 @@ describe("architecture guardrails", () => {
   });
 
   it("keeps the browser smoke runner as a thin orchestrator", () => {
-    const runner = read("tooling/test/smoke/run.mjs");
+    const runner = read("tooling/test/smoke/run.ts");
 
-    expect(lineCount("tooling/test/smoke/run.mjs")).toBeLessThanOrEqual(
+    expect(lineCount("tooling/test/smoke/run.ts")).toBeLessThanOrEqual(
       SMOKE_ENTRYPOINT_MAX_LINES,
     );
-    expect(runner).toContain('from "./runtime.mjs"');
+    expect(runner).toContain('from "./runtime.ts"');
     expect(runner).toContain(
-      'from "../../../tests/smoke/scenarios/main-flow.mjs"',
+      'from "../../../tests/smoke/scenarios/main-flow.ts"',
     );
     expect(read("tooling/effect-v1/prove.ts")).toContain(
       'runRepositoryMotionCommand("prove")',
@@ -399,8 +410,8 @@ describe("architecture guardrails", () => {
       ...walk(join(process.cwd(), "tooling/test/smoke")),
       ...walk(join(process.cwd(), "tests/smoke")),
     ]
-      .filter((file) => file.endsWith(".mjs"))
-      .filter((file) => file !== "tooling/test/smoke/run.mjs")
+      .filter((file) => file.endsWith(".ts"))
+      .filter((file) => file !== "tooling/test/smoke/run.ts")
       .filter((file) => lineCount(file) > SMOKE_MODULE_MAX_LINES);
 
     expect(oversized).toEqual([]);
@@ -418,19 +429,17 @@ function lineCount(file: string): number {
 function collectNpmRunSteps(source: string): string[][] {
   return [
     ...source.matchAll(/await run\("([^"]+)", "npm", \["run", "([^"]+)"\]\);/g),
-  ].map((match) => [match[1], match[2]]);
+  ].map((match) => [match[1] ?? "", match[2] ?? ""]);
 }
 
-function expectSourceOrder(source: string, markers: string[]): void {
+function collectSourceOrder(source: string, markers: string[]): boolean {
   let cursor = -1;
   for (const marker of markers) {
     const index = source.indexOf(marker, cursor + 1);
-    expect(
-      index,
-      `missing or reordered build stage: ${marker}`,
-    ).toBeGreaterThan(cursor);
+    if (index <= cursor) return false;
     cursor = index;
   }
+  return true;
 }
 
 function collectUnusedLocalNamedImports(source: string): string[] {
@@ -440,8 +449,8 @@ function collectUnusedLocalNamedImports(source: string): string[] {
   const searchableSource = source.replace(namedImportPattern, "");
   for (const match of source.matchAll(namedImportPattern)) {
     const specifier = match[2];
-    if (!specifier.startsWith(".")) continue;
-    for (const rawPart of match[1].split(",")) {
+    if (!specifier?.startsWith(".")) continue;
+    for (const rawPart of (match[1] ?? "").split(",")) {
       const localName = rawPart
         .trim()
         .replace(/^type\s+/, "")
@@ -461,4 +470,30 @@ function collectUnusedLocalNamedImports(source: string): string[] {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readRecord(file: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(read(file));
+  if (!isRecord(value)) {
+    throw new Error(`${file} must contain an object`);
+  }
+  return value;
+}
+
+function readScripts(): Record<string, string> {
+  const value = readRecord("package.json").scripts;
+  if (!isRecord(value)) {
+    throw new Error("package.json#scripts must be an object");
+  }
+  const scripts: Record<string, string> = {};
+  for (const [name, command] of Object.entries(value)) {
+    if (typeof command !== "string")
+      throw new Error(`Invalid command: ${name}`);
+    scripts[name] = command;
+  }
+  return scripts;
 }

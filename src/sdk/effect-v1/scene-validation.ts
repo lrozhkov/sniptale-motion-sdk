@@ -34,6 +34,9 @@ const CLIP_KEYS = new Set([
   "start",
 ]);
 const CONTROL_KEYS = new Set([
+  "unit",
+  "presentation",
+  "icon",
   "group",
   "order",
   "options",
@@ -154,6 +157,7 @@ export function validateEffectV1Clips(
 export function validateEffectV1Controls(
   value: unknown,
   report: EffectV1ValidationReport,
+  controlGroups?: unknown,
 ): Set<string> {
   const ids = new Set<string>();
   if (!isUnknownArray(value)) {
@@ -191,7 +195,7 @@ export function validateEffectV1Controls(
       validateLocaleText(control.label, `${path}.label`, false, report);
     }
     validateControlValue(control, path, report);
-    validateControlPresentation(control, path, report);
+    validateControlPresentation(control, path, report, controlGroups);
   });
   return ids;
 }

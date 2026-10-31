@@ -1,6 +1,7 @@
 import { isEditorLayer } from "../src/apps/viewer/layers/source.js";
 import { createStarterDocument } from "../src/apps/cli/starter.js";
 import { normalizeEffectV1ToTemplate } from "../src/sdk/effect-v1/index.js";
+import { createControlPresentationDocument } from "../tooling/test/fixtures/control-presentation.js";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
 import type { EditorTemplate } from "../src/apps/viewer/templates/model.js";
@@ -80,6 +81,60 @@ function source() {
 const timeline = readEditorTimeline({ phases: [], tracks: [] }, 0.02);
 
 describe("effective template source boundary", () => {
+  it("preserves parsed control presentation and custom groups at the UI boundary", () => {
+    const template = normalizeEffectV1ToTemplate(
+      createControlPresentationDocument(),
+    );
+    const parsed = readEditorTemplate(
+      template,
+      readEditorTimeline(template.timeline, template.duration),
+    );
+    expect(parsed.controlGroups).toEqual(template.controlGroups);
+    expect(parsed.controls).toEqual(template.controls);
+  });
+
+  it.each([
+    { controlGroups: null },
+    {
+      controlGroups: [],
+      controls: [{ id: "c", defaultValue: 1, group: "unknown" }],
+    },
+    {
+      controlGroups: [{ id: "loop", parentId: "loop", label: { en: "Loop" } }],
+    },
+    { controls: [{ id: "c", kind: "text", defaultValue: "", unit: "px" }] },
+    {
+      controls: [
+        { id: "c", kind: "number", defaultValue: 1, presentation: "textarea" },
+      ],
+    },
+    {
+      controls: [
+        {
+          id: "c",
+          kind: "text",
+          defaultValue: "a",
+          presentation: "toggle",
+          options: [{ value: "a" }],
+        },
+      ],
+    },
+    {
+      controls: [
+        {
+          id: "c",
+          kind: "text",
+          defaultValue: "a",
+          options: [{ value: "a", icon: "<svg>" }],
+        },
+      ],
+    },
+  ])("rejects malformed presentation metadata: %j", (patch) => {
+    expect(() =>
+      readEditorTemplate({ ...source(), ...patch }, timeline),
+    ).toThrow(/Invalid effective editor template/);
+  });
+
   it("exposes a typed template while retained documents and extensions remain unknown", () => {
     expectTypeOf<
       ReturnType<ViewerAppContext["getEffectiveTemplate"]>

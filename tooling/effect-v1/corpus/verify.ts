@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+import { parseRecordedExpectation } from "./verification-model.js";
+import type {
+  RecordedExpectation,
+  BundleDocumentDeclaration,
+  BundleAssetDeclaration,
+  VerifiedManifest,
+} from "./verification-model.js";
 import { readFile, readdir } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,9 +106,11 @@ export async function verifyGeneratedCorpus(
   assertEqual(actualPaths, expectedPaths, "corpus output inventory");
   assertNoCaseFoldCollisions(actualPaths, "corpus output paths");
 
-  const expectations = JSON.parse(
+  const expectations: unknown = JSON.parse(
     await readFile(resolve(root, "expectations.json"), "utf8"),
   );
+  if (!isRecord(expectations))
+    throw new Error("expectations.json must contain an object.");
   assertEqual(
     {
       corpusVersion: expectations.corpusVersion,
@@ -118,7 +127,9 @@ export async function verifyGeneratedCorpus(
   if (!Array.isArray(expectations.cases) || expectations.cases.length !== 14) {
     throw new Error("expectations.json must contain exactly 14 cases.");
   }
-  const projectedExpectations = expectations.cases.map(projectExpectation);
+  const rawCases: unknown[] = expectations.cases;
+  const recordedCases = rawCases.map(parseRecordedExpectation);
+  const projectedExpectations = recordedCases.map(projectExpectation);
   assertEqual(
     projectedExpectations,
     LOCKED_EXPECTATIONS,
@@ -130,14 +141,12 @@ export async function verifyGeneratedCorpus(
     "generator scenario lock",
   );
 
-  const cases = new Map(
-    expectations.cases.map((item: any) => [item.artifact, item]),
-  );
+  const cases = new Map(recordedCases.map((item) => [item.artifact, item]));
   if (cases.size !== LOCKED_EXPECTATIONS.length) {
     throw new Error("expectations.json artifacts must be unique.");
   }
   for (const scenario of scenarios) {
-    const expectation = cases.get(scenario.expectation.artifact) as any;
+    const expectation = cases.get(scenario.expectation.artifact);
     if (!expectation) {
       throw new Error(
         `Missing expectation for ${scenario.expectation.artifact}.`,
@@ -212,7 +221,7 @@ export async function verifyGeneratedCorpus(
     verifyManifestPayloads(lockedExpectation, unzipped);
   }
 
-  const contractLock = JSON.parse(
+  const contractLock: unknown = JSON.parse(
     await readFile(resolve(root, "contract-lock.json"), "utf8"),
   );
   assertEqual(
@@ -280,10 +289,14 @@ function verifyManifestPayloads(
     }
     return;
   }
-  const manifest = JSON.parse(
+  const rawManifest: unknown = JSON.parse(
     new TextDecoder("utf-8", { fatal: true }).decode(manifestBytes),
   );
-  assertBundleManifestEnvelope(manifest, primaryCode, artifact);
+  const manifest = parseBundleManifestEnvelope(
+    rawManifest,
+    primaryCode,
+    artifact,
+  );
   assertEqual(
     manifest.manifestVersion,
     BUNDLE_MANIFEST_VERSION,
@@ -302,13 +315,13 @@ function verifyManifestPayloads(
     throw new Error(`${artifact}: manifest declarations must be arrays.`);
   }
   const declarations = [
-    ...manifest.effectDocuments.map((declaration: any) => ({
+    ...manifest.effectDocuments.map((declaration) => ({
       ...declaration,
-      role: "document",
+      role: "document" as const,
     })),
-    ...manifest.assets.map((declaration: any) => ({
+    ...manifest.assets.map((declaration) => ({
       ...declaration,
-      role: "asset",
+      role: "asset" as const,
     })),
   ];
   let missing = 0;
@@ -319,11 +332,8 @@ function verifyManifestPayloads(
   let documentAssetMismatches = 0;
   const declaredPaths = new Set(["manifest.json"]);
   const actualEffectKinds = [];
-  const manifestAssets = new Map<string, any>(
-    manifest.assets.map((declaration: any): [string, any] => [
-      declaration.path,
-      declaration,
-    ]),
+  const manifestAssets = new Map<string, BundleAssetDeclaration>(
+    manifest.assets.map((declaration) => [declaration.path, declaration]),
   );
   const usedManifestAssets = new Set<string>();
   for (const declaration of declarations) {
@@ -362,15 +372,16 @@ function verifyManifestPayloads(
       if (declaration.schemaVersion !== "sniptale.effect.v1") {
         throw new Error(`${artifact}: declaration schema is not Effect v1.`);
       }
-      const document = JSON.parse(
+      const rawDocument: unknown = JSON.parse(
         new TextDecoder("utf-8", { fatal: true }).decode(bytes),
       );
-      const validation = validateEffectV1Document(document);
-      if (!validation.ok) {
+      const validation = validateEffectV1Document(rawDocument);
+      if (!validation.ok || !validation.document) {
         throw new Error(
           `${artifact}:${declaration.path} is not valid Effect v1.`,
         );
       }
+      const document = validation.document;
       if (document.id !== declaration.id) {
         throw new Error(
           `${artifact}:${declaration.path} id does not match its declaration.`,
@@ -443,11 +454,11 @@ function verifyManifestPayloads(
   }
 }
 
-function assertBundleManifestEnvelope(
-  manifest: any,
+function parseBundleManifestEnvelope(
+  manifest: unknown,
   primaryCode: string | undefined,
   artifact: string,
-): void {
+): VerifiedManifest {
   if (
     !isRecord(manifest) ||
     !hasExactKeys(
@@ -463,6 +474,7 @@ function assertBundleManifestEnvelope(
       ],
       ["description"],
     ) ||
+    typeof manifest.engineVersion !== "string" ||
     !isLocalizedText(manifest.label) ||
     (manifest.description !== undefined &&
       !isLocalizedText(manifest.description)) ||
@@ -489,7 +501,9 @@ function assertBundleManifestEnvelope(
   }
   const ids = new Set<string>();
   const normalizedPaths = new Set<string>(["manifest.json"]);
-  for (const declaration of manifest.effectDocuments) {
+  const rawDocuments: unknown[] = manifest.effectDocuments;
+  const effectDocuments: BundleDocumentDeclaration[] = [];
+  for (const declaration of rawDocuments) {
     if (
       !isRecord(declaration) ||
       !hasExactKeys(declaration, [
@@ -500,6 +514,7 @@ function assertBundleManifestEnvelope(
         "sha256",
       ]) ||
       !isIdentifier(declaration.id) ||
+      typeof declaration.path !== "string" ||
       ids.has(declaration.id) ||
       declaration.schemaVersion !== "sniptale.effect.v1" ||
       !isBoundedInteger(declaration.byteLength, 10 * 1024 * 1024) ||
@@ -516,13 +531,22 @@ function assertBundleManifestEnvelope(
       normalizedPaths,
       artifact,
     );
+    effectDocuments.push({
+      id: declaration.id,
+      path: declaration.path,
+      byteLength: declaration.byteLength,
+      sha256: declaration.sha256,
+      schemaVersion: declaration.schemaVersion,
+    });
   }
   const mimeByKind = {
     audio: new Set(["audio/mpeg", "audio/ogg", "audio/wav"]),
     image: new Set(["image/jpeg", "image/png", "image/webp"]),
     svg: new Set(["image/svg+xml"]),
   } as const;
-  for (const declaration of manifest.assets) {
+  const rawAssets: unknown[] = manifest.assets;
+  const assets: BundleAssetDeclaration[] = [];
+  for (const declaration of rawAssets) {
     if (
       !isRecord(declaration) ||
       !hasExactKeys(declaration, [
@@ -532,11 +556,14 @@ function assertBundleManifestEnvelope(
         "path",
         "sha256",
       ]) ||
-      !(declaration.kind in mimeByKind) ||
-      typeof declaration.mimeType !== "string" ||
-      !mimeByKind[declaration.kind as keyof typeof mimeByKind].has(
-        declaration.mimeType,
+      !(
+        declaration.kind === "audio" ||
+        declaration.kind === "image" ||
+        declaration.kind === "svg"
       ) ||
+      typeof declaration.path !== "string" ||
+      typeof declaration.mimeType !== "string" ||
+      !mimeByKind[declaration.kind].has(declaration.mimeType) ||
       !isBoundedInteger(declaration.byteLength, 50 * 1024 * 1024) ||
       !isSha256(declaration.sha256)
     ) {
@@ -550,7 +577,21 @@ function assertBundleManifestEnvelope(
       normalizedPaths,
       artifact,
     );
+    assets.push({
+      path: declaration.path,
+      byteLength: declaration.byteLength,
+      sha256: declaration.sha256,
+      kind: declaration.kind,
+      mimeType: declaration.mimeType,
+    });
   }
+  return {
+    manifestVersion: manifest.manifestVersion,
+    version: manifest.version,
+    engineVersion: manifest.engineVersion,
+    effectDocuments,
+    assets,
+  };
 }
 
 function assertManifestPath(
@@ -589,7 +630,7 @@ function hasExactKeys(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -636,10 +677,7 @@ export function isCanonicalBundlePath(path: unknown): path is string {
     path.includes("\0") ||
     path.includes("?") ||
     path.includes("#") ||
-    [...path].some((character) => {
-      const code = character.charCodeAt(0);
-      return code < 0x20 || code > 0x7e;
-    })
+    /[^\x20-\x7e]/u.test(path)
   ) {
     return false;
   }
@@ -909,7 +947,7 @@ async function runCli(): Promise<void> {
   );
 }
 
-function projectExpectation(item: any) {
+function projectExpectation(item: RecordedExpectation) {
   return {
     accepted: item.accepted,
     artifact: item.artifact,

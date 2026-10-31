@@ -100,6 +100,11 @@ export function createCorpusSources(): CorpusSources {
     packId: "sniptale.conformance.multi-effect-with-asset",
   });
 
+  const standaloneEntry = standaloneManifest.effectDocuments[0];
+  if (!standaloneEntry)
+    throw new Error(
+      "Standalone corpus manifest must contain its effect document.",
+    );
   const scenarios: CorpusScenario[] = [
     rejected(
       "invalid/asset-mime-mismatch.sniptale-bundle.zip",
@@ -167,8 +172,7 @@ export function createCorpusSources(): CorpusSources {
             effectDocuments: [
               {
                 ...standaloneManifest.effectDocuments[0],
-                byteLength:
-                  standaloneManifest.effectDocuments[0].byteLength + 1,
+                byteLength: standaloneEntry.byteLength + 1,
               },
             ],
           }),
@@ -328,7 +332,7 @@ function createNeutralDocument(
         : [{ color: "#101820", op: "clear" }];
   const label = id
     .split("-")
-    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
   return {
     assets: [],

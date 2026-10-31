@@ -1,21 +1,33 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { createFixtureDirectory } from "../../test/fixtures/storage.ts";
 
 import {
   collectBarePackageImports,
   findRuntimeDependencyViolations,
   inspectRuntimeDependencyOwnership,
-} from "./runtime-dependencies.mjs";
+} from "./runtime-dependencies.ts";
 
 describe("runtime dependency ownership", () => {
+  it.each(
+    [
+      null,
+      [],
+      { dependencies: [] },
+      { dependencies: { runtime: 1 } },
+      { optionalDependencies: "runtime" },
+      { peerDependencies: { runtime: null } },
+      { peerDependenciesMeta: [] },
+      { peerDependenciesMeta: { runtime: null } },
+      { peerDependenciesMeta: { runtime: { optional: "true" } } },
+    ].map((manifest) => ({ manifest })),
+  )("rejects malformed dependency metadata: $manifest", ({ manifest }) => {
+    expect(() => findRuntimeDependencyViolations(manifest, [])).toThrow(
+      /package\.json.*must be/u,
+    );
+  });
+
   it("extracts package roots from static, dynamic, CommonJS, and type imports", () => {
     expect(
       collectBarePackageImports(
@@ -267,8 +279,8 @@ describe("runtime dependency ownership", () => {
     ]);
   });
 
-  it("rejects symlinks under product source instead of skipping them", () => {
-    const root = mkdtempSync(join(tmpdir(), "sniptale-runtime-dependencies-"));
+  it("rejects symlinks under product source instead of skipping them", async () => {
+    const root = await createFixtureDirectory("runtime-dependencies");
     try {
       mkdirSync(join(root, "src"));
       writeFileSync(join(root, "package.json"), '{"type":"module"}\n');

@@ -1,8 +1,11 @@
-export type LocaleText = {
-  en?: string;
-  ru?: string;
-  [locale: string]: string | undefined;
-};
+import type { LocaleText } from "./locale-types.js";
+export type { LocaleText } from "./locale-types.js";
+import type {
+  EffectV1ControlUnit,
+  EffectV1ControlPresentation,
+  EffectV1ControlIcon,
+  EffectV1ControlGroup,
+} from "./effect-v1/control-presentation-model.js";
 
 export type EffectControlPreset = {
   id: string;
@@ -15,9 +18,16 @@ export type EffectControlPreset = {
 export type EffectArtifactType = "animation" | "transition";
 
 export type EffectControlPresentation = {
+  unit?: EffectV1ControlUnit;
+  presentation?: EffectV1ControlPresentation;
+  icon?: EffectV1ControlIcon;
   group?: string;
   order?: number;
-  options?: { value: number | string; label: LocaleText }[];
+  options?: {
+    value: number | string;
+    label: LocaleText;
+    icon?: EffectV1ControlIcon;
+  }[];
 };
 
 export type ControlDefinition = EffectControlPresentation &
@@ -177,6 +187,7 @@ export type EffectDefinition = {
   category?: string;
   clips: EffectClip[];
   controls?: ControlDefinition[];
+  controlGroups?: EffectV1ControlGroup[];
   controlPresets?: EffectControlPreset[];
   defaultControlPresetId?: string;
   description?: LocaleText;

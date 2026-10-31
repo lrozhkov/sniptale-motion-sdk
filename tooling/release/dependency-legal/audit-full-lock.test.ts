@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 import { expect, it } from "vitest";
 
-import { auditFullLock, runFullLockAudit } from "./audit-full-lock.mjs";
+import { auditFullLock, runFullLockAudit } from "./audit-full-lock.ts";
 import { BASE_POLICY, createLegalFixture } from "./test-support";
 
 it("inventories lockfile v3 and writes private reports", async () => {

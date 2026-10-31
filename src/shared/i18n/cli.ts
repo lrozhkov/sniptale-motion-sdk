@@ -2,7 +2,7 @@ import type { Locale } from "./config.js";
 
 const messages = {
   ru: {
-    help: "Команды: init [папка], new <id> [--kind standalone|targetEffect|transition], validate <файл> [--asset-root папка], prove <файл> [--asset-root папка] [--browser-channel chrome|msedge|chromium], export <файл> --output <файл> [--asset-root папка], studio [папка] [--no-open], doctor [--project path] [--browser-channel chrome|msedge|chromium], browser install, skills, check-update [version] [--project path], docs.\nОпции: --json, --locale ru|en, --help, --version.\nКоды завершения: 0 — успех, 1 — ошибка операции/валидации, 2 — неверные аргументы.\n",
+    help: "Команды: init [папка], new <id> [--kind standalone|targetEffect|transition], validate <файл> [--asset-root папка] [--authoring], prove <файл> [--asset-root папка] [--browser-channel chrome|msedge|chromium], export <файл> --output <файл> [--asset-root папка], studio [папка] [--no-open], doctor [--project path] [--browser-channel chrome|msedge|chromium], browser install, skills, check-update [version] [--project path], docs.\nОпции: --json, --locale ru|en, --help, --version.\nКоды завершения: 0 — успех, 1 — ошибка операции/валидации, 2 — неверные аргументы.\n",
     studioReady: "Studio запущена. Откройте адрес в браузере:",
     skillKitFailed:
       "Набор skill не соответствует установленному toolkit или повреждён. Переустановите проверенный архив и повторите skills.",
@@ -29,6 +29,10 @@ const messages = {
       "Материализованный эффект превышает поддерживаемый размер документа viewer. Уменьшите размер ассетов и повторите prove.",
     proofCleanupFailed:
       "Не удалось полностью закрыть ресурсы browser proof. Проверьте локальные процессы перед повторным запуском.",
+    controlUnitLabel:
+      "Единица числового параметра должна храниться в unit отдельно от подписи.",
+    controlUnitSuggestion:
+      "Задайте соответствующую unit и уберите единицу из label. Не меняйте числовые значения и диапазоны.",
     invalidJson:
       "Документ содержит невалидный JSON. Проверьте синтаксис: кавычки, запятые и скобки.",
     unknownField: "Поле не поддерживается форматом Effect v1.",
@@ -49,7 +53,7 @@ const messages = {
       "Браузер не требуется для создания и валидации. Studio использует установленный браузер; prove запускает совместимый браузер без интерфейса.",
   },
   en: {
-    help: "Commands: init [directory], new <id> [--kind standalone|targetEffect|transition], validate <file> [--asset-root directory], prove <file> [--asset-root directory] [--browser-channel chrome|msedge|chromium], export <file> --output <file> [--asset-root directory], studio [directory] [--no-open], doctor [--project path] [--browser-channel chrome|msedge|chromium], browser install, skills, check-update [version] [--project path], docs.\nOptions: --json, --locale ru|en, --help, --version.\nExit codes: 0 success, 1 operation/validation failure, 2 invalid arguments.\n",
+    help: "Commands: init [directory], new <id> [--kind standalone|targetEffect|transition], validate <file> [--asset-root directory] [--authoring], prove <file> [--asset-root directory] [--browser-channel chrome|msedge|chromium], export <file> --output <file> [--asset-root directory], studio [directory] [--no-open], doctor [--project path] [--browser-channel chrome|msedge|chromium], browser install, skills, check-update [version] [--project path], docs.\nOptions: --json, --locale ru|en, --help, --version.\nExit codes: 0 success, 1 operation/validation failure, 2 invalid arguments.\n",
     studioReady: "Studio is running. Open this address in a browser:",
     skillKitFailed:
       "The skill kit does not match the installed toolkit or is damaged. Reinstall the verified archive and run skills again.",
@@ -76,6 +80,10 @@ const messages = {
       "The materialized effect exceeds the viewer document size limit. Reduce the assets and run prove again.",
     proofCleanupFailed:
       "Browser proof resources could not be closed completely. Check local processes before retrying.",
+    controlUnitLabel:
+      "Keep numeric control units in unit, separate from the label.",
+    controlUnitSuggestion:
+      "Declare the matching unit and remove the unit from label. Preserve numeric values and ranges.",
     invalidJson:
       "The document contains invalid JSON. Check quotes, commas and brackets.",
     unknownField: "The field is not supported by Effect v1.",

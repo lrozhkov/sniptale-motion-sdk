@@ -5,7 +5,7 @@ import {
   readRegistryPackages,
   readSecurityFixes,
   verifyManifestLock,
-} from "./dependency-admission.mjs";
+} from "./dependency-admission.ts";
 
 const now = Date.parse("2026-10-30T12:00:00Z");
 const integrity = `sha512-${Buffer.alloc(64, 1).toString("base64")}`;
@@ -25,7 +25,9 @@ const fix = {
   advisory: "https://github.com/advisories/GHSA-2345-6789-cfgh",
   expiresAt: "2026-11-01T00:00:00Z",
 };
-const packages = [{ name: "example", version: "1.0.0" }];
+const packages: [{ name: string; version: string }] = [
+  { name: "example", version: "1.0.0" },
+];
 const npmrc =
   "registry=https://registry.npmjs.org/\nmin-release-age=7\nignore-scripts=true\nsave-exact=true\n";
 
@@ -86,7 +88,9 @@ describe("dependency admission", () => {
       lock(item, "../node_modules/example"),
       lock(item, "node_modules/example/../../owner"),
     ]) {
-      expect(() => readRegistryPackages(input)).toThrow();
+      expect(() => readRegistryPackages(input)).toThrow(
+        /lockfile|must be an object/u,
+      );
     }
     for (const entry of [
       { ...item, version: "latest" },
@@ -104,7 +108,9 @@ describe("dependency admission", () => {
       },
       { ...item, integrity: "sha512-YWJjZA==" },
     ]) {
-      expect(() => readRegistryPackages(lock(entry))).toThrow();
+      expect(() => readRegistryPackages(lock(entry))).toThrow(
+        /exact registry/u,
+      );
     }
   });
   it("fails conflicting copies of an exact package identity", () => {
@@ -159,7 +165,9 @@ describe("dependency admission", () => {
       [{ ...fix, extra: true }],
       [fix, fix],
     ]) {
-      expect(() => readSecurityFixes(records, packages, now)).toThrow();
+      expect(() => readSecurityFixes(records, packages, now)).toThrow(
+        /security-fix record/iu,
+      );
     }
     expect(() => readSecurityFixes([fix], [], now)).toThrow("unused");
   });

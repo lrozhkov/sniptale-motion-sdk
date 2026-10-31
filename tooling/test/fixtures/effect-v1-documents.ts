@@ -1,8 +1,10 @@
+import { validateEffectV1Document } from "../../../src/sdk/effect-v1/validation.js";
+import { parseEffectV1Source } from "../../../src/sdk/effect-v1/validation.js";
 import {
   type EffectV1Document,
   type EffectV1Kind,
 } from "../../../src/sdk/effect-v1/index.js";
-import { createNeutralEffectV1Document as createDocument } from "./local-pack.mjs";
+import { createNeutralEffectV1Document as createDocument } from "./local-pack.ts";
 
 export type EffectV1DiagnosticExpectation = {
   code: string;
@@ -18,7 +20,7 @@ export type InvalidEffectV1Case = {
 export function createNeutralEffectV1Document(
   kind: EffectV1Kind,
 ): EffectV1Document {
-  return createDocument(kind) as EffectV1Document;
+  return createDocument(kind);
 }
 
 export function createInvalidEffectV1Cases(): InvalidEffectV1Case[] {
@@ -234,4 +236,27 @@ export function createInvalidEffectV1Cases(): InvalidEffectV1Case[] {
       id: "unusable-number-control",
     },
   ];
+}
+
+export function parseEffectV1Fixture(source: string): EffectV1Document {
+  const result = parseEffectV1Source(source);
+  if (
+    !result.document ||
+    result.diagnostics.some((item) => item.severity === "error")
+  ) {
+    throw new Error(
+      `Effect fixture is invalid: ${JSON.stringify(result.diagnostics)}`,
+    );
+  }
+  return result.document;
+}
+
+export function requireEffectV1Fixture(value: unknown): EffectV1Document {
+  const result = validateEffectV1Document(value);
+  if (!result.ok || !result.document) {
+    throw new Error(
+      `Effect fixture is invalid: ${JSON.stringify(result.diagnostics)}`,
+    );
+  }
+  return result.document;
 }

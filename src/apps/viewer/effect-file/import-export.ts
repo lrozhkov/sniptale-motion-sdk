@@ -1,3 +1,4 @@
+import { buildCurrentEffectFile } from "./current-source.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type {
   EffectFileActions,
@@ -267,19 +268,6 @@ function validateCurrentEffectFileSource(
     normalizePresets: ctx.deps.normalizePresets,
     normalizeScenes: (scenes, duration) =>
       ctx.normalizeScenes(scenes, duration),
-  });
-}
-
-function buildCurrentEffectFile(ctx: ViewerAppContext) {
-  const template = ctx.getEffectiveTemplate(ctx.state.currentTemplate);
-  const module = template?.moduleId
-    ? ctx.state.modules.get(template.moduleId)
-    : undefined;
-  return ctx.deps.buildEffectFileSource({
-    assets: ctx.state.assets,
-    controlValues: ctx.state.controls,
-    module,
-    template,
   });
 }
 

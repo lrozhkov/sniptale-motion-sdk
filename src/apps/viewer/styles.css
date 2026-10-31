@@ -5953,3 +5953,38 @@ output {
 .studio-update-bar[hidden] {
   display: none;
 }
+
+.control-group > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+.control-group-content {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0 8px 10px;
+}
+
+.control-row-label .viewer-icon,
+.control-group > summary .viewer-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.control-unit {
+  color: var(--muted);
+  font-size: 11px;
+  justify-self: end;
+}
+
+.control-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.control-options button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}

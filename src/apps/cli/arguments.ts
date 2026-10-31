@@ -17,6 +17,9 @@ export function parseCliArguments(argv: string[]) {
       ? { "no-open": { type: "boolean" as const } }
       : {}),
     ...(command === "new" ? { kind: { type: "string" as const } } : {}),
+    ...(command === "validate"
+      ? { authoring: { type: "boolean" as const } }
+      : {}),
     ...(["validate", "export", "prove"].includes(command)
       ? { "asset-root": { type: "string" as const } }
       : {}),
@@ -107,6 +110,7 @@ export function parseCliArguments(argv: string[]) {
       "no-open": parsed.values["no-open"] === true,
       help: parsed.values.help === true,
       json: parsed.values.json === true,
+      authoring: parsed.values.authoring === true,
       version: parsed.values.version === true,
       browserChannel,
       project:

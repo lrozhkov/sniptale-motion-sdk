@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { formatSource } from "../qa/formatting/options.mjs";
+import { formatSource } from "../qa/formatting/options.ts";
 
 import { EFFECT_V1_JSON_SCHEMA } from "../../src/sdk/effect-v1/index.js";
 
 const outputFlag = process.argv.indexOf("--output");
-const output =
-  outputFlag >= 0 && process.argv[outputFlag + 1]
-    ? resolve(process.argv[outputFlag + 1])
-    : null;
+const requestedOutput =
+  outputFlag >= 0 ? process.argv[outputFlag + 1] : undefined;
+if (outputFlag >= 0 && (!requestedOutput || requestedOutput.startsWith("--"))) {
+  process.stderr.write("--output requires a path.\n");
+  process.exit(2);
+}
+const output = requestedOutput ? resolve(requestedOutput) : null;
 const source = await formatSource(
   "sniptale-effect-v1.schema.json",
   JSON.stringify(EFFECT_V1_JSON_SCHEMA),

@@ -56,3 +56,21 @@ export {
 export type { EffectV1RegionRect } from "./editor-region.js";
 
 export type { EffectV1EditorRegion } from "./types.js";
+
+export {
+  EFFECT_V1_CONTROL_GROUPS,
+  EFFECT_V1_CONTROL_UNITS,
+  EFFECT_V1_CONTROL_PRESENTATIONS,
+  EFFECT_V1_CONTROL_ICONS,
+  EFFECT_V1_CONTROL_GROUP_LIMIT,
+  EFFECT_V1_CONTROL_GROUP_DEPTH,
+  isEffectV1SemanticControlGroup,
+  resolveEffectV1ControlGroup,
+} from "./control-presentation-model.js";
+export type {
+  EffectV1SemanticControlGroup,
+  EffectV1ControlUnit,
+  EffectV1ControlPresentation,
+  EffectV1ControlIcon,
+  EffectV1ControlGroup,
+} from "./control-presentation-model.js";

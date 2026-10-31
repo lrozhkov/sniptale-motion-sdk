@@ -20,11 +20,11 @@ async function runCli(): Promise<void> {
   if (!args.id) {
     fail("--id is required.");
   }
-  if (!EFFECT_V1_KINDS.includes(args.kind as EffectV1Kind)) {
+  if (!isEffectKind(args.kind)) {
     fail(`--kind must be one of: ${EFFECT_V1_KINDS.join(", ")}.`);
   }
 
-  const document = createStarterDocument(args.id, args.kind as EffectV1Kind);
+  const document = createStarterDocument(args.id, args.kind);
   const validation = validateEffectV1Document(document);
   if (!validation.ok) {
     fail(
@@ -59,6 +59,7 @@ function parseArgs(argv: string[]) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === undefined) fail("Argument is missing.");
     if (argument === "--force") parsed.force = true;
     else if (argument === "--help" || argument === "-h") parsed.help = true;
     else if (["--id", "--kind", "--output"].includes(argument)) {
@@ -99,4 +100,8 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   await runCli();
+}
+
+function isEffectKind(value: string): value is EffectV1Kind {
+  return EFFECT_V1_KINDS.some((kind) => kind === value);
 }

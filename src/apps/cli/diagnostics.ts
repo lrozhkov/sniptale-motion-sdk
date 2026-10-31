@@ -20,15 +20,18 @@ export function sanitizeCliDiagnostics(
           ? record.code
           : "VALIDATION";
       const message =
-        code === "JSON_INVALID"
-          ? messages.invalidJson
-          : code === "UNKNOWN_FIELD"
-            ? messages.unknownField
-            : code === "COMMAND_OP"
-              ? messages.invalidCommand
-              : code === "EXPRESSION_OP"
-                ? messages.invalidExpression
-                : messages.validationFailed;
+        code === "AUTHORING_CONTROL_UNIT" ||
+        code === "AUTHORING_CONTROL_LABEL_UNIT"
+          ? messages.controlUnitLabel
+          : code === "JSON_INVALID"
+            ? messages.invalidJson
+            : code === "UNKNOWN_FIELD"
+              ? messages.unknownField
+              : code === "COMMAND_OP"
+                ? messages.invalidCommand
+                : code === "EXPRESSION_OP"
+                  ? messages.invalidExpression
+                  : messages.validationFailed;
       return {
         code,
         message,
@@ -37,7 +40,11 @@ export function sanitizeCliDiagnostics(
           "severity" in record && record.severity === "warning"
             ? "warning"
             : "error",
-        suggestion: messages.validationSuggestion,
+        suggestion:
+          code === "AUTHORING_CONTROL_UNIT" ||
+          code === "AUTHORING_CONTROL_LABEL_UNIT"
+            ? messages.controlUnitSuggestion
+            : messages.validationSuggestion,
       };
     }),
   };

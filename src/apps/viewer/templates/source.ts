@@ -1,5 +1,12 @@
 import { isEditorLayer } from "../layers/source.js";
 import { normalizePresets } from "../editor/model.js";
+import {
+  validateEffectV1ControlGroups,
+  validateEffectV1ControlIcon,
+} from "../../../sdk/effect-v1/control-groups-validation.js";
+import { validateEffectV1ControlMetadata } from "../../../sdk/effect-v1/control-metadata-validation.js";
+import { createEffectV1Diagnostics } from "../../../sdk/effect-v1/diagnostics.js";
+import { resolveEffectV1ControlGroup } from "../../../sdk/effect-v1/control-presentation-model.js";
 import type {
   EffectClip,
   EffectScene,
@@ -99,10 +106,24 @@ function isMetadata(
   return (
     optional(value, "default", isBoolean) &&
     optional(value, "assets", (list) => isList(list) && list.every(isString)) &&
+    optional(value, "controlGroups", (groups) => {
+      const report = createEffectV1Diagnostics();
+      validateEffectV1ControlGroups(groups, report);
+      return groups !== undefined && report.diagnostics.length === 0;
+    }) &&
     optional(
       value,
       "controls",
-      (list) => isList(list) && list.every(isControl),
+      (list) =>
+        isList(list) &&
+        list.every(
+          (entry) =>
+            isControl(entry) &&
+            (value.controlGroups === undefined ||
+              entry.group === undefined ||
+              resolveEffectV1ControlGroup(entry.group, value.controlGroups) !==
+                null),
+        ),
     ) &&
     optional(value, "presets", isList) &&
     optional(value, "label", isText) &&
@@ -160,6 +181,7 @@ function isScene(value: unknown): value is EffectScene {
 function isControl(value: unknown): value is EditorControl {
   return (
     isRecord(value) &&
+    hasValidControlMetadata(value) &&
     typeof value.id === "string" &&
     Object.hasOwn(value, "defaultValue") &&
     optional(value, "kind", isString) &&
@@ -181,6 +203,22 @@ function isControl(value: unknown): value is EditorControl {
         ),
     )
   );
+}
+
+function hasValidControlMetadata(value: Record<string, unknown>): boolean {
+  const report = createEffectV1Diagnostics();
+  validateEffectV1ControlMetadata(value, "$.control", report);
+  if (isList(value.options)) {
+    for (const option of value.options) {
+      if (isRecord(option))
+        validateEffectV1ControlIcon(
+          option.icon,
+          "$.control.options.icon",
+          report,
+        );
+    }
+  }
+  return report.diagnostics.length === 0;
 }
 
 function isSource(

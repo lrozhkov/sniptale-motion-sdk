@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { expect, it } from "vitest";
 
-import { assembleLegalBundle } from "./materials.mjs";
+import { assembleLegalBundle } from "./materials.ts";
 import {
   BASE_POLICY,
   createLegalFixture,
@@ -100,10 +100,9 @@ it("uses exact pinned or installed legal files and preserves MPL source", async 
       "https://registry.example.test/media/-/media-1.0.0.tgz",
   });
   expect(
-    bundle.entries.find((entry) => entry.packageName === "beta"),
-  ).toMatchObject({
-    notice: { archivePath: expect.stringMatching(/\.NOTICE\.txt$/u) },
-  });
+    bundle.entries.find((entry) => entry.packageName === "beta")?.notice
+      ?.archivePath,
+  ).toMatch(/\.NOTICE\.txt$/u);
   expect(
     bundle.licenseFiles.find((file) => file.archivePath.includes("alpha-1.0.0"))
       ?.contents,
@@ -276,7 +275,7 @@ it("accepts the LICENCE spelling as exact installed legal text", async () => {
     licenseSourceKind: "installed-file",
     licenseSource: "node_modules/alpha/LICENCE.md",
   });
-  expect(bundle.licenseFiles[0].contents).toEqual(
+  expect(bundle.licenseFiles[0]?.contents).toEqual(
     Buffer.from("MIT licence spelling fixture\n"),
   );
 });

@@ -8,7 +8,7 @@ Effect v1 localized metadata requires a non-empty `en` whenever the field is pre
 
 ## Rules and proof
 
-- New adopted viewer UI copy uses shared messages. `tooling/qa/policy/guardrails.mjs` rejects the direct quoted assignment patterns it can identify without an exception baseline.
+- New adopted viewer UI copy uses shared messages. `tooling/qa/policy/guardrails.ts` rejects the direct quoted assignment patterns it can identify without an exception baseline.
 - Localized document fields are validated by `npm run effect:validate -- <file> --json`.
 - Locale normalization, fallback, and message lookup are covered by `tests/i18n.test.ts`; DOM adoption and rerender behavior require focused viewer review.
 - HTML fallback text, template literals, computed strings, and accessibility attributes require review because the current guardrail does not cover those surfaces completely. Existing feature-local status text is not an accepted exception; touched copy must move to shared messages.

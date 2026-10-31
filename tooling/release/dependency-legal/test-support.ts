@@ -1,5 +1,6 @@
+import { afterEach } from "vitest";
+import { createFixtureDirectory } from "../../test/fixtures/storage.ts";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
@@ -67,9 +68,8 @@ export async function createLegalFixture({
   rootPeerDependenciesMeta?: Record<string, { optional?: boolean }>;
   policy?: Record<string, unknown>;
 } = {}) {
-  const repoRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-sdk-legal-"),
-  );
+  const repoRoot = await createFixtureDirectory("motion-sdk-legal-");
+  directories.push(repoRoot);
   const rootRecord = {
     name: "sniptale-motion-sdk",
     version: "1.0.0",
@@ -166,3 +166,9 @@ export async function writeFixtureFile(
   await fs.mkdir(path.dirname(destination), { recursive: true });
   await fs.writeFile(destination, contents);
 }
+
+const directories: string[] = [];
+afterEach(async () => {
+  for (const directory of directories.splice(0))
+    await fs.rm(directory, { recursive: true, force: true });
+});

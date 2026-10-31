@@ -1,18 +1,19 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 
-import { expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
+import { createFixtureDirectory } from "../../test/fixtures/storage.ts";
+import type { LegalManifestEntry } from "./model.ts";
 
 import {
   compareLegalBundle,
   publishLegalBundle,
   renderThirdPartyNotices,
-} from "./materials.mjs";
+} from "./materials.ts";
 
 const LICENSE_TEXT = Buffer.from("Composite MPL fixture\n");
-const ENTRY = {
+const ENTRY: LegalManifestEntry = {
   packageName: "media",
   version: "1.0.0",
   packagePath: "node_modules/media",
@@ -34,10 +35,39 @@ function bundle() {
   };
 }
 
-it("publishes an exact set and removes stale dependency artifacts", async () => {
-  const outputRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-legal-output-"),
+const directories: string[] = [];
+afterEach(async () => {
+  for (const directory of directories.splice(0))
+    await fs.rm(directory, { recursive: true, force: true });
+});
+async function fixture(prefix: string): Promise<string> {
+  const directory = await createFixtureDirectory(prefix);
+  directories.push(directory);
+  return directory;
+}
+
+it("snapshots validated metadata and license bytes before asynchronous publication", async () => {
+  const outputRoot = await fixture("motion-legal-snapshot-");
+  const entry = { ...ENTRY };
+  const contents = Buffer.from(LICENSE_TEXT);
+  const input = {
+    entries: [entry],
+    licenseFiles: [{ archivePath: entry.archivePath, contents }],
+  };
+  const pending = publishLegalBundle({ bundle: input, outputRoot });
+  entry.sourceUrl = "https://mutated.example.test";
+  contents.fill(0);
+  await pending;
+  expect(await fs.readFile(path.join(outputRoot, ENTRY.archivePath))).toEqual(
+    LICENSE_TEXT,
   );
+  expect(await compareLegalBundle({ bundle: bundle(), outputRoot })).toEqual(
+    [],
+  );
+});
+
+it("publishes an exact set and removes stale dependency artifacts", async () => {
+  const outputRoot = await fixture("motion-legal-output-");
   const stale = path.join(outputRoot, "LICENSES/dependencies/stale.txt");
   await fs.mkdir(path.dirname(stale), { recursive: true });
   await fs.writeFile(stale, "stale");
@@ -57,9 +87,7 @@ it("publishes an exact set and removes stale dependency artifacts", async () => 
 });
 
 it("detects byte formatting drift plus missing and extra artifacts", async () => {
-  const outputRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-legal-drift-"),
-  );
+  const outputRoot = await fixture("motion-legal-drift-");
   await publishLegalBundle({ bundle: bundle(), outputRoot });
   await fs.writeFile(
     path.join(outputRoot, ENTRY.archivePath),
@@ -97,9 +125,7 @@ it("detects byte formatting drift plus missing and extra artifacts", async () =>
 });
 
 it("rejects model digest, composite MPL source, and path traversal before writing", async () => {
-  const outputRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-legal-reject-"),
-  );
+  const outputRoot = await fixture("motion-legal-reject-");
   await expect(
     publishLegalBundle({
       bundle: {
@@ -144,9 +170,7 @@ it("rejects model digest, composite MPL source, and path traversal before writin
 });
 
 it("rejects missing MPL URLs and fields outside the exact entry schema", async () => {
-  const outputRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-legal-entry-schema-"),
-  );
+  const outputRoot = await fixture("motion-legal-entry-schema-");
   const {
     packageResolved: _packageResolved,
     correspondingSourceUrl: _correspondingSourceUrl,
@@ -185,12 +209,8 @@ it("rejects missing MPL URLs and fields outside the exact entry schema", async (
 });
 
 it("does not follow an output symlink during stale artifact cleanup", async () => {
-  const outputRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-legal-symlink-root-"),
-  );
-  const outside = await fs.mkdtemp(
-    path.join(os.tmpdir(), "motion-legal-symlink-target-"),
-  );
+  const outputRoot = await fixture("motion-legal-symlink-root-");
+  const outside = await fixture("motion-legal-symlink-target-");
   const sentinel = path.join(outside, "sentinel.txt");
   await fs.writeFile(sentinel, "keep\n");
   await fs.mkdir(path.join(outputRoot, "LICENSES"));

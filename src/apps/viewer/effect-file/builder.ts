@@ -40,6 +40,13 @@ export function buildEffectFilePayload(
   const template = readEditorTemplateSource(source);
   return {
     assets: buildEffectFileAssets(template, options.assets),
+    ...((template.controlGroups ?? base.controlGroups) !== undefined
+      ? {
+          controlGroups: deepClone(
+            template.controlGroups ?? base.controlGroups,
+          ),
+        }
+      : {}),
     ...((template.controlPresets ?? base.controlPresets)
       ? {
           controlPresets: deepClone(

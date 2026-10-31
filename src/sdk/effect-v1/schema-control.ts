@@ -1,9 +1,14 @@
+import {
+  controlPresentationProperties,
+  controlPresentationRules,
+} from "./schema-control-presentation.js";
 const identifier = {
   type: "string",
   pattern: "^[a-zA-Z][a-zA-Z0-9._-]{0,127}$",
 };
 export const controlSchema = {
   allOf: [
+    ...controlPresentationRules,
     {
       if: {
         properties: { kind: { enum: ["number", "color"] } },
@@ -39,7 +44,7 @@ export const controlSchema = {
   ],
   additionalProperties: false,
   properties: {
-    group: identifier,
+    ...controlPresentationProperties,
     order: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER },
     options: {
       type: "array",
@@ -51,6 +56,7 @@ export const controlSchema = {
         required: ["value", "label"],
         properties: {
           value: { type: ["string", "number"] },
+          icon: controlPresentationProperties.icon,
           label: { $ref: "#/$defs/localeText" },
         },
       },

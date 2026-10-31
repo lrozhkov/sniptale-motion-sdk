@@ -38,10 +38,12 @@ Edit `effects/my-effect/effect.sniptale-effect.json`. Keep asset paths relative 
 
 Keep `schemaVersion: "sniptale.effect.v1"`, `program.kind: "graph"` and `program.version: 1`. Supply Russian and English visible metadata. Use supported expressions and commands; do not add JavaScript renderers, imports, network access or host APIs. Every declared asset, control, layer, clip, phase and track must contribute to the graph. Preserve required closure relationships when replacing the starter's design. Layer-owned transforms are added to command-local geometry; avoid applying the same translation twice.
 
+Use clean control labels and declare numeric units separately in `unit` when the value has a meaningful unit. Choose `presentation` for the intended input, and use semantic groups and registry icons as described in the Controls reference. Units never rescale graph values.
+
 After a meaningful change, validate the exact file and its asset root:
 
 ```bash
-sniptale-motion validate effects/my-effect/effect.sniptale-effect.json --asset-root effects/my-effect --json
+sniptale-motion validate effects/my-effect/effect.sniptale-effect.json --asset-root effects/my-effect --authoring --json
 ```
 
 Require `ok: true` and zero errors and warnings. Diagnostics provide codes and structural positions without echoing document values; an unknown field name may appear as `<field>`. Correct the document against the schema instead of weakening validation or deleting intended behavior just to obtain a green result.

@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { validateEffectV1Document } from "../src/sdk/effect-v1/index.js";
-import { generateNeutralLocalPack } from "../tooling/test/fixtures/local-pack.mjs";
+import { generateNeutralLocalPack } from "../tooling/test/fixtures/local-pack.ts";
 
 const OUTPUT = resolve(
   process.cwd(),
