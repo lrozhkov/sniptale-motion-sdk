@@ -1,3 +1,11 @@
+import { bindViewerAction } from "../app/bind-action.js";
+import type { EditorTemplateSource } from "../templates/model.js";
+import type {
+  FramePresentationActions,
+  FramePresentationMetadata,
+  RenderSurfaceTemplate,
+  ViewerFrameBuffer,
+} from "./presentation-contract.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { recordDirectPreviewPresentation } from "./presentation-cadence.js";
 import {
@@ -12,110 +20,127 @@ import { isDirectLiveRenderPreferred } from "./direct-live-policy.js";
 
 function drawCompletedFrame(
   ctx: ViewerAppContext,
-  template,
-  bitmap,
-  progress,
-  result: any = {},
-) {
-  ctx.hidePlaybackVideoCacheSurface?.();
-  if (result.presented === true) {
-    recordDirectPreviewPresentation(
-      ctx,
-      result.presentedAtMs,
-      result.presentedAtEpochMs,
-    );
-    if (
-      isPreviewInteractionActive(ctx) &&
-      ctx.state.currentTemplate?.id === template.id
-    ) {
-      showDirectPreviewFrame(ctx, result.previewWidth, result.previewHeight);
+  template: EditorTemplateSource,
+  bitmap: ImageBitmap | null | undefined,
+  progress: number,
+  result: FramePresentationMetadata = {},
+): void {
+  let transferred = false;
+  try {
+    ctx.hidePlaybackVideoCacheSurface?.();
+    if (result.presented === true) {
+      recordDirectPreviewPresentation(
+        ctx,
+        result.presentedAtMs,
+        result.presentedAtEpochMs,
+      );
+      if (
+        isPreviewInteractionActive(ctx) &&
+        ctx.state.currentTemplate === template
+      ) {
+        showDirectPreviewFrame(ctx, result.previewWidth, result.previewHeight);
+      } else {
+        syncPreviewSurfaceVisibility(
+          ctx.refs.fastPreviewCanvas,
+          ctx.refs.directPreviewCanvas,
+          "none",
+          ctx.refs.canvas,
+        );
+      }
+      return;
+    }
+    if (!bitmap)
+      throw new Error(
+        ctx.deps.t(
+          "viewer.rendering.bitmapUnavailable",
+          "Rendered frame is unavailable.",
+        ),
+      );
+    if (shouldUseFastPreviewSurface(ctx, template, bitmap)) {
+      transferred = drawFastPreviewFrame(ctx, bitmap);
+      return;
+    }
+    if (isDirectFrame(template)) {
+      ctx.previewContext.clearRect(
+        0,
+        0,
+        ctx.refs.canvas.width,
+        ctx.refs.canvas.height,
+      );
+      ctx.previewContext.drawImage(
+        bitmap,
+        0,
+        0,
+        ctx.refs.canvas.width,
+        ctx.refs.canvas.height,
+      );
     } else {
-      syncPreviewSurfaceVisibility(
-        ctx.refs.fastPreviewCanvas,
-        ctx.refs.directPreviewCanvas,
-        "none",
-        ctx.refs.canvas,
+      const buffer = ctx.createFrameBuffer(
+        ctx.refs.canvas.width,
+        ctx.refs.canvas.height,
+      );
+      const context = buffer.getContext("2d");
+      if (!context) throw canvasContextUnavailable(ctx);
+      ctx.drawBaseForTemplate(context, template, progress);
+      context.drawImage(
+        bitmap,
+        0,
+        0,
+        ctx.refs.canvas.width,
+        ctx.refs.canvas.height,
+      );
+      ctx.previewContext.clearRect(
+        0,
+        0,
+        ctx.refs.canvas.width,
+        ctx.refs.canvas.height,
+      );
+      ctx.previewContext.drawImage(
+        buffer,
+        0,
+        0,
+        ctx.refs.canvas.width,
+        ctx.refs.canvas.height,
       );
     }
-    return;
-  }
-  if (shouldUseFastPreviewSurface(ctx, template, bitmap)) {
-    drawFastPreviewFrame(ctx, bitmap);
-    return;
-  }
-  if (
-    template.effectV1?.kind === "targetEffect" ||
-    template.kind === "sceneEffect" ||
-    template.kind === "transitionEffect" ||
-    template.kind === "composition"
-  ) {
-    ctx.previewContext.clearRect(
-      0,
-      0,
-      ctx.refs.canvas.width,
-      ctx.refs.canvas.height,
-    );
-    ctx.previewContext.drawImage(
-      bitmap,
-      0,
-      0,
-      ctx.refs.canvas.width,
-      ctx.refs.canvas.height,
-    );
-    bitmap.close?.();
     syncPreviewSurfaceVisibility(
       ctx.refs.fastPreviewCanvas,
       ctx.refs.directPreviewCanvas,
       "none",
       ctx.refs.canvas,
     );
-    return;
+  } finally {
+    if (!transferred) bitmap?.close();
   }
-  const buffer = ctx.createFrameBuffer(
-    ctx.refs.canvas.width,
-    ctx.refs.canvas.height,
+}
+
+function isDirectFrame(template: RenderSurfaceTemplate): boolean {
+  const effect = template.effectV1;
+  return (
+    (effect !== null &&
+      typeof effect === "object" &&
+      "kind" in effect &&
+      effect.kind === "targetEffect") ||
+    template.kind === "sceneEffect" ||
+    template.kind === "transitionEffect" ||
+    template.kind === "composition"
   );
-  const context = buffer.getContext("2d");
-  ctx.drawBaseForTemplate(context, template, progress);
-  context.drawImage(
-    bitmap,
-    0,
-    0,
-    ctx.refs.canvas.width,
-    ctx.refs.canvas.height,
-  );
-  ctx.previewContext.clearRect(
-    0,
-    0,
-    ctx.refs.canvas.width,
-    ctx.refs.canvas.height,
-  );
-  ctx.previewContext.drawImage(
-    buffer,
-    0,
-    0,
-    ctx.refs.canvas.width,
-    ctx.refs.canvas.height,
-  );
-  bitmap.close?.();
-  syncPreviewSurfaceVisibility(
-    ctx.refs.fastPreviewCanvas,
-    ctx.refs.directPreviewCanvas,
-    "none",
-    ctx.refs.canvas,
+}
+function canvasContextUnavailable(ctx: ViewerAppContext): Error {
+  return new Error(
+    ctx.deps.t(
+      "viewer.rendering.canvasContextUnavailable",
+      "Canvas 2D context is unavailable.",
+    ),
   );
 }
 
 export function shouldUseDirectPreviewSurface(
   ctx: ViewerAppContext,
-  template: any,
+  template: RenderSurfaceTemplate,
   _renderPlan: { scale?: number },
 ): boolean {
-  const directFrame =
-    template.effectV1?.kind === "targetEffect" ||
-    template.kind === "sceneEffect" ||
-    template.kind === "transitionEffect" ||
-    template.kind === "composition";
+  const directFrame = isDirectFrame(template);
   const directInteraction =
     ctx.state.canvasTransformDragActive ||
     (ctx.state.playing &&
@@ -125,32 +150,35 @@ export function shouldUseDirectPreviewSurface(
     directFrame &&
     directInteraction &&
     !ctx.state.previewVideoCache?.recording &&
-    ctx.state.directRenderEffectIds.has(template.effectId) &&
+    ctx.state.directRenderEffectIds.has(template.effectId ?? "") &&
     ctx.state.directRenderResponsePort?.presentationSurfaceAttached,
   );
 }
 
 export function shouldUseFastPreviewSurface(
   ctx: ViewerAppContext,
-  template: any,
-  bitmap: { height?: number; width?: number },
+  template: RenderSurfaceTemplate,
+  bitmap: { height?: unknown; width?: unknown },
 ): boolean {
-  const directFrame =
-    template.effectV1?.kind === "targetEffect" ||
-    template.kind === "sceneEffect" ||
-    template.kind === "transitionEffect" ||
-    template.kind === "composition";
+  const directFrame = isDirectFrame(template);
   const interactive = isPreviewInteractionActive(ctx);
   return Boolean(
     directFrame &&
     interactive &&
-    Number(bitmap.width) > 0 &&
-    Number(bitmap.height) > 0,
+    typeof bitmap.width === "number" &&
+    Number.isFinite(bitmap.width) &&
+    bitmap.width > 0 &&
+    typeof bitmap.height === "number" &&
+    Number.isFinite(bitmap.height) &&
+    bitmap.height > 0,
   );
 }
 
-function drawFastPreviewFrame(ctx: ViewerAppContext, bitmap) {
-  const canvas = ctx.refs.fastPreviewCanvas as HTMLCanvasElement;
+function drawFastPreviewFrame(
+  ctx: ViewerAppContext,
+  bitmap: ImageBitmap,
+): boolean {
+  const canvas = ctx.refs.fastPreviewCanvas;
   if (canvas.width !== bitmap.width) {
     canvas.width = bitmap.width;
   }
@@ -166,30 +194,35 @@ function drawFastPreviewFrame(ctx: ViewerAppContext, bitmap) {
   const bitmapContext = canvas.getContext("bitmaprenderer");
   if (bitmapContext) {
     bitmapContext.transferFromImageBitmap(bitmap);
-    return;
+    return true;
   }
   const context = canvas.getContext("2d");
-  context?.clearRect(0, 0, canvas.width, canvas.height);
-  context?.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
+  if (!context) throw canvasContextUnavailable(ctx);
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0);
+  return false;
 }
 
 function isPreviewInteractionActive(ctx: ViewerAppContext): boolean {
   return ctx.state.playing || ctx.state.canvasTransformDragActive;
 }
 
-function showDirectPreviewFrame(ctx: ViewerAppContext, width, height) {
-  const canvas = ctx.refs.directPreviewCanvas as HTMLCanvasElement;
+function showDirectPreviewFrame(
+  ctx: ViewerAppContext,
+  width: unknown,
+  height: unknown,
+) {
+  const canvas = ctx.refs.directPreviewCanvas;
   syncDirectPreviewSurface(
     canvas,
-    ctx.refs.fastPreviewCanvas as HTMLCanvasElement,
+    ctx.refs.fastPreviewCanvas,
     width,
     height,
-    ctx.refs.canvas as HTMLCanvasElement,
+    ctx.refs.canvas,
   );
 }
 
-function createFrameBuffer(ctx: ViewerAppContext, width, height): any {
+function createFrameBuffer(width: number, height: number): ViewerFrameBuffer {
   if (typeof OffscreenCanvas !== "undefined") {
     return new OffscreenCanvas(width, height);
   }
@@ -201,7 +234,7 @@ function createFrameBuffer(ctx: ViewerAppContext, width, height): any {
 
 function updateRenderStats(
   ctx: ViewerAppContext,
-  durationMs,
+  durationMs: number,
   renderScale = 1,
   previewLatencyMs = durationMs,
   measureCost = true,
@@ -213,7 +246,7 @@ function updateRenderStats(
   ctx.state.lastRenderMs = durationMs;
   ctx.state.lastPreviewLatencyMs = Math.max(
     durationMs,
-    Number(previewLatencyMs) || 0,
+    Number.isFinite(previewLatencyMs) ? previewLatencyMs : 0,
   );
   ctx.state.averageRenderMs =
     ctx.state.renderCount === 1
@@ -257,7 +290,10 @@ function updateRenderStats(
   );
 }
 
-function setRenderStatus(ctx: ViewerAppContext, status) {
+function setRenderStatus(
+  ctx: ViewerAppContext,
+  status: "rendering" | "applied" | "failed",
+) {
   if (ctx.state.playing && status === "rendering") {
     return;
   }
@@ -280,13 +316,17 @@ function shouldUpdateRenderStatsUi(ctx: ViewerAppContext): boolean {
   );
 }
 
-export function installRenderingFrameOwner(ctx: ViewerAppContext): void {
-  ctx.drawCompletedFrame = drawCompletedFrame.bind(undefined, ctx);
-  ctx.shouldUseDirectPreviewSurface = shouldUseDirectPreviewSurface.bind(
-    undefined,
-    ctx,
-  );
-  ctx.createFrameBuffer = createFrameBuffer.bind(undefined, ctx);
-  ctx.updateRenderStats = updateRenderStats.bind(undefined, ctx);
-  ctx.setRenderStatus = setRenderStatus.bind(undefined, ctx);
+export function createFramePresentationActions(
+  getContext: () => ViewerAppContext,
+): FramePresentationActions {
+  return {
+    drawCompletedFrame: bindViewerAction(drawCompletedFrame, getContext),
+    shouldUseDirectPreviewSurface: bindViewerAction(
+      shouldUseDirectPreviewSurface,
+      getContext,
+    ),
+    createFrameBuffer,
+    updateRenderStats: bindViewerAction(updateRenderStats, getContext),
+    setRenderStatus: bindViewerAction(setRenderStatus, getContext),
+  };
 }

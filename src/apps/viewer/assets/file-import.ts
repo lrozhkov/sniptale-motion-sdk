@@ -19,10 +19,7 @@ export async function rasterizeSvgAsset(
     image.src = dataUrl;
   });
   const size = calculateSvgRasterSize(asset, image);
-  const canvas: HTMLCanvasElement = ctx.createFrameBuffer(
-    size.width,
-    size.height,
-  );
+  const canvas = ctx.createFrameBuffer(size.width, size.height);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("SVG Canvas 2D context is unavailable.");
   context.clearRect(0, 0, canvas.width, canvas.height);

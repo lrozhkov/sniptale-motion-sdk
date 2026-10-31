@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   shouldUseDirectPreviewSurface,
@@ -155,6 +155,45 @@ describe("viewer direct presentation cadence", () => {
 
     expect(ctx.state.lastDirectPresentationLocalAtMs).toBe(240);
   });
+});
+
+describe("native presentation metadata boundaries", () => {
+  it("does not coerce foreign timestamp or dimension values", () => {
+    const convert = vi.fn(() => {
+      throw new Error("foreign conversion");
+    });
+    const foreign = { valueOf: convert, toString: convert };
+    const ctx = {
+      state: {
+        directPresentationIntervalsMs: [],
+        lastDirectPresentationAtMs: null,
+        lastDirectPresentationLocalAtMs: null,
+      },
+    } as any;
+    recordDirectPreviewPresentation(ctx, foreign, foreign, 100, 0);
+    const canvas = { dataset: {}, hidden: true } as any;
+    syncDirectPreviewSurface(
+      canvas,
+      { hidden: true } as any,
+      foreign,
+      Infinity,
+    );
+    expect(canvas.dataset).toEqual({ renderWidth: "1", renderHeight: "1" });
+    expect(ctx.state.lastDirectPresentationAtMs).toBeNull();
+    expect(convert).not.toHaveBeenCalled();
+  });
+  it.each(["160", true, Infinity, NaN])(
+    "requires numeric finite bitmap dimensions: %j",
+    (width) => {
+      expect(
+        shouldUseFastPreviewSurface(
+          { state: { playing: true } } as any,
+          { kind: "composition" },
+          { width, height: 90 } as any,
+        ),
+      ).toBe(false);
+    },
+  );
 });
 
 describe("viewer direct presentation DOM state", () => {

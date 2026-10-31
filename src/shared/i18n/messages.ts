@@ -1159,6 +1159,14 @@ export const messages = {
       },
     },
     rendering: {
+      bitmapUnavailable: {
+        en: "Rendered frame is unavailable.",
+        ru: "Готовое изображение кадра недоступно.",
+      },
+      canvasContextUnavailable: {
+        en: "Canvas 2D context is unavailable.",
+        ru: "Контекст Canvas 2D недоступен.",
+      },
       backgroundStopped: {
         en: "Background renderer stopped. Switching to compatibility mode.",
         ru: "Фоновый рендерер остановлен. Включается режим совместимости.",

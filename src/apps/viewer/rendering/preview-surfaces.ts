@@ -5,8 +5,16 @@ export function syncDirectPreviewSurface(
   height: unknown,
   previewCanvas?: HTMLCanvasElement,
 ): void {
-  const renderWidth = String(Math.max(1, Number(width) || 1));
-  const renderHeight = String(Math.max(1, Number(height) || 1));
+  const renderWidth = String(
+    typeof width === "number" && Number.isFinite(width)
+      ? Math.max(1, width)
+      : 1,
+  );
+  const renderHeight = String(
+    typeof height === "number" && Number.isFinite(height)
+      ? Math.max(1, height)
+      : 1,
+  );
   if (canvas.dataset.renderWidth !== renderWidth) {
     canvas.dataset.renderWidth = renderWidth;
   }

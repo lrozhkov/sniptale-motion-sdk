@@ -7,10 +7,13 @@ export function recordDirectPreviewPresentation(
   receivedAtMs: unknown = performance.now(),
   localTimeOriginMs: unknown = performance.timeOrigin,
 ): void {
-  const timestamp = Number(presentedAtMs);
-  const epochTimestamp = Number(presentedAtEpochMs);
-  const receivedTimestamp = Number(receivedAtMs);
-  const localTimeOrigin = Number(localTimeOriginMs);
+  const timestamp = typeof presentedAtMs === "number" ? presentedAtMs : NaN;
+  const epochTimestamp =
+    typeof presentedAtEpochMs === "number" ? presentedAtEpochMs : NaN;
+  const receivedTimestamp =
+    typeof receivedAtMs === "number" ? receivedAtMs : NaN;
+  const localTimeOrigin =
+    typeof localTimeOriginMs === "number" ? localTimeOriginMs : NaN;
   if (
     !Number.isFinite(timestamp) ||
     timestamp < 0 ||
@@ -28,7 +31,7 @@ export function recordDirectPreviewPresentation(
       : receivedTimestamp;
   const previous = ctx.state.lastDirectPresentationAtMs;
   if (typeof previous === "number" && timestamp > previous) {
-    const intervals = ctx.state.directPresentationIntervalsMs as number[];
+    const intervals = ctx.state.directPresentationIntervalsMs;
     intervals.push(timestamp - previous);
     if (intervals.length > 240) {
       intervals.splice(0, intervals.length - 240);
@@ -36,7 +39,7 @@ export function recordDirectPreviewPresentation(
   }
   ctx.state.lastDirectPresentationAtMs = timestamp;
   ctx.state.lastDirectPresentationLocalAtMs = Math.max(
-    Number(ctx.state.lastDirectPresentationLocalAtMs) || 0,
+    ctx.state.lastDirectPresentationLocalAtMs ?? 0,
     localPresentationTimestamp,
   );
 }

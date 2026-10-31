@@ -1,3 +1,4 @@
+import type { FramePresentationActions } from "../rendering/presentation-contract.js";
 import type { ViewerRenderOutputActions } from "../rendering/output-contract.js";
 import type { EditorValidationActions } from "../validation/contract.js";
 import type { InspectorHealthActions } from "../inspector/health-contract.js";
@@ -62,6 +63,7 @@ import type { EditorTimeline } from "../editor/model-types.js";
 
 export interface ViewerAppContext
   extends
+    FramePresentationActions,
     ViewerRenderOutputActions,
     EditorValidationActions,
     InspectorHealthActions,

@@ -1,3 +1,4 @@
+import { createFramePresentationActions } from "../rendering/frame.js";
 import { createRenderInputActions } from "../rendering/input-frames.js";
 import { createPreviewQualityActions } from "../rendering/preview-quality.js";
 import { createExportFrameActions } from "../rendering/export-frame.js";
@@ -110,6 +111,7 @@ export function createViewerContext(): ViewerAppContext {
   if (!previewContext)
     throw new Error("Viewer Canvas 2D context is unavailable.");
   const ctx: ViewerAppContext = {
+    ...createFramePresentationActions(() => ctx),
     ...createRenderInputActions(() => ctx),
     ...createPreviewQualityActions(() => ctx),
     ...createExportFrameActions(() => ctx),

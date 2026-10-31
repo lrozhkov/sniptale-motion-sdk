@@ -219,82 +219,98 @@ export async function renderCurrentFrame(
         [...renderInput.transfer, ...renderAssets.transfer],
       );
       renderProfile?.mark("requestMs");
-      if (!result.ok) {
-        ctx.setRenderStatus("failed");
-        ctx.logDiagnostic(
-          `${template.id}: ${resolveViewerRenderFailureMessage(ctx.deps.t, result)}`,
-          "error",
+      let ownsBitmap = true;
+      try {
+        if (discardStaleFrame(ctx, frameAuthority, result)) {
+          ownsBitmap = false;
+          return;
+        }
+        if (!result.ok) {
+          ctx.setRenderStatus("failed");
+          ctx.logDiagnostic(
+            `${template.id}: ${resolveViewerRenderFailureMessage(ctx.deps.t, result)}`,
+            "error",
+          );
+          return;
+        }
+        ctx.commitRenderAssetTransfers(renderAssets);
+        ctx.commitRenderModelEnvelope(renderModel);
+        ctx.markSandboxRenderHealthy(template.id);
+        directLiveProfile.commit(result.renderProfile);
+        const videoCacheStep = capturePlaybackVideoFrame
+          ? await ctx.capturePlaybackVideoCacheFrame?.({
+              fps,
+              result,
+              time,
+            })
+          : null;
+        renderProfile?.mark("videoCacheMs");
+        if (discardStaleFrame(ctx, frameAuthority, result)) {
+          ownsBitmap = false;
+          return;
+        }
+        if (videoCacheStep?.captured) {
+          result.bitmap?.close?.();
+          ownsBitmap = false;
+        } else {
+          ownsBitmap = false;
+          ctx.drawCompletedFrame(template, result.bitmap, progress, result);
+        }
+        renderProfile?.mark("presentationMs");
+        const previewLatencyMs = performance.now() - previewStartedAt;
+        if (!ctx.state.playing || capturePlaybackBindings) {
+          ctx.state.lastBindingReads = ctx.normalizePreviewBindingReads(
+            result.bindingReads,
+          );
+        }
+        clearCompletedTransformPreview(ctx, options.forceFull === true);
+        if (!ctx.state.playing) {
+          ctx.mergeRendererContractReads(
+            template.id,
+            ctx.state.lastBindingReads,
+          );
+        }
+        ctx.updateRenderStats(
+          result.durationMs,
+          renderPlan.scale,
+          previewLatencyMs,
+          result.previewCacheHit !== true,
         );
-        return;
-      }
-      ctx.commitRenderAssetTransfers(renderAssets);
-      ctx.commitRenderModelEnvelope(renderModel);
-      ctx.markSandboxRenderHealthy(template.id);
-      if (discardStaleFrame(ctx, frameAuthority, result)) return;
-      directLiveProfile.commit(result.renderProfile);
-      const videoCacheStep = capturePlaybackVideoFrame
-        ? await ctx.capturePlaybackVideoCacheFrame?.({
+        if (shouldRecordPreviewFrameCacheResult(ctx.state, videoCacheStep)) {
+          const previousCacheFrames = ctx.state.previewFrameCacheFrames;
+          recordPreviewFrameCacheResult(ctx.state, result);
+          ctx.advancePlaybackCacheWarmResult?.(result, {
+            currentTime: time,
+            duration,
+            frameLatencyMs: previewLatencyMs,
             fps,
-            result,
+            previousCacheFrames,
+          });
+        }
+        completeFramePresentation(
+          ctx,
+          template,
+          {
+            templateId: template.id,
+            sequence: sequenceId,
+            generation: runtimeGeneration,
             time,
-          })
-        : null;
-      renderProfile?.mark("videoCacheMs");
-      if (discardStaleFrame(ctx, frameAuthority, result)) return;
-      if (videoCacheStep?.captured) {
-        result.bitmap?.close?.();
-      } else {
-        ctx.drawCompletedFrame(template, result.bitmap, progress, result);
-      }
-      renderProfile?.mark("presentationMs");
-      const previewLatencyMs = performance.now() - previewStartedAt;
-      if (!ctx.state.playing || capturePlaybackBindings) {
-        ctx.state.lastBindingReads = ctx.normalizePreviewBindingReads(
-          result.bindingReads,
+            scale: renderPlan.scale,
+          },
+          options.forceFull === true,
+          capturePlaybackBindings,
         );
-      }
-      clearCompletedTransformPreview(ctx, options.forceFull === true);
-      if (!ctx.state.playing) {
-        ctx.mergeRendererContractReads(template.id, ctx.state.lastBindingReads);
-      }
-      ctx.updateRenderStats(
-        result.durationMs,
-        renderPlan.scale,
-        previewLatencyMs,
-        result.previewCacheHit !== true,
-      );
-      if (shouldRecordPreviewFrameCacheResult(ctx.state, videoCacheStep)) {
-        const previousCacheFrames = ctx.state.previewFrameCacheFrames;
-        recordPreviewFrameCacheResult(ctx.state, result);
-        ctx.advancePlaybackCacheWarmResult?.(result, {
-          currentTime: time,
-          duration,
-          frameLatencyMs: previewLatencyMs,
-          fps,
-          previousCacheFrames,
-        });
-      }
-      completeFramePresentation(
-        ctx,
-        template,
-        {
+        renderProfile?.mark("postProcessMs");
+        renderProfile?.finish(ctx, {
+          height,
+          sandbox: result.renderProfile,
           templateId: template.id,
-          sequence: sequenceId,
-          generation: runtimeGeneration,
           time,
-          scale: renderPlan.scale,
-        },
-        options.forceFull === true,
-        capturePlaybackBindings,
-      );
-      renderProfile?.mark("postProcessMs");
-      renderProfile?.finish(ctx, {
-        height,
-        sandbox: result.renderProfile,
-        templateId: template.id,
-        time,
-        width,
-      });
+          width,
+        });
+      } finally {
+        if (ownsBitmap) result.bitmap?.close?.();
+      }
     } catch (error) {
       ctx.setRenderStatus("failed");
       if (shouldReportSandboxRequestFailure(error)) {

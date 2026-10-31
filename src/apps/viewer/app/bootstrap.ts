@@ -41,7 +41,6 @@ import { installPanelsPresetsOwner } from "../panels/presets.js";
 import { installPanelsLayersOwner } from "../panels/layers.js";
 import { installRenderingServiceOwner } from "../rendering/service-owner.js";
 import { installRenderingAssetsOwner } from "../rendering/assets.js";
-import { installRenderingFrameOwner } from "../rendering/frame.js";
 import { installRenderingRasterSizeOwner } from "../rendering/raster-size.js";
 import { installRenderingModelCacheOwner } from "../rendering/model-cache.js";
 import { installAppMiscOwner } from "./misc.js";
@@ -76,7 +75,6 @@ export function startViewerApp(): void {
   installRenderingAssetsOwner(ctx);
   installPreviewMediaSessionOwner(ctx);
   installRenderingRasterSizeOwner(ctx);
-  installRenderingFrameOwner(ctx);
   installAppMiscOwner(ctx);
   installLayersOperationsOwner(ctx);
   installAppDiagnosticsOwner(ctx);
