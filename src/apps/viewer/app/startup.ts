@@ -1,5 +1,6 @@
 import type { ViewerAppContext } from "./context.js";
 import { wireEditorDraftEvents } from "../editor/draft-events.js";
+import { observeSidebarHeader } from "./sidebar-layout.js";
 
 export function wireViewerStartup(ctx: ViewerAppContext): void {
   ctx.refs.playButton.disabled = true;
@@ -13,6 +14,7 @@ export function wireViewerStartup(ctx: ViewerAppContext): void {
   ctx.setSidebarGroup(ctx.state.activeSidebarGroup);
   ctx.observeCanvasSelectionViewport();
   ctx.observeTimelineContentMetrics();
+  observeSidebarHeader(ctx);
   document.addEventListener(
     "keydown",
     (event) => ctx.handleGlobalSpaceKeydown(event),

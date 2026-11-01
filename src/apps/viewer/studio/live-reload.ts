@@ -76,12 +76,17 @@ export function installStudioLiveReload(ctx: ViewerAppContext): void {
     noticeIdentity = template;
     ctx.refs.studioUpdateBar.dataset.updateState = state;
     ctx.refs.studioUpdateBar.hidden = false;
+    ctx.refs.studioUpdateStatus.dataset.i18n = `viewer.studio.reload.${state}`;
     ctx.refs.studioUpdateStatus.textContent = ctx.deps.t(
       `viewer.studio.reload.${state}`,
       state,
     );
     ctx.refs.applyStudioUpdateButton.hidden =
       state !== "pending" && state !== "failed";
+    ctx.refs.applyStudioUpdateButton.dataset.i18n =
+      state === "pending"
+        ? "viewer.studio.reload.apply"
+        : "viewer.studio.reload.retry";
     ctx.refs.applyStudioUpdateButton.textContent = ctx.deps.t(
       state === "pending"
         ? "viewer.studio.reload.apply"

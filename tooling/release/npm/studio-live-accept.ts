@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { acceptStudioUpdateLayout } from "./studio-update-accept.ts";
 
 export async function acceptStudioLiveReload({
   page,
@@ -62,7 +63,9 @@ export async function acceptStudioLiveReload({
     );
     assert.equal(selected.status, 200);
     await expect(notice).toHaveAttribute("data-update-state", "pending");
+    await acceptStudioUpdateLayout(page, expect);
     await apply.click();
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await expect(color).toHaveValue("#5f7cff");
     await page.locator('[data-sidebar-tab="tune"]').click();
     await atomic(variant("#15cc66"));

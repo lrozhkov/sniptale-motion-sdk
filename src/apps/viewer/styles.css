@@ -5795,7 +5795,7 @@ output {
   .app-shell:not(.sidebar-collapsed) .sidebar {
     position: absolute;
     z-index: 12;
-    top: 76px;
+    top: calc(var(--viewer-header-bottom, 66px) + 10px);
     right: 10px;
     bottom: 10px;
     width: min(var(--responsive-sidebar-width), calc(100% - 20px));
@@ -5929,10 +5929,6 @@ output {
 
   .topbar-actions {
     grid-column: 1 / -1;
-  }
-
-  .app-shell:not(.sidebar-collapsed) .sidebar {
-    top: 120px;
   }
 }
 
