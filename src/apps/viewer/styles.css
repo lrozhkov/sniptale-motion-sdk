@@ -882,10 +882,10 @@ h2 {
   transition: opacity 140ms ease;
 }
 
-.stage-frame:hover .preview-toolbar,
-.stage-frame:focus-within .preview-toolbar,
-.stage-frame:hover .fullscreen-preview-button,
-.stage-frame:focus-within .fullscreen-preview-button {
+.stage-wrap:hover .preview-toolbar,
+.stage-wrap:focus-within .preview-toolbar,
+.stage-wrap:hover .fullscreen-preview-button,
+.stage-wrap:focus-within .fullscreen-preview-button {
   opacity: 1;
   pointer-events: auto;
 }

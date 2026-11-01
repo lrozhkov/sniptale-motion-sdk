@@ -552,177 +552,6 @@
               aria-live="polite"
               aria-atomic="true"
             ></span>
-            <div class="preview-toolbar">
-              <div
-                class="preview-control-group preview-zoom-controls"
-                role="group"
-                aria-label="Preview zoom"
-                data-i18n-aria-label="viewer.a11y.previewZoom"
-              >
-                <button
-                  type="button"
-                  data-preview-zoom="fit"
-                  data-i18n="viewer.preview.fit"
-                  data-i18n-fallback="Fit"
-                >
-                  Fit
-                </button>
-                <button type="button" data-preview-zoom="75">75%</button>
-                <button type="button" data-preview-zoom="100">100%</button>
-              </div>
-              <div
-                class="preview-control-group preview-canvas-aid-controls"
-                role="group"
-                aria-label="Canvas aids"
-                data-i18n-aria-label="viewer.a11y.canvasAids"
-              >
-                <button
-                  id="previewGuidesButton"
-                  type="button"
-                  aria-pressed="false"
-                  title="Toggle safe area and alignment guides"
-                  data-i18n-title="viewer.a11y.previewGuidesToggle"
-                >
-                  <span
-                    data-i18n="viewer.preview.guides"
-                    data-i18n-fallback="Guides"
-                    >Guides</span
-                  >
-                </button>
-                <button
-                  id="previewSnapButton"
-                  type="button"
-                  aria-pressed="false"
-                  title="Snap canvas drag to guides"
-                  data-i18n-title="viewer.a11y.previewSnapToggle"
-                >
-                  <span
-                    data-i18n="viewer.preview.snap"
-                    data-i18n-fallback="Snap"
-                    >Snap</span
-                  >
-                </button>
-              </div>
-              <details id="previewMediaMenu" class="preview-media-menu" hidden>
-                <summary
-                  id="previewMediaButton"
-                  data-i18n="viewer.preview.media.menu"
-                  data-i18n-fallback="Test media"
-                >
-                  Test media
-                </summary>
-                <div
-                  class="preview-media-popover"
-                  aria-label="Temporary test media"
-                  data-i18n-aria-label="viewer.preview.media.panelLabel"
-                >
-                  <p
-                    class="preview-media-note"
-                    data-i18n="viewer.preview.media.sessionNote"
-                    data-i18n-fallback="Used only in this browser session. Never saved, exported, or added to history."
-                  >
-                    Used only in this browser session. Never saved, exported, or
-                    added to history.
-                  </p>
-                  <div
-                    class="preview-media-row"
-                    data-preview-media-slot="source"
-                  >
-                    <span data-i18n="viewer.preview.media.source">Source</span>
-                    <span
-                      class="preview-media-status"
-                      data-preview-media-status="source"
-                    ></span>
-                    <label class="preview-media-choose">
-                      <span data-i18n="viewer.preview.media.choose"
-                        >Choose</span
-                      >
-                      <input
-                        id="previewMediaSourceInput"
-                        type="file"
-                        accept="image/*,video/*"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      data-preview-media-clear="source"
-                      data-i18n="viewer.preview.media.clear"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div class="preview-media-row" data-preview-media-slot="from">
-                    <span data-i18n="viewer.preview.media.from">From</span>
-                    <span
-                      class="preview-media-status"
-                      data-preview-media-status="from"
-                    ></span>
-                    <label class="preview-media-choose">
-                      <span data-i18n="viewer.preview.media.choose"
-                        >Choose</span
-                      >
-                      <input
-                        id="previewMediaFromInput"
-                        type="file"
-                        accept="image/*,video/*"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      data-preview-media-clear="from"
-                      data-i18n="viewer.preview.media.clear"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div class="preview-media-row" data-preview-media-slot="to">
-                    <span data-i18n="viewer.preview.media.to">To</span>
-                    <span
-                      class="preview-media-status"
-                      data-preview-media-status="to"
-                    ></span>
-                    <label class="preview-media-choose">
-                      <span data-i18n="viewer.preview.media.choose"
-                        >Choose</span
-                      >
-                      <input
-                        id="previewMediaToInput"
-                        type="file"
-                        accept="image/*,video/*"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      data-preview-media-clear="to"
-                      data-i18n="viewer.preview.media.clear"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <button
-                    id="previewMediaClearAllButton"
-                    class="preview-media-clear-all"
-                    type="button"
-                    data-i18n="viewer.preview.media.clearAll"
-                  >
-                    Clear all
-                  </button>
-                </div>
-              </details>
-              <nav
-                id="canvasIsolationBreadcrumb"
-                class="canvas-isolation-breadcrumb"
-                aria-label="Canvas isolation path"
-                data-i18n-aria-label="viewer.a11y.canvasIsolationPath"
-                hidden
-              ></nav>
-            </div>
-            <button
-              id="fullscreenPreviewButton"
-              class="icon-button fullscreen-preview-button"
-              type="button"
-              aria-label="Open fullscreen preview"
-            ></button>
             <div
               class="preview-fullscreen-controls"
               aria-label="Fullscreen playback controls"
@@ -745,6 +574,166 @@
               <output id="fullscreenTimeOutput">0.000с</output>
             </div>
           </div>
+          <div class="preview-toolbar">
+            <div
+              class="preview-control-group preview-zoom-controls"
+              role="group"
+              aria-label="Preview zoom"
+              data-i18n-aria-label="viewer.a11y.previewZoom"
+            >
+              <button
+                type="button"
+                data-preview-zoom="fit"
+                data-i18n="viewer.preview.fit"
+                data-i18n-fallback="Fit"
+              >
+                Fit
+              </button>
+              <button type="button" data-preview-zoom="75">75%</button>
+              <button type="button" data-preview-zoom="100">100%</button>
+            </div>
+            <div
+              class="preview-control-group preview-canvas-aid-controls"
+              role="group"
+              aria-label="Canvas aids"
+              data-i18n-aria-label="viewer.a11y.canvasAids"
+            >
+              <button
+                id="previewGuidesButton"
+                type="button"
+                aria-pressed="false"
+                title="Toggle safe area and alignment guides"
+                data-i18n-title="viewer.a11y.previewGuidesToggle"
+              >
+                <span
+                  data-i18n="viewer.preview.guides"
+                  data-i18n-fallback="Guides"
+                  >Guides</span
+                >
+              </button>
+              <button
+                id="previewSnapButton"
+                type="button"
+                aria-pressed="false"
+                title="Snap canvas drag to guides"
+                data-i18n-title="viewer.a11y.previewSnapToggle"
+              >
+                <span data-i18n="viewer.preview.snap" data-i18n-fallback="Snap"
+                  >Snap</span
+                >
+              </button>
+            </div>
+            <details id="previewMediaMenu" class="preview-media-menu" hidden>
+              <summary
+                id="previewMediaButton"
+                data-i18n="viewer.preview.media.menu"
+                data-i18n-fallback="Test media"
+              >
+                Test media
+              </summary>
+              <div
+                class="preview-media-popover"
+                aria-label="Temporary test media"
+                data-i18n-aria-label="viewer.preview.media.panelLabel"
+              >
+                <p
+                  class="preview-media-note"
+                  data-i18n="viewer.preview.media.sessionNote"
+                  data-i18n-fallback="Used only in this browser session. Never saved, exported, or added to history."
+                >
+                  Used only in this browser session. Never saved, exported, or
+                  added to history.
+                </p>
+                <div class="preview-media-row" data-preview-media-slot="source">
+                  <span data-i18n="viewer.preview.media.source">Source</span>
+                  <span
+                    class="preview-media-status"
+                    data-preview-media-status="source"
+                  ></span>
+                  <label class="preview-media-choose">
+                    <span data-i18n="viewer.preview.media.choose">Choose</span>
+                    <input
+                      id="previewMediaSourceInput"
+                      type="file"
+                      accept="image/*,video/*"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    data-preview-media-clear="source"
+                    data-i18n="viewer.preview.media.clear"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div class="preview-media-row" data-preview-media-slot="from">
+                  <span data-i18n="viewer.preview.media.from">From</span>
+                  <span
+                    class="preview-media-status"
+                    data-preview-media-status="from"
+                  ></span>
+                  <label class="preview-media-choose">
+                    <span data-i18n="viewer.preview.media.choose">Choose</span>
+                    <input
+                      id="previewMediaFromInput"
+                      type="file"
+                      accept="image/*,video/*"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    data-preview-media-clear="from"
+                    data-i18n="viewer.preview.media.clear"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div class="preview-media-row" data-preview-media-slot="to">
+                  <span data-i18n="viewer.preview.media.to">To</span>
+                  <span
+                    class="preview-media-status"
+                    data-preview-media-status="to"
+                  ></span>
+                  <label class="preview-media-choose">
+                    <span data-i18n="viewer.preview.media.choose">Choose</span>
+                    <input
+                      id="previewMediaToInput"
+                      type="file"
+                      accept="image/*,video/*"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    data-preview-media-clear="to"
+                    data-i18n="viewer.preview.media.clear"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <button
+                  id="previewMediaClearAllButton"
+                  class="preview-media-clear-all"
+                  type="button"
+                  data-i18n="viewer.preview.media.clearAll"
+                >
+                  Clear all
+                </button>
+              </div>
+            </details>
+            <nav
+              id="canvasIsolationBreadcrumb"
+              class="canvas-isolation-breadcrumb"
+              aria-label="Canvas isolation path"
+              data-i18n-aria-label="viewer.a11y.canvasIsolationPath"
+              hidden
+            ></nav>
+          </div>
+          <button
+            id="fullscreenPreviewButton"
+            class="icon-button fullscreen-preview-button"
+            type="button"
+            aria-label="Open fullscreen preview"
+          ></button>
           <iframe
             id="sandboxFrame"
             class="sandbox-frame"
