@@ -5,10 +5,17 @@ import { readToolchain } from "./toolchain.ts";
 
 const CHECK_COMMANDS = new Set([
   "node tooling/ci/npm.cjs ci --ignore-scripts",
-  ...["ci:tools", "lint:ci", "qa:security", "qa", "build:npm", "test:npm"].map(
-    (script) => `node tooling/ci/npm.cjs run ${script}`,
-  ),
+  ...[
+    "ci:tools",
+    "lint:ci",
+    "qa:security",
+    "qa",
+    "build:npm",
+    "test:npm",
+    "ci:release",
+  ].map((script) => `node tooling/ci/npm.cjs run ${script}`),
   "node node_modules/playwright-core/cli.js install --with-deps chromium",
+  "echo 'CI checks were bypassed by ci-local-proof-bypass. This run does not prove the candidate.'",
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -18,9 +25,13 @@ function object(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) throw new Error("Expected a workflow object.");
   return value;
 }
-function permissions(value: unknown): void {
-  for (const access of Object.values(object(value)))
-    if (access !== "read" && access !== "none")
+function permissions(value: unknown, codeql = false): void {
+  for (const [name, access] of Object.entries(object(value)))
+    if (
+      access !== "read" &&
+      access !== "none" &&
+      !(codeql && name === "security-events" && access === "write")
+    )
       throw new Error("Workflow permissions must be read-only.");
 }
 function inputs(
@@ -46,10 +57,15 @@ export function inspectWorkflow(source: string): string[] {
     if (
       !triggers.length ||
       triggers.some(
-        (event) => event !== "push" && event !== "workflow_dispatch",
+        (event) =>
+          event !== "push" &&
+          event !== "workflow_dispatch" &&
+          event !== "pull_request",
       )
     )
-      throw new Error("Only push and manual checks are authorized.");
+      throw new Error(
+        "Only push, pull_request, and manual checks are authorized.",
+      );
     permissions(workflow.permissions);
     const toolchain = readToolchain();
     const actions = toolchain.actions;
@@ -65,13 +81,44 @@ export function inspectWorkflow(source: string): string[] {
     if (!jobs.length) throw new Error("Workflow must contain checks.");
     for (const rawJob of jobs) {
       const job = object(rawJob);
-      if (job.if !== undefined)
-        throw new Error("Required CI jobs must not be conditional.");
+      const proofCondition =
+        "github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci-local-proof-bypass')";
+      const bypassCondition =
+        "github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci-local-proof-bypass')";
+      if (
+        job.if !== undefined &&
+        job.if !== proofCondition &&
+        job.if !== bypassCondition
+      )
+        throw new Error(
+          "Required CI jobs must not be conditional except for the explicit PR bypass.",
+        );
+      if (!Array.isArray(job.steps))
+        throw new Error("Every CI job needs steps.");
+      const codeql =
+        job.steps.some(
+          (step: unknown) =>
+            isRecord(step) &&
+            typeof step.uses === "string" &&
+            step.uses.startsWith("github/codeql-action/upload-sarif@"),
+        ) &&
+        job.steps.some(
+          (step: unknown) =>
+            isRecord(step) &&
+            step.run === "node tooling/ci/npm.cjs run ci:release",
+        );
+      if (
+        job.if === bypassCondition &&
+        (job.steps.length !== 1 ||
+          object(job.steps[0]).run !==
+            "echo 'CI checks were bypassed by ci-local-proof-bypass. This run does not prove the candidate.'")
+      )
+        throw new Error("Bypass job must only report skipped checks.");
       if (job.uses || job.environment)
         throw new Error(
           "Reusable workflows and deployment environments are not authorized.",
         );
-      if (job.permissions !== undefined) permissions(job.permissions);
+      if (job.permissions !== undefined) permissions(job.permissions, codeql);
       if (
         typeof job["timeout-minutes"] !== "number" ||
         !Number.isInteger(job["timeout-minutes"]) ||
@@ -122,6 +169,17 @@ export function inspectWorkflow(source: string): string[] {
             throw new Error(
               "Setup Node must match the locked runtime and disable package-manager caching.",
             );
+          if (step.uses.startsWith("github/codeql-action/upload-sarif@")) {
+            const fields = inputs(step.with, ["sarif_file", "category"]);
+            if (
+              !codeql ||
+              fields.sarif_file !== ".tmp/codeql/results.sarif" ||
+              fields.category !== "sdk-security-and-quality"
+            )
+              throw new Error(
+                "CodeQL uploads require the canonical local proof and exact SARIF path.",
+              );
+          }
           if (step.uses.startsWith("actions/upload-artifact@")) {
             const fields = inputs(step.with, [
               "name",

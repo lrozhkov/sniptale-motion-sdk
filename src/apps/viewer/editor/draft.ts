@@ -1,3 +1,4 @@
+import { syncSnapshotTime } from "./snapshot-time.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type { EditorDraftActions } from "./contract.js";
 import type { EditorTemplateSource } from "../templates/model.js";
@@ -244,19 +245,6 @@ async function flushEditorDraft(ctx: ViewerAppContext): Promise<boolean> {
     return await draft.savePromise;
   }
   return true;
-}
-
-function syncSnapshotTime(ctx: ViewerAppContext, time: unknown): void {
-  const duration = ctx.getEffectiveDuration(ctx.state.currentTemplate);
-  const nextTime = ctx.deps.clamp(Number(time) || 0, 0, duration);
-  ctx.refs.timeSlider.value = String(nextTime);
-  ctx.refs.timeOutput.textContent = ctx.formatSeconds(nextTime);
-  if (ctx.refs.fullscreenTimeSlider) {
-    ctx.refs.fullscreenTimeSlider.value = String(nextTime);
-  }
-  if (ctx.refs.fullscreenTimeOutput) {
-    ctx.refs.fullscreenTimeOutput.textContent = ctx.formatSeconds(nextTime);
-  }
 }
 
 export function createEditorDraftActions(

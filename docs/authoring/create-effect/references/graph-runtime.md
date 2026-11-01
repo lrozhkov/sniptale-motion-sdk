@@ -48,7 +48,7 @@ Use `{ "op": "read", "path": "..." }` with only these path families:
 - `vars.<name>` or a nested member: a value created by `let` or a loop.
 - `item` or `item.<property>`: current literal loop item.
 - `defs.<id>`: a declared program definition.
-- `input.source`, `input.from`, `input.to`: kind-appropriate transient frames. Use these reads only when a calculation needs frame identity; render frames with `image.input`.
+- `input.source`, `input.from`, `input.to`: kind-appropriate transient frames. Use these reads only when a calculation needs frame identity. Render frames with `image.input`.
 
 Unknown references and unavailable runtime inputs fail validation. Prefer `progress` for animations that should scale with duration and `time` for physically timed cycles.
 
@@ -71,12 +71,12 @@ Logic and selection operations:
 - `and` and `or`: 1–64 arguments.
 - `not`: exactly 1 argument.
 - `select`: use `value` as the condition and exactly two `values`, returning the first for truthy and the second for falsey.
-- `fallback`: use `value` and `fallback`; substitute only when the primary value is nullish or a non-finite number.
+- `fallback`: use `value` and `fallback`. Substitute only when the primary value is nullish or a non-finite number.
 
 Formatting and easing operations:
 
 - `concat`: join 1–64 evaluated arguments as strings.
-- `rgba`: `[red, green, blue]` or `[red, green, blue, alpha]`; channels are clamped and RGB is rounded.
+- `rgba`: `[red, green, blue]` or `[red, green, blue, alpha]`. Channels are clamped and RGB is rounded.
 - `out`: cubic ease-out for one normalized argument.
 - `inOut`: cubic ease-in-out for one normalized argument.
 
@@ -86,7 +86,7 @@ Geometry operations:
 - `cubicPoint`: `[p0, p1, p2, p3, t]`, producing a point on a cubic Bézier.
 - `cubicTangent`: `[p0, p1, p2, p3, t]`, producing its tangent vector.
 - `ellipsePoint`: `[centerX, centerY, radiusX, radiusY, angle]`.
-- `ellipseVelocity`: `[centerX, centerY, radiusX, radiusY, angle]`; center inputs are accepted for signature consistency while the result is the tangent vector.
+- `ellipseVelocity`: `[centerX, centerY, radiusX, radiusY, angle]`. Center inputs are accepted for signature consistency while the result is the tangent vector.
 
 Nest expressions no deeper than 32 levels. Use finite literal numbers. Use `let` or `definitions` to flatten repeated deep expressions.
 
@@ -108,12 +108,12 @@ Use the following drawing operations. Fields named as required must be present.
 
 - `clear`: optionally provide `color` as a paint. Reset the full canvas independently of current transforms.
 - `fillRect`: require `fill`, `x`, `y`, `width`, and `height`. Draw an axis-aligned rectangle.
-- `shape`: require `shape`, `x`, `y`, `width`, and `height`. Choose `rect`, `roundRect`, `circle`, `ellipse`, or `diamond`; optionally provide `radius`, `rotation`, `fill`, `stroke`, and `lineWidth`.
-- `text`: require `text`, `x`, and `y`. Optionally provide `fill`, `fontFamily`, `fontSize`, `fontWeight`, `fontStyle` (`normal`, `italic`, `oblique`), `align` (`left`, `right`, `center`, `start`, `end`), `baseline`, `maxWidth`, `reveal`, and `caret`. `reveal` clips horizontal text reveal from `0` to `1`; `caret` draws during partial reveal.
-- `image`: require `x`, `y`, `width`, and `height`, plus exactly one `assetId` or `input`. Choose fit `contain`, `cover`, or `fill`; optionally rotate.
+- `shape`: require `shape`, `x`, `y`, `width`, and `height`. Choose `rect`, `roundRect`, `circle`, `ellipse`, or `diamond`. Optionally provide `radius`, `rotation`, `fill`, `stroke`, and `lineWidth`.
+- `text`: require `text`, `x`, and `y`. Optionally provide `fill`, `fontFamily`, `fontSize`, `fontWeight`, `fontStyle` (`normal`, `italic`, `oblique`), `align` (`left`, `right`, `center`, `start`, `end`), `baseline`, `maxWidth`, `reveal`, and `caret`. `reveal` clips horizontal text reveal from `0` to `1`. `caret` draws during partial reveal.
+- `image`: require `x`, `y`, `width`, and `height`, plus exactly one `assetId` or `input`. Choose fit `contain`, `cover`, or `fill`. Optionally rotate.
 - `path`: require exactly one of `points` or `segments`. Provide `fill` and/or `stroke`, plus optional `closed`, `lineWidth`, `lineCap`, and `lineJoin`.
 - `polyline`: require `points` and `stroke`. Optionally use normalized `progress` to reveal the line, plus `lineWidth`, `lineCap`, and `lineJoin`.
-- `sampledPath`: require `from`, `to`, `samples`, `x`, `y`, and `stroke`. Evaluate `x` and `y` for each literal sample using `vars.<sampleVar>`; default the variable name to `sample`. Use 2–256 samples.
+- `sampledPath`: require `from`, `to`, `samples`, `x`, `y`, and `stroke`. Evaluate `x` and `y` for each literal sample using `vars.<sampleVar>`. Default the variable name to `sample`. Use 2–256 samples.
 - `svgParts`: require an SVG `assetId`, `x`, `y`, `width`, and `height`. Optionally provide a per-part transform.
 
 Every command also accepts optional `layerId` for layer gating and binding. Do not use a structural group layer ID.
@@ -130,9 +130,9 @@ Use `let` with a nonempty `bindings` object and nonempty `commands` to create se
 
 Use literal bounded loops only:
 
-- `forRange`: provide integer `count` from 1 to 512 and nonempty `commands`. Read the value through `vars.<indexVar>` and the zero-based iteration through `vars.index`; the default variable is `index`.
+- `forRange`: provide integer `count` from 1 to 512 and nonempty `commands`. Read the value through `vars.<indexVar>` and the zero-based iteration through `vars.index`. The default variable is `index`.
 - `forGrid`: provide integer `rows` and `columns`, each from 1 to 512, whose product remains within the loop budget. Read default `vars.row`, `vars.column`, and `vars.index`, or choose safe `rowVar` and `columnVar` names.
-- `forEach`: provide a nonempty literal `items` array and nonempty `commands`. Read the current item with `item` or `item.<property>`. Set `itemVar` to expose the item through `vars.<itemVar>`; `vars.index` always contains the zero-based iteration.
+- `forEach`: provide a nonempty literal `items` array and nonempty `commands`. Read the current item with `item` or `item.<property>`. Set `itemVar` to expose the item through `vars.<itemVar>`. `vars.index` always contains the zero-based iteration.
 - `stableOrderBy`: provide nonempty literal `items`, a numeric `key` expression, optional `direction` `asc` or `desc`, and nonempty `commands`. Equal keys preserve source order.
 
 Do not derive loop length from controls, tracks, assets, input, or time. Animate values inside a statically sized loop.
@@ -149,9 +149,9 @@ Use a `points` path for a polyline or polygon with at least two `{ "x", "y" }` e
 - `rect`: `x`, `y`, `width`, `height`.
 - `roundRect`: `x`, `y`, `width`, `height`, `radius`.
 
-Use `lineCap` values `butt`, `round`, or `square`; use `lineJoin` values `bevel`, `miter`, or `round`.
+Use `lineCap` values `butt`, `round`, or `square`. Use `lineJoin` values `bevel`, `miter`, or `round`.
 
-Use a color string or color expression as paint. Use `linearGradient` with `x0`, `y0`, `x1`, `y1`, and nonempty `stops`. Use `radialGradient` with those fields plus `r0` and `r1`. Each stop has an expression `offset` and `color`; keep offsets in visual order within `[0, 1]`.
+Use a color string or color expression as paint. Use `linearGradient` with `x0`, `y0`, `x1`, `y1`, and nonempty `stops`. Use `radialGradient` with those fields plus `r0` and `r1`. Each stop has an expression `offset` and `color`. Keep offsets in visual order within `[0, 1]`.
 
 ## Styles and transforms
 
@@ -159,29 +159,29 @@ Styled drawing commands accept `alpha`, `blend`, `filter`, and `shadow`. Blend s
 
 Use command alpha from `0` to `1` by convention. The runtime multiplies it by resolved layer opacity. Filters clamp blur, brightness, and saturation to nonnegative runtime values. Shadow and blur scale with logical canvas resolution.
 
-Apply transforms deliberately. `shape` and `image` rotate around their centers. `group` applies translation, then rotation, then scaling to its children. Commands with a layer translate by resolved layer `x` and `y`; they do not automatically apply layer rotation, scale, anchor, or blur. Read those resolved properties and pass them to an appropriate command or group when needed.
+Apply transforms deliberately. `shape` and `image` rotate around their centers. `group` applies translation, then rotation, then scaling to its children. Commands with a layer translate by resolved layer `x` and `y`. They do not automatically apply layer rotation, scale, anchor, or blur. Read those resolved properties and pass them to an appropriate command or group when needed.
 
 ## SVG part animation
 
 Use `svgParts` when individual SVG shapes must reveal, scatter, assemble, shatter, blur, rotate, or scale. The SVG asset must be sanitized and declared.
 
-Use a preset part transform with `kind: "preset"`. Choose optional `mode` `assemble`, `scatter`, or `shatter`; `order` `document`, `reverse`, `center`, `edges`, or `random`; `ease` `linear`, `out`, or `inOut`; and expression values such as `reveal`, `spread`, `stagger`, `blur`, `rotate`, `angle`, and `scaleFrom`.
+Use a preset part transform with `kind: "preset"`. Choose optional `mode` `assemble`, `scatter`, or `shatter`. `order` `document`, `reverse`, `center`, `edges`, or `random`. `ease` `linear`, `out`, or `inOut`. And expression values such as `reveal`, `spread`, `stagger`, `blur`, `rotate`, `angle`, and `scaleFrom`.
 
 Use a custom part transform with `kind: "custom"` and expression fields `x`, `y`, `rotate`, `scale`, `alpha`, `blur`, `originX`, and `originY`. During evaluation, `item.index`, `item.cx`, `item.cy`, and other provided part metadata are available. Prefer preset mode unless the desired choreography needs explicit formulas.
 
-The preset `random` order is engine-stable, not `Math.random`; it remains deterministic for the same SVG part set.
+The preset `random` order is engine-stable, not `Math.random`. It remains deterministic for the same SVG part set.
 
 ## Render passes
 
 Use `renderPass` with a unique `id`, nonempty `commands`, and optional `width` and `height` to draw into an offscreen canvas. Use `compositePass` with the matching `passId` to place the result, optionally with `x`, `y`, `width`, `height`, `rotation`, alpha, blend, filter, and shadow.
 
-Declare every pass exactly once. A composite cannot reference an unknown pass. Use passes for reusable blurs, glows, trails assembled within one frame, masks approximated by composition, or drawing at a reduced internal resolution. Remember that every output frame starts fresh; a render pass does not persist across frames.
+Declare every pass exactly once. A composite cannot reference an unknown pass. Use passes for reusable blurs, glows, trails assembled within one frame, masks approximated by composition, or drawing at a reduced internal resolution. Remember that every output frame starts fresh. A render pass does not persist across frames.
 
 ## Deterministic limits
 
-Keep graph depth at or below 32, graph nodes at or below 4096, each loop bound at or below 512, and expanded commands at or below 50,000. Keep sampled paths at 2–256 samples and expression nesting at or below 32. Keep all numeric literals finite.
+Keep graph depth at or below 32 and graph nodes at or below 4096. Keep each loop bound at or below 512. Keep expanded commands at or below 50,000. Keep sampled paths at 2–256 samples and expression nesting at or below 32. Keep all numeric literals finite.
 
-The validator rejects dynamic loop bounds, unknown fields, missing child commands, empty literal item sets, unsafe variable names, cyclic definitions, duplicate render passes, undeclared references, and expanded graphs beyond the budget.
+The validator rejects dynamic loop bounds, unknown fields, missing child commands, and empty literal item sets. It rejects unsafe variable names, cyclic definitions, duplicate render passes, and undeclared references. It also rejects expanded graphs beyond the budget.
 
 Do not use randomness, system time, mutable cross-frame state, storage, network, DOM, browser APIs, or external modules. Create deterministic variation from literal item data, `frameIndex`, trigonometric functions, stable ordering, and stable SVG part metadata.
 
@@ -193,4 +193,4 @@ Use `progress` with `out` or `inOut` for entrances and exits. Clamp derived opac
 
 For a transition, draw `from` before `to` unless the design intentionally reverses their stacking. For a target effect, draw `source` before decorations. For standalone transparent overlays, clear without a color and ensure proof still sees nonblank output.
 
-Wire declared bindings into visible pixels. A syntactically read control or track that has no meaningful visual effect may pass part of static closure but fail runtime proof when variants produce identical frames.
+Wire declared bindings into visible pixels. A graph can read a control or track without a meaningful visual effect. This may pass part of static closure. Runtime proof fails when variants produce identical frames.

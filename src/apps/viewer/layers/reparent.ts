@@ -1,3 +1,4 @@
+import { orderSiblingLayerRoots } from "./hierarchy.js";
 import type { LayerHierarchyIndex } from "./hierarchy.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import {
@@ -46,17 +47,9 @@ export function reparentLayerSelection(
   ) {
     return { ok: false, reason: "invalid-hierarchy" };
   }
-  const parentIds = new Set(
-    rootIds.map((id) => hierarchy.parentById.get(id)?.id ?? null),
-  );
-  if (parentIds.size !== 1) {
-    return { ok: false, reason: "different-parents" };
-  }
-  const orderedRootIds = [...rootIds].sort(
-    (left, right) =>
-      (hierarchy.indexById.get(left) ?? 0) -
-      (hierarchy.indexById.get(right) ?? 0),
-  );
+  const siblings = orderSiblingLayerRoots(hierarchy, rootIds);
+  if (!siblings) return { ok: false, reason: "different-parents" };
+  const { orderedRootIds } = siblings;
   if (!areLayerRootsContiguous(hierarchy, orderedRootIds)) {
     return { ok: false, reason: "non-contiguous" };
   }

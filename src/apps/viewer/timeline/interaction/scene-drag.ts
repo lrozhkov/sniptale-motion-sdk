@@ -1,3 +1,4 @@
+import { admitTimelineRangeDrag } from "./range-drag-admission.js";
 import type { TimelineRangeEditMode } from "../model/move-plan-model.js";
 import { bindViewerAction } from "../../app/bind-action.js";
 import type { TimelinePointerActions } from "./pointer-contract.js";
@@ -10,19 +11,8 @@ function beginSceneDrag(
   sceneId: string,
   mode: TimelineRangeEditMode,
 ) {
-  if (event.button !== 0) {
-    return;
-  }
-  const target = event.currentTarget;
-  if (!(target instanceof HTMLElement)) return;
-  ctx.state.pointerDragCleanup?.();
-  if (event.altKey || event.shiftKey) {
-    ctx.beginTimelineMarqueeSelection(event, { allowBlockStart: true });
-    return;
-  }
-  if (mode === "move" && (event.shiftKey || event.metaKey || event.ctrlKey)) {
-    return;
-  }
+  const target = admitTimelineRangeDrag(ctx, event, mode);
+  if (!target) return;
   if (mode === "move" && !ctx.isSelectedScene(sceneId)) {
     ctx.selectSceneBlock(sceneId);
     ctx.setInspectorTab("timing");

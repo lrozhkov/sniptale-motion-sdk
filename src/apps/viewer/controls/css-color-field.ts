@@ -220,9 +220,11 @@ function resolveCanvasColor(value: string): string | null {
     return null;
   }
   context.fillStyle = "#010203";
+  if (String(context.fillStyle) !== "#010203") return null;
   context.fillStyle = value;
   const first = String(context.fillStyle);
   context.fillStyle = "#040506";
+  if (String(context.fillStyle) !== "#040506") return null;
   context.fillStyle = value;
   const second = String(context.fillStyle);
   return first === second ? first : null;

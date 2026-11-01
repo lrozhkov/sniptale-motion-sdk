@@ -1,3 +1,4 @@
+import { findAdjacentKeyframes } from "../model/adjacent-keyframes.js";
 import type { TimelineRangeEditMode } from "../model/move-plan-model.js";
 import { getSegmentDragLimits } from "../model/keyframe-segment-limits.js";
 import { bindViewerAction } from "../../app/bind-action.js";
@@ -21,21 +22,14 @@ function beginKeyframeSegmentDrag(
   ctx.state.pointerDragCleanup?.();
   event.preventDefault();
   event.stopPropagation();
-  const template = ctx.state.currentTemplate;
-  const timeline = ctx.getEffectiveTimeline(template);
-  const track = timeline.tracks.find((item) => item.id === trackId);
-  const keyframes = [...(track?.keyframes ?? [])].sort(
-    (a, b) => a.time - b.time,
+  const segment = findAdjacentKeyframes(
+    ctx,
+    trackId,
+    fromKeyframeId,
+    toKeyframeId,
   );
-  const fromIndex = keyframes.findIndex(
-    (keyframe) => keyframe.id === fromKeyframeId,
-  );
-  const toIndex = keyframes.findIndex(
-    (keyframe) => keyframe.id === toKeyframeId,
-  );
-  if (!template || !track || fromIndex < 0 || toIndex !== fromIndex + 1) {
-    return;
-  }
+  if (!segment) return;
+  const { template, timeline, track, keyframes, fromIndex, toIndex } = segment;
   const fromKeyframe = keyframes[fromIndex];
   const toKeyframe = keyframes[toIndex];
   if (!fromKeyframe || !toKeyframe) return;

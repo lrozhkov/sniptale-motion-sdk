@@ -1,3 +1,4 @@
+import { orderSiblingLayerRoots } from "./hierarchy.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import {
   LAYER_GROUP_TYPE,
@@ -39,17 +40,9 @@ export function canGroupLayerSelection(
   if (rootIds.some((id) => !isLayerSubtreeContiguous(hierarchy, id))) {
     return { ok: false, reason: "invalid-hierarchy" };
   }
-  const parentIds = new Set(
-    rootIds.map((id) => hierarchy.parentById.get(id)?.id ?? null),
-  );
-  if (parentIds.size !== 1) {
-    return { ok: false, reason: "different-parents" };
-  }
-  const orderedRootIds = [...rootIds].sort(
-    (left, right) =>
-      (hierarchy.indexById.get(left) ?? 0) -
-      (hierarchy.indexById.get(right) ?? 0),
-  );
+  const siblings = orderSiblingLayerRoots(hierarchy, rootIds);
+  if (!siblings) return { ok: false, reason: "different-parents" };
+  const { parentIds, orderedRootIds } = siblings;
   let previousEnd = -1;
   for (const id of orderedRootIds) {
     const indexes = getLayerSubtreeIds(hierarchy, id)

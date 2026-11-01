@@ -6,6 +6,7 @@ import type {
 } from "./model.ts";
 import { diagnosticValue } from "../../../src/sdk/diagnostic-value.js";
 import fs from "node:fs/promises";
+import { constants } from "node:fs";
 import path from "node:path";
 
 const DEFAULT_SETTINGS = "tooling/configs/qa/licenses.json";
@@ -154,9 +155,17 @@ export async function readContainedRegularFile(
     );
   }
   assertContainedAbsolute(realRoot, realFile, label);
-  const stat = await fs.stat(realFile);
-  if (!stat.isFile()) throw new TypeError(`${label} must be a regular file.`);
-  return fs.readFile(realFile);
+  const handle = await fs.open(
+    realFile,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  );
+  try {
+    if (!(await handle.stat()).isFile())
+      throw new TypeError(`${label} must be a regular file.`);
+    return await handle.readFile();
+  } finally {
+    await handle.close();
+  }
 }
 
 function projectLicenseSettings(value: unknown): ProjectLicenseSettings {

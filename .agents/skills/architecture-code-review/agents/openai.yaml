@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Code Review"
+  short_description: "Review SDK ownership and state contracts"
+  default_prompt: "Use $architecture-code-review for an independent review of this SDK candidate and its supplied proof."

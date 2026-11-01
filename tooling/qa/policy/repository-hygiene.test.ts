@@ -286,11 +286,12 @@ describe("repository hygiene policy", () => {
       ".agents/skills/code-review.md",
       ".agents/skills/create-effect/SKILL.md",
       ".agents/skills/create-effect/references/graph-runtime.md",
+      ".agents/skills/asd-ste100/README.md",
+      ".agents/skills/asd-ste100/examples/before-after.md",
     ]) {
       expect(isSkillMarkdownPath(file)).toBe(true);
     }
     for (const file of [
-      ".agents/skills/create-effect/README.md",
       ".agents/skills/create-effect/references/nested/runtime.md",
       ".agents/skills/create-effect/assets/notes.md",
     ]) {

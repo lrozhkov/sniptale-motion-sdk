@@ -107,7 +107,7 @@ async function refreshRendererContractCoverage(
   try {
     return await refreshPromise;
   } finally {
-    if (ctx.state.rendererContractRefreshPromise === refreshPromise) {
+    if (Object.is(ctx.state.rendererContractRefreshPromise, refreshPromise)) {
       ctx.state.rendererContractRefreshPromise = null;
       ctx.state.rendererContractRefreshTemplate = null;
       ctx.state.rendererContractRefreshing = false;

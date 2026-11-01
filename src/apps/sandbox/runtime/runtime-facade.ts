@@ -1,10 +1,11 @@
+import { roundRect } from "../../../sdk/canvas-path.js";
 import {
   drawCodeBlock,
   drawParticles,
   drawPath,
   drawText,
 } from "./canvas-drawing-primitives.js";
-import { roundRect } from "./math.js";
+
 import { createSvgPartTransform } from "./svg-part-transform.js";
 import { parseSvgAsset } from "./svg-vector-parser.js";
 import { drawSvgVectorAsset } from "./svg-vector-renderer.js";

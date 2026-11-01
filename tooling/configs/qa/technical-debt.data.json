@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.authoring-git-ignore",
+      "classification": "tool-noise",
+      "reason": "The Git ignore check protects local storage. Effect validation admits declarative documents. These operations have different inputs and outcomes.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": ".agents/skills/create-effect/SKILL.md",
+        "line": 29,
+        "column": 21,
+        "rule": "synonym-rotation",
+        "contentHash": "23d941f6a34b8d3562a6cc375b00384424f1d18a1150ba08dd8e31d1f473ba7f",
+        "messageHash": "73a1ef78b08368f755152ff6ae7b33044fbc85cc0fb22ceaa556c7eea426d3c6",
+        "findingHash": "f699eebabc1950363e1ef776be5371b39e59ecd1081c2ca5d36fb65d24e85868"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.readme-validation-and-compatibility",
+      "classification": "tool-noise",
+      "reason": "Target-editor compatibility testing differs from document validation. The text names separate user and SDK operations.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "README.md",
+        "line": 5,
+        "column": 133,
+        "rule": "synonym-rotation",
+        "contentHash": "d64a1415611565bf6c6a1f5d5489560e80d8b518ed388511b972acc47ae2cf55",
+        "messageHash": "73a1ef78b08368f755152ff6ae7b33044fbc85cc0fb22ceaa556c7eea426d3c6",
+        "findingHash": "7f4aa4f2927bbbdece12bcae964871a3ee69ebe921cc07d18f0d31e4a160ea0b"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.architecture-document-and-artifact-proof",
+      "classification": "tool-noise",
+      "reason": "Artifact and release checks differ from Effect document validation. Their owners and proof surfaces are separate.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/architecture/repository-overview.md",
+        "line": 31,
+        "column": 175,
+        "rule": "synonym-rotation",
+        "contentHash": "0b838d1138ef1d489ccad82d22ac974e27c90027f8c11f8fe15a2aa469dbabfd",
+        "messageHash": "73a1ef78b08368f755152ff6ae7b33044fbc85cc0fb22ceaa556c7eea426d3c6",
+        "findingHash": "4485dbcdea206beb3159074a04ee191a3e9d65fead5ba2528bd18ca79bff1e91"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.toolkit-fingerprint-and-document-validation",
+      "classification": "tool-noise",
+      "reason": "Toolkit fingerprint checks establish executable identity. Document validation evaluates authored Effect data. Neither step replaces the other.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/authoring/create-effect/SKILL.md",
+        "line": 15,
+        "column": 352,
+        "rule": "synonym-rotation",
+        "contentHash": "38fafa3395c7e819aa034d20fcb64d9112611910c00d06ef0a471a74f3426f79",
+        "messageHash": "73a1ef78b08368f755152ff6ae7b33044fbc85cc0fb22ceaa556c7eea426d3c6",
+        "findingHash": "623c8772f351ff1535c8adb0ea69826da0fbc7d68869db08790db1f3bb736aea"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.document-contract-validation-and-checks",
+      "classification": "tool-noise",
+      "reason": "Toolkit identity checks and render inspection differ from schema and domain validation. The reference preserves those separate authoring steps.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/authoring/create-effect/references/effect-v1-contract.md",
+        "line": 53,
+        "column": 108,
+        "rule": "synonym-rotation",
+        "contentHash": "512bfcec3b8f7c5a85a85fc016a68d06e8cc2c57c5d55ac6a0d4418861650433",
+        "messageHash": "fe620f39798ce41957644bf158d8e069074173e72b023524aab3e14d6856f8bb",
+        "findingHash": "6a53a21d19fbc0202f8f3d744bb237076c0a50ec68179b89886f139fa1a3e7fd"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.implementation-boundary-and-qa",
+      "classification": "tool-noise",
+      "reason": "Repository QA checks differ from boundary-payload validation. The technical vocabulary defines their separate authority and outcomes.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/engineering/implementation-rules.md",
+        "line": 9,
+        "column": 32,
+        "rule": "synonym-rotation",
+        "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750",
+        "messageHash": "fe620f39798ce41957644bf158d8e069074173e72b023524aab3e14d6856f8bb",
+        "findingHash": "4fda607be8639897cc92646003ea4cb9a38f789e4806c18e93f8cfddecff5c40"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.provenance-maintainer-confirmation",
+      "classification": "tool-noise",
+      "reason": "Maintainer confirmation establishes licensing authority. Automated checks inspect license evidence. Effect validation admits declarative runtime data.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/oss/provenance.md",
+        "line": 9,
+        "column": 16,
+        "rule": "synonym-rotation",
+        "contentHash": "b204a1bfc604c0b5f00a77e36bc27f2bd614889052b317bf7a61ae6f5eed5cf0",
+        "messageHash": "739cf77f97e597e8da908bf9684aa5dcb19208d88be1796cdb573cbcedaff74d",
+        "findingHash": "5ac52ec4cbb1e0fb3534816e40fd08873dc2e625c258bde8b8ecccd59d6e6d32"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.provenance-effect-admission",
+      "classification": "tool-noise",
+      "reason": "Maintainer confirmation establishes licensing authority. Automated checks inspect license evidence. Effect validation admits declarative runtime data.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/oss/provenance.md",
+        "line": 11,
+        "column": 191,
+        "rule": "synonym-rotation",
+        "contentHash": "b204a1bfc604c0b5f00a77e36bc27f2bd614889052b317bf7a61ae6f5eed5cf0",
+        "messageHash": "fe620f39798ce41957644bf158d8e069074173e72b023524aab3e14d6856f8bb",
+        "findingHash": "6c8ca225fbc310acf748a1c6d2db3cc3b861caea81faf76dca69c0ccc5ddc9ce"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.security-payload-and-origin",
+      "classification": "tool-noise",
+      "reason": "Origin checks establish sender authority. Document validation admits payload structure and semantics. These controls enforce different boundaries.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/security/security-model.md",
+        "line": 13,
+        "column": 227,
+        "rule": "synonym-rotation",
+        "contentHash": "5160580efcdde08159cef57b1a399d9467bf826af24c9f991607107599456d4e",
+        "messageHash": "73a1ef78b08368f755152ff6ae7b33044fbc85cc0fb22ceaa556c7eea426d3c6",
+        "findingHash": "fe12aa2d8db121b019bd07e7d21791bc7b50af51fae34e40d352d5e4beee0370"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "A broader exception could hide a new defect or ambiguous instruction.",
+      "targetAction": "Keep the exact finding, source, context, and evidence bound together.",
+      "removalCondition": "Remove when the tool distinguishes these operations or the reported text changes. Reassess every source or tool change.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.ste.toolkit-validation-and-update",
+      "classification": "tool-noise",
+      "reason": "The explicit update check inspects registry compatibility. Document validation evaluates a local effect. The CLI exposes separate commands.",
+      "evidence": [
+        "docs/engineering/implementation-rules.md",
+        "tooling/qa/policy/technical-debt/registry.test.ts"
+      ],
+      "source": {
+        "kind": "ste",
+        "identity": "1b97b2d22ba50cde10654db56e1b98adf96d250dd3c8f693f8a81361b1084e85"
+      },
+      "scope": {
+        "file": "docs/tooling/npm-toolkit.md",
+        "line": 3,
+        "column": 192,
+        "rule": "synonym-rotation",
+        "contentHash": "7e62d07fb140e783bf76c45ab3d83593799dbbd64002aedc2325ee9b0c42a699",
+        "messageHash": "73a1ef78b08368f755152ff6ae7b33044fbc85cc0fb22ceaa556c7eea426d3c6",
+        "findingHash": "0aa0a5d7d93274a1b495e1906b53150103be69efd47f557aa21fbcc4215a4275"
+      },
+      "context": [
+        {
+          "file": "docs/engineering/implementation-rules.md",
+          "contentHash": "b5e417ebc1e009e8c13b8b772b1de5c9d13d439bdf52ed980274a275ac7f2750"
+        },
+        {
+          "file": "tooling/qa/policy/technical-debt/registry.test.ts",
+          "contentHash": "0967fc52d521e247ba5a61b84702ce8a9948632e791f6353b2a45cc68557a2b8"
+        }
+      ]
+    },
+    {
+      "owner": "repository-owner (lrozhkov)",
+      "risk": "Removing containment or changing root authority could expose files outside the permitted runtime root.",
+      "targetAction": "Retain traversal, sibling-root, absolute-path, and symlink-escape denial proof. Admit no other path finding.",
+      "removalCondition": "Remove when CodeQL models the containment predicate or this call disappears. Any source, caller, tool, message, or trace change requires review.",
+      "reviewBy": "2027-02-01",
+      "id": "noise.codeql.contained-static-file",
+      "classification": "tool-noise",
+      "reason": "The selected path passes lexical containment before canonical resolution and real-path containment afterward. The reader uses a bounded no-follow descriptor. The query does not model the custom containment predicate.",
+      "evidence": [
+        "tests/motion-contained-files.test.ts",
+        "tests/motion-studio.test.ts",
+        "src/apps/cli/files.ts"
+      ],
+      "source": {
+        "kind": "codeql",
+        "identity": "c9648fbe72eb479cac4220215470d6103005adf7212ec9bdb74779fdb5b3e72d"
+      },
+      "scope": {
+        "file": "src/apps/cli/files.ts",
+        "line": 65,
+        "column": 33,
+        "rule": "js/path-injection",
+        "contentHash": "064bd448c741951731fb87ecafc823e3f3f3a80d80c1f33c06f7b6354b13f8e2",
+        "messageHash": "c00a435fca4f003c882557433dd6e852d59f97b52586ca941e11f6037140a0a2",
+        "findingHash": "baa4a5225a793942b5a7a0ae5f078d2b284232a44e30c4aa617134d2bd9397d6"
+      },
+      "context": [
+        {
+          "file": "src/apps/cli/studio/server.ts",
+          "contentHash": "b5bd3e438ff3b64d00ecbcb489329c31242c34302a7c569792b021f749070b33"
+        },
+        {
+          "file": "src/apps/cli/context.ts",
+          "contentHash": "b77220db5ae8168d632f66c884d658588a2c8e26c80e0dd455155183b07641d7"
+        },
+        {
+          "file": "tests/motion-contained-files.test.ts",
+          "contentHash": "9f0e343789626f0bbc2577699ed34db8908f4c5cfc060b64d61baa8f413a1eff"
+        },
+        {
+          "file": "tests/motion-studio.test.ts",
+          "contentHash": "97ce1240b2aba19ff5fb50c2fda5996ec250261811cb09905ab6bb66c5061c9d"
+        }
+      ]
+    }
+  ]
+}

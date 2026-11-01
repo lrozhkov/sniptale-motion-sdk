@@ -1,3 +1,4 @@
+import { commitCanvasMotionPathUpdate } from "./motion-path-commit.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type {
   CanvasMotionPathUpdateActions,
@@ -80,26 +81,7 @@ export function updateCanvasMotionPathPointPositions(
     point.xKeyframe.value = position.x;
     point.yKeyframe.value = position.y;
   }
-  ctx.state.timelineOverrides.set(
-    template.id,
-    ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
-  );
-  if (options.timeline !== false) {
-    if (ctx.renderTimelineModel) {
-      ctx.renderTimelineModel(template);
-    } else {
-      ctx.renderTimelineEditor(template);
-    }
-  }
-  if (options.inspector !== false) {
-    ctx.renderInspector();
-  }
-  if (options.selection !== false) {
-    ctx.updateCanvasSelectionBox();
-  }
-  if (options.render !== false) {
-    void ctx.renderCurrentFrame();
-  }
+  commitCanvasMotionPathUpdate(ctx, template, timeline, options);
   return true;
 }
 

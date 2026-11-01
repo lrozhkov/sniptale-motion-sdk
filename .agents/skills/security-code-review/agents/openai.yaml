@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Code Review"
+  short_description: "Review SDK trust boundaries and security"
+  default_prompt: "Use $security-code-review for an independent review of this SDK candidate and its supplied security proof."

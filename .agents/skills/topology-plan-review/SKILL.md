@@ -1,0 +1,20 @@
+---
+name: topology-plan-review
+description: "Review plans and completed SDK changes that move owners, imports, command entrypoints, or documentation contracts."
+---
+
+# Topology Plan Review
+
+Use planning mode before a broad move. Require a complete old-to-new manifest with modes and content digests. Include consumers, collisions, rollback, and proof mapping. Candidate review compares the completed diff with that manifest.
+
+## Review procedure
+
+Read `AGENTS.md` and the relevant owner documents in `docs/README.md`. Read [the checklist](references/topology-plan-review-checklist.md).
+
+The main agent must start a fresh independent read-only reviewer with `fork_turns: "none"`. Supply the exact diff, new files, acceptance criteria, consumers, QA results, and known limitations. Do not supply a desired verdict. Candidate review requires a complete manifest and successful applicable QA. Planning review must state which checks did not run.
+
+The reviewer must not edit files, install tools, run QA wrappers, stage, or commit. Inspect the supplied evidence and nearby consumers. Report missing proof explicitly. A missing check is not evidence of a defect.
+
+Classify findings as `security issue`, `current regression`, `acceptance blocker`, or `pre-existing hardening`, in that order. The first three classes block approval. Show the reachable trigger, violated invariant, impact, file and line, and smallest correction. Report pre-existing hardening only when it affects the verdict or the user requests an inventory.
+
+List findings first. Then state assumptions, missing evidence, and `Approve`, `Approve with comments`, or `Request changes`. Do not add speculative requirements. State whether each correction changes a boundary and needs another review.

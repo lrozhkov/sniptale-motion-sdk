@@ -1,0 +1,9 @@
+name: Sniptale Motion SDK
+paths:
+  - src
+  - tooling
+paths-ignore:
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+queries:
+  - uses: security-and-quality

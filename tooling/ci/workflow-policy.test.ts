@@ -8,14 +8,9 @@ const source = readFileSync(".github/workflows/ci.yml", "utf8");
 describe("checks-only workflows", () => {
   it("accepts the real Linux/Windows candidate and its locked tools", () => {
     expect(inspectWorkflowBoundary()).toEqual([]);
-    expect(source).toContain("os: [ubuntu-24.04, windows-2025]");
-    for (const command of [
-      "qa",
-      "build:npm",
-      "test:npm",
-      "lint:ci",
-      "qa:security",
-    ])
+    expect(source).toContain("runs-on: windows-2025");
+    expect(source).toContain("runs-on: ubuntu-24.04");
+    for (const command of ["qa", "build:npm", "test:npm", "ci:release"])
       expect(source).toContain(`node tooling/ci/npm.cjs run ${command}`);
     expect(source).toContain('MOTION_NPM_BROWSER_ACCEPT: "1"');
     expect(readToolchain().tools.map((tool) => tool.name)).toEqual([
@@ -52,10 +47,7 @@ describe("checks-only workflows", () => {
     [
       "conditional job",
       (value: string) =>
-        value.replace(
-          "    timeout-minutes: 30",
-          "    if: false\n    timeout-minutes: 30",
-        ),
+        value.replace(/    if: github.event_name[^\n]+/u, "    if: false"),
       "must not be conditional",
     ],
     [
@@ -119,7 +111,7 @@ describe("checks-only workflows", () => {
     [
       "timeout",
       (value: string) =>
-        value.replace("timeout-minutes: 30", "timeout-minutes: 90"),
+        value.replace("timeout-minutes: 60", "timeout-minutes: 90"),
       "timeout",
     ],
     [
@@ -149,8 +141,8 @@ describe("checks-only workflows", () => {
       "hidden failure",
       (value: string) =>
         value.replace(
-          "    timeout-minutes: 30",
-          "    continue-on-error: true\n    timeout-minutes: 30",
+          "    timeout-minutes: 60",
+          "    continue-on-error: true\n    timeout-minutes: 60",
         ),
       "fail the job",
     ],

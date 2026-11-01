@@ -9,10 +9,15 @@ export type PreviewMediaEntry = {
 
 export async function loadPreviewMedia(file: File): Promise<PreviewMediaEntry> {
   const objectUrl = URL.createObjectURL(file);
+  const mediaUrl = new URL(objectUrl);
+  if (mediaUrl.protocol !== "blob:") {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error("Preview media requires a local blob URL.");
+  }
   try {
     if (file.type.startsWith("image/")) {
       const image = new Image();
-      image.src = objectUrl;
+      image.src = mediaUrl.href;
       await image.decode();
       return createEntry(image, file, "image", objectUrl);
     }
@@ -20,7 +25,7 @@ export async function loadPreviewMedia(file: File): Promise<PreviewMediaEntry> {
     video.muted = true;
     video.preload = "auto";
     video.playsInline = true;
-    video.src = objectUrl;
+    video.src = mediaUrl.href;
     await waitForMediaEvent(video, "loadeddata");
     return createEntry(video, file, "video", objectUrl);
   } catch (error) {

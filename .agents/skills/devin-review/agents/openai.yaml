@@ -1,0 +1,6 @@
+interface:
+  display_name: "Devin Review"
+  short_description: "Review through Devin only on explicit request"
+  default_prompt: "Use $devin-review for an independent review of the supplied SDK candidate through the explicitly authorized Devin model."
+policy:
+  allow_implicit_invocation: false

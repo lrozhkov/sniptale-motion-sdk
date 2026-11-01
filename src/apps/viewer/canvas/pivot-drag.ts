@@ -12,13 +12,9 @@ function beginCanvasRotationDrag(ctx: ViewerAppContext, event: PointerEvent) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
     return ctx.beginCanvasSelectionRotationDrag(event);
   }
-  event.preventDefault();
-  event.stopPropagation();
-  const template = ctx.state.currentTemplate;
-  const effectiveTemplate = ctx.getEffectiveTemplate(template);
-  const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
-  if (!layerId) return;
-  const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
+  const selected = preparePivotTarget(ctx, event);
+  if (!selected) return;
+  const { template, layerId, layer } = selected;
   if (
     !template ||
     !layer ||
@@ -127,13 +123,9 @@ function beginCanvasAnchorDrag(ctx: ViewerAppContext, event: PointerEvent) {
   if (ctx.refs.canvasSelectionBox.dataset.selectionKind === "multi") {
     return false;
   }
-  event.preventDefault();
-  event.stopPropagation();
-  const template = ctx.state.currentTemplate;
-  const effectiveTemplate = ctx.getEffectiveTemplate(template);
-  const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
-  if (!layerId) return;
-  const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
+  const selected = preparePivotTarget(ctx, event);
+  if (!selected) return;
+  const { template, layerId, layer } = selected;
   if (
     !template ||
     !layer ||
@@ -247,4 +239,15 @@ export function createCanvasPivotDragActions(
     ),
     beginCanvasAnchorDrag: bindViewerAction(beginCanvasAnchorDrag, getContext),
   };
+}
+
+function preparePivotTarget(ctx: ViewerAppContext, event: PointerEvent) {
+  event.preventDefault();
+  event.stopPropagation();
+  const template = ctx.state.currentTemplate;
+  const effectiveTemplate = ctx.getEffectiveTemplate(template);
+  const layerId = ctx.refs.canvasSelectionBox.dataset.layerId;
+  if (!layerId) return;
+  const layer = effectiveTemplate?.layers.find((item) => item.id === layerId);
+  return { template, effectiveTemplate, layerId, layer };
 }

@@ -1,15 +1,10 @@
+import { initializeQaEnvironment } from "../runtime/environment.ts";
 import { runQaWrapper } from "../runtime/wrapper-runner.ts";
+import { closeCandidate } from "../workflow/closeout.ts";
+import { parseCommitMessage } from "../workflow/scope.ts";
 
-const messageIndex = process.argv.indexOf("-m");
-const commitMessage = messageIndex >= 0 ? process.argv[messageIndex + 1] : "";
-
-await runQaWrapper("qa:closeout", async ({ run }) => {
-  await run("checkpoint", "npm", ["run", "qa:checkpoint"]);
-  await run("coverage", "npm", ["run", "qa:coverage"]);
-  await run("build", "npm", ["run", "qa:build"]);
-
-  if (commitMessage) {
-    await run("git add", "git", ["add", "."]);
-    await run("git commit", "git", ["commit", "-m", commitMessage]);
-  }
-});
+initializeQaEnvironment();
+const message = parseCommitMessage(process.argv.slice(2));
+await runQaWrapper("qa:closeout", (session) =>
+  closeCandidate(message, session),
+);

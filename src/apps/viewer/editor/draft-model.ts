@@ -1,3 +1,4 @@
+import { stableSerialize } from "../../../shared/serialization/stable-json.js";
 import type { EditorSnapshot } from "./history.js";
 
 export const EDITOR_DRAFT_SCHEMA_VERSION = 1;
@@ -243,25 +244,6 @@ function cloneJsonValue(value: unknown): unknown {
   } catch {
     return undefined;
   }
-}
-
-function stableSerialize(value: unknown): string {
-  return JSON.stringify(sortValue(value));
-}
-
-function sortValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sortValue);
-  }
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-  return Object.keys(value)
-    .sort()
-    .reduce<Record<string, unknown>>((result, key) => {
-      result[key] = sortValue((value as Record<string, unknown>)[key]);
-      return result;
-    }, {});
 }
 
 function hashString(value: string): string {

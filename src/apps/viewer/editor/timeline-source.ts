@@ -1,3 +1,12 @@
+import {
+  optional,
+  finite,
+  isString,
+  isBoolean,
+  nullableString,
+  isList,
+  isRecord,
+} from "../../../shared/validation/values.js";
 import type {
   TimelineKeyframe,
   TimelineMotionPath,
@@ -117,31 +126,4 @@ function isHandles(value: unknown): boolean {
   return (
     isRecord(value) && [value.x1, value.x2, value.y1, value.y2].every(finite)
   );
-}
-
-function optional(
-  record: Record<string, unknown>,
-  key: string,
-  accepts: (value: unknown) => boolean,
-): boolean {
-  return !Object.hasOwn(record, key) || accepts(record[key]);
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-function isBoolean(value: unknown): value is boolean {
-  return typeof value === "boolean";
-}
-function nullableString(value: unknown): boolean {
-  return value === null || typeof value === "string";
-}
-function isList(value: unknown): value is unknown[] {
-  return Array.isArray(value);
-}
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

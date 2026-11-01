@@ -830,7 +830,7 @@ function inspectMarkdownTopology(
 }
 
 export function isSkillMarkdownPath(file: string) {
-  return /^\.agents\/skills\/(?:[^/]+\.md|[^/]+\/(?:SKILL\.md|references\/[^/]+\.md))$/.test(
+  return /^\.agents\/skills\/(?:[^/]+\.md|[^/]+\/(?:(?:SKILL|README)\.md|(?:references|examples)\/[^/]+\.md))$/.test(
     file,
   );
 }

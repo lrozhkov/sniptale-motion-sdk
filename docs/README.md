@@ -6,12 +6,14 @@ Code, schemas, tests, and deterministic policies own implementation detail. This
 - [i18n architecture](architecture/i18n-architecture.md): locale authority, fallback order, and adopted-surface rules.
 - [Effect host integration](architecture/effect-host-integration.md): control presentation, source and interval timing, RGBA ownership and transition composition.
 - [Effect object layout](architecture/effect-object-layout.md): local object coordinates, resize policy, selection geometry, and host compatibility.
-- [Живые HTML-сцены](architecture/dom-motion.md): отдельный DOM-контракт, камера, семантические слои и изоляция HTML.
+- [Live HTML scenes](architecture/dom-motion.md): the DOM contract, camera, semantic layers, and HTML isolation.
 - [Security model](security/security-model.md): trust boundaries, enforced controls, accepted trade-offs, and residual risks.
 - [Provenance](oss/provenance.md): first-party license source, dependency evidence, generated notices, and local asset policy.
 - [Release readiness](oss/release.md): local candidate checks, legal payload, blockers, and publication boundary.
-- [Локальный npm-комплект](tooling/npm-toolkit.md): установка, команды и ограничения промежуточного кандидата.
-- [Portable authoring skill](authoring/create-effect/SKILL.md): verified toolkit binding and the user workflow, with the [document contract](authoring/create-effect/references/effect-v1-contract.md), [graph runtime](authoring/create-effect/references/graph-runtime.md) and [authoring patterns](authoring/create-effect/references/authoring-patterns.md).
+- [Local npm toolkit](tooling/npm-toolkit.md): installation, commands, and local candidate limits.
+- [Portable authoring skill](authoring/create-effect/SKILL.md): checked toolkit binding and the user workflow, with the [document contract](authoring/create-effect/references/effect-v1-contract.md), [graph runtime](authoring/create-effect/references/graph-runtime.md) and [authoring patterns](authoring/create-effect/references/authoring-patterns.md).
+- [Technical debt and tool noise](engineering/tech-debt-report.md): exact reviewed findings, owners, evidence, and removal conditions.
+- [Implementation rules](engineering/implementation-rules.md): strict types, semantic ownership, state authority, and move planning.
 - [Code quality](tooling/code-quality.md): deterministic rule-to-check mapping and the explicit review-only set.
 
 Root policies remain at the repository root: [license](../LICENSE), [notice](../NOTICE), [contribution policy](../CONTRIBUTING.md), and [security support](../SECURITY.md).

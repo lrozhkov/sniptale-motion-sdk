@@ -55,9 +55,7 @@ export function createViewerEditorState(): ViewerEditorState {
       revision: 0,
       savePromise: null,
       saveTimer: null,
-      sessionId:
-        globalThis.crypto?.randomUUID?.() ??
-        `session-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      sessionId: globalThis.crypto.randomUUID(),
       status: "clean",
     },
     editorHistoryBusy: false,

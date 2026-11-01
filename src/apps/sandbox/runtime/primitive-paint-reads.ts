@@ -1,3 +1,4 @@
+import { unionPrimitiveBounds } from "../../../shared/geometry/primitive-bounds.js";
 import {
   shouldRecordPrimitivePaintRead,
   type PrimitivePaintBounds,
@@ -26,7 +27,7 @@ export function recordPrimitivePaintRead(
   const previous = reads.primitiveBounds?.get(id);
   reads.primitiveBounds?.set(
     id,
-    previous ? unionBounds(previous, bounds) : bounds,
+    previous ? unionPrimitiveBounds(previous, bounds) : bounds,
   );
 }
 
@@ -259,23 +260,6 @@ function transformPoint(
   return {
     x: matrix.a * x + matrix.c * y + matrix.e,
     y: matrix.b * x + matrix.d * y + matrix.f,
-  };
-}
-
-function unionBounds(
-  a: PrimitivePaintBounds,
-  b: PrimitivePaintBounds,
-): PrimitivePaintBounds {
-  const x = Math.min(a.x, b.x);
-  const y = Math.min(a.y, b.y);
-  const right = Math.max(a.x + a.width, b.x + b.width);
-  const bottom = Math.max(a.y + a.height, b.y + b.height);
-  return {
-    height: bottom - y,
-    layerId: a.layerId,
-    width: right - x,
-    x,
-    y,
   };
 }
 

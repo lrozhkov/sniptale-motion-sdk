@@ -11,24 +11,8 @@ import {
 } from "../model/motion-path-mutations.js";
 
 function copySelectedKeyframes(ctx: ViewerAppContext): boolean {
-  const template = ctx.state.currentTemplate;
-  const timeline = ctx.getEffectiveTimeline(template);
-  const refs = ctx.getSelectedKeyframeRefs();
-  if (!template || refs.length === 0) {
-    return false;
-  }
-  const clipboard: KeyframeClipboardEntry[] = [];
-  for (const ref of refs) {
-    const track = timeline.tracks.find((item) => item.id === ref.trackId);
-    const keyframe = track?.keyframes.find(
-      (item) => item.id === ref.keyframeId,
-    );
-    if (!track || !keyframe) return false;
-    clipboard.push({
-      keyframe: ctx.deps.deepClone(keyframe),
-      trackId: track.id,
-    });
-  }
+  const clipboard = snapshotSelectedKeyframes(ctx);
+  if (!clipboard) return false;
   ctx.state.keyframeClipboard = clipboard;
   return true;
 }
@@ -42,24 +26,8 @@ function pasteKeyframesAtPlayhead(ctx: ViewerAppContext): boolean {
 }
 
 function duplicateSelectedKeyframes(ctx: ViewerAppContext): boolean {
-  const template = ctx.state.currentTemplate;
-  const timeline = ctx.getEffectiveTimeline(template);
-  const refs = ctx.getSelectedKeyframeRefs();
-  if (!template || refs.length === 0) {
-    return false;
-  }
-  const clipboard: KeyframeClipboardEntry[] = [];
-  for (const ref of refs) {
-    const track = timeline.tracks.find((item) => item.id === ref.trackId);
-    const keyframe = track?.keyframes.find(
-      (item) => item.id === ref.keyframeId,
-    );
-    if (!track || !keyframe) return false;
-    clipboard.push({
-      keyframe: ctx.deps.deepClone(keyframe),
-      trackId: track.id,
-    });
-  }
+  const clipboard = snapshotSelectedKeyframes(ctx);
+  if (!clipboard) return false;
   const firstTime = Math.min(...clipboard.map((entry) => entry.keyframe.time));
   const frameDuration = getFrameDuration(ctx);
   return insertKeyframeClipboard(ctx, clipboard, {
@@ -307,4 +275,28 @@ export function createKeyframeClipboardActions(
       getContext,
     ),
   };
+}
+
+function snapshotSelectedKeyframes(
+  ctx: ViewerAppContext,
+): KeyframeClipboardEntry[] | null {
+  const template = ctx.state.currentTemplate;
+  const timeline = ctx.getEffectiveTimeline(template);
+  const refs = ctx.getSelectedKeyframeRefs();
+  if (!template || refs.length === 0) {
+    return null;
+  }
+  const clipboard: KeyframeClipboardEntry[] = [];
+  for (const ref of refs) {
+    const track = timeline.tracks.find((item) => item.id === ref.trackId);
+    const keyframe = track?.keyframes.find(
+      (item) => item.id === ref.keyframeId,
+    );
+    if (!track || !keyframe) return null;
+    clipboard.push({
+      keyframe: ctx.deps.deepClone(keyframe),
+      trackId: track.id,
+    });
+  }
+  return clipboard;
 }

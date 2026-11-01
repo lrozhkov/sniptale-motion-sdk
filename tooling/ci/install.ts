@@ -1,3 +1,5 @@
+import { downloadPinnedArchive, assertPinnedArchive } from "./download.cjs";
+import { constants } from "node:fs";
 import { createHash } from "node:crypto";
 import {
   appendFile,
@@ -8,7 +10,7 @@ import {
   mkdtemp,
   readFile,
   rm,
-  writeFile,
+  rename,
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { runOwnedChild } from "../process/child.ts";
@@ -20,20 +22,49 @@ if (process.platform !== "linux" || process.arch !== "x64")
   );
 const root = resolve(".tmp/ci");
 const bin = join(root, "bin");
+const archives = join(root, "archives");
 await mkdir(bin, { recursive: true });
+await mkdir(archives, { recursive: true });
 for (const tool of readToolchain().tools) {
   const directory = await mkdtemp(join(root, "download-"));
   try {
-    const response = await fetch(tool.url, {
-      signal: AbortSignal.timeout(120000),
-    });
-    if (!response.ok)
-      throw new Error(`Cannot download ${tool.name}: HTTP ${response.status}.`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (createHash("sha256").update(bytes).digest("hex") !== tool.sha256)
-      throw new Error(`SHA-256 mismatch for ${tool.name}.`);
-    const archive = join(directory, "download");
-    await writeFile(archive, bytes, { mode: 0o600 });
+    const archive = join(archives, tool.sha256);
+    const target = join(bin, tool.name);
+    try {
+      await assertPinnedArchive(archive, tool.sha256, 256 * 1024 * 1024);
+    } catch (error) {
+      if (
+        !error ||
+        typeof error !== "object" ||
+        !("code" in error) ||
+        error.code !== "ENOENT"
+      )
+        throw error;
+      let copied = false;
+      if (tool.member === null) {
+        try {
+          await assertPinnedArchive(target, tool.sha256, 256 * 1024 * 1024);
+          await copyFile(target, archive, constants.COPYFILE_EXCL);
+          copied = true;
+        } catch (error) {
+          if (
+            !error ||
+            typeof error !== "object" ||
+            !("code" in error) ||
+            (error.code !== "ENOENT" && error.code !== "ARCHIVE_DIGEST")
+          )
+            throw error;
+        }
+      }
+      if (!copied)
+        await downloadPinnedArchive(
+          tool.url,
+          archive,
+          tool.sha256,
+          256 * 1024 * 1024,
+        );
+      await assertPinnedArchive(archive, tool.sha256, 256 * 1024 * 1024);
+    }
     let executable = archive;
     if (tool.member !== null) {
       const extracted = await runOwnedChild(
@@ -46,9 +77,10 @@ for (const tool of readToolchain().tools) {
     }
     if (!(await lstat(executable)).isFile())
       throw new Error(`CI executable ${tool.name} must be a regular file.`);
-    const target = join(bin, tool.name);
-    await copyFile(executable, target);
-    await chmod(target, 0o700);
+    const staged = join(directory, "verified-executable");
+    await copyFile(executable, staged);
+    await chmod(staged, 0o700);
+    await rename(staged, target);
     const installed = await readFile(target);
     process.stdout.write(
       `${tool.name}@${tool.version} installed; executable sha256=${createHash("sha256").update(installed).digest("hex")}\n`,

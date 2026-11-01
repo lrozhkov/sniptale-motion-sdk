@@ -1,26 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { changedFiles } from "../workflow/candidate.ts";
+import { classifyScope } from "../workflow/scope.ts";
 import { runQaWrapper } from "../runtime/wrapper-runner.ts";
 
 const args = process.argv.slice(2);
 const filesIndex = args.indexOf("--files");
 const explicitFiles = filesIndex >= 0 ? args.slice(filesIndex + 1) : [];
-
-function run(command: string, commandArgs: readonly string[]): string {
-  try {
-    return execFileSync(command, commandArgs, { encoding: "utf8" }).trim();
-  } catch {
-    return "";
-  }
-}
-
-function changedFiles(): string[] {
-  const output = run("git", ["status", "--short"]);
-  return output
-    .split("\n")
-    .map((line) => line.trim().replace(/^[ MARCUD?!]+/, ""))
-    .filter(Boolean);
-}
 
 function lineCount(file: string): number | null {
   if (!existsSync(file)) return null;
@@ -29,6 +14,7 @@ function lineCount(file: string): number | null {
 
 await runQaWrapper("qa:preflight", async ({ writeStdout }) => {
   const targets = explicitFiles.length > 0 ? explicitFiles : changedFiles();
+  const scope = classifyScope(targets);
   const docs = new Set([
     "AGENTS.md",
     "docs/architecture/repository-overview.md",
@@ -54,6 +40,10 @@ await runQaWrapper("qa:preflight", async ({ writeStdout }) => {
     "",
     "Relevant docs:",
     ...[...docs].map((doc) => `- ${doc}`),
+    "",
+    `Owners: ${scope.owners.join(", ")}`,
+    `Required proof: checkpoint${scope.coverage ? ", coverage" : ""}${scope.build ? ", build" : ""}${scope.security ? ", security" : ""}`,
+    "Review owner boundaries, state authority, untrusted inputs, i18n, and applicable local review skills.",
     "",
     "Line-count risks:",
     ...(hotspots.length === 0

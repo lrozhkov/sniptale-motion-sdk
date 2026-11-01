@@ -59,6 +59,13 @@
       "publishedAt": "2026-10-07T10:08:14Z",
       "commit": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
       "release": "https://github.com/actions/upload-artifact/releases/tag/v7.0.2"
+    },
+    {
+      "name": "github/codeql-action/upload-sarif",
+      "version": "v4.38.2",
+      "publishedAt": "2026-09-24T10:27:53Z",
+      "commit": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+      "release": "https://github.com/github/codeql-action/releases/tag/v4.38.2"
     }
   ],
   "node": {

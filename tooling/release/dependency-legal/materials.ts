@@ -1,4 +1,4 @@
-import type { Dirent } from "node:fs";
+import { constants, type Dirent } from "node:fs";
 import type {
   LegalBundle,
   LegalManifestEntry,
@@ -692,9 +692,16 @@ async function regularFileBytes(
     "validated legal output path",
   );
   try {
-    const stat = await fs.lstat(destination);
-    if (!stat.isFile()) return undefined;
-    return await fs.readFile(destination);
+    const handle = await fs.open(
+      destination,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+    try {
+      if (!(await handle.stat()).isFile()) return undefined;
+      return await handle.readFile();
+    } finally {
+      await handle.close();
+    }
   } catch (error) {
     if (
       error !== null &&

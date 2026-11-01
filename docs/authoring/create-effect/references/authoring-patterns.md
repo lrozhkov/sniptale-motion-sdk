@@ -23,9 +23,9 @@ Generate the final local document instead of writing the root contract from memo
 sniptale-motion new orbit-title --kind standalone
 ```
 
-The starter already consumes required runtime inputs for `targetEffect` and `transition`, declares a visible control, connects leaf layers to clips, and supplies a graph that passes validation. Replace its visual design while preserving any still-needed closure relationships.
+The starter consumes required runtime inputs for `targetEffect` and `transition`. It declares a visible control and connects leaf layers to clips. Its graph passes validation. Replace its visual design while preserving any still-needed closure relationships.
 
-Keep the starter's full-duration `main` scene unless the concept truly needs multiple scenes. Remove a starter control, layer, or clip together with all of its uses; partial deletion produces explicit closure errors.
+Keep the starter's full-duration `main` scene unless the concept truly needs multiple scenes. Remove a starter control, layer, or clip together with all of its uses. Partial deletion produces explicit closure errors.
 
 ## Responsive placement
 
@@ -164,9 +164,9 @@ Add a matching x track:
 }
 ```
 
-Use `layerId: "card"` on a styled command. The runtime applies `card.x` automatically as a layer translation. Keep the command's own x position at its intended local coordinate; do not copy the same track read into command `x` or the movement doubles.
+Use `layerId: "card"` on a styled command. The runtime applies `card.x` automatically as a layer translation. Keep the command's own x position at its intended local coordinate. Do not copy the same track read into command `x` or the movement doubles.
 
-Use `id: "card.opacity"` and property `opacity` for implicit opacity. For rotation, either read `tracks.card.rotation` directly into a command `rotation`, or declare the canonical layer track and read `layers.card.rotation`; layer rotation is resolved but not applied automatically to arbitrary commands.
+Use `id: "card.opacity"` and property `opacity` for implicit opacity. For rotation, either read `tracks.card.rotation` directly into a command `rotation`, or declare the canonical layer track and read `layers.card.rotation`. Layer rotation is resolved but not applied automatically to arbitrary commands.
 
 ## Target effect composition
 
@@ -259,7 +259,7 @@ Render it with exactly one source:
 }
 ```
 
-Run validation with `--asset-root effects/orbit-title`. The validator calculates materialized integrity metadata in memory; do not manually embed a large data URL unless the delivery format specifically requires a single file.
+Run validation with `--asset-root effects/orbit-title`. The validator calculates materialized integrity metadata in memory. Do not manually embed a large data URL unless the delivery format specifically requires a single file.
 
 For SVG choreography, replace `image` with `svgParts` and use a preset:
 
@@ -378,8 +378,8 @@ Every pass is frame-local. Use repeated compositing for glow, not for stateful t
 
 ## Review checklist
 
-Before validation, confirm the kind and required inputs, one full-duration scene or intentional scene ranges, closed IDs, localized visible labels, safe relative assets, bounded loops, responsive geometry, and explicit layer/command ownership.
+Before validation, check the kind and required inputs. Check one full-duration scene or intentional scene ranges. Check closed IDs, localized visible labels, and safe relative assets. Check bounded loops, responsive geometry, and explicit layer/command ownership.
 
-After static validation, confirm that every control variant should alter pixels, every general track is read, every phase gates animation, every asset is used, and transparent versus opaque clearing matches the host composition.
+After static validation, check that every control variant should change pixels. Check that the graph reads every general track and uses every asset. Every phase must gate animation. Transparent or opaque clearing must match the host composition.
 
 After runtime proof, inspect the first, middle, and last frames plus entrance/exit boundaries. Check source/to ordering, text overflow, edge clipping, blend buildup, output-size assumptions, abrupt easing, invisible controls, and unintended black or transparent backgrounds.

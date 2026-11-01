@@ -1,51 +1,53 @@
-# Режиссура послойной сборки
+# Page Assembly Choreography
 
-## Композиция и ритм
+## Intent and pacing
 
-Качество трейлера здесь означает читаемую композицию, непрерывные траектории, различимые слои, распределённые события и чистый финал. Слова «кинематографично» не заменяют проверки кадров. Выбери один зрительный акцент и свяжи движение камеры со сборкой страницы; угловой пролёт с перспективой служит основой, но конкретная дуга и ракурс остаются творческим решением.
+The default intent combines a camera flyby, visible depth, overlapping events, and an exact final layout. A cinematic label does not replace frame inspection. Choose one visual accent. Relate camera motion to assembly. The camera arc and viewing angle remain creative choices.
 
-Первые 1–2 крупные содержательные панели должны начинать заполнять центр в ранней части ролика. Не показывай долго пустой контур страницы, одинокую кнопку «Назад» или только декорации. Навигационный возврат появляется вместе с заголовком или своим контекстом.
+One or two large content panels should occupy the center early. Avoid a long empty outline, isolated back button, or decorative-only opening. Navigation should arrive with its heading or context.
 
-Пример распределения событий для ролика длиной 6 секунд задаёт перекрывающиеся окна, а не обязательные времена:
+This six-second example defines overlapping windows, not mandatory times:
 
-| Время | Событие |
+| Time | Event |
 | --- | --- |
-| 0–1,8 с | Начало пролёта; две крупные панели заполняют центр; их подложки садятся перед содержимым. |
-| 1,2–3,5 с | Дополняющие панели прибывают несколькими параллельными волнами из разных направлений. |
-| 3–4,8 с | Нижние и боковые разделы, контекст заголовка и периферия собираются отдельными короткими последовательностями. |
-| 4,1–5,5 с | Верхний ряд действий падает быстро по кнопке; логотип совершает собственный непрерывный пролёт и занимает итоговое место. |
-| 5,5–6 с | Завершение геометрии и резкости; плавное проявление родных полос прокрутки, короткий читаемый финал. |
+| 0–1.8 s | Start the flyby. Two large panels fill the center. Backgrounds settle before content. |
+| 1.2–3.5 s | Supporting panels arrive in parallel waves from different directions. |
+| 3–4.8 s | Lower and side sections, heading context, and peripheral elements assemble in short sequences. |
+| 4.1–5.5 s | Top actions drop into place one button at a time. The logo follows its own continuous path. |
+| 5.5–6 s | Geometry and sharpness settle. Native scrollbars appear. Hold a short readable final state. |
 
-Планируй новые видимые события на протяжении большей части ролика. Не завершай весь интерфейс к середине, оставляя несколько секунд вращения готовой страницы. Не запускай всё одновременно и не выстраивай все разделы в строгую очередь: полезны группы из нескольких прилётов в разных зонах, между которыми остаётся ясная иерархия внимания.
+Plan new visible events through most of the duration. Do not finish the interface halfway through and leave only camera rotation. Avoid simultaneous arrival of every element or a strict queue of every section. Small overlapping groups can preserve a clear hierarchy of attention.
 
-## Геометрия прилёта
+## Arrival geometry
 
-Элементы входят из-за границ кадра или из явно читаемой дальней перспективы. Начальная позиция должна действительно находиться вне видимой области с учётом камеры и размеров блока; одной большой величины `x` или `z` недостаточно. Прозрачность набирается на пути, а не используется для внезапного появления готового элемента посреди кадра.
+Elements enter from outside the frame or from clearly distant perspective. Check the actual initial position against the camera and block size. A large `x` or `z` value alone does not prove that the element is offscreen. Increase visibility during travel instead of revealing a finished element in the center.
 
-Чередуй входы слева, справа, сверху, снизу и по диагонали. Меняй длину пути, начальный наклон и высоту над плоскостью страницы в соответствии с массой и ролью элемента. Содержимое прибывает со стороны зрителя выше своей подложки, как слои пирога, затем сближается с ней. Не допускай ощущения, что текст выползает изнутри белого блока или все части лежат на единой плоскости.
+Alternate left, right, top, bottom, and diagonal approaches. Relate travel length, initial tilt, and depth to each element's role and visual weight. Content approaches from the viewer's side above its background. It then settles toward that background. Text must not appear to emerge from inside a flat white panel.
 
-Для обычных панелей достаточно `depth`, `lift`, `spread` и `tilt*`; для индивидуального пути используй геометрические треки привязки. Заданный трек заменяет соответствующую составляющую обычного движения, поэтому сверяй комбинацию с [pose.ts](../../../../src/sdk/dom-motion/pose.ts) и [surface.ts](../../../../src/sdk/dom-motion/surface.ts). Числовые ключи должны дать непрерывный вход и мягкое торможение без случайной петли, бокового доворота после посадки или отскока текста.
+Use `depth`, `lift`, `spread`, and `tilt*` for normal panels. Use binding geometry tracks for individual paths. Each supplied track replaces its normal assembly component. Check combinations against [pose.ts](../../../../src/sdk/dom-motion/pose.ts) and [surface.ts](../../../../src/sdk/dom-motion/surface.ts). Numeric keys must produce continuous arrival and smooth deceleration without unintended loops, late turns, or text bounce.
 
-При авторинге пути в экранных координатах учитывай перспективу и обратное преобразование текущей камеры, иначе одинаковые локальные смещения будут выглядеть случайными. Умеренная перспектива и разница уровней важнее экстремального наклона. Смаз допускается на быстром участке входа; к посадке элементы должны быть резкими. Не размывай общий контейнер с трёхмерными потомками и не оставляй ореол на белых панелях.
+For paths authored in screen coordinates, account for perspective and the inverse camera transform. Prefer moderate perspective and distinct depth levels over extreme tilt. Motion blur may appear during fast travel. Settled elements must be sharp. Do not blur a common container with 3D descendants or leave halos on white panels.
 
-## Подложка и содержимое
+## Backgrounds and content
 
-Белая подложка является частью дизайна и остаётся в финале. Во время полёта её цвет постепенно уплотняется; не заменяй это общей `opacity` панели, которая схлопывает глубину потомков. SDK управляет плотностью подложки через `assembly`; `opacity` и `blur` у привязок запрещены валидатором.
+A white background remains part of the final design. Its color gains opacity during flight. Do not replace this with whole-panel opacity. The SDK controls background alpha through `assembly`. Validation rejects binding-wide `opacity` and `blur`.
 
-Для типичной панели начни с небольшой задержки содержимого, например `partDelay` около 0,15–0,25 секунды, и короткого `stagger`. Подбирай их по количеству потомков, чтобы подложка немного раньше заняла место, а текст и поля легли поверх неё. Если последний ключ `assembly=1` находится в момент `t`, последний из `N` потомков завершит сборку не раньше `t + partDelay + (N - 1) × stagger`. При отсутствии потомков задержка не нужна. Оставляй этот запас до финального восстановления стилей.
+A typical panel can start with `partDelay` near 0.15–0.25 seconds and a short `stagger`. Adjust both to its descendant count. The background should settle slightly before text and fields. With a final `assembly=1` key at `t`, descendant `N` completes no earlier than `t + partDelay + (N - 1) × stagger`. Leave that time before final style restoration. No descendant delay is needed without descendants.
 
-`parts` выбирает целые строки полей, заголовки, кнопки и секции; внешний выбранный потомок поглощает вложенные выбранные элементы. Не разбивай таблицу на узлы, которые разрушают её раскладку, и не обещай независимое движение каждого вложенного span при выбранной внешней строке.
+`parts` selects complete field rows, headings, buttons, and sections. An outer selected descendant absorbs nested selections. Do not split a table into nodes that break its layout. Do not promise independent movement of nested spans when their outer row is selected.
 
-Для составного исходного фона сначала используй существующий механизм SDK. Если требуется отдельная декоративная плоскость, перенеси только краску исходного контейнера в пустой DOM-элемент, сохраняя реальные текст и контролы единственными. Сверь размеры, border, padding и положение с эталоном. Не добавляй поздний Z-пролёт плоскости: он визуально расширяет её относительно уже посаженного родителя и может перекрывать белые панели. Не переноси фиксированные компенсации глубины из другого демо: проверь текущую реализацию и геометрию именно этой страницы.
+Use the existing SDK mechanism for compound backgrounds first. If a separate decorative plane is needed, move only the original container's paint to an empty DOM element. Keep real text and controls unique. Check dimensions, border, padding, and placement against the reference.
 
-## Детали финального акцента
+Do not add a late Z-axis arrival for the decorative plane. It can expand relative to its settled parent and cover white panels. Do not copy fixed depth compensation from another demo. Check the current page and implementation.
 
-Ряд верхних действий собирается ближе к концу. Его кнопки получают свои позиции коротким падением сверху с небольшим последовательным сдвигом времени; неподвижный контейнер сохраняет исходный размер. Применяй аналогичную атомарную сборку к боковым пунктам и иконкам, когда они есть в исходнике. Не подменяй это единым прилётом уже собранной полосы.
+## Final accent
 
-Если есть логотип, дай ему отличающийся более длинный путь с поздним появлением. Во время пролёта он может быть немного крупнее, а в итоге принимает точные исходные размер и позицию. Не задерживай его в центре: он движется непрерывно до своего места. Проследи, чтобы он не перекрывал читаемые поля и чтобы его акцент не мешал последним прилётам.
+Assemble top actions near the end. Give buttons short downward arrivals with small sequential delays. Keep their container at its original size. Apply similar individual assembly to side items and icons when present. Do not substitute one arrival of the completed toolbar.
 
-Когда элемент завершил посадку, локальные `x/y/z` и углы должны быть нейтральны, `scale=1`, а `assembly=1` для него и задержанных потомков. Глобальная камера заканчивает в нейтральной позе, `page.opacity=1`, `page.blur=0`. Цвет родных полос прокрутки проявляется в самом конце через `page.scrollbarOpacity`, с сохранением их зарезервированного места. Не переключай ширину полосы, `display` или раскладку для её появления.
+Give an existing logo a distinct longer path with a late arrival. It may appear slightly larger during travel. It must finish at the exact source size and position. Keep it moving continuously instead of holding it in the center. It must not obscure readable fields or compete with the last arrivals.
 
-## Исследование движения
+After settlement, local `x/y/z` and rotations are neutral. `scale=1` and `assembly=1` apply to the root and delayed descendants. The camera finishes neutral with `page.opacity=1` and `page.blur=0`. Reveal native scrollbars through `page.scrollbarOpacity` while preserving their reserved space. Do not change scrollbar width, `display`, or layout to reveal them.
 
-Предоставленные в исходном запросе [Greenlight Motion Gallery](https://greenlightdash.pro/greenlight-motion-gallery/), [gl-dash-workflows](https://github.com/wpsoul/gl-dash-workflows) и [Flute](https://github.com/webprodigies-org/flute) — возможные отправные точки исследования, а не обязательные зависимости или готовый стандарт качества. Изучай конкретное движение, если оно доступно: порядок слоёв, направление, ускорение, перекрытие событий и момент восстановления резкости. Переводи выбранные принципы в числовой таймлайн SDK и сохраняй исходный дизайн страницы. Если источник недоступен, используй доступные референсы и не заявляй, что исследовал его содержание.
+## Motion research
+
+[Greenlight Motion Gallery](https://greenlightdash.pro/greenlight-motion-gallery/), [gl-dash-workflows](https://github.com/wpsoul/gl-dash-workflows), and [Flute](https://github.com/webprodigies-org/flute) are possible research starting points. They are not dependencies or a fixed quality standard. Inspect accessible motion for layering, direction, acceleration, event overlap, and sharpness recovery. Translate selected principles into numeric SDK tracks while preserving the source design. If a source is unavailable, use another reference and do not claim to inspect its contents.

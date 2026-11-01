@@ -155,6 +155,20 @@ describe("architecture guardrails", () => {
         "node --require ./tooling/process/environment.cjs --import tsx tooling/release/npm/build.ts",
       "build:local":
         "node --require ./tooling/process/environment.cjs --import tsx tooling/build/run.ts --include-local-demo-pack",
+      "ci:proof":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/local.ts proof",
+      "ci:release":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/local.ts release",
+      "ci:codeql:install":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/codeql-install.ts",
+      "qa:codeql":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/codeql.ts",
+      "qa:registry":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/policy/technical-debt/report.ts",
+      "qa:docs":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/documentation/ste.ts",
+      "qa:duplicates":
+        "node --require ./tooling/process/environment.cjs node_modules/jscpd/run-jscpd.js --config tooling/configs/qa/jscpd.json src tooling",
       "ci:tools":
         "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/install.ts",
       "lint:ci":
@@ -400,11 +414,10 @@ describe("architecture guardrails", () => {
     expect(scripts.qa).toBe(
       "npm run qa:checkpoint && npm run qa:coverage && npm run qa:build",
     );
-    expect(collectNpmRunSteps(read("tooling/qa/wrappers/closeout.ts"))).toEqual(
+    expect(collectNpmRunSteps(read("tooling/qa/workflow/closeout.ts"))).toEqual(
       [
+        ["complete repository proof", "ci:proof"],
         ["checkpoint", "qa:checkpoint"],
-        ["coverage", "qa:coverage"],
-        ["build", "qa:build"],
       ],
     );
 

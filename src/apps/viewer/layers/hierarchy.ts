@@ -182,3 +182,21 @@ export function isLayerSubtreeContiguous(
   }
   return indexes.every((index, offset) => index === rootIndex + offset);
 }
+
+export function orderSiblingLayerRoots(
+  hierarchy: LayerHierarchyIndex,
+  rootIds: readonly string[],
+) {
+  const parentIds = new Set(
+    rootIds.map((id) => hierarchy.parentById.get(id)?.id ?? null),
+  );
+  if (parentIds.size !== 1) {
+    return null;
+  }
+  const orderedRootIds = [...rootIds].sort(
+    (left, right) =>
+      (hierarchy.indexById.get(left) ?? 0) -
+      (hierarchy.indexById.get(right) ?? 0),
+  );
+  return { parentIds, orderedRootIds };
+}

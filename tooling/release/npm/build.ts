@@ -1,3 +1,4 @@
+import { readCommandOutput } from "./command-output.ts";
 import {
   parseBuildManifest,
   checkBundledDependency,
@@ -214,7 +215,8 @@ await writeFile(
   `${JSON.stringify(manifest, null, 2)}\n`,
 );
 const packLog = join(output, "pack-result.json");
-const handle = await open(packLog, "wx");
+const handle = await open(packLog, "wx+");
+let packResult: unknown;
 try {
   execFileSync(
     process.execPath,
@@ -230,13 +232,11 @@ try {
     ],
     { cwd: stage, stdio: ["inherit", handle.fd, "inherit"] },
   );
+  packResult = JSON.parse(await readCommandOutput(handle));
 } finally {
   await handle.close();
 }
-const packed = parsePackResult(
-  JSON.parse(await readFile(packLog, "utf8")),
-  manifest,
-);
+const packed = parsePackResult(packResult, manifest);
 const stagedFiles = await collectFiles(stage);
 const actual = packed.files.map((file) => file.path).sort();
 if (JSON.stringify(actual) !== JSON.stringify(stagedFiles))

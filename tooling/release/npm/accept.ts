@@ -1,3 +1,4 @@
+import { readCommandOutput } from "./command-output.ts";
 import { parseEffectV1Fixture } from "../../test/fixtures/effect-v1-documents.ts";
 import {
   responseField,
@@ -433,9 +434,10 @@ async function run(
 ): Promise<unknown> {
   const log = join(evidence, `${label}.stdout`);
   const errorLog = join(evidence, `${label}.stderr`);
-  const stdout = await open(log, "wx");
+  const stdout = await open(log, "wx+");
   const stderr = await open(errorLog, "wx");
   let result;
+  let text = "";
   try {
     result = spawnSync(command, args, {
       cwd,
@@ -443,6 +445,12 @@ async function run(
       stdio: ["ignore", stdout.fd, stderr.fd],
       timeout: 60_000,
     });
+    if (
+      !result.error &&
+      result.status === expected &&
+      label !== "global-install"
+    )
+      text = await readCommandOutput(stdout);
   } finally {
     await stdout.close();
     await stderr.close();
@@ -454,6 +462,5 @@ async function run(
     `${label}: unexpected exit code; see ${errorLog}`,
   );
   steps.push({ label, exitCode: result.status });
-  const text = await readFile(log, "utf8");
   return label === "global-install" ? undefined : JSON.parse(text);
 }

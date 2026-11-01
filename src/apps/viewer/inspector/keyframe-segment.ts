@@ -1,3 +1,4 @@
+import { findAdjacentKeyframes } from "../timeline/model/adjacent-keyframes.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import { readInspectorNumber } from "./field-model.js";
 import type { MotionPathTrack } from "../../../shared/timeline/motion-path.js";
@@ -146,21 +147,14 @@ function updateKeyframeSegmentTiming(
   rawValue: number,
 ) {
   if (!Number.isFinite(rawValue)) return;
-  const template = ctx.state.currentTemplate;
-  const timeline = ctx.getEffectiveTimeline(template);
-  const track = timeline.tracks.find((item) => item.id === trackId);
-  const keyframes = [...(track?.keyframes ?? [])].sort(
-    (a, b) => a.time - b.time,
+  const segment = findAdjacentKeyframes(
+    ctx,
+    trackId,
+    fromKeyframeId,
+    toKeyframeId,
   );
-  const fromIndex = keyframes.findIndex(
-    (keyframe) => keyframe.id === fromKeyframeId,
-  );
-  const toIndex = keyframes.findIndex(
-    (keyframe) => keyframe.id === toKeyframeId,
-  );
-  if (!template || !track || fromIndex < 0 || toIndex !== fromIndex + 1) {
-    return;
-  }
+  if (!segment) return;
+  const { template, timeline, track, keyframes, fromIndex, toIndex } = segment;
   const minGap = 1 / Math.max(1, Number(ctx.refs.fpsInput.value) || 30);
   const previous = fromIndex > 0 ? keyframes[fromIndex - 1] : null;
   const next = toIndex < keyframes.length - 1 ? keyframes[toIndex + 1] : null;

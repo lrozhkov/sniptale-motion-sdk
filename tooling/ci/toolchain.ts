@@ -76,7 +76,11 @@ export function parseToolchain(value: unknown, now = Date.now()) {
     const action = record(entry);
     const name = text(action.name);
     const commit = text(action.commit);
-    if (!/^actions\/[a-z-]+$/u.test(name) || !/^[a-f0-9]{40}$/u.test(commit))
+    if (
+      (!/^actions\/[a-z-]+$/u.test(name) &&
+        name !== "github/codeql-action/upload-sarif") ||
+      !/^[a-f0-9]{40}$/u.test(commit)
+    )
       throw new Error(
         "CI Actions require an official owner and full commit SHA.",
       );

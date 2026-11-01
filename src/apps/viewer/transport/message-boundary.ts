@@ -1,3 +1,11 @@
+import {
+  isValidPresentedFrame,
+  isOptionalString,
+  isOptionalBoolean,
+  isOptionalNonNegativeFiniteNumber,
+  isOptionalStringArray,
+  isOptionalPreviewCacheStorage,
+} from "../../../shared/transport/frame-boundary.js";
 import type { SandboxRenderProfile } from "../../../sdk/render-profile.js";
 import { MessageKind } from "../../../sdk/protocol.js";
 import { parseSandboxRenderProfile } from "../../../sdk/render-profile.js";
@@ -181,63 +189,6 @@ function isRenderProgressPhase(
     value === "queued" ||
     value === "rendering" ||
     value === "preview-cache-store"
-  );
-}
-
-function isValidPresentedFrame(value: Record<string, unknown>): boolean {
-  return (
-    value.presented === true &&
-    // This field was added after direct presentation shipped. Keep it
-    // optional so a live viewer update can still consume an older worker.
-    (value.presentedAtEpochMs === undefined ||
-      (typeof value.presentedAtEpochMs === "number" &&
-        Number.isFinite(value.presentedAtEpochMs) &&
-        value.presentedAtEpochMs > 0)) &&
-    typeof value.presentedAtMs === "number" &&
-    Number.isFinite(value.presentedAtMs) &&
-    value.presentedAtMs >= 0 &&
-    typeof value.previewWidth === "number" &&
-    Number.isFinite(value.previewWidth) &&
-    value.previewWidth > 0 &&
-    typeof value.previewHeight === "number" &&
-    Number.isFinite(value.previewHeight) &&
-    value.previewHeight > 0
-  );
-}
-
-function isOptionalString(value: unknown): value is string | undefined {
-  return value === undefined || typeof value === "string";
-}
-
-function isOptionalBoolean(value: unknown): value is boolean | undefined {
-  return value === undefined || typeof value === "boolean";
-}
-
-function isOptionalNonNegativeFiniteNumber(
-  value: unknown,
-): value is number | undefined {
-  return (
-    value === undefined ||
-    (typeof value === "number" && Number.isFinite(value) && value >= 0)
-  );
-}
-
-function isOptionalStringArray(value: unknown): value is string[] | undefined {
-  return (
-    value === undefined ||
-    (Array.isArray(value) && value.every((item) => typeof item === "string"))
-  );
-}
-
-function isOptionalPreviewCacheStorage(
-  value: unknown,
-): value is "bitmap" | "mixed" | "none" | "png" | undefined {
-  return (
-    value === undefined ||
-    value === "bitmap" ||
-    value === "mixed" ||
-    value === "none" ||
-    value === "png"
   );
 }
 

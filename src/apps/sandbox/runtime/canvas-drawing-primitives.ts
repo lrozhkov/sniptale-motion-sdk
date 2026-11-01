@@ -1,3 +1,4 @@
+import { roundRect } from "../../../sdk/canvas-path.js";
 import type { RuntimeCanvasContext, RuntimeCanvas } from "./canvas-model.js";
 import type {
   TextDrawOptions,
@@ -6,7 +7,7 @@ import type {
   ParticlesDrawOptions,
   CodeLine,
 } from "./canvas-drawing-model.js";
-import { clamp, roundRect } from "./math.js";
+import { clamp } from "./math.js";
 
 export function drawText(
   context: RuntimeCanvasContext,

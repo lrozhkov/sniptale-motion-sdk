@@ -155,6 +155,26 @@ function appendInspectorSceneField(
   scene: EffectScene,
   field: InspectorTimingField,
 ) {
+  appendInspectorTimingField(ctx, scene, field, "scene", (value) =>
+    ctx.updateSceneProperty(scene.id, field.property, value),
+  );
+}
+function appendInspectorPhaseField(
+  ctx: ViewerAppContext,
+  phase: TimelinePhase,
+  field: InspectorTimingField,
+) {
+  appendInspectorTimingField(ctx, phase, field, "phase", (value) =>
+    ctx.updatePhaseProperty(phase.id, field.property, value),
+  );
+}
+function appendInspectorTimingField(
+  ctx: ViewerAppContext,
+  scene: EffectScene | TimelinePhase,
+  field: InspectorTimingField,
+  kind: "scene" | "phase",
+  update: (value: string | number) => void,
+) {
   const row = document.createElement("label");
   row.className = "inspector-row inspector-edit-row";
   const name = document.createElement("span");
@@ -165,8 +185,8 @@ function appendInspectorSceneField(
     field.kind === "text"
       ? ctx.deps.translateText(scene.label, scene.id)
       : String(ctx.roundInspectorNumber(scene[field.property]));
-  input.dataset.sceneId = scene.id;
-  input.dataset.sceneProperty = field.property;
+  input.dataset[`${kind}Id`] = scene.id;
+  input.dataset[`${kind}Property`] = field.property;
   input.disabled = Boolean(scene.locked);
   if (field.kind === "number") {
     input.min = String(field.min);
@@ -185,48 +205,7 @@ function appendInspectorSceneField(
           : ctx.deps.translateText(scene.label, scene.id);
       return;
     }
-    ctx.updateSceneProperty(scene.id, field.property, value);
-  });
-  row.append(name, input);
-  ctx.appendInspectorNode(row);
-}
-
-function appendInspectorPhaseField(
-  ctx: ViewerAppContext,
-  phase: TimelinePhase,
-  field: InspectorTimingField,
-) {
-  const row = document.createElement("label");
-  row.className = "inspector-row inspector-edit-row";
-  const name = document.createElement("span");
-  name.textContent = field.label;
-  const input = document.createElement("input");
-  input.type = field.kind === "text" ? "text" : "number";
-  input.value =
-    field.kind === "text"
-      ? ctx.deps.translateText(phase.label, phase.id)
-      : String(ctx.roundInspectorNumber(phase[field.property]));
-  input.dataset.phaseId = phase.id;
-  input.dataset.phaseProperty = field.property;
-  input.disabled = Boolean(phase.locked);
-  if (field.kind === "number") {
-    input.min = String(field.min);
-    input.max = String(field.max);
-    input.step = String(field.step);
-  }
-  input.addEventListener("change", () => {
-    const value =
-      field.kind === "number"
-        ? readInspectorNumber(input.valueAsNumber, field)
-        : input.value;
-    if (value === null) {
-      input.value =
-        field.kind === "number"
-          ? String(ctx.roundInspectorNumber(phase[field.property]))
-          : ctx.deps.translateText(phase.label, phase.id);
-      return;
-    }
-    ctx.updatePhaseProperty(phase.id, field.property, value);
+    update(value);
   });
   row.append(name, input);
   ctx.appendInspectorNode(row);

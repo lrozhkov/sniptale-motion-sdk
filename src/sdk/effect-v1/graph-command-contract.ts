@@ -1,3 +1,4 @@
+import { EFFECT_V1_COMMAND_OPS } from "./types.js";
 const MAX_GRAPH_DEPTH = 32;
 const MAX_GRAPH_NODES = 4096;
 const MAX_LOOP_ITERATIONS = 512;
@@ -165,4 +166,3 @@ export const COMMAND_KEYS: Record<string, Set<string>> = {
 function fields(...names: string[]): Set<string> {
   return new Set(["layerId", "op", ...names]);
 }
-import { EFFECT_V1_COMMAND_OPS } from "./types.js";

@@ -1,3 +1,4 @@
+import { applyLinkedTimelineMove } from "./linked-move.js";
 import { keyframeRefKey } from "./keyframe-reference.js";
 import { bindViewerAction } from "../../app/bind-action.js";
 import type { EditorTemplate } from "../../templates/model.js";
@@ -105,21 +106,7 @@ function applyPhaseMovePlan(
   const totalDuration = ctx.getEffectiveDuration(template);
   const delta =
     ctx.snapDuration(Math.abs(deltaTime)) * Math.sign(deltaTime || 0);
-  plan.phaseItems.forEach((item) => {
-    item.phase.start = ctx.snapTime(
-      ctx.deps.clamp(item.start + delta, 0, totalDuration - item.duration),
-    );
-  });
-  plan.keyframeItems.forEach((item) => {
-    item.keyframe.time = ctx.snapTime(
-      ctx.deps.clamp(item.time + delta, 0, totalDuration),
-    );
-  });
-  (plan.timeline.tracks ?? []).forEach((track) => {
-    track.keyframes = [...(track.keyframes ?? [])].sort(
-      (a, b) => a.time - b.time,
-    );
-  });
+  applyLinkedTimelineMove(ctx, plan, delta, totalDuration);
   ctx.state.timelineOverrides.set(
     template.id,
     ctx.deps.normalizeTimeline(plan.timeline, totalDuration),

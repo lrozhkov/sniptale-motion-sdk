@@ -1,0 +1,4 @@
+interface:
+  display_name: "Topology Plan Review"
+  short_description: "Review bounded SDK topology and move plans"
+  default_prompt: "Use $topology-plan-review to review the bounded SDK move plan and its consumer and proof maps."

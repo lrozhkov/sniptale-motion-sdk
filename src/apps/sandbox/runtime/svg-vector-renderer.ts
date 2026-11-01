@@ -1,3 +1,4 @@
+import { roundRect } from "../../../sdk/canvas-path.js";
 import type { RuntimeCanvasContext } from "./canvas-model.js";
 import type { drawImageAsset as DrawImageAsset } from "./render-assets.js";
 import type {
@@ -11,7 +12,7 @@ import {
   readSvgPartTransformResult,
   readSvgPartFilterResult,
 } from "./svg-vector-boundary.js";
-import { roundRect } from "./math.js";
+
 import { parseSvgAsset } from "./svg-vector-parser.js";
 
 export function drawSvgVectorAsset(

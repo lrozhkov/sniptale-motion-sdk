@@ -1,3 +1,9 @@
+import { commitCanvasMotionPathUpdate } from "./motion-path-commit.js";
+import {
+  normalizeTangent,
+  scaleTangent,
+  tangentLength,
+} from "./motion-path-tangent.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import type { EditorTimeline } from "../editor/model-types.js";
@@ -108,26 +114,7 @@ function mutateCanvasMotionPathTimeline(
     }
     return false;
   }
-  ctx.state.timelineOverrides.set(
-    template.id,
-    ctx.deps.normalizeTimeline(timeline, ctx.getEffectiveDuration(template)),
-  );
-  if (options.timeline !== false) {
-    if (ctx.renderTimelineModel) {
-      ctx.renderTimelineModel(template);
-    } else {
-      ctx.renderTimelineEditor(template);
-    }
-  }
-  if (options.inspector !== false) {
-    ctx.renderInspector();
-  }
-  if (options.selection !== false) {
-    ctx.updateCanvasSelectionBox();
-  }
-  if (options.render !== false) {
-    void ctx.renderCurrentFrame();
-  }
+  commitCanvasMotionPathUpdate(ctx, template, timeline, options);
   return true;
 }
 
@@ -182,24 +169,6 @@ function mirrorTangent(
   const direction = normalizeTangent(tangent);
   const length = tangentLength(opposite) || tangentLength(tangent);
   return scaleTangent(direction, -length);
-}
-
-function normalizeTangent(tangent: MotionPathTangent): MotionPathTangent {
-  const length = tangentLength(tangent);
-  return length > 0.0001
-    ? { x: tangent.x / length, y: tangent.y / length }
-    : { x: 1, y: 0 };
-}
-
-function scaleTangent(
-  tangent: MotionPathTangent,
-  scale: number,
-): MotionPathTangent {
-  return { x: tangent.x * scale, y: tangent.y * scale };
-}
-
-function tangentLength(tangent: MotionPathTangent): number {
-  return Math.hypot(Number(tangent?.x) || 0, Number(tangent?.y) || 0);
 }
 
 export function reportSpatialMotionPathFailure(ctx: ViewerAppContext): void {

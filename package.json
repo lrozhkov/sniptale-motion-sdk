@@ -51,7 +51,14 @@
     "lint:tooling": "node --require ./tooling/process/environment.cjs node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json tooling tests/smoke tests/smoke.spec.ts",
     "lint:tests": "node --require ./tooling/process/environment.cjs node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json tests",
     "ci:tools": "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/install.ts",
-    "lint:ci": "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/lint.ts"
+    "lint:ci": "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/lint.ts",
+    "ci:proof": "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/local.ts proof",
+    "ci:release": "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/local.ts release",
+    "ci:codeql:install": "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/codeql-install.ts",
+    "qa:codeql": "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/codeql.ts",
+    "qa:duplicates": "node --require ./tooling/process/environment.cjs node_modules/jscpd/run-jscpd.js --config tooling/configs/qa/jscpd.json src tooling",
+    "qa:docs": "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/documentation/ste.ts",
+    "qa:registry": "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/policy/technical-debt/report.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
@@ -62,6 +69,7 @@
     "@vitest/coverage-v8": "5.0.5",
     "esbuild": "0.28.2",
     "fflate": "0.8.3",
+    "jscpd": "5.4.1",
     "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
     "oxlint-tsgolint": "7.0.2005",

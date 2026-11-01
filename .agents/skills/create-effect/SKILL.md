@@ -1,6 +1,6 @@
 ---
 name: create-effect
-description: Create, modify, validate, preview, and prove local Sniptale Motion Effect v1 JSON documents and their assets without changing the SDK engine. Use when Codex needs to prepare a standalone animation, a target effect over source media, a transition between media inputs, or explain what the declarative Effect v1 engine can render and how local effect bundles must be organized.
+description: Create, change, validate, preview, and prove local Effect v1 documents and assets without changing the SDK engine. Use for standalone animations, effects over source media, and transitions. Explain supported rendering and local bundle organization.
 ---
 
 # Create a Sniptale effect
@@ -11,7 +11,7 @@ Create only declarative Effect v1 data. Keep the SDK implementation static and l
 
 Read [../../../docs/authoring/create-effect/references/effect-v1-contract.md](../../../docs/authoring/create-effect/references/effect-v1-contract.md) completely before creating or changing an effect. Read [../../../docs/authoring/create-effect/references/graph-runtime.md](../../../docs/authoring/create-effect/references/graph-runtime.md) completely before designing its render graph. Read [../../../docs/authoring/create-effect/references/authoring-patterns.md](../../../docs/authoring/create-effect/references/authoring-patterns.md) when implementing any nontrivial animation, runtime-input composition, asset usage, timeline, or repeated geometry.
 
-The shared references illustrate the installed toolkit project layout. In this source checkout, use the ignored paths and repository commands below; asset-root semantics are the same. Treat these skill references as the working authoring manual. Consult `schemas/sniptale-effect-v1.schema.json` or `src/sdk/effect-v1/` only when the validator reports a case that the manual does not cover or when the user explicitly asks to audit the engine contract.
+The shared references show the installed toolkit project layout. In this source checkout, use the ignored paths and repository commands below. Asset-root semantics are the same. Treat these skill references as the working authoring manual. Consult `schemas/sniptale-effect-v1.schema.json` or `src/sdk/effect-v1/` only for a validator case absent from the manual. Also consult them when the user explicitly requests an engine-contract audit.
 
 ## Keep the effect local
 
@@ -24,9 +24,9 @@ Use one ignored directory per effect:
     └── <local files>
 ```
 
-Use the `*.sniptale-effect.json` suffix and safe identifiers made from letters, digits, `.`, `_`, and `-`. Keep asset paths relative to the effect directory, for example `assets/logo.svg`. Never place authored effects in `src/`, `public/`, `docs/`, fixtures, schemas, or a committed pack. Never edit runtime, SDK, viewer, sandbox, tooling, package, schema, or test files merely to register an effect. The engine imports the JSON document directly; it does not require a source-code registry entry.
+Use the `*.sniptale-effect.json` suffix and safe identifiers made from letters, digits, `.`, `_`, and `-`. Keep asset paths relative to the effect directory, for example `assets/logo.svg`. Never place authored effects in `src/`, `public/`, `docs/`, fixtures, schemas, or a committed pack. Never edit runtime, SDK, viewer, sandbox, tooling, package, schema, or test files merely to register an effect. The engine imports the JSON document directly. It does not require a source-code registry entry.
 
-Before handing off, verify that Git ignores the local bundle:
+Before handing off, check that Git ignores the local bundle:
 
 ```bash
 git check-ignore -v .tmp/effects/<effect-id>/<effect-id>.sniptale-effect.json
@@ -72,7 +72,7 @@ Validate after every meaningful edit. Keep `-s` and `--json` so stdout is machin
 npm run -s effect:validate -- .tmp/effects/<effect-id>/<effect-id>.sniptale-effect.json --asset-root .tmp/effects/<effect-id> --json
 ```
 
-Fix every error and warning. Do not weaken the document to bypass closure checks; wire the intended feature into the graph or delete it.
+Fix every error and warning. Do not weaken the document to bypass closure checks. Wire the intended feature into the graph or remove it.
 
 Run browser-backed import and runtime proof after static validation passes:
 
@@ -80,7 +80,9 @@ Run browser-backed import and runtime proof after static validation passes:
 npm run effect:prove -- .tmp/effects/<effect-id>/<effect-id>.sniptale-effect.json --asset-root .tmp/effects/<effect-id>
 ```
 
-Accept the result only when the proof reports `ok: true`, nonblank frames, expected time variation, runtime-input isolation, observable control changes, complete binding coverage, real asset transfers and successful rapid-seek/sandbox-restart recovery. The proof deliberately restarts the sandbox; do not require a zero restart delta. Review the start, middle, end, phase boundaries, text placement, clipping, opacity, and transitions for visual intent; automated proof establishes execution, not taste.
+Accept the result only when proof reports `ok: true`. Require nonblank frames, expected time variation, runtime-input isolation, and observable control changes. Require complete binding coverage, real asset transfers, and successful rapid-seek/sandbox-restart recovery. The proof deliberately restarts the sandbox. Do not require a zero restart delta.
+
+Review the start, middle, end, phase boundaries, text placement, clipping, opacity, and transitions for visual intent. Automated proof establishes execution, not taste.
 
 ## Respect the boundary
 

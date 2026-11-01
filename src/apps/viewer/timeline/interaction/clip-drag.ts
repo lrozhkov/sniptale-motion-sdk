@@ -1,3 +1,4 @@
+import { admitTimelineRangeDrag } from "./range-drag-admission.js";
 import type { TimelineRangeEditMode } from "../model/move-plan-model.js";
 import type { EffectClip } from "../../../../sdk/types.js";
 import type { EditorTemplate } from "../../templates/model.js";
@@ -13,19 +14,8 @@ function beginClipDrag(
   mode: TimelineRangeEditMode,
   measureElement: HTMLElement | null = null,
 ) {
-  if (event.button !== 0) {
-    return;
-  }
-  const target = event.currentTarget;
-  if (!(target instanceof HTMLElement)) return;
-  ctx.state.pointerDragCleanup?.();
-  if (event.altKey || event.shiftKey) {
-    ctx.beginTimelineMarqueeSelection(event, { allowBlockStart: true });
-    return;
-  }
-  if (mode === "move" && (event.shiftKey || event.metaKey || event.ctrlKey)) {
-    return;
-  }
+  const target = admitTimelineRangeDrag(ctx, event, mode);
+  if (!target) return;
   if (mode === "move" && !ctx.isSelectedClip(layerId)) {
     ctx.selectClipBlock(layerId);
     ctx.setInspectorTab("timing");

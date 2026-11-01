@@ -55,7 +55,7 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
   fit.append(camera);
   element.append(fit);
   host.append(element);
-  let disposed = false;
+  const lifetime = new AbortController();
   let loaded = false;
   let parts: DomMotionPart[] = [];
   let world: ReturnType<typeof createDomMotionWorld> | null = null;
@@ -133,13 +133,13 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
       "load",
       () => {
         void (async () => {
-          if (disposed) return;
+          if (lifetime.signal.aborted) return;
           const doc = frame.contentDocument;
           if (!doc) throw new Error("DOM motion source unavailable");
           // Layout starts font loads before ready resolves and boxes are measured.
           void doc.body.offsetHeight;
           await doc.fonts.ready;
-          if (disposed) return;
+          if (lifetime.signal.aborted) return;
           parts = buildDomMotionParts(doc, document.bindings);
           scrollbars = createDomMotionScrollbars(doc);
           world = createDomMotionWorld(doc, parts);
@@ -153,7 +153,7 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
     frame.srcdoc = prepareDomMotionMarkup(document.html, owner);
   });
   function render(rawTime: unknown): void {
-    if (disposed) throw new Error("DOM motion surface disposed");
+    if (lifetime.signal.aborted) throw new Error("DOM motion surface disposed");
     if (!loaded) throw new Error("DOM motion surface is not ready");
     if (typeof rawTime !== "number" || !Number.isFinite(rawTime))
       throw new Error("Invalid DOM motion time");
@@ -255,8 +255,8 @@ export function createDomMotionSurface(host: HTMLElement, input: unknown) {
     scrollbars!.render(read("page", "scrollbarOpacity", time, 1));
   }
   function dispose() {
-    if (disposed) return;
-    disposed = true;
+    if (lifetime.signal.aborted) return;
+    lifetime.abort();
     cancelLoad?.();
     observer.disconnect();
     world?.restore();

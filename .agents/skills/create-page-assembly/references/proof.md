@@ -1,45 +1,51 @@
-# Доказательство качества и запуск
+# Proof and Viewer Handoff
 
-## Авторитет реализации
+## Implementation authority
 
-Не дублируй весь формат JSON. Используй [model.ts](../../../../src/sdk/dom-motion/model.ts) и [validation.ts](../../../../src/sdk/dom-motion/validation.ts) при авторинге. В документе нужны HTML, исходный viewport, RU/EN-названия, привязки и числовой таймлайн с пустым `phases`. Каждый корень должен иметь свой `assembly`; `page.assembly` недопустим. ID трека имеет форму `<target>.<property>`, времена ключей строго возрастают, easing принадлежит исходящему ключу. Убедись, что последний отложенный потомок помещается в `duration`.
+Use [model.ts](../../../../src/sdk/dom-motion/model.ts) and [validation.ts](../../../../src/sdk/dom-motion/validation.ts) instead of duplicating the JSON format. The document needs HTML, source viewport, Russian and English labels, bindings, and a numeric timeline with empty `phases`. Each root requires its own `assembly`. `page.assembly` is invalid.
 
-Проверь документ через `parseDomMotionDocument` из [публичной точки входа](../../../../src/sdk/dom-motion/index.ts), а затем смонтируй `createDomMotionSurface(host, input)` в браузере и дождись `surface.ready`. Валидный JSON ещё не доказывает корректность селекторов и DOM. Каждый `selector` с возможным `closest` должен разрешаться ровно в один элемент; корни не вложены друг в друга. Ограничения количества частей проверяются и после загрузки страницы. После проверки освободи поверхность через `dispose`.
+Track IDs use `<target>.<property>`. Key times increase strictly. Easing belongs to the outgoing key. The last delayed descendant must finish within `duration`.
 
-SDK санитизирует HTML и не исполняет скрипты исходного сайта. Проверь, что шрифты и встроенные ресурсы действительно загрузились, а запрещённый внешний ресурс не оставил дырку. Для динамического приложения используй подготовленное статическое состояние DOM, а не надежду на запуск его JavaScript в sandbox. Подготовленную страницу сравни с исходным дизайном до сборки.
+Parse through the [public entrypoint](../../../../src/sdk/dom-motion/index.ts). Then mount `createDomMotionSurface(host, input)` in a browser and wait for `surface.ready`. Valid JSON does not prove valid selectors or DOM structure. Each `selector` with optional `closest` must resolve to exactly one element. Roots must not nest. Dispose the surface after inspection.
 
-## Проверка движения
+The SDK also checks part-count limits after loading. It sanitizes HTML and does not execute source-site scripts. Check that fonts and embedded resources load. A rejected external resource must not leave missing content. Use a prepared static DOM state for dynamic applications and compare it with the source design before assembly.
 
-Сохрани карту событий с фактическими временами начала и полной посадки корней и потомков. Просмотри обычный autoplay от начала до конца в штатном SDK. Затем проверь кадры входа, первую посадку подложки, посадку её текста, перекрытие параллельных волн, поздние кнопки, логотип и финал. Используй кадры и короткое видео для анализа ритма; неподвижный контактный лист не доказывает плавность.
+## Motion proof
 
-Проверь произвольный порядок `render(time)`, например поздний кадр → ранний → финал → тот же поздний, и повторный запуск в viewer. Одинаковое время должно давать одинаковую геометрию, стили и картинку. Убедись, что ожидание `ready` исключает пустое превью, autoplay действительно меняет время, ошибок браузера нет, а слои и треки доступны штатному таймлайну. `surface.bindingReads` помогает обнаружить непотребляемые треки; сравнивай с включёнными треками и фактически выбранными слоями.
+Record actual start and complete-settlement times for roots and descendants. Watch normal autoplay from start to end in the SDK. Inspect arrival, the first background settlement, its text settlement, overlapping waves, late buttons, the logo, and the final state. Frames and short video help assess rhythm. A still contact sheet does not prove smoothness.
 
-Перед передачей ответь по наблюдаемым кадрам:
+Test arbitrary `render(time)` order, such as late frame, early frame, final frame, and the same late frame. Test viewer restart. The same time must produce the same geometry, styles, and image. Check that readiness prevents empty preview and autoplay advances time. Check browser errors and normal timeline access to layers and tracks.
 
-- Центр рано занят крупными панелями, без пустой рамки и одинокой навигации.
-- Есть несколько параллельных потоков, разные направления и видимая разница глубин; UI продолжается собираться ближе к концу.
-- Подложки набирают плотность на пути и садятся перед содержимым; текст не возникает изнутри одной плоскости.
-- Поздние действия и периферия собираются по частям; логотип летит без паузы и заканчивает в исходном месте.
-- Посаженные элементы резкие, не дрейфуют; белые панели не сереют и не вспыхивают; края не расширяются; полосы прокрутки проявляются только в финале.
+Use `surface.bindingReads` to investigate unused tracks. Compare it with enabled tracks and selected layers.
 
-Если частота кадров или плавность заметно проседают, сначала измерь реальный playback и количество анимируемых узлов. Уменьшай лишние мелкие части, избыточные ключи и дорогой blur без потери задумки; не обещай фиксированный FPS по одиночным снимкам.
+Check these results from observed frames:
 
-## Переход в исходный CSS
+- Large panels fill the center early without an empty outline or isolated navigation.
+- Parallel flows use different directions and visible depth. Assembly continues toward the end.
+- Backgrounds gain opacity during travel and settle before content. Text does not emerge from one flat plane.
+- Late actions and peripheral elements assemble individually. The logo moves continuously to its source position.
+- Settled elements stay sharp and stable. White panels do not turn gray or flash. Edges do not expand. Scrollbars appear only at the end.
 
-Отдельно найди момент `T`, когда камера, привязки и задержанные потомки закончены и SDK восстанавливает исходные стили. Проверяй около него `T − 0,2`, `T − 1/30`, `T − 0,001`, `T` и следующий кадр, а также конец `duration`. Отделяй конец геометрии от последующего проявления полос прокрутки. При обнаружении дефекта добавь точный кадр в доказательства и сравни его с соседними.
+If playback becomes slow, measure actual playback and animated-node count. Reduce unnecessary small parts, excessive keys, and expensive blur while preserving intent. Do not promise a fixed frame rate from still images.
 
-Сравни X/Y, ширину и высоту панелей, строк, кнопок и колонок с подготовленным неподвижным эталоном. Пока камера ещё движется, сравнивай координаты в плоскости страницы, а не экранные bounding boxes перспективного кадра. На финале сравнивай исходную геометрию напрямую. Для декоративной подложки сравнивай её проекцию с проекцией родителя; к концу они должны совпасть без позднего изменения относительной ширины.
+## Return to source CSS
 
-Нативная полоса часто скрывает ошибку на машине с overlay-scrollbar. Если страница имеет прокручиваемые контейнеры, повтори переход с реально зарезервированным gutter, например `scrollbar-gutter: stable`, и проверь, что среда действительно дала ненулевую ширину полосы. Сверяй исходный и анимируемый варианты в одинаковых условиях. Правые колонки не должны сдвигаться ни до, ни после возвращения родной полосы. Не маскируй сдвиг финальным боковым треком. Для изменений владельца scroll layout ориентируйся на [браузерные регрессии](../../../../tests/dom-motion-scroll-layout.test.ts), включая RTL и особенности box sizing.
+Identify time `T` when the camera, bindings, and delayed descendants finish and the SDK restores original styles. Inspect `T − 0.2`, `T − 1/30`, `T − 0.001`, `T`, the next frame, and `duration`. Distinguish geometry completion from later scrollbar reveal. Include an exact failing frame and its neighbors in defect evidence.
 
-Проверяй сохранение узлов и значений полей, восстановление исходных стилей анимируемых элементов и предков и полный снимок финала. Антиалиасинг и CSSOM могут давать небольшую разницу растеризации или округление; укажи измеренный характер разницы. Не принимай объяснение «погрешность» без проверки: сдвиг X/Y, смена ширины колонок, цветов или размеров контролов требуют исправления.
+Compare panel, row, button, and column positions and dimensions with the still reference. While the camera moves, compare coordinates in the page plane. Perspective screen bounds are not equivalent. Compare final geometry directly. A decorative background and its parent must finish with matching projections and no late relative-width change.
 
-## Подключение к оригинальному viewer
+Overlay scrollbars can hide a gutter defect. For scrollable containers, repeat the transition with a real reserved gutter, such as `scrollbar-gutter: stable`. Check that the environment supplies nonzero scrollbar width. Compare source and animated states under identical conditions. Right columns must not shift before or after native scrollbars return. Do not conceal a shift with a final horizontal track.
 
-Каталог разработки читает `.tmp/dom-motion/<id>.sniptale-dom-motion.json`; правило загрузки принадлежит [local-dom-motion.ts](../../../../tooling/vite/local-dom-motion.ts). Разбирай JSON до записи в каталог: один испорченный документ может нарушить загрузку всего списка. Не выноси файлы за его границы через symlink.
+For scroll-layout owner changes, inspect [browser regressions](../../../../tests/dom-motion-scroll-layout.test.ts), including RTL and box sizing. Check node and field-value preservation. Check restored styles on animated elements and ancestors. Compare a complete final screenshot.
 
-Используй уже работающий viewer, иначе запусти из корня `npm run dev`. Текущие адреса заданы в [конфигурации viewer](../../../../tooling/configs/vite/viewer.ts) и [sandbox](../../../../tooling/configs/vite/sandbox.ts); сейчас это 4177 и 4178. Порт стороннего демо не заменяет проверку SDK. Если запуск не удался, проверь процесс и вывод; не меняй sandbox или системные настройки как часть авторинга.
+Antialiasing and CSSOM may produce small raster or rounding differences. State the measured difference. Do not accept an unexplained error margin. Position, column width, color, or control-size changes require correction.
 
-Открой `http://127.0.0.1:<viewer-port>/?scene=<document-id>&autoplay=1&rev=<revision>`, убедись, что выбран нужный документ, превью заполнено и время движется. После обновления каталога используй свежую ревизию ссылки. Проверь импорт и экспорт DOM-документа через viewer и его последующую загрузку. Этот режим сейчас не предоставляет Canvas-кэш и MP4; не выводи из наличия общих кнопок поддержку этих операций.
+## Use the SDK viewer
 
-Доказательства, browser output и временные генераторы остаются в `.tmp/`. Для правок SDK, viewer или tooling выполни соответствующие проверки из корневого `AGENTS.md`, включая focused tests и обязательные QA; сама новая анимация не требует изменения движка. Передай ссылку на проверенную сцену, путь к документу, краткий результат геометрической и визуальной проверки и конкретные оставшиеся ограничения, если они есть.
+The development catalog reads `.tmp/dom-motion/<id>.sniptale-dom-motion.json` through [local-dom-motion.ts](../../../../tooling/vite/local-dom-motion.ts). Parse before writing into that catalog. One invalid document can break the list. Do not escape its boundary through symlinks.
+
+Use the running viewer or start `npm run dev` from the repository root. The [viewer](../../../../tooling/configs/vite/viewer.ts) and [sandbox](../../../../tooling/configs/vite/sandbox.ts) configurations currently use ports 4177 and 4178. Another demo server does not prove SDK integration. If startup fails, inspect its owned process and output. Do not change sandbox or system settings for authoring.
+
+Open `http://127.0.0.1:<viewer-port>/?scene=<document-id>&autoplay=1&rev=<revision>`. Check document selection, nonempty preview, and advancing time. Use a fresh revision URL after catalog changes. Check viewer import, export, and reimport of the DOM document. Common toolbar buttons do not imply Canvas cache or MP4 support in this mode.
+
+Keep evidence, browser output, and temporary generators under `.tmp/`. SDK, viewer, and tooling changes require the root `AGENTS.md` loop and applicable focused proof. A new animation alone does not require engine changes. Deliver the checked scene URL, document path, geometry and visual results, and concrete remaining limitations.

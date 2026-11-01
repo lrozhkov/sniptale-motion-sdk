@@ -257,16 +257,7 @@ export function withCommandStyle(
   const c = state.context;
   c.save();
   try {
-    c.globalAlpha *=
-      valueOr(command.alpha, 1, state) * valueOr(layer?.opacity, 1, state);
-    if (command.blend !== undefined) {
-      c.globalCompositeOperation = sanitizeBlend(command.blend);
-    }
-    if (command.filter !== undefined) {
-      c.filter = resolveFilter(command.filter, state);
-    }
-    if (command.shadow !== undefined) applyShadow(command.shadow, state);
-    c.translate(valueOr(layer?.x, 0, state), valueOr(layer?.y, 0, state));
+    applyCommandStyle(command, layer, state);
     draw();
   } finally {
     c.restore();
@@ -282,16 +273,7 @@ export async function withSavedState(
   const c = state.context;
   c.save();
   try {
-    c.globalAlpha *=
-      valueOr(command.alpha, 1, state) * valueOr(layer?.opacity, 1, state);
-    if (command.blend !== undefined) {
-      c.globalCompositeOperation = sanitizeBlend(command.blend);
-    }
-    if (command.filter !== undefined) {
-      c.filter = resolveFilter(command.filter, state);
-    }
-    if (command.shadow !== undefined) applyShadow(command.shadow, state);
-    c.translate(valueOr(layer?.x, 0, state), valueOr(layer?.y, 0, state));
+    applyCommandStyle(command, layer, state);
     await draw();
   } finally {
     c.restore();
@@ -390,4 +372,22 @@ function readBitmapAsset(value: unknown): BitmapAsset | null {
       ? { height: value.height }
       : {}),
   };
+}
+
+function applyCommandStyle(
+  command: CommandStyle,
+  layer: EffectV1Layer | null,
+  state: RenderState,
+): void {
+  const c = state.context;
+  c.globalAlpha *=
+    valueOr(command.alpha, 1, state) * valueOr(layer?.opacity, 1, state);
+  if (command.blend !== undefined) {
+    c.globalCompositeOperation = sanitizeBlend(command.blend);
+  }
+  if (command.filter !== undefined) {
+    c.filter = resolveFilter(command.filter, state);
+  }
+  if (command.shadow !== undefined) applyShadow(command.shadow, state);
+  c.translate(valueOr(layer?.x, 0, state), valueOr(layer?.y, 0, state));
 }

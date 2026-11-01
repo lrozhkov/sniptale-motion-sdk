@@ -1,7 +1,7 @@
 require("../process/environment.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
-const crypto = require("node:crypto");
+const { downloadPinnedArchive } = require("./download.cjs");
 const { spawnSync } = require("node:child_process");
 
 async function main() {
@@ -46,20 +46,13 @@ async function main() {
     fs.mkdirSync(path.dirname(directory), { recursive: true });
     const stage = fs.mkdtempSync(path.join(path.dirname(directory), "stage-"));
     try {
-      const response = await fetch(lock.url, {
-        signal: AbortSignal.timeout(120000),
-      });
-      if (!response.ok)
-        throw new Error(
-          `Cannot download npm bootstrap: HTTP ${response.status}.`,
-        );
-      const bytes = Buffer.from(await response.arrayBuffer());
-      if (
-        crypto.createHash("sha256").update(bytes).digest("hex") !== lock.sha256
-      )
-        throw new Error("npm bootstrap SHA-256 mismatch.");
       const archive = path.join(stage, "npm.tgz");
-      fs.writeFileSync(archive, bytes, { mode: 0o600 });
+      await downloadPinnedArchive(
+        lock.url,
+        archive,
+        lock.sha256,
+        64 * 1024 * 1024,
+      );
       const extracted = spawnSync("tar", ["-xzf", archive, "-C", stage], {
         stdio: "inherit",
         shell: false,

@@ -1,3 +1,8 @@
+import {
+  normalizeTangent,
+  scaleTangent,
+  tangentLength,
+} from "./motion-path-tangent.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type { MotionPathPointRef } from "./motion-path-reference.js";
 import type {
@@ -134,24 +139,6 @@ function createDefaultPointTangents(
       ? scaleTangent(direction, distance(point, next) / 3)
       : { x: 0, y: 0 },
   };
-}
-
-function normalizeTangent(tangent: MotionPathTangent): MotionPathTangent {
-  const length = tangentLength(tangent);
-  return length > 0.0001
-    ? { x: tangent.x / length, y: tangent.y / length }
-    : { x: 1, y: 0 };
-}
-
-function scaleTangent(
-  tangent: MotionPathTangent,
-  scale: number,
-): MotionPathTangent {
-  return { x: tangent.x * scale, y: tangent.y * scale };
-}
-
-function tangentLength(tangent: MotionPathTangent): number {
-  return Math.hypot(Number(tangent?.x) || 0, Number(tangent?.y) || 0);
 }
 
 function distance(left: MotionPathTangent, right: MotionPathTangent): number {

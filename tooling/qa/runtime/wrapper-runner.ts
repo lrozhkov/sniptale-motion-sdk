@@ -52,6 +52,7 @@ export function createQaRun({
   const logRelativePath = relative(repoRoot, logPath).replaceAll("\\", "/");
   const redactions = collectSensitiveValues(environment, sensitiveValues);
   let closed = false;
+  let status: "passed" | "failed" | "running" = "running";
 
   writeLog(
     [
@@ -107,10 +108,10 @@ export function createQaRun({
       );
   }
 
-  async function close(status: "passed" | "failed") {
+  async function close(result: "passed" | "failed") {
     if (closed) return;
     writeLog(
-      `\nstatus=${status}\nfinishedAt=${clock().toISOString()}\nlog=${logRelativePath}\n`,
+      `\nstatus=${result}\nfinishedAt=${clock().toISOString()}\nlog=${logRelativePath}\n`,
     );
     closed = true;
     await new Promise<void>((resolve, reject) => {
@@ -118,11 +119,15 @@ export function createQaRun({
       log.once("close", resolve);
       log.end();
     });
+    status = result;
   }
 
   return {
     logPath,
     logRelativePath,
+    get status() {
+      return status;
+    },
     run,
     writeStderr: (value: string) => writeTerminal(terminalErr, value),
     writeStdout: (value: string) => writeTerminal(terminalOut, value),

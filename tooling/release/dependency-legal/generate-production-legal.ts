@@ -1,37 +1,21 @@
+import { prepareLegalOutput } from "./output.ts";
 import type { LegalOutputOptions } from "./model.ts";
 import { diagnosticValue } from "../../../src/sdk/diagnostic-value.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import {
-  assertContainedAbsolute,
-  loadLegalSettings,
-  privateReportDirectory,
-  rejectSymlinkSegments,
-  writePrivateFile,
-} from "./boundary.ts";
-import { assembleLegalBundle, publishLegalBundle } from "./materials.ts";
+import { privateReportDirectory, writePrivateFile } from "./boundary.ts";
+import { publishLegalBundle } from "./materials.ts";
 
 function option(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-export async function runProductionLegalGeneration({
-  repoRoot = process.cwd(),
-  outputRoot = repoRoot,
-  policyPath,
-}: LegalOutputOptions = {}) {
-  const root = path.resolve(repoRoot);
-  const output = assertContainedAbsolute(root, outputRoot, "legal output root");
-  const outputRelative = path.relative(root, output).split(path.sep).join("/");
-  if (outputRelative !== "")
-    await rejectSymlinkSegments(root, outputRelative, "legal output root");
-  const settings = await loadLegalSettings(root, policyPath);
-  const bundle = await assembleLegalBundle({
-    repoRoot: root,
-    settingsPath: policyPath,
-  });
+export async function runProductionLegalGeneration(
+  options: LegalOutputOptions = {},
+) {
+  const { root, output, settings, bundle } = await prepareLegalOutput(options);
   await publishLegalBundle({ bundle, outputRoot: output });
   const reports = await privateReportDirectory(root, settings.reportDirectory);
   await writePrivateFile(
