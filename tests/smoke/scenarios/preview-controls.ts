@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { SmokeRuntime } from "../../../tooling/test/smoke/runtime.ts";
 
 export async function assertPreviewControlsLayout({
@@ -100,6 +100,7 @@ export async function assertPreviewControlsLayout({
           ),
           false,
         );
+        await assertPreviewKeyboard(page, locale);
         await page.screenshot({
           path: join(
             outputDir,
@@ -135,4 +136,51 @@ export async function assertPreviewControlsLayout({
   } finally {
     await context.close();
   }
+}
+
+async function assertPreviewKeyboard(page: Page, locale: string) {
+  const playback = page.locator("#playButton");
+  const previousLabel = await playback.getAttribute("aria-label");
+  assert.ok(previousLabel);
+  const hundred = page.locator('button[data-preview-zoom="100"]');
+  await hundred.focus();
+  await page.keyboard.press("Space");
+  await expect(hundred).toHaveAttribute("aria-pressed", "true");
+  await expect(playback).toHaveAttribute("aria-label", previousLabel);
+  await page.locator('button[data-preview-zoom="fit"]').click();
+  const fullscreen = page.locator("#fullscreenPreviewButton");
+  await fullscreen.focus();
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Boolean(
+          document.fullscreenElement ||
+          document.querySelector(".preview-fullscreen"),
+        ),
+      ),
+    )
+    .toBe(true);
+  await fullscreen.focus();
+  await page.keyboard.press("Tab");
+  assert.notEqual(
+    await page.evaluate(() => document.activeElement?.id),
+    "sandboxFrame",
+  );
+  const slider = page.locator("#fullscreenTimeSlider");
+  await expect(slider).toHaveAccessibleName(
+    locale === "ru" ? "Позиция воспроизведения" : "Playback position",
+  );
+  await slider.focus();
+  await page.keyboard.press("Escape");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Boolean(
+          document.fullscreenElement ||
+          document.querySelector(".preview-fullscreen"),
+        ),
+      ),
+    )
+    .toBe(false);
 }

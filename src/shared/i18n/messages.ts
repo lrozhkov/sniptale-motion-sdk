@@ -111,6 +111,10 @@ export const messages = {
         ru: "Путь изоляции на канвасе",
       },
       effectSandbox: { en: "Effect sandbox", ru: "Песочница эффекта" },
+      playbackPosition: {
+        en: "Playback position",
+        ru: "Позиция воспроизведения",
+      },
       fullscreenControls: {
         en: "Fullscreen playback controls",
         ru: "Управление полноэкранным воспроизведением",

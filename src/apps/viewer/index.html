@@ -566,6 +566,8 @@
               <input
                 id="fullscreenTimeSlider"
                 type="range"
+                aria-label="Позиция воспроизведения"
+                data-i18n-aria-label="viewer.a11y.playbackPosition"
                 min="0"
                 max="4"
                 step="0.001"
@@ -737,6 +739,8 @@
           <iframe
             id="sandboxFrame"
             class="sandbox-frame"
+            tabindex="-1"
+            aria-hidden="true"
             sandbox="allow-scripts allow-same-origin"
             data-sandbox-port="4178"
             title="Effect sandbox"

@@ -15,6 +15,7 @@ function handleGlobalSpaceKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
   if (
     event.code !== "Space" ||
     ctx.isTextEntryControl(event.target) ||
+    ctx.isButtonLikeControl(event.target) ||
     ctx.hasOpenDropdownMenu() ||
     Boolean(document.querySelector("dialog[open]"))
   ) {
@@ -45,6 +46,16 @@ function handleGlobalKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
     event.code === "Escape" &&
     (ctx.refs.mp4ExportDialog?.open || ctx.refs.resetDraftDialog?.open)
   ) {
+    return;
+  }
+  if (
+    event.code === "Escape" &&
+    !ctx.refs.previewMediaMenu?.open &&
+    !ctx.state.actionsMenuOpen &&
+    ctx.isPreviewFullscreenActive()
+  ) {
+    event.preventDefault();
+    void ctx.togglePreviewFullscreen();
     return;
   }
   const primaryModifier = event.metaKey || event.ctrlKey;
@@ -134,11 +145,6 @@ function handleGlobalKeydown(ctx: ViewerAppContext, event: KeyboardEvent) {
     if (ctx.state.actionsMenuOpen) {
       ctx.setActionsMenuOpen(false);
       ctx.refs.appActionsButton?.focus();
-      return;
-    }
-    if (ctx.refs.stageWrap.classList.contains("preview-fullscreen")) {
-      ctx.refs.stageWrap.classList.remove("preview-fullscreen");
-      ctx.syncFullscreenButton();
       return;
     }
     if (ctx.exitCanvasGroupIsolation()) {

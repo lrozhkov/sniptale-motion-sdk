@@ -54,7 +54,7 @@ describe("renderer contract sample ownership", () => {
     { mode: "restarted", commits: 0, ready: false },
     { mode: "changed-template", commits: 0, ready: false },
     { mode: "replaced-source", commits: 0, ready: false },
-    { mode: "revised-model", commits: 0, ready: false },
+    { mode: "revised-model", commits: 1, ready: true },
   ] as const)(
     "handles $mode sample responses and releases bitmaps",
     async ({ mode, commits, ready }) => {
@@ -64,12 +64,31 @@ describe("renderer contract sample ownership", () => {
       expect(commitAssets).toHaveBeenCalledTimes(commits);
       expect(commitModel).toHaveBeenCalledTimes(commits);
       expect(ctx.state.rendererContractCoverageReady).toBe(ready);
-      expect(close).toHaveBeenCalledOnce();
+      expect(close).toHaveBeenCalledTimes(mode === "revised-model" ? 2 : 1);
+      expect(ctx.requestSandbox).toHaveBeenCalledTimes(
+        mode === "revised-model" ? 2 : 1,
+      );
       expect(ctx.state.rendererContractRefreshing).toBe(false);
       expect(ctx.state.rendererContractRefreshPromise).toBeNull();
       expect(ctx.state.rendererContractRefreshTemplate).toBeNull();
     },
   );
+
+  it("shares current-model resampling across concurrent callers", async () => {
+    const { ctx, template, close, commitAssets, commitModel } =
+      createSampleContext("revised-model");
+    await Promise.all([
+      ctx.refreshRendererContractCoverage(template),
+      ctx.refreshRendererContractCoverage(template),
+    ]);
+    expect(ctx.requestSandbox).toHaveBeenCalledTimes(2);
+    expect(commitAssets).toHaveBeenCalledOnce();
+    expect(commitModel).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(ctx.state.rendererContractCoverageReady).toBe(true);
+    expect(ctx.state.rendererContractRefreshing).toBe(false);
+    expect(ctx.state.rendererContractRefreshPromise).toBeNull();
+  });
 
   it("releases the bitmap and refresh ownership when the asset commit fails", async () => {
     const { ctx, template, close, commitAssets, commitModel } =
@@ -135,8 +154,8 @@ function createSampleContext(
   const ctx = createContext({});
   const template = { id: "effect", duration: 2, moduleId: "module" };
   const reads = createEmptyBindingReads();
-  const bitmap = createNativeBitmapFixture();
-  const close = vi.spyOn(bitmap, "close");
+  const close = vi.fn<() => void>();
+  let revised = false;
   let snapshot = {
     ...template,
     layers: [],
@@ -197,7 +216,16 @@ function createSampleContext(
         ctx.state.currentTemplate = { ...template, id: "other" };
       if (mode === "replaced-source")
         ctx.state.currentTemplate = { ...template };
-      if (mode === "revised-model") snapshot = { ...snapshot };
+      if (mode === "revised-model" && !revised) {
+        snapshot = { ...snapshot };
+        revised = true;
+      }
+      const bitmap = createNativeBitmapFixture();
+      const originalClose = bitmap.close.bind(bitmap);
+      vi.spyOn(bitmap, "close").mockImplementation(() => {
+        close();
+        originalClose();
+      });
       return {
         kind: "renderFrameResult",
         requestId: "sample",

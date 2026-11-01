@@ -109,6 +109,36 @@ async function runRendererContractCoverageRefresh(
   template: EditorTemplateSource,
 ): Promise<RendererBindingReads> {
   const runtimeGeneration = ctx.state.sandboxRuntimeGeneration;
+  while (
+    (await sampleRendererContractCoverage(ctx, template, runtimeGeneration)) ===
+    "superseded"
+  ) {
+    // Keep one refresh owner while a newer model replaces an in-flight sample.
+  }
+  return ctx.state.rendererContractReads;
+}
+
+function coverageSampleDisposition(
+  ctx: ViewerAppContext,
+  template: EditorTemplateSource,
+  effectiveTemplate: EditorTemplate,
+  runtimeGeneration: number,
+): "superseded" | "aborted" | null {
+  if (
+    ctx.state.currentTemplate !== template ||
+    ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
+  )
+    return "aborted";
+  return ctx.getRenderTemplateSnapshot(template) === effectiveTemplate
+    ? null
+    : "superseded";
+}
+
+async function sampleRendererContractCoverage(
+  ctx: ViewerAppContext,
+  template: EditorTemplateSource,
+  runtimeGeneration: number,
+): Promise<"ready" | "superseded" | "aborted"> {
   if (ctx.state.renderInFlight || ctx.state.renderQueued) {
     await ctx.waitForRenderIdle();
   }
@@ -116,7 +146,7 @@ async function runRendererContractCoverageRefresh(
     ctx.state.currentTemplate !== template ||
     ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
   ) {
-    return ctx.state.rendererContractReads;
+    return "aborted";
   }
   ctx.state.rendererContractTemplateId = template.id;
   ctx.state.rendererContractCoverageReady = false;
@@ -126,12 +156,12 @@ async function runRendererContractCoverageRefresh(
   ctx.mergeRendererContractReads(template.id, ctx.state.lastBindingReads);
   if (!ctx.state.loadedModules.has(template.moduleId ?? "")) {
     if (!(await ctx.ensureModuleLoaded(template.moduleId ?? ""))) {
-      return ctx.state.rendererContractReads;
+      return "aborted";
     }
   }
   const effectiveTemplate = ctx.getRenderTemplateSnapshot(template);
   if (!effectiveTemplate) {
-    return ctx.state.rendererContractReads;
+    return "aborted";
   }
   const duration = effectiveTemplate.duration;
   const width = ctx.refs.canvas.width;
@@ -148,7 +178,7 @@ async function runRendererContractCoverageRefresh(
     if (
       !(await waitForContractSampleSlot(ctx, template.id, runtimeGeneration))
     ) {
-      return ctx.state.rendererContractReads;
+      return "aborted";
     }
     await renderContractSample(
       ctx,
@@ -165,31 +195,31 @@ async function runRendererContractCoverageRefresh(
         width: sampleSize.width,
       },
     );
-    if (
-      ctx.getRenderTemplateSnapshot(template) !== effectiveTemplate ||
-      ctx.state.currentTemplate !== template ||
-      ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
-    ) {
-      return ctx.state.rendererContractReads;
-    }
+    const disposition = coverageSampleDisposition(
+      ctx,
+      template,
+      effectiveTemplate,
+      runtimeGeneration,
+    );
+    if (disposition) return disposition;
     if (
       ctx.buildRendererBindingCoverage(effectiveTemplate).unboundCount === 0
     ) {
       break;
     }
   }
-  if (
-    ctx.getRenderTemplateSnapshot(template) !== effectiveTemplate ||
-    ctx.state.currentTemplate !== template ||
-    ctx.state.sandboxRuntimeGeneration !== runtimeGeneration
-  ) {
-    return ctx.state.rendererContractReads;
-  }
+  const disposition = coverageSampleDisposition(
+    ctx,
+    template,
+    effectiveTemplate,
+    runtimeGeneration,
+  );
+  if (disposition) return disposition;
   ctx.state.rendererContractCoverageReady = true;
   ctx.renderValidationPanel(template);
   ctx.renderRendererBindingsPanel(template);
   ctx.updateExportAvailability();
-  return ctx.state.rendererContractReads;
+  return "ready";
 }
 
 async function renderContractSample(
