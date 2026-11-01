@@ -59,34 +59,10 @@ export async function renderProofFrame(
       after: previous?.sequence ?? 0,
     },
   );
-  const result: unknown = await page.evaluate(async (attribute) => {
-    const canvas = document.querySelector("#previewCanvas");
-    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("PROOF_CANVAS");
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) throw new Error("PROOF_CANVAS_CONTEXT");
-    const observation = document
-      .querySelector("#renderStats")
-      ?.getAttribute(attribute);
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    let occupied = 0;
-    let lit = 0;
-    for (let index = 0; index < pixels.length; index += 4 * 97) {
-      if ((pixels[index + 3] ?? 0) > 0) occupied += 1;
-      if (
-        (pixels[index] ?? 0) +
-          (pixels[index + 1] ?? 0) +
-          (pixels[index + 2] ?? 0) >
-        24
-      )
-        lit += 1;
-    }
-    const hash = [
-      ...new Uint8Array(await crypto.subtle.digest("SHA-256", pixels)),
-    ]
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
-    return { hash, occupied, lit, observation };
-  }, FRAME_OBSERVATION_ATTRIBUTE);
+  const result: unknown = await page.evaluate(
+    readProofFrame,
+    FRAME_OBSERVATION_ATTRIBUTE,
+  );
   if (
     result === null ||
     typeof result !== "object" ||
@@ -120,4 +96,35 @@ export async function renderProofFrame(
     time: observation.time,
     observation,
   };
+}
+
+export async function readProofFrame(attribute: string) {
+  const canvas = document.querySelector("#previewCanvas");
+  if (!(canvas instanceof HTMLCanvasElement)) throw new Error("PROOF_CANVAS");
+  const snapshot = new OffscreenCanvas(canvas.width, canvas.height);
+  const context = snapshot.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("PROOF_CANVAS_CONTEXT");
+  context.drawImage(canvas, 0, 0);
+  const observation = document
+    .querySelector("#renderStats")
+    ?.getAttribute(attribute);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  let occupied = 0;
+  let lit = 0;
+  for (let index = 0; index < pixels.length; index += 4 * 97) {
+    if ((pixels[index + 3] ?? 0) > 0) occupied += 1;
+    if (
+      (pixels[index] ?? 0) +
+        (pixels[index + 1] ?? 0) +
+        (pixels[index + 2] ?? 0) >
+      24
+    )
+      lit += 1;
+  }
+  const hash = [
+    ...new Uint8Array(await crypto.subtle.digest("SHA-256", pixels)),
+  ]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return { hash, occupied, lit, observation };
 }
