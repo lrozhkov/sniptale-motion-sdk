@@ -4,8 +4,11 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
+import { spawn } from "node:child_process";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createQaRun, runQaWrapper } from "./wrapper-runner.ts";
@@ -19,6 +22,120 @@ afterEach(() => {
 });
 
 describe("QA wrapper run logs", () => {
+  it("honors external cancellation, closes the log and restores signal listeners", async () => {
+    const previous = process.exitCode;
+    const interruptListeners = process.listenerCount("SIGINT");
+    const terminateListeners = process.listenerCount("SIGTERM");
+    const controller = new AbortController();
+    const output = createOutput();
+    let continued = false;
+    try {
+      const session = await runQaWrapper(
+        "qa:abort-fixture",
+        async (session) => {
+          await session.run("cancel command", process.execPath, [
+            "-e",
+            'process.stdout.write("READY");setInterval(()=>{},1000);',
+          ]);
+          continued = true;
+        },
+        {
+          repoRoot: createRoot(),
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(8000),
+          ]),
+          terminalOut: {
+            write: (chunk) => {
+              output.write(chunk);
+              if (String(chunk).includes("READY"))
+                controller.abort(new Error("external cancellation"));
+              return true;
+            },
+          },
+          terminalErr: output,
+        },
+      );
+      expect(continued).toBe(false);
+      expect(process.exitCode).toBe(130);
+      expect(readFileSync(session.logPath, "utf8")).toContain("status=failed");
+      expect(output.value()).toContain("external cancellation");
+      expect(process.listenerCount("SIGINT")).toBe(interruptListeners);
+      expect(process.listenerCount("SIGTERM")).toBe(terminateListeners);
+    } finally {
+      process.exitCode = previous;
+    }
+  }, 15000);
+  it.skipIf(process.platform === "win32").each([
+    ["SIGINT", 130],
+    ["SIGTERM", 143],
+  ] as const)(
+    "flushes the failed log before exiting on %s",
+    async (signal, expectedCode) => {
+      const root = createRoot();
+      const harness = join(root, "wrapper.ts");
+      const owner = pathToFileURL(
+        resolve("tooling/qa/runtime/wrapper-runner.ts"),
+      ).href;
+      writeFileSync(
+        harness,
+        `import {runQaWrapper} from ${JSON.stringify(owner)};
+const session=await runQaWrapper('qa:signal-fixture',async(session)=>{
+await session.run('waiting command',process.execPath,['-e', 'process.stdout.write("CHILD_READY");setInterval(()=>{},1000);']);
+session.writeStdout('UNEXPECTED_NEXT_STEP');
+},{repoRoot:${JSON.stringify(root)}});
+process.stdout.write('FINAL_LOG='+session.logPath+'\\n');`,
+      );
+      const child = spawn(
+        process.execPath,
+        [
+          "--require",
+          resolve("tooling/process/environment.cjs"),
+          "--import",
+          "tsx",
+          harness,
+        ],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      let interrupted = false;
+      const completed = new Promise<number | null>((resolveExit, reject) => {
+        child.once("error", reject);
+        child.once("close", resolveExit);
+      });
+      child.stdout.on("data", (chunk: Buffer) => {
+        stdout += chunk.toString();
+        if (!interrupted && stdout.includes("CHILD_READY")) {
+          interrupted = true;
+          child.kill(signal);
+        }
+      });
+      child.stderr.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      const watchdog = setTimeout(() => child.kill("SIGKILL"), 10000);
+      try {
+        expect(await completed).toBe(expectedCode);
+        expect(stderr).toContain(`QA interrupted by ${signal}`);
+        expect(stdout).not.toContain("UNEXPECTED_NEXT_STEP");
+        const finalLog = stdout.split("FINAL_LOG=")[1]?.trim();
+        expect(finalLog).toBeDefined();
+        if (!finalLog)
+          throw new Error("Wrapper did not report its closed log.");
+        const log = readFileSync(finalLog, "utf8");
+        expect(log).toContain("status=failed");
+        expect(log).toContain("finishedAt=");
+        expect(log).toContain(`QA interrupted by ${signal}`);
+      } finally {
+        clearTimeout(watchdog);
+        if (child.exitCode === null && child.signalCode === null)
+          child.kill("SIGKILL");
+        await completed;
+      }
+    },
+    15000,
+  );
   it.each([0, -1, 1.5, 256, "0"])(
     "does not turn a failed wrapper into success for exitCode=%s",
     async (exitCode) => {

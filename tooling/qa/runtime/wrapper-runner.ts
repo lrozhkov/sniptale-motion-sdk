@@ -1,5 +1,5 @@
 import { resolveToolCommand } from "../../process/command.ts";
-import { spawn } from "node:child_process";
+import { runOwnedChild } from "../../process/child.ts";
 import { randomUUID } from "node:crypto";
 import { createWriteStream, mkdirSync, openSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -18,6 +18,7 @@ export type QaRunOptions = {
   terminalErr?: TerminalWriter;
   environment?: NodeJS.ProcessEnv;
   sensitiveValues?: readonly unknown[];
+  signal?: AbortSignal;
 };
 export type QaCommandOptions = { env?: NodeJS.ProcessEnv };
 export type QaRunSession = ReturnType<typeof createQaRun>;
@@ -31,6 +32,7 @@ export function createQaRun({
   terminalErr = process.stderr,
   environment = process.env,
   sensitiveValues = [],
+  signal,
 }: QaRunOptions = {}) {
   if (!wrapperId) throw new Error("QA wrapper id is required.");
 
@@ -83,51 +85,26 @@ export function createQaRun({
     writeLog(`command=${commandLine}\n`);
     const commandStartedAt = Date.now();
 
-    await new Promise<void>((resolve, reject) => {
-      const invocation = resolveToolCommand(command, args, environment);
-      const child = spawn(invocation.command, invocation.args, {
-        shell: false,
-        cwd: repoRoot,
-        env: options.env ?? environment,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      let settled = false;
-
-      child.stdout.on("data", (chunk: Buffer) =>
-        writeTerminal(terminalOut, chunk),
-      );
-      child.stderr.on("data", (chunk: Buffer) =>
-        writeTerminal(terminalErr, chunk),
-      );
-      child.once("error", (error) => {
-        if (settled) return;
-        settled = true;
-        reject(error);
-      });
-      child.once("close", (code, signal) => {
-        if (settled) return;
-        settled = true;
-        const durationMs = Date.now() - commandStartedAt;
-        const outcome =
-          code === 0
-            ? `exitCode=0 durationMs=${durationMs}`
-            : `exitCode=${code ?? "null"} signal=${signal ?? "none"} durationMs=${durationMs}`;
-        writeLog(`${outcome}\n`);
-        if (code === 0) {
-          resolve();
-          return;
-        }
-        const error = Object.assign(
-          new Error(
-            `${label} failed with ${
-              signal ? `signal ${signal}` : `exit code ${code ?? 1}`
-            }.`,
-          ),
-          { exitCode: code !== null && Number.isInteger(code) ? code : 1 },
-        );
-        reject(error);
-      });
+    const invocation = resolveToolCommand(command, args, environment);
+    const result = await runOwnedChild(invocation.command, invocation.args, {
+      cwd: repoRoot,
+      env: options.env ?? environment,
+      stdio: ["ignore", "pipe", "pipe"],
+      ...(signal ? { signal } : {}),
+      stdout: (chunk) => writeTerminal(terminalOut, chunk),
+      stderr: (chunk) => writeTerminal(terminalErr, chunk),
     });
+    const durationMs = Date.now() - commandStartedAt;
+    writeLog(
+      `exitCode=${result.code ?? "null"} signal=${result.signal ?? "none"} durationMs=${durationMs}\n`,
+    );
+    if (result.code !== 0)
+      throw Object.assign(
+        new Error(
+          `${label} failed with ${result.signal ? `signal ${result.signal}` : `exit code ${result.code ?? 1}`}.`,
+        ),
+        { exitCode: result.code !== null && result.code > 0 ? result.code : 1 },
+      );
   }
 
   async function close(status: "passed" | "failed") {
@@ -158,9 +135,25 @@ export async function runQaWrapper(
   execute: (session: QaRunSession) => Promise<void>,
   options: Omit<QaRunOptions, "wrapperId"> = {},
 ): Promise<QaRunSession> {
-  const session = createQaRun({ wrapperId, ...options });
+  const cancellation = new AbortController();
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, cancellation.signal])
+    : cancellation.signal;
+  const interrupt = () =>
+    cancellation.abort(
+      Object.assign(new Error("QA interrupted by SIGINT."), { exitCode: 130 }),
+    );
+  const terminate = () =>
+    cancellation.abort(
+      Object.assign(new Error("QA interrupted by SIGTERM."), { exitCode: 143 }),
+    );
+  const session = createQaRun({ wrapperId, ...options, signal });
+  process.on("SIGINT", interrupt);
+  process.on("SIGTERM", terminate);
   try {
+    signal.throwIfAborted();
     await execute(session);
+    signal.throwIfAborted();
     await session.close("passed");
   } catch (error) {
     const detail =
@@ -178,7 +171,12 @@ export async function runQaWrapper(
       error.exitCode > 0 &&
       error.exitCode <= 255
         ? error.exitCode
-        : 1;
+        : signal.aborted
+          ? 130
+          : 1;
+  } finally {
+    process.off("SIGINT", interrupt);
+    process.off("SIGTERM", terminate);
   }
   return session;
 }

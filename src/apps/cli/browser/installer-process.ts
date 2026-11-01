@@ -1,33 +1,8 @@
-import { spawn, type ChildProcess } from "node:child_process";
-import { join } from "node:path";
-
-function killGroup(child: ChildProcess, signal: NodeJS.Signals): void {
-  if (!child.pid) return;
-  try {
-    process.kill(-child.pid, signal);
-  } catch (error) {
-    if (!(error instanceof Error && "code" in error && error.code === "ESRCH"))
-      child.kill(signal);
-  }
-}
-
-async function stopWindowsTree(child: ChildProcess): Promise<void> {
-  if (!child.pid) return;
-  await new Promise<void>((resolve) => {
-    const killer = spawn(
-      join(process.env.SystemRoot ?? "C:\\Windows", "System32/taskkill.exe"),
-      ["/PID", String(child.pid), "/T", "/F"],
-      { stdio: "ignore", windowsHide: true },
-    );
-    killer.once("error", () => {
-      child.kill();
-    });
-    killer.once("close", (code) => {
-      if (code !== 0 && child.exitCode === null) child.kill();
-      resolve();
-    });
-  });
-}
+import { spawn } from "node:child_process";
+import {
+  signalProcessGroup,
+  stopWindowsProcessTree,
+} from "../../../shared/node/process-tree.js";
 
 export async function runBrowserInstaller(
   file: string,
@@ -50,10 +25,11 @@ export async function runBrowserInstaller(
   const stop = () => {
     if (stopping) return;
     stopping = true;
-    if (process.platform === "win32") windowsStop = stopWindowsTree(child);
+    if (process.platform === "win32")
+      windowsStop = stopWindowsProcessTree(child);
     else {
-      killGroup(child, "SIGTERM");
-      forced = setTimeout(() => killGroup(child, "SIGKILL"), 2000);
+      signalProcessGroup(child, "SIGTERM");
+      forced = setTimeout(() => signalProcessGroup(child, "SIGKILL"), 2000);
     }
   };
   const timeout = setTimeout(stop, 300_000);
@@ -68,7 +44,8 @@ export async function runBrowserInstaller(
   try {
     const code = await completed;
     await windowsStop;
-    if (stopping && process.platform !== "win32") killGroup(child, "SIGKILL");
+    if (stopping && process.platform !== "win32")
+      signalProcessGroup(child, "SIGKILL");
     signal?.throwIfAborted();
     return code === 0 && !failed && !stopping;
   } finally {
