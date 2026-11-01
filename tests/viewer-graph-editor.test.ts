@@ -1,6 +1,9 @@
-import { normalizeHandles } from "../src/apps/viewer/editor/model.js";
-import type { MotionPathTrack } from "../src/shared/timeline/motion-path.js";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 import { createGraphEditorModel } from "../src/apps/viewer/graph-editor/model.js";
 import {
@@ -22,34 +25,21 @@ import {
 describe("viewer Graph Editor", () => {
   it("builds a multi-track numeric model from canonical selection", () => {
     const timeline = createTimeline();
-    const ctx: any = {
-      deps: {
-        normalizeHandles,
-      },
-      getEffectiveDuration: () => 4,
-      getLayerContentFields: () => [],
-      getPrimaryKeyframeSelection: () => ({
-        keyframeId: "scale-a",
-        trackId: "scale",
-      }),
-      getSelectedKeyframeRefs: () => [
-        { keyframeId: "opacity-a", trackId: "opacity" },
-        { keyframeId: "scale-a", trackId: "scale" },
-      ],
-      getTimelineTrackDisplayLabel: (track: MotionPathTrack) => track.label,
-      getTrackLayerId: (track: MotionPathTrack) => track.layerId ?? null,
-      inferTrackProperty: (track: { property?: string }) =>
-        track.property ?? null,
-      isSelectedKeyframe: (trackId: string, keyframeId: string) =>
-        ["opacity:opacity-a", "scale:scale-a"].includes(
-          `${trackId}:${keyframeId}`,
-        ),
-      state: {
-        currentTemplate: { duration: 4, id: "template" },
-        graphEditorLinkedHandles: true,
-        graphEditorViewport: null,
-      },
+    const ctx = createViewerContextFixture();
+    ctx.state.currentTemplate = {
+      id: "template",
+      duration: 4,
+      layers: [{ id: "card", type: "rect" }],
     };
+    ctx.state.selectedKeyframes = [
+      { keyframeId: "opacity-a", trackId: "opacity" },
+      { keyframeId: "scale-a", trackId: "scale" },
+    ];
+    vi.spyOn(ctx, "getPrimaryKeyframeSelection").mockReturnValue({
+      keyframeId: "scale-a",
+      trackId: "scale",
+    });
+    vi.spyOn(ctx, "getLayerContentFields").mockReturnValue([]);
 
     const model = createGraphEditorModel(ctx, timeline);
     if (!model) throw new Error("Expected a numeric graph model");
@@ -64,13 +54,19 @@ describe("viewer Graph Editor", () => {
   });
 
   it("uses content schema bounds and leaves unknown properties extensible", () => {
-    const ctx: any = {
-      getLayerContentFields: () => [
-        { kind: "number", max: 240, min: 0, property: "radius" },
-      ],
-      getTrackLayerId: () => "card",
-      inferTrackProperty: (track: { property?: string }) => track.property,
-    };
+    const ctx = createViewerContextFixture();
+    vi.spyOn(ctx, "getLayerContentFields").mockReturnValue([
+      {
+        kind: "number",
+        max: 240,
+        min: 0,
+        property: "radius",
+        label: "Radius",
+        defaultValue: 0,
+        step: 1,
+      },
+    ]);
+    vi.spyOn(ctx, "getTrackLayerId").mockReturnValue("card");
     const template = { layers: [{ id: "card", type: "rect" }] };
 
     expect(

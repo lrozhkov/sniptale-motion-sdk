@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createThemeActions } from "../src/apps/viewer/app/theme";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { createNativeButtonFixture } from "./helpers/native-button-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer app theme", () => {
   it("ignores a render rejection after the selected template changes", async () => {
@@ -9,11 +14,11 @@ describe("viewer app theme", () => {
     const rendered = Promise.withResolvers<void>();
     ctx.renderCurrentFrame.mockReturnValueOnce(rendered.promise);
     ctx.applyTheme("light");
-    frames[0]?.(0);
-    ctx.state.currentTemplate = { id: "replacement" };
+    requiredEntry(frames, 0)(0);
+    ctx.state.currentTemplate = { id: "replacement", duration: 3 };
     rendered.reject(new Error("stale theme render"));
     await flushMicrotasks();
-    frames.at(-1)?.(16);
+    requiredEntry(frames, frames.length - 1)(16);
     await flushMicrotasks();
     expect(ctx.setRenderStatus).not.toHaveBeenCalled();
     expect(ctx.logDiagnostic).not.toHaveBeenCalled();
@@ -26,12 +31,12 @@ describe("viewer app theme", () => {
     expect(snapshotContext.drawImage).toHaveBeenCalledWith(canvas, 0, 0);
     expect(snapshot).toMatchObject({ height: 720, hidden: false, width: 1280 });
     expect(frames).toHaveLength(1);
-    frames[0]?.(0);
+    requiredEntry(frames, 0)(0);
     await flushMicrotasks();
     expect(ctx.renderCurrentFrame).toHaveBeenCalledWith({ forceFull: true });
     expect(snapshot.hidden).toBe(false);
     expect(frames).toHaveLength(2);
-    frames[1]?.(16);
+    requiredEntry(frames, 1)(16);
     await flushMicrotasks();
     expect(snapshot.hidden).toBe(true);
   });
@@ -44,7 +49,7 @@ describe("viewer app theme", () => {
     for (const frame of frames.slice()) frame(0);
     await flushMicrotasks();
     expect(ctx.renderCurrentFrame).toHaveBeenCalledOnce();
-    frames.at(-1)?.(16);
+    requiredEntry(frames, frames.length - 1)(16);
     await flushMicrotasks();
     expect(snapshot.hidden).toBe(true);
   });
@@ -52,11 +57,11 @@ describe("viewer app theme", () => {
   it("does not render a replacement template from a queued theme callback", async () => {
     const { ctx, frames, snapshot } = fixture();
     ctx.applyTheme("light");
-    ctx.state.currentTemplate = { id: "replacement" };
-    frames[0]?.(0);
+    ctx.state.currentTemplate = { id: "replacement", duration: 3 };
+    requiredEntry(frames, 0)(0);
     await flushMicrotasks();
     expect(ctx.renderCurrentFrame).not.toHaveBeenCalled();
-    frames.at(-1)?.(16);
+    requiredEntry(frames, frames.length - 1)(16);
     await flushMicrotasks();
     expect(snapshot.hidden).toBe(true);
   });
@@ -67,9 +72,9 @@ describe("viewer app theme", () => {
       new Error("theme render failed"),
     );
     ctx.applyTheme("light");
-    frames[0]?.(0);
+    requiredEntry(frames, 0)(0);
     await flushMicrotasks();
-    frames.at(-1)?.(16);
+    requiredEntry(frames, frames.length - 1)(16);
     await flushMicrotasks();
     expect(ctx.setRenderStatus).toHaveBeenCalledWith("failed");
     expect(ctx.logDiagnostic).toHaveBeenCalledWith(
@@ -86,7 +91,7 @@ describe("viewer app theme", () => {
     ctx.applyTheme("dark");
     for (const frame of frames.slice()) frame(0);
     await flushMicrotasks();
-    frames.at(-1)?.(16);
+    requiredEntry(frames, frames.length - 1)(16);
     await flushMicrotasks();
     expect(snapshot.hidden).toBe(true);
   });
@@ -97,43 +102,53 @@ async function flushMicrotasks(): Promise<void> {
 }
 
 function fixture() {
+  const ctx = createViewerContextFixture();
   const frames: FrameRequestCallback[] = [];
-  const snapshotContext = { clearRect: vi.fn(), drawImage: vi.fn() };
-  const canvas = { height: 720, width: 1280 };
-  const snapshot = {
-    getContext: vi.fn(() => snapshotContext),
-    height: 0,
-    hidden: true,
-    width: 0,
-  };
-  vi.stubGlobal("document", { documentElement: { dataset: {} } });
+  const snapshotContext = Object.assign(new CanvasRenderingContext2D(), {
+    clearRect: vi.fn<CanvasRenderingContext2D["clearRect"]>(),
+    drawImage: vi.fn<CanvasRenderingContext2D["drawImage"]>(),
+  });
+  const canvas = ctx.refs.canvas;
+  canvas.height = 720;
+  canvas.width = 1280;
+  const snapshot = ctx.refs.themePreviewSnapshotCanvas;
+  if (!snapshot) throw new Error("Missing theme snapshot canvas.");
+  vi.spyOn(snapshot, "getContext").mockReturnValue(snapshotContext);
+  snapshot.height = 0;
+  snapshot.width = 0;
+  snapshot.hidden = true;
+  Object.assign(document, { documentElement: { dataset: {} } });
   vi.stubGlobal("window", {
-    localStorage: { setItem: vi.fn() },
+    localStorage: { setItem: vi.fn<Storage["setItem"]>() },
     requestAnimationFrame: (callback: FrameRequestCallback) => {
       frames.push(callback);
       return frames.length;
     },
   });
-  const ctx = {
-    deps: { t: (_key: string, fallback: string) => fallback },
-    refs: {
-      canvas,
-      themePreviewSnapshotCanvas: snapshot,
-      themeToggleButton: { setAttribute: vi.fn() },
-    },
-    renderCurrentFrame: vi.fn(async () => undefined),
-    setIconButton: vi.fn(),
-    setRenderStatus: vi.fn(),
-    logDiagnostic: vi.fn(),
-    state: {
-      currentTemplate: { id: "template" },
-      playing: false,
-      theme: "dark",
-    },
-  } as any;
-  Object.assign(
-    ctx,
-    createThemeActions(() => ctx),
-  );
-  return { ctx, frames, canvas, snapshot, snapshotContext };
+  ctx.refs.themeToggleButton = createNativeButtonFixture();
+  ctx.deps.t = (key, fallback) => fallback ?? key;
+  ctx.state.currentTemplate = { id: "template", duration: 3 };
+  ctx.state.playing = false;
+  ctx.state.theme = "dark";
+  const renderCurrentFrame = vi
+    .spyOn(ctx, "renderCurrentFrame")
+    .mockResolvedValue();
+  vi.spyOn(ctx, "setIconButton").mockImplementation(() => {});
+  const setRenderStatus = vi
+    .spyOn(ctx, "setRenderStatus")
+    .mockImplementation(() => {});
+  const logDiagnostic = vi
+    .spyOn(ctx, "logDiagnostic")
+    .mockImplementation(() => {});
+  return {
+    ctx: Object.assign(ctx, {
+      renderCurrentFrame,
+      setRenderStatus,
+      logDiagnostic,
+    }),
+    frames,
+    canvas,
+    snapshot,
+    snapshotContext,
+  };
 }

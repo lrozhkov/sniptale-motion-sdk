@@ -1,3 +1,5 @@
+import type { EffectScene } from "../src/sdk/types.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import type { EditorHistoryState } from "../src/apps/viewer/editor/history.js";
 import { describe, expect, it } from "vitest";
 
@@ -43,8 +45,8 @@ describe("viewer editor model", () => {
       extension: { source: "author" },
     };
     const presets = normalizePresets([{ id: "precise", timeline }]);
-    expect(presets[0].timeline).toEqual(timeline);
-    expect(presets[0].timeline).not.toBe(timeline);
+    expect(requiredEntry(presets, 0).timeline).toEqual(timeline);
+    expect(requiredEntry(presets, 0).timeline).not.toBe(timeline);
     expect(normalizePresets([{ id: 7, timeline: "legacy" }])).toMatchObject([
       { id: "7", timeline: "legacy" },
     ]);
@@ -69,7 +71,7 @@ describe("viewer editor model", () => {
     const before = structuredClone(preset);
     for (const locale of ["ru", "en"] as const) {
       setLocale(locale);
-      const normalized = normalizePresets([preset])[0];
+      const normalized = requiredEntry(normalizePresets([preset]), 0);
       expect(normalized).toEqual(preset);
       expect(normalized).not.toBe(preset);
       expect(normalized?.scenes).not.toBe(preset.scenes);
@@ -169,10 +171,12 @@ describe("viewer editor model", () => {
       },
       4,
     );
-    expect(timeline.tracks[0].keyframes.map((keyframe) => keyframe.id)).toEqual(
-      ["a", "b"],
-    );
-    expect(timeline.tracks[0].label).toBe("");
+    expect(
+      requiredEntry(timeline.tracks, 0).keyframes.map(
+        (keyframe) => keyframe.id,
+      ),
+    ).toEqual(["a", "b"]);
+    expect(requiredEntry(timeline.tracks, 0).label).toBe("");
     expect(
       buildControlsWithDefaults(
         {
@@ -197,17 +201,20 @@ describe("viewer editor model", () => {
   it("resolves localized scene, phase, and track labels without object coercion", () => {
     setLocale("ru");
     expect(
-      normalizeScenes(
-        [
-          {
-            duration: 2,
-            id: "main",
-            label: { en: "Main", ru: "Главная" },
-            start: 0,
-          },
-        ],
-        2,
-      )[0].label,
+      requiredEntry<EffectScene>(
+        normalizeScenes(
+          [
+            {
+              duration: 2,
+              id: "main",
+              label: { en: "Main", ru: "Главная" },
+              start: 0,
+            },
+          ],
+          2,
+        ),
+        0,
+      ).label,
     ).toBe("Главная");
     expect(
       normalizeTimeline(
@@ -235,17 +242,20 @@ describe("viewer editor model", () => {
     });
     setLocale("en");
     expect(
-      normalizeScenes(
-        [
-          {
-            duration: 2,
-            id: "main",
-            label: { en: "Main", ru: "Главная" },
-            start: 0,
-          },
-        ],
-        2,
-      )[0].label,
+      requiredEntry<EffectScene>(
+        normalizeScenes(
+          [
+            {
+              duration: 2,
+              id: "main",
+              label: { en: "Main", ru: "Главная" },
+              start: 0,
+            },
+          ],
+          2,
+        ),
+        0,
+      ).label,
     ).toBe("Main");
     setLocale("ru");
   });

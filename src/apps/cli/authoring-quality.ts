@@ -5,7 +5,7 @@ import type {
 
 // Deliberately bounded to explicit suffixes. Do not guess a numeric control's dimension from its ID.
 const UNIT_SUFFIX =
-  /(?:\s|[([])(?:px|%|ms|deg|°|×|шт\.?)(?:[)\]])?$|[([](?:s|с|мс|ratio|count|percent)[)\]]$/iu;
+  /(?:\s|[([])(?:px|%|ms|hz|гц|deg|°|×|шт\.?)(?:[)\]])?$|[([](?:s|с|мс|ratio|count|percent)[)\]]$/iu;
 
 /** Opt-in authoring checks; ordinary validation retains the legacy document contract. */
 export function inspectControlAuthoring(

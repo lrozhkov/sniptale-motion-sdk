@@ -1,6 +1,9 @@
-import { mkdtempSync } from "node:fs";
+import {
+  responseArray,
+  responseString,
+} from "../tooling/test/fixtures/response.js";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -36,23 +39,29 @@ describe("local pack fixture storage", () => {
   it("generates neutral documents and assets only below .tmp", async () => {
     const generated = await generateNeutralLocalPack(OUTPUT);
     const documents = await Promise.all(
-      generated.documentPaths.map(async (path: string) =>
+      generated.documentPaths.map(async (path: string): Promise<unknown> =>
         JSON.parse(await readFile(path, "utf8")),
       ),
     );
-    const manifest = JSON.parse(await readFile(generated.manifestPath, "utf8"));
+    const manifest: unknown = JSON.parse(
+      await readFile(generated.manifestPath, "utf8"),
+    );
     const asset = await readFile(generated.assetPath, "utf8");
 
     expect(generated.root).toBe(OUTPUT);
     expect(
       documents.map((document) => validateEffectV1Document(document).ok),
     ).toEqual([true, true, true]);
-    expect(manifest.modules.map(({ id }: { id: string }) => id)).toEqual([
+    expect(
+      responseArray(manifest, "modules").map((module) =>
+        responseString(module, "id"),
+      ),
+    ).toEqual([
       "neutral-standalone",
       "neutral-target-effect",
       "neutral-transition",
     ]);
-    expect(manifest.assets).toEqual([
+    expect(responseArray(manifest, "assets")).toEqual([
       expect.objectContaining({
         id: "neutral-mark",
         path: "assets/neutral-mark.svg",
@@ -68,8 +77,10 @@ describe("local pack fixture storage", () => {
   });
 
   it("rejects a symlinked output ancestor without touching its target", async () => {
+    const targetRoot = resolve(process.cwd(), ".tmp/tests");
+    mkdirSync(targetRoot, { recursive: true });
     const outside = mkdtempSync(
-      resolve(tmpdir(), "sniptale-local-pack-outside-"),
+      resolve(targetRoot, "sniptale-local-pack-outside-"),
     );
     externalCleanup.push(outside);
     const marker = resolve(outside, "keep.txt");

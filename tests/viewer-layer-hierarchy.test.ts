@@ -1,3 +1,4 @@
+import type { EffectLayer } from "../src/sdk/types.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -187,19 +188,18 @@ describe("viewer layer hierarchy", () => {
       "inside",
     );
     expect(inside).toMatchObject({ ok: true, parentId: "group-b" });
-    if (inside.ok) {
-      expect(inside.layers.map((entry) => entry.id)).toEqual([
-        "group-a",
-        "card",
-        "group-b",
-        "logo",
-        "title",
-        "footer",
-      ]);
-      expect(
-        inside.layers.find((entry) => entry.id === "title")?.parentId,
-      ).toBe("group-b");
-    }
+    if (!inside.ok) throw new Error("Expected successful subtree reparenting.");
+    expect(inside.layers.map((entry) => entry.id)).toEqual([
+      "group-a",
+      "card",
+      "group-b",
+      "logo",
+      "title",
+      "footer",
+    ]);
+    expect(inside.layers.find((entry) => entry.id === "title")?.parentId).toBe(
+      "group-b",
+    );
 
     const aboveFooter = reparentLayerSelection(
       layers,
@@ -242,7 +242,7 @@ function group(id: string, parentId: string | null = null) {
   return { id, name: id, parentId, type: "group" };
 }
 
-function template(layers: any[]) {
+function template(layers: EffectLayer[]) {
   return {
     clips: [],
     duration: 2,

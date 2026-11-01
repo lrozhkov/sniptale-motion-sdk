@@ -3,6 +3,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   root: resolve(import.meta.dirname, "../../.."),
+  cacheDir: resolve(import.meta.dirname, "../../../.tmp/vite/vitest"),
   test: {
     // Browser launches and Git/filesystem audits share this worker budget.
     maxWorkers: 4,

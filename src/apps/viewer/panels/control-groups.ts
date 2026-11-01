@@ -1,6 +1,9 @@
+import { resolveEffectV1ControlGroupIcons } from "../../../sdk/effect-v1/control-group-icons.js";
 import {
   EFFECT_V1_CONTROL_GROUPS,
+  EFFECT_V1_CONTROL_ROOT_ICONS,
   resolveEffectV1ControlGroup,
+  isEffectV1SemanticControlGroup,
 } from "../../../sdk/effect-v1/control-presentation-model.js";
 import type { EditorTemplateSource } from "../templates/model.js";
 import type { ControlPresentationLocale } from "./control-fields.js";
@@ -14,6 +17,13 @@ export function createControlGroupContainers(
 ): Map<string, HTMLElement> {
   const groups = template.controlGroups ?? [];
   const definitions = new Map(groups.map((group) => [group.id, group]));
+  const acceptedIcons = resolveEffectV1ControlGroupIcons(
+    groups,
+    template.controls,
+  );
+  const icons = new Map(
+    groups.map((group, index) => [group.id, acceptedIcons.get(index)]),
+  );
   const occupied = new Set<string>();
   for (const control of template.controls ?? []) {
     const root =
@@ -37,7 +47,12 @@ export function createControlGroupContainers(
     details.dataset.controlGroup = id;
     details.open = !definition?.collapsed;
     const summary = document.createElement("summary");
-    if (definition?.icon) summary.append(createControlIcon(definition.icon));
+    const icon =
+      icons.get(id) ??
+      (isEffectV1SemanticControlGroup(id)
+        ? EFFECT_V1_CONTROL_ROOT_ICONS[id]
+        : undefined);
+    if (icon) summary.append(createControlIcon(icon));
     summary.append(
       document.createTextNode(
         definition

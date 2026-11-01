@@ -37,7 +37,9 @@ export function buildEffectFilePayload(
   if (!isRecord(base.program) || base.program.kind !== "graph") {
     throw new Error("Effect v1 requires a declarative graph program.");
   }
-  const template = readEditorTemplateSource(source);
+  const template = readEditorTemplateSource(source, {
+    presentationPolicy: "retained",
+  });
   return {
     assets: buildEffectFileAssets(template, options.assets),
     ...((template.controlGroups ?? base.controlGroups) !== undefined

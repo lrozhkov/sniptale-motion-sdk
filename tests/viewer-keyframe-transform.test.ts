@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,7 +13,7 @@ import {
 
 describe("viewer keyframe time transforms", () => {
   it("keeps an unselected key with a delimiter-colliding identity in collision checks", () => {
-    const snapshot = createKeyframeTimeSnapshot(
+    const snapshot = requireTimeSnapshot(
       {
         tracks: [
           { id: "a:b", keyframes: [{ id: "c", time: 0 }] },
@@ -23,7 +24,7 @@ describe("viewer keyframe time transforms", () => {
       4,
       1 / 30,
     );
-    expect(snapshot?.unselectedTimesByTrack.get("a")).toEqual([1]);
+    expect(snapshot.unselectedTimesByTrack.get("a")).toEqual([1]);
   });
 
   it("moves the immutable selection with one clamped delta", () => {
@@ -33,7 +34,7 @@ describe("viewer keyframe time transforms", () => {
         { id: "scale", keyframes: [{ id: "x", time: 2 }] },
       ],
     };
-    const snapshot = createKeyframeTimeSnapshot(
+    const snapshot = requireTimeSnapshot(
       timeline,
       [
         { keyframeId: "a", trackId: "opacity" },
@@ -55,8 +56,8 @@ describe("viewer keyframe time transforms", () => {
 
   it("scales and distributes without cumulative drift", () => {
     const timeline = createTimeline();
-    timeline.tracks[1].keyframes[0].time = 2.5;
-    const snapshot = createKeyframeTimeSnapshot(
+    requiredEntry(requiredEntry(timeline.tracks, 1).keyframes, 0).time = 2.5;
+    const snapshot = requireTimeSnapshot(
       timeline,
       [
         { keyframeId: "a", trackId: "opacity" },
@@ -109,7 +110,6 @@ describe("viewer keyframe time transforms", () => {
       { keyframeId: "a", trackId: "opacity" },
       { keyframeId: "x", trackId: "scale" },
     ]);
-    if (!snapshot) throw new Error("Expected a selection snapshot");
     const updates = snapshot.entries.map((entry) => ({
       ...entry,
       time: entry.time + 0.2,
@@ -151,8 +151,8 @@ describe("viewer keyframe time transforms", () => {
 
   it("quantizes through one supplied frame policy", () => {
     const timeline = createTimeline();
-    timeline.tracks[0].keyframes[0].time = 1.017;
-    const snapshot = createKeyframeTimeSnapshot(
+    requiredEntry(requiredEntry(timeline.tracks, 0).keyframes, 0).time = 1.017;
+    const snapshot = requireTimeSnapshot(
       timeline,
       [{ keyframeId: "a", trackId: "opacity" }],
       4,
@@ -170,8 +170,10 @@ describe("viewer keyframe time transforms", () => {
   });
 });
 
-function createSnapshot(refs) {
-  return createKeyframeTimeSnapshot(createTimeline(), refs, 4, 1 / 30);
+function createSnapshot(
+  refs: Parameters<typeof createKeyframeTimeSnapshot>[1],
+) {
+  return requireTimeSnapshot(createTimeline(), refs, 4, 1 / 30);
 }
 
 function createTimeline() {
@@ -191,4 +193,13 @@ function createTimeline() {
       },
     ],
   };
+}
+
+function requireTimeSnapshot(
+  ...args: Parameters<typeof createKeyframeTimeSnapshot>
+) {
+  const snapshot = createKeyframeTimeSnapshot(...args);
+  if (!snapshot)
+    throw new Error("Expected a valid keyframe time snapshot fixture");
+  return snapshot;
 }

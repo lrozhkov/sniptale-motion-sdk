@@ -1,26 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import type { EffectLayer } from "../src/sdk/types.js";
+import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createLayerClipboardActions } from "../src/apps/viewer/layers/clipboard";
-import { createLayerEditorCapabilityActions } from "../src/apps/viewer/layers/editor-capabilities";
-import { createLayerFactoryActions } from "../src/apps/viewer/layers/factory";
-import { createLayerGroupingActions } from "../src/apps/viewer/layers/grouping";
-import { createLayerHierarchyActions } from "../src/apps/viewer/layers/hierarchy-controller";
-import { createLayerPropertyActions } from "../src/apps/viewer/layers/properties";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer structural layer grouping", () => {
   it("groups and ungroups one contiguous selection with atomic commands", () => {
     const ctx = createContext();
-    Object.assign(
-      ctx,
-      createLayerHierarchyActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createLayerGroupingActions(() => ctx),
-    );
 
     expect(ctx.groupSelectedLayers()).toBe(true);
-    expect(ctx.getEffectiveTemplate().layers).toEqual([
+    expect(requireTemplate(ctx).layers).toEqual([
       expect.objectContaining({ id: "group-1", type: "group" }),
       expect.objectContaining({ id: "card", parentId: "group-1" }),
       expect.objectContaining({ id: "title", parentId: "group-1" }),
@@ -32,7 +25,7 @@ describe("viewer structural layer grouping", () => {
     });
 
     expect(ctx.ungroupSelectedLayers()).toBe(true);
-    expect(ctx.getEffectiveTemplate().layers).toEqual([
+    expect(requireTemplate(ctx).layers).toEqual([
       expect.objectContaining({ id: "card", parentId: null }),
       expect.objectContaining({ id: "title", parentId: null }),
     ]);
@@ -69,19 +62,9 @@ describe("viewer structural layer grouping", () => {
     });
     ctx.state.selectedLayers = ["group-1"];
     ctx.state.selectedItem = { layerId: "group-1", type: "layer" };
-    Object.assign(
-      ctx,
-      createLayerHierarchyActions(() => ctx),
-    );
-    Object.assign(ctx, createLayerEditorCapabilityActions());
-    Object.assign(ctx, createLayerFactoryActions());
-    Object.assign(
-      ctx,
-      createLayerClipboardActions(() => ctx),
-    );
 
     ctx.duplicateSelectedLayers();
-    const duplicated = ctx.getEffectiveTemplate();
+    const duplicated = requireTemplate(ctx);
     expect(duplicated.layers.map((layer) => layer.id)).toEqual([
       "group-1",
       "card",
@@ -99,22 +82,22 @@ describe("viewer structural layer grouping", () => {
       "rect-1",
       "text-1",
     ]);
-    expect(
-      ctx.state.timelineOverrides
-        .get("template")
-        .tracks.map((track) => track.id),
-    ).toEqual(["card.x", "rect-1.x"]);
+    expect(ctx.getEffectiveTimeline().tracks.map((track) => track.id)).toEqual([
+      "card.x",
+      "rect-1.x",
+    ]);
     expect(ctx.state.selectedLayers).toEqual(["group-2"]);
 
     ctx.deleteSelectedLayers();
-    expect(ctx.getEffectiveTemplate().layers.map((layer) => layer.id)).toEqual([
+    expect(requireTemplate(ctx).layers.map((layer) => layer.id)).toEqual([
       "group-1",
       "card",
       "title",
     ]);
-    expect(
-      ctx.getEffectiveTemplate().clips.map((clip) => clip.layerId),
-    ).toEqual(["card", "title"]);
+    expect(requireTemplate(ctx).clips.map((clip) => clip.layerId)).toEqual([
+      "card",
+      "title",
+    ]);
     expect(ctx.beginEditorCommand).toHaveBeenLastCalledWith({
       payload: { layerIds: ["group-2"] },
       type: "deleteLayers",
@@ -129,19 +112,10 @@ describe("viewer structural layer grouping", () => {
         editableLayer("title", "text", "group-1"),
       ],
     });
-    Object.assign(
-      ctx,
-      createLayerHierarchyActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createLayerPropertyActions(() => ctx),
-    );
 
     ctx.toggleLayerVisibility("group-1");
     expect(
-      ctx
-        .getEffectiveTemplate()
+      requireTemplate(ctx)
         .layers.filter((layer) => layer.type !== "group")
         .map((layer) => layer.visible),
     ).toEqual([false, false]);
@@ -156,15 +130,18 @@ describe("viewer structural layer grouping", () => {
 
     ctx.toggleLayerLock("group-1");
     expect(
-      ctx
-        .getEffectiveTemplate()
+      requireTemplate(ctx)
         .layers.filter((layer) => layer.type !== "group")
         .map((layer) => layer.locked),
     ).toEqual([true, true]);
   });
 });
 
-function editableLayer(id: string, type: string, parentId: string | null) {
+function editableLayer(
+  id: string,
+  type: EffectLayer["type"],
+  parentId: string | null,
+): EffectLayer {
   return {
     editor: {
       operations: ["delete", "duplicate", "reorder"],
@@ -178,8 +155,9 @@ function editableLayer(id: string, type: string, parentId: string | null) {
   };
 }
 
-function createContext(patch: Record<string, any> = {}): any {
-  const template = {
+function createContext(patch: Record<string, unknown> = {}) {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = readEditorTemplateSource({
     clips: [],
     duration: 3,
     id: "template",
@@ -189,45 +167,25 @@ function createContext(patch: Record<string, any> = {}): any {
     ],
     timeline: { phases: [], tracks: [] },
     ...patch,
-  };
-  const ctx: any = {
-    beginEditorCommand: vi.fn(),
-    clearTimelineSelection: vi.fn(() => {
-      ctx.state.selectedLayers = [];
-      ctx.state.selectedItem = { type: "effect" };
-    }),
-    deps: {
-      deepClone: structuredClone,
-      normalizeTimeline: (value) => value,
-      t: (_key, fallback) => fallback,
-    },
-    getEffectiveDuration: () => template.duration,
-    getEffectiveTemplate: () => ({
-      ...structuredClone(template),
-      ...structuredClone(ctx.override),
-      clips: structuredClone(ctx.override.clips ?? template.clips),
-      layers: structuredClone(ctx.override.layers ?? template.layers),
-      timeline: ctx.getEffectiveTimeline(),
-    }),
-    getEffectiveTimeline: () =>
-      structuredClone(
-        ctx.state.timelineOverrides.get(template.id) ?? template.timeline,
-      ),
-    logDiagnostic: vi.fn(),
-    override: {},
-    renderAssetsPanel: vi.fn(),
-    renderCurrentFrame: vi.fn(),
-    renderTimelineEditor: vi.fn(),
-    sanitizeIdentifier: (value) => String(value),
-    setEditorOverride: vi.fn((value) => {
-      ctx.override = { ...ctx.override, ...value };
-    }),
-    state: {
-      currentTemplate: template,
-      selectedItem: { layerId: "title", type: "layer" },
-      selectedLayers: ["card", "title"],
-      timelineOverrides: new Map(),
-    },
-  };
-  return ctx;
+  });
+  ctx.state.selectedItem = { layerId: "title", type: "layer" };
+  ctx.state.selectedLayers = ["card", "title"];
+  const beginEditorCommand = vi
+    .spyOn(ctx, "beginEditorCommand")
+    .mockImplementation(() => {});
+  for (const key of [
+    "logDiagnostic",
+    "renderAssetsPanel",
+    "renderTimelineEditor",
+    "updateCanvasSelectionBox",
+  ] as const)
+    vi.spyOn(ctx, key).mockImplementation(() => {});
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
+  return Object.assign(ctx, { beginEditorCommand });
+}
+
+function requireTemplate(ctx: ReturnType<typeof createContext>) {
+  const template = ctx.getEffectiveTemplate();
+  if (!template) throw new Error("Missing fixture template");
+  return template;
 }

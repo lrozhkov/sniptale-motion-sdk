@@ -125,9 +125,9 @@ describe("Effect v1 reference receiving boundaries", () => {
       if (!target) throw new Error("Reference boundary fixture has no target");
       Object.assign(target, { [field]: value });
       const result = validateEffectV1Document(input);
-      expect(result.ok, path).toBe(false);
+      expect({ path, ok: result.ok }).toEqual({ path, ok: false });
       expect(result.document).toBeUndefined();
-      expect(result.diagnostics, path).toContainEqual(
+      expect(result.diagnostics).toContainEqual(
         expect.objectContaining({ code, path }),
       );
     }

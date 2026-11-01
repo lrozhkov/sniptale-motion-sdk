@@ -136,7 +136,7 @@ describe("demo pack receiving boundaries", () => {
   );
 
   it("does not fetch assets with invalid receiving metadata", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetcher);
     const errors: DemoPackIssue[] = [];
     const assets = await readAssets(

@@ -14,7 +14,7 @@ describe("SVG inspector metadata boundaries", () => {
     expect(resolveSvgSwatch(value)).toBe("#9aa5ae");
   });
   it("preserves literal ids and supported color text", () => {
-    expect(parseSvgPartIdList(' glyph.rect-0, tail\"<node>, , ')).toEqual([
+    expect(parseSvgPartIdList(' glyph.rect-0, tail"<node>, , ')).toEqual([
       "glyph.rect-0",
       'tail"<node>',
     ]);

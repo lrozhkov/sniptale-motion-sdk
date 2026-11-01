@@ -1297,6 +1297,7 @@ export const messages = {
         count: { ru: "шт.", en: "units" },
         s: { ru: "с", en: "s" },
         ms: { ru: "мс", en: "ms" },
+        hz: { ru: "Гц", en: "Hz" },
       },
       visualPreset: { en: "Visual style", ru: "Визуальный стиль" },
       customVisualPreset: { en: "Custom", ru: "Свои настройки" },

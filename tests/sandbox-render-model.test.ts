@@ -394,7 +394,7 @@ it("keeps scene locale maps instead of coercing them to object text", () => {
 });
 
 it("does not invoke unknown metadata conversion hooks while normalizing a model", () => {
-  const convert = vi.fn(() => 1);
+  const convert = vi.fn<() => number>(() => 1);
   const value = { toString: convert, valueOf: convert };
   expect(normalizeLayers([{ id: value, width: value, height: value }])).toEqual(
     [],

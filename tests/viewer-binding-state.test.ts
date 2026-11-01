@@ -13,7 +13,7 @@ afterEach(() => {
 
 describe("renderer binding and profile boundaries", () => {
   it("rejects malformed records without object coercion or source mutation", () => {
-    const coercion = vi.fn(() => {
+    const coercion = vi.fn<() => never>(() => {
       throw new Error("Unexpected metadata coercion");
     });
     const invalid = { toString: coercion, valueOf: coercion };

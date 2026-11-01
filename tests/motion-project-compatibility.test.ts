@@ -38,7 +38,9 @@ describe("project compatibility before writes", () => {
         effectSchema: MOTION_COMPATIBILITY.effectSchema,
       }),
     );
-    const request = vi.fn(async () => new Response("{}", { status: 404 }));
+    const request = vi.fn<typeof fetch>(
+      async () => new Response("{}", { status: 404 }),
+    );
     vi.stubGlobal("fetch", request);
     const context = {
       cwd: root,

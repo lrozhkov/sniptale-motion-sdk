@@ -7,16 +7,20 @@ import { readPickedJsonHandle } from "../src/apps/viewer/effect-file/file-system
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source";
 
 class Writable {
-  abort = vi.fn(async () => {});
-  close = vi.fn(async () => {});
-  write = vi.fn(async (_text: string) => {});
+  abort = vi.fn<() => Promise<void>>(async () => {});
+  close = vi.fn<() => Promise<void>>(async () => {});
+  write = vi.fn<(_text: string) => Promise<void>>(async (_text: string) => {});
 }
 class Handle {
   kind = "file";
   name = "effect.json";
   writable = new Writable();
-  getFile = vi.fn(async () => new File(['{"id":"effect"}'], this.name));
-  createWritable = vi.fn(async () => this.writable);
+  getFile = vi.fn<() => Promise<File>>(
+    async () => new File(['{"id":"effect"}'], this.name),
+  );
+  createWritable = vi.fn<() => Promise<typeof this.writable>>(
+    async () => this.writable,
+  );
 }
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -40,12 +44,14 @@ function fixture() {
       saveJsonButton: { disabled: true },
     },
     deps: { t: (key: string, fallback?: string) => fallback ?? key },
-    logDiagnostic: vi.fn(),
-    validateBoundTemplateJson: vi.fn(() => true),
-    assertExportable: vi.fn(() => true),
-    buildCurrentTemplateJson: vi.fn(() => '{"id":"effect"}'),
+    logDiagnostic: vi.fn<(message: string, level?: string) => void>(),
+    validateBoundTemplateJson: vi.fn<() => boolean>(() => true),
+    assertExportable: vi.fn<() => boolean>(() => true),
+    buildCurrentTemplateJson: vi.fn<() => string>(() => '{"id":"effect"}'),
   };
-  const picker = vi.fn(async (): Promise<unknown> => [handle]);
+  const picker = vi.fn<() => Promise<unknown>>(async (): Promise<unknown> => [
+    handle,
+  ]);
   vi.stubGlobal("window", { showOpenFilePicker: picker });
   return { ctx, handle, picker };
 }

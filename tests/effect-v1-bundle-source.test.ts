@@ -1,3 +1,4 @@
+import { responseObject } from "../tooling/test/fixtures/response.js";
 import {
   mkdtempSync,
   mkdirSync,
@@ -33,7 +34,7 @@ describe("Effect v1 bundle asset root", () => {
       fixture.root,
     );
 
-    expect(JSON.parse(source).assets[0]).toMatchObject({
+    expect(responseObject(JSON.parse(source), "assets", 0)).toMatchObject({
       byteLength: 11,
       svgText: "<svg></svg>",
     });

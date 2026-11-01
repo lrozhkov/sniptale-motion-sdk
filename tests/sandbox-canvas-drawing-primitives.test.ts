@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { createDrawingContextFixture } from "./helpers/drawing-context-fixture.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   drawCodeBlock,
@@ -7,9 +8,14 @@ import {
   drawText,
 } from "../src/apps/sandbox/runtime/canvas-drawing-primitives";
 
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe("sandbox canvas drawing primitives", () => {
   it("draws text with optional letter spacing and paint state", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawText(context, {
       alpha: 0.5,
@@ -33,7 +39,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("accepts opacity as text alpha alias", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawText(context, {
       opacity: 0.35,
@@ -47,7 +53,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("draws code blocks with visible progress, focus rows, and token colors", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawCodeBlock(context, {
       accent: "#0ff",
@@ -75,7 +81,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("draws paths up to clamped progress", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawPath(context, {
       alpha: 0.25,
@@ -99,7 +105,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("accepts opacity as path alpha alias", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawPath(context, {
       opacity: 0.2,
@@ -113,7 +119,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("supports authored path trim, fill, and closure", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawPath(context, {
       closed: true,
@@ -136,7 +142,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("draws deterministic particles and skips short paths", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawPath(context, { points: [{ x: 0, y: 0 }] });
     expect(context.save).not.toHaveBeenCalled();
@@ -160,7 +166,7 @@ describe("sandbox canvas drawing primitives", () => {
   });
 
   it("accepts opacity as particle alpha alias", () => {
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawParticles(context, {
       count: 1,
@@ -172,31 +178,3 @@ describe("sandbox canvas drawing primitives", () => {
     expect(context.fillRect).toHaveBeenCalledOnce();
   });
 });
-
-function createCanvasContextSpy(): any {
-  return {
-    arcTo: vi.fn(),
-    beginPath: vi.fn(),
-    canvas: { height: 80, width: 120 },
-    closePath: vi.fn(),
-    fill: vi.fn(),
-    fillRect: vi.fn(),
-    fillStyle: "",
-    fillText: vi.fn(),
-    globalAlpha: 1,
-    lineCap: "",
-    lineJoin: "",
-    lineWidth: 0,
-    measureText: vi.fn((text: string) => ({ width: text.length * 8 })),
-    moveTo: vi.fn(),
-    quadraticCurveTo: vi.fn(),
-    restore: vi.fn(),
-    save: vi.fn(),
-    shadowBlur: 0,
-    shadowColor: "",
-    stroke: vi.fn(),
-    strokeStyle: "",
-    textAlign: "",
-    textBaseline: "",
-  };
-}

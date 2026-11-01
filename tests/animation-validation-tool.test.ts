@@ -1,15 +1,41 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { materializeEffectImportFiles } from "../src/apps/viewer/effect-file/import-materialization.js";
 import { remapImportedAssetIdentity } from "../src/apps/viewer/effect-file/import-asset-identity.js";
 import { validateEffectV1Document } from "../src/sdk/effect-v1/index.js";
+import type { EffectV1Document } from "../src/sdk/effect-v1/types.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import {
+  responseField,
+  responseNumber,
+  responseString,
+} from "../tooling/test/fixtures/response.js";
 
 const execFileAsync = promisify(execFile);
+const temporaryRoots: string[] = [];
+afterEach(async () => {
+  await Promise.all(
+    temporaryRoots
+      .splice(0)
+      .map((path) => rm(path, { recursive: true, force: true })),
+  );
+});
+
+function runTool(tool: "schema.ts" | "validate.ts", args: string[]) {
+  // One directly owned Node process: portable on Windows and killed before the test deadline.
+  return execFileAsync(
+    process.execPath,
+    ["--import", "tsx", resolve("tooling/effect-v1", tool), ...args],
+    {
+      timeout: 10_000,
+      env: { ...process.env, TSX_DISABLE_CACHE: "1" },
+    },
+  );
+}
 
 describe("Effect v1 authoring tools", () => {
   it("checks generated schema freshness without rewriting it", async () => {
@@ -18,17 +44,17 @@ describe("Effect v1 authoring tools", () => {
       "utf8",
     );
 
-    const result = await execFileAsync("npm", [
-      "run",
-      "-s",
-      "effect:schema:check",
+    const result = await runTool("schema.ts", [
+      "--output",
+      "schemas/sniptale-effect-v1.schema.json",
+      "--check",
     ]);
 
     expect(result.stdout).toContain("is current");
     expect(
       await readFile("schemas/sniptale-effect-v1.schema.json", "utf8"),
     ).toBe(before);
-  });
+  }, 15_000);
 
   it.each([
     {
@@ -95,7 +121,7 @@ describe("Effect v1 authoring tools", () => {
     },
     { op: "text", text: "Styled", x: 0, y: 0 },
   ])("keeps the styled command contract aligned for $op", (command) => {
-    const document = createDocument();
+    const document = createCommandProbe();
     document.assets = [
       {
         dataUrl:
@@ -185,7 +211,7 @@ describe("Effect v1 authoring tools", () => {
       "SAMPLED_PATH_BOUND",
     ],
   ])("rejects %s before runtime", (_label, command, code) => {
-    const document = createDocument();
+    const document = createCommandProbe();
     document.program.commands = [command];
     const result = validateEffectV1Document(document);
 
@@ -244,28 +270,33 @@ describe("Effect v1 authoring tools", () => {
   it.each([
     ["targetEffect", ["source"]],
     ["transition", ["from", "to"]],
-  ])("requires every %s runtime input to be consumed", (kind, inputs) => {
-    const document = createDocument();
-    document.kind = kind;
-    document.program.commands = [{ color: "#101820", op: "clear" }];
+  ] as const)(
+    "requires every %s runtime input to be consumed",
+    (kind, inputs) => {
+      const document = createDocument();
+      document.kind = kind;
+      document.program.commands = [{ color: "#101820", op: "clear" }];
 
-    const result = validateEffectV1Document(document);
+      const result = validateEffectV1Document(document);
 
-    expect(result.ok).toBe(false);
-    expect(
-      result.diagnostics
-        .filter((item) => item.code === "RUNTIME_INPUT_REQUIRED")
-        .map((item) => item.message),
-    ).toEqual(
-      inputs.map(
-        (input) =>
-          `Effect kind requires runtime input "${input}", but the graph never reads it.`,
-      ),
-    );
-  });
+      expect(result.ok).toBe(false);
+      expect(
+        result.diagnostics
+          .filter((item) => item.code === "RUNTIME_INPUT_REQUIRED")
+          .map((item) => item.message),
+      ).toEqual(
+        inputs.map(
+          (input) =>
+            `Effect kind requires runtime input "${input}", but the graph never reads it.`,
+        ),
+      );
+    },
+  );
 
   it("returns machine-readable CLI diagnostics", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "effect-v1-tool-"));
+    await mkdir(".tmp/tests", { recursive: true });
+    const directory = await mkdtemp(resolve(".tmp/tests/effect-v1-tool-"));
+    temporaryRoots.push(directory);
     const validPath = join(directory, "valid.sniptale-effect.json");
     const invalidPath = join(directory, "invalid.sniptale-effect.json");
     await writeFile(validPath, JSON.stringify(createDocument()));
@@ -274,29 +305,20 @@ describe("Effect v1 authoring tools", () => {
       JSON.stringify({ ...createDocument(), renderer: { source: "return 1" } }),
     );
 
-    const valid = await execFileAsync("npm", [
-      "run",
-      "-s",
-      "effect:validate",
-      "--",
-      validPath,
-      "--json",
-    ]);
-    expect(JSON.parse(valid.stdout)).toMatchObject({ ok: true });
-    await expect(
-      execFileAsync("npm", [
-        "run",
-        "-s",
-        "effect:validate",
-        "--",
-        invalidPath,
-        "--json",
-      ]),
-    ).rejects.toMatchObject({
-      code: 1,
-      stdout: expect.stringContaining("EXECUTABLE_FIELD_FORBIDDEN"),
-    });
-  });
+    const valid = await runTool("validate.ts", [validPath, "--json"]);
+    const response: unknown = JSON.parse(valid.stdout);
+    expect(responseField(response, "ok")).toBe(true);
+    const failure = await runTool("validate.ts", [invalidPath, "--json"]).then(
+      () => {
+        throw new Error("Expected validator CLI to reject the document");
+      },
+      (error: unknown) => error,
+    );
+    expect(responseNumber(failure, "code")).toBe(1);
+    expect(responseString(failure, "stdout")).toContain(
+      "EXECUTABLE_FIELD_FORBIDDEN",
+    );
+  }, 30_000);
 
   it("materializes selected bundle files with integrity metadata", async () => {
     const document = createDocument();
@@ -322,13 +344,15 @@ describe("Effect v1 authoring tools", () => {
     );
 
     const result = await materializeEffectImportFiles([effectFile, imageFile]);
-    const materialized = JSON.parse(result.source);
+    const materialized: unknown = JSON.parse(result.source);
 
-    expect(materialized.assets[0]).toMatchObject({
-      byteLength: 8,
-      dataUrl: expect.stringMatching(/^data:image\/png;base64,/),
-      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-    });
+    expect(responseNumber(materialized, "assets", 0, "byteLength")).toBe(8);
+    expect(responseString(materialized, "assets", 0, "dataUrl")).toMatch(
+      /^data:image\/png;base64,/,
+    );
+    expect(responseString(materialized, "assets", 0, "sha256")).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
   });
 
   it("rejects missing selected bundle files", async () => {
@@ -381,20 +405,20 @@ describe("Effect v1 authoring tools", () => {
       },
     ];
 
-    const remapped = remapImportedAssetIdentity(
-      document,
-      ["logo"],
-      "effect-a",
-    ) as any;
-    expect(remapped.assets[0].id).toBe("effect-a-logo");
-    expect(remapped.layers[0].assetId).toBe("effect-a-logo");
-    expect(remapped.program.commands[0].commands[0].assetId).toBe(
-      "effect-a-logo",
-    );
+    const remapped = remapImportedAssetIdentity(document, ["logo"], "effect-a");
+    expect(requiredEntry(remapped.assets, 0).id).toBe("effect-a-logo");
+    expect(requiredEntry(remapped.layers, 0).assetId).toBe("effect-a-logo");
+    const group = requiredEntry(remapped.program.commands, 0);
+    if (group.op !== "group")
+      throw new Error("Expected remapped group fixture");
+    const image = requiredEntry(group.commands, 0);
+    if (image.op !== "image")
+      throw new Error("Expected remapped image fixture");
+    expect(image.assetId).toBe("effect-a-logo");
   });
 });
 
-function createDocument(): any {
+function createDocument(): EffectV1Document {
   return {
     assets: [],
     clips: [],
@@ -413,4 +437,11 @@ function createDocument(): any {
     schemaVersion: "sniptale.effect.v1",
     timeline: { phases: [], tracks: [] },
   };
+}
+
+/** Command probes deliberately cross the validator as unknown; all other fixture fields retain SDK types. */
+function createCommandProbe() {
+  const document = createDocument();
+  const commands: unknown[] = document.program.commands;
+  return { ...document, program: { ...document.program, commands } };
 }

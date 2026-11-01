@@ -4,9 +4,9 @@ import { wireEffectFileJsonBindingActions } from "../src/apps/viewer/effect-file
 
 describe("viewer JSON source actions", () => {
   it("wires Open, Save, and Export JSON menu buttons to their owners", () => {
-    const bindTemplateSourceJson = vi.fn(async () => {});
-    const saveBoundTemplateJson = vi.fn(async () => {});
-    const exportCurrentTemplateJson = vi.fn(() => null);
+    const bindTemplateSourceJson = vi.fn<() => Promise<void>>(async () => {});
+    const saveBoundTemplateJson = vi.fn<() => Promise<void>>(async () => {});
+    const exportCurrentTemplateJson = vi.fn<() => null>(() => null);
     const buttons = {
       bindJsonButton: createButton(),
       exportJsonButton: createButton(),

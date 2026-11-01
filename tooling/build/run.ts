@@ -29,13 +29,23 @@ await execa(process.execPath, [
 ]);
 await writeDeclarationManifest("dist");
 await execa(
-  "npx",
-  ["vite", "build", "--config", "tooling/configs/vite/viewer.ts"],
+  process.execPath,
+  [
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "tooling/configs/vite/viewer.ts",
+  ],
   { env: viewerBuildEnvironment },
 );
 await execa(
-  "npx",
-  ["vite", "build", "--config", "tooling/configs/vite/sandbox.ts"],
+  process.execPath,
+  [
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "tooling/configs/vite/sandbox.ts",
+  ],
   { env: viewerBuildEnvironment },
 );
 if (!includeLocalDemoPack) {

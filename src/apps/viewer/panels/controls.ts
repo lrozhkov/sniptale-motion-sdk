@@ -11,7 +11,6 @@ import {
   type ControlField,
 } from "./control-fields.js";
 import { createControlGroupContainers } from "./control-groups.js";
-import { createControlIcon } from "./control-icons.js";
 import { resolveEffectV1ControlGroup } from "../../../sdk/effect-v1/control-presentation-model.js";
 import type { ViewerAppContext } from "../app/context.js";
 import {
@@ -50,7 +49,6 @@ function renderControls(
     const label = document.createElement("span");
     label.className = "control-row-label";
     label.textContent = ctx.deps.translateText(control.label, control.id);
-    if (control.icon) label.prepend(createControlIcon(control.icon));
     const field = createControlField(
       ctx.deps,
       control,

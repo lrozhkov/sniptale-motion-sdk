@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createLayerSelectionInspectorModel } from "../src/apps/viewer/inspector/layer-selection-model";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer multi-layer inspector", () => {
   it("reports mixed common properties and aggregate capability state", () => {
@@ -31,32 +38,40 @@ describe("viewer multi-layer inspector", () => {
       scenes: [],
       timeline: { duration: 5, phases: [], tracks: [] },
     };
-    const ctx: any = {
-      canEditLayerProperty: () => true,
-      canTransformLayerProperty: () => true,
-      deps: { t: (_key, fallback) => fallback },
-      getCanvasSelectionTarget: () => ({
-        kind: "selection",
-        layerIds: ["card", "title"],
-        rootLayerIds: ["card", "title"],
-      }),
-      getLayerCanvasBox: (id) =>
-        id === "card"
-          ? { height: 100, rotation: 0, width: 100, x: 0, y: 0 }
-          : { height: 40, rotation: 0, width: 120, x: 200, y: 30 },
-      getLayerCanvasPivot: (box) => ({
-        x: box.x + box.width / 2,
-        y: box.y + box.height / 2,
-      }),
-      getLayerGroupingState: () => ({ canGroup: true, canUngroup: false }),
-      getResolvedLayerProperty: (layer, property) => layer[property] ?? 0,
-      isLayerActiveAtTime: () => true,
-      isLayerCanvasSelectable: () => true,
-      refs: { timeSlider: { value: "1" } },
-    };
+    const ctx = createViewerContextFixture();
+    ctx.state.currentTemplate = template;
+    const effective = ctx.getEffectiveTemplate();
+    if (!effective) throw new Error("Missing inspector template fixture");
+    vi.spyOn(ctx, "canEditLayerProperty").mockReturnValue(true);
+    vi.spyOn(ctx, "canTransformLayerProperty").mockReturnValue(true);
+    vi.spyOn(ctx, "getCanvasSelectionTarget").mockReturnValue({
+      kind: "selection",
+      primaryLayerId: null,
+      related: false,
+      layerIds: ["card", "title"],
+      rootLayerIds: ["card", "title"],
+    });
+    vi.spyOn(ctx, "getLayerCanvasBox").mockImplementation((id) =>
+      id === "card"
+        ? { height: 100, rotation: 0, width: 100, x: 0, y: 0 }
+        : { height: 40, rotation: 0, width: 120, x: 200, y: 30 },
+    );
+    vi.spyOn(ctx, "getLayerCanvasPivot").mockImplementation((box) => ({
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2,
+    }));
+    vi.spyOn(ctx, "getLayerGroupingState").mockReturnValue({
+      canGroup: true,
+      canUngroup: false,
+      groupReason: null,
+    });
+    vi.spyOn(ctx, "isLayerActiveAtTime").mockReturnValue(true);
+    vi.spyOn(ctx, "isLayerCanvasSelectable").mockReturnValue(true);
+    ctx.refs.timeSlider.value = "1";
 
-    const model = createLayerSelectionInspectorModel(ctx, template);
+    const model = createLayerSelectionInspectorModel(ctx, effective);
 
+    if (!model) throw new Error("Missing layer selection model fixture");
     expect(model.bounds).toEqual({
       height: 100,
       rotation: 0,
@@ -74,18 +89,26 @@ describe("viewer multi-layer inspector", () => {
       nonSpatial: 0,
     });
     expect(
-      model.commonFields.find((field) => field.property === "rotation").values,
+      requiredEntry(
+        model.commonFields.filter((field) => field.property === "rotation"),
+        0,
+      ).values,
     ).toEqual([0, 20]);
     expect(
-      model.commonFields.find((field) => field.property === "opacity").values,
+      requiredEntry(
+        model.commonFields.filter((field) => field.property === "opacity"),
+        0,
+      ).values,
     ).toEqual([1, 0.6]);
     for (const ids of [[], ["missing"], ["card", "missing"]]) {
       ctx.getCanvasSelectionTarget = () => ({
         kind: "selection",
+        primaryLayerId: null,
+        related: false,
         layerIds: ids,
         rootLayerIds: ids,
       });
-      expect(createLayerSelectionInspectorModel(ctx, template)).toBeNull();
+      expect(createLayerSelectionInspectorModel(ctx, effective)).toBeNull();
     }
   });
 });

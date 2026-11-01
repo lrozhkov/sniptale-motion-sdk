@@ -1,3 +1,5 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { EditorTimeline } from "../src/apps/viewer/editor/model-types.js";
 import { describe, expect, it } from "vitest";
 import {
   createCanvasMotionPathModel,
@@ -12,7 +14,8 @@ describe("canvas motion path model", () => {
     const model = createCanvasMotionPathModel(timeline, "box");
 
     expect(model.ok).toBe(true);
-    if (!model.ok) return;
+    if (!model.ok)
+      throw new Error(`Unexpected motion path failure: ${model.reason}`);
     expect(model.source).toBe("legacy");
     expect(model.points).toMatchObject([
       {
@@ -36,7 +39,7 @@ describe("canvas motion path model", () => {
 
   it("rejects legacy tracks whose spatial keys cannot be paired by time", () => {
     const timeline = createTimeline();
-    timeline.tracks[1].keyframes[1].time = 1.5;
+    requiredEntry(requiredEntry(timeline.tracks, 1).keyframes, 1).time = 1.5;
 
     expect(createCanvasMotionPathModel(timeline, "box")).toEqual({
       layerId: "box",
@@ -70,16 +73,18 @@ describe("canvas motion path model", () => {
     ];
     const model = createCanvasMotionPathModel(timeline, "box");
     expect(model.ok).toBe(true);
-    if (!model.ok) return;
+    if (!model.ok)
+      throw new Error(`Unexpected motion path failure: ${model.reason}`);
     const point = findCanvasMotionPathPoint(model, "x-a", "y-a");
-    expect(point?.kind).toBe("smooth");
-    expect(getCanvasMotionPathPointRefs(model, point!)).toEqual([
+    if (!point) throw new Error("Missing configured motion path point.");
+    expect(point.kind).toBe("smooth");
+    expect(getCanvasMotionPathPointRefs(model, point)).toEqual([
       { keyframeId: "x-a", trackId: "box.x" },
       { keyframeId: "y-a", trackId: "box.y" },
     ]);
     expect(
       isCanvasMotionPathPointSelected(
-        point!,
+        point,
         [{ keyframeId: "y-a", trackId: "box.y" }],
         model.xTrack.id,
         model.yTrack.id,
@@ -88,8 +93,9 @@ describe("canvas motion path model", () => {
   });
 });
 
-function createTimeline(): any {
+function createTimeline(): EditorTimeline {
   return {
+    duration: 2,
     phases: [],
     tracks: [
       {

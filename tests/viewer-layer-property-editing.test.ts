@@ -1,6 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { EffectLayer } from "../src/sdk/types.js";
+import { readEditorTimeline } from "../src/apps/viewer/editor/timeline-source.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createCanvasPropertyActions } from "../src/apps/viewer/canvas/property-updates";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer layer property editing", () => {
   it("writes inspector edits into an existing animation track at the playhead", () => {
@@ -18,10 +25,6 @@ describe("viewer layer property editing", () => {
         },
       ],
     });
-    Object.assign(
-      ctx,
-      createCanvasPropertyActions(() => ctx),
-    );
 
     ctx.updateLayerProperty("box", "opacity", 0.8, {
       render: false,
@@ -29,21 +32,17 @@ describe("viewer layer property editing", () => {
       timeline: false,
     });
 
-    const track = ctx.timeline.tracks[0];
+    const track = requiredEntry(ctx.getEffectiveTimeline().tracks, 0);
     expect(track.keyframes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ time: 1, value: 0.8 }),
       ]),
     );
-    expect(ctx.override).toBeNull();
+    expect(ctx.state.editorOverrides.has("template")).toBe(false);
   });
 
   it("keeps a base edit as a base edit when the property has no track", () => {
     const ctx = createPropertyContext({ tracks: [] });
-    Object.assign(
-      ctx,
-      createCanvasPropertyActions(() => ctx),
-    );
 
     ctx.updateLayerProperty("box", "opacity", 0.65, {
       render: false,
@@ -51,8 +50,8 @@ describe("viewer layer property editing", () => {
       timeline: false,
     });
 
-    expect(ctx.timeline.tracks).toEqual([]);
-    expect(ctx.override.layers[0].opacity).toBe(0.65);
+    expect(ctx.getEffectiveTimeline().tracks).toEqual([]);
+    expect(requiredEntry(requireTemplate(ctx).layers, 0).opacity).toBe(0.65);
   });
 
   it("updates heterogeneous layers and their tracks in one batch", () => {
@@ -76,10 +75,6 @@ describe("viewer layer property editing", () => {
         { id: "title", opacity: 1, type: "text", y: 0 },
       ],
     );
-    Object.assign(
-      ctx,
-      createCanvasPropertyActions(() => ctx),
-    );
 
     ctx.updateLayerPropertyBatchAtTime(
       1,
@@ -90,11 +85,13 @@ describe("viewer layer property editing", () => {
       { render: false, selection: false, timeline: false },
     );
 
-    expect(ctx.override.layers).toEqual([
+    expect(requireTemplate(ctx).layers).toEqual([
       expect.objectContaining({ id: "box", opacity: 0.7, x: 0 }),
       expect.objectContaining({ id: "title", opacity: 0.5, y: 8 }),
     ]);
-    expect(ctx.timeline.tracks[0].keyframes).toEqual(
+    expect(
+      requiredEntry(ctx.getEffectiveTimeline().tracks, 0).keyframes,
+    ).toEqual(
       expect.arrayContaining([expect.objectContaining({ time: 1, value: 12 })]),
     );
     expect(ctx.renderInspector).toHaveBeenCalledTimes(1);
@@ -128,10 +125,6 @@ describe("viewer layer property editing", () => {
     });
     ctx.state.playing = true;
     ctx.state.selectedItem = { layerId: "box", type: "layer" };
-    Object.assign(
-      ctx,
-      createCanvasPropertyActions(() => ctx),
-    );
 
     ctx.nudgeSelectedLayer(3, -2);
 
@@ -142,61 +135,66 @@ describe("viewer layer property editing", () => {
     expect(ctx.commitHistory).toHaveBeenCalledWith("nudge-layer:box", {
       coalesceKey: "nudge-layer:box",
     });
-    expect(ctx.timeline.tracks[0].keyframes).toEqual(
+    expect(
+      requiredEntry(ctx.getEffectiveTimeline().tracks, 0).keyframes,
+    ).toEqual(
       expect.arrayContaining([expect.objectContaining({ time: 1, value: 13 })]),
     );
-    expect(ctx.timeline.tracks[1].keyframes).toEqual(
+    expect(
+      requiredEntry(ctx.getEffectiveTimeline().tracks, 1).keyframes,
+    ).toEqual(
       expect.arrayContaining([expect.objectContaining({ time: 1, value: 18 })]),
     );
   });
 });
 
 function createPropertyContext(
-  timeline,
-  sourceLayers: any[] = [{ id: "box", opacity: 1, type: "rect" }],
-): any {
-  const template = {
+  timeline: unknown,
+  sourceLayers: EffectLayer[] = [{ id: "box", opacity: 1, type: "rect" }],
+) {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = {
     duration: 3,
     id: "template",
     layers: sourceLayers,
+    timeline: readEditorTimeline(timeline, 3),
   };
-  const ctx: any = {
-    deps: {
-      clamp: (value, min, max) => Math.min(max, Math.max(min, value)),
-      deepClone: structuredClone,
-      normalizeTimeline: (value) => value,
-    },
-    findPhaseIdAtTime: () => null,
-    findSceneIdAtTime: () => null,
-    canTransformLayerProperty: () => true,
-    commitHistory: vi.fn(),
-    getEffectiveDuration: () => template.duration,
-    getEffectiveTemplate: () => ({
-      ...template,
-      layers: ctx.override?.layers ?? template.layers,
-    }),
-    getEffectiveTimeline: () => ctx.timeline,
-    isLayerCanvasSelectable: () => true,
-    override: null,
-    refs: { timeSlider: { value: "1" } },
-    pausePlayback: vi.fn(() => {
+  ctx.refs.timeSlider.value = "1";
+  vi.spyOn(ctx, "findPhaseIdAtTime").mockReturnValue(null);
+  vi.spyOn(ctx, "findSceneIdAtTime").mockReturnValue(null);
+  vi.spyOn(ctx, "canTransformLayerProperty").mockReturnValue(true);
+  vi.spyOn(ctx, "isLayerCanvasSelectable").mockReturnValue(true);
+  const commitHistory = vi.spyOn(ctx, "commitHistory").mockReturnValue(true);
+  const pausePlayback = vi
+    .spyOn(ctx, "pausePlayback")
+    .mockImplementation(() => {
+      const wasPlaying = ctx.state.playing;
       ctx.state.playing = false;
-    }),
-    renderCurrentFrame: vi.fn(),
-    renderInspector: vi.fn(),
-    renderTimelineEditor: vi.fn(),
-    setEditorOverride: vi.fn((value) => {
-      ctx.override = value;
-    }),
-    snapTime: (value) => value,
-    state: {
-      currentTemplate: template,
-      playing: false,
-      timelineOverrides: new Map(),
-    },
-    timeline: structuredClone(timeline),
-    toTitleLabel: (value) => value,
-    updateCanvasSelectionBox: vi.fn(),
-  };
-  return ctx;
+      return wasPlaying;
+    });
+  const renderInspector = vi
+    .spyOn(ctx, "renderInspector")
+    .mockImplementation(() => {});
+  const setEditorOverride = vi.spyOn(ctx, "setEditorOverride");
+  for (const key of [
+    "renderTimelineEditor",
+    "renderTimelineModel",
+    "syncInspectorLayerPropertyState",
+    "updateCanvasSelectionBox",
+  ] as const)
+    vi.spyOn(ctx, key).mockImplementation(() => {});
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
+  vi.spyOn(ctx, "snapTime").mockImplementation((value) => value);
+  return Object.assign(ctx, {
+    commitHistory,
+    pausePlayback,
+    renderInspector,
+    setEditorOverride,
+  });
+}
+
+function requireTemplate(ctx: ReturnType<typeof createPropertyContext>) {
+  const template = ctx.getEffectiveTemplate();
+  if (!template) throw new Error("Missing property fixture template");
+  return template;
 }

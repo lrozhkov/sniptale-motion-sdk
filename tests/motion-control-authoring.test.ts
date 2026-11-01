@@ -60,6 +60,25 @@ describe("opt-in control authoring quality", () => {
     expect(inspectControlAuthoring(document)).toEqual([]);
   });
 
+  it("keeps frequency suffixes separate from raw Hz values", () => {
+    const document = createControlPresentationDocument();
+    const control = requiredEntry(document.controls, 0);
+    control.unit = "hz";
+    control.label = { ru: "Обновление (Гц)", en: "Refresh (Hz)" };
+    expect(
+      inspectControlAuthoring(document).map(({ code, path }) => ({
+        code,
+        path,
+      })),
+    ).toEqual([
+      { code: "AUTHORING_CONTROL_LABEL_UNIT", path: "$.controls[0].label.ru" },
+      { code: "AUTHORING_CONTROL_LABEL_UNIT", path: "$.controls[0].label.en" },
+    ]);
+    control.label = { ru: "Обновление", en: "Refresh" };
+    expect(inspectControlAuthoring(document)).toEqual([]);
+    expect(control.defaultValue).toBe(20);
+  });
+
   it("keeps ordinary CLI validation compatible and reports localized authoring diagnostics separately", async () => {
     await mkdir(".tmp/tests", { recursive: true });
     const root = await mkdtemp(resolve(".tmp/tests/control-authoring-"));

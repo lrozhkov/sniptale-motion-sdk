@@ -1,10 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createPresetPanelActions } from "../src/apps/viewer/panels/presets";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type {
+  EditorControl,
+  EditorPreset,
+} from "../src/apps/viewer/templates/model.js";
+import { readEditorPresets } from "../src/apps/viewer/templates/source.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer preset actions", () => {
   it("rejects save and duplicate actions when a template has no controls", () => {
-    const { ctx } = createPresetContext({
+    const { ctx, applyEditorCommand } = createPresetContext({
       controls: [],
       presets: [createPreset("existing", "Existing")],
       selectedPresetId: "existing",
@@ -13,11 +23,17 @@ describe("viewer preset actions", () => {
     expect(ctx.saveCurrentAsPreset()).toBeNull();
     expect(ctx.duplicateSelectedPreset()).toBeNull();
     expect(ctx.duplicatePreset("existing")).toBeNull();
-    expect(ctx.applyEditorCommand).not.toHaveBeenCalled();
+    expect(applyEditorCommand).not.toHaveBeenCalled();
   });
 
   it("deletes the requested preset through editor history and clears selection", () => {
-    const { ctx, getPresets } = createPresetContext({
+    const {
+      ctx,
+      getPresets,
+      applyEditorCommand,
+      renderPresetsPanel,
+      updateExportAvailability,
+    } = createPresetContext({
       controls: [{ defaultValue: 1, id: "speed" }],
       presets: [
         createPreset("remove-me", "Remove me"),
@@ -29,19 +45,19 @@ describe("viewer preset actions", () => {
     expect(ctx.deletePreset("remove-me")).toBe(true);
     expect(getPresets().map((preset) => preset.id)).toEqual(["keep-me"]);
     expect(ctx.state.selectedPresetId).toBeNull();
-    expect(ctx.applyEditorCommand).toHaveBeenCalledWith(
+    expect(applyEditorCommand).toHaveBeenCalledWith(
       { payload: { presetId: "remove-me" }, type: "deletePreset" },
       expect.any(Function),
     );
     expect(ctx.refs.timelineSaveStatus.textContent).toBe(
       "Deleted preset Remove me",
     );
-    expect(ctx.renderPresetsPanel).toHaveBeenCalledOnce();
-    expect(ctx.updateExportAvailability).toHaveBeenCalledOnce();
+    expect(renderPresetsPanel).toHaveBeenCalledOnce();
+    expect(updateExportAvailability).toHaveBeenCalledOnce();
   });
 });
 
-function createPreset(id: string, label: string): any {
+function createPreset(id: string, label: string): EditorPreset {
   return {
     clips: [],
     controls: {},
@@ -54,34 +70,42 @@ function createPreset(id: string, label: string): any {
   };
 }
 
-function createPresetContext({ controls, presets, selectedPresetId }) {
-  let currentPresets = presets;
-  const template = { controls, id: "template" };
-  const ctx: any = {
-    applyEditorCommand: vi.fn((_command, apply) => apply()),
-    deps: {
-      t: (_key, fallback) => fallback,
-      translateText: (label, fallback) => label?.en ?? fallback,
-    },
-    getEffectiveTemplate: () => ({
-      ...template,
-      presets: currentPresets,
-    }),
-    logDiagnostic: vi.fn(),
-    refs: { timelineSaveStatus: { textContent: "" } },
-    state: {
-      currentTemplate: template,
-      selectedPresetId,
-    },
-    updateExportAvailability: vi.fn(),
+function createPresetContext({
+  controls,
+  presets,
+  selectedPresetId,
+}: {
+  controls: EditorControl[];
+  presets: EditorPreset[];
+  selectedPresetId: string;
+}) {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = {
+    controls,
+    id: "template",
+    duration: 3,
+    layers: [],
+    clips: [],
+    scenes: [],
   };
-  Object.assign(
+  ctx.state.selectedPresetId = selectedPresetId;
+  ctx.setPresets(presets);
+  ctx.deps.t = (_key: string, fallback?: string) => fallback ?? _key;
+  vi.spyOn(ctx, "logDiagnostic").mockImplementation(() => {});
+  const applyEditorCommand = vi
+    .spyOn(ctx, "applyEditorCommand")
+    .mockImplementation((_command, apply) => apply());
+  const renderPresetsPanel = vi
+    .spyOn(ctx, "renderPresetsPanel")
+    .mockImplementation(() => {});
+  const updateExportAvailability = vi
+    .spyOn(ctx, "updateExportAvailability")
+    .mockImplementation(() => {});
+  return {
     ctx,
-    createPresetPanelActions(() => ctx),
-  );
-  ctx.renderPresetsPanel = vi.fn();
-  ctx.setPresets = vi.fn((nextPresets) => {
-    currentPresets = nextPresets;
-  });
-  return { ctx, getPresets: () => currentPresets };
+    applyEditorCommand,
+    renderPresetsPanel,
+    updateExportAvailability,
+    getPresets: () => readEditorPresets(ctx.getEditorOverride().presets),
+  };
 }

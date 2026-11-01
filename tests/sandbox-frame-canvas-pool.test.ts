@@ -4,7 +4,7 @@ import { createFrameCanvasPool } from "../src/apps/sandbox/runtime/frame-canvas-
 
 describe("sandbox frame canvas pool", () => {
   it("reuses the same effect's frame-scoped canvas slots and resets them", () => {
-    const createCanvas = vi.fn((width, height) =>
+    const createCanvas = vi.fn<typeof createTestCanvas>((width, height) =>
       createTestCanvas(width, height),
     );
     const pool = createFrameCanvasPool(createCanvas);
@@ -42,7 +42,7 @@ describe("sandbox frame canvas pool", () => {
   });
 
   it("does not share a canvas between effects or overlapping frames", () => {
-    const createCanvas = vi.fn((width, height) =>
+    const createCanvas = vi.fn<typeof createTestCanvas>((width, height) =>
       createTestCanvas(width, height),
     );
     const pool = createFrameCanvasPool(createCanvas);

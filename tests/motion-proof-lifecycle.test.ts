@@ -1,3 +1,7 @@
+import {
+  responseArray,
+  responseString,
+} from "../tooling/test/fixtures/response.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   mkdir,
@@ -93,18 +97,21 @@ describe("browser proof failure boundaries", () => {
     await writeFile(file, JSON.stringify(source));
     expect(await invoke("prove")).toBe(1);
     expect(output().stdout).not.toMatch(/SECRET_/);
-    expect(JSON.parse(output().stdout)).toMatchObject({
-      ok: false,
-      diagnostics: expect.arrayContaining([
-        {
-          code: "COMMAND_OP",
-          path: "$.program.commands[0].op",
-          message: expect.any(String),
-          severity: "error",
-          suggestion: expect.any(String),
-        },
-      ]),
-    });
+    const result: unknown = JSON.parse(output().stdout);
+    expect(result).toMatchObject({ ok: false });
+    const diagnostics = responseArray(result, "diagnostics");
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "COMMAND_OP",
+        path: "$.program.commands[0].op",
+        severity: "error",
+      }),
+    );
+    const diagnostic = diagnostics.find(
+      (item) => responseString(item, "code") === "COMMAND_OP",
+    );
+    expect(responseString(diagnostic, "message")).not.toBe("");
+    expect(responseString(diagnostic, "suggestion")).not.toBe("");
     expect(launch).not.toHaveBeenCalled();
   });
   it("does not echo asset payloads or identifiers in boundary errors", async () => {

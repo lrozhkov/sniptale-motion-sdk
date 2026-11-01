@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import { createDevServerWatchOptions } from "../../vite/dev-watch";
-import { createLocalDomMotionPlugin } from "../../vite/local-dom-motion.js";
-import { createLocalEffectsPlugin } from "../../vite/local-effects";
+import { createDevServerWatchOptions } from "../../vite/dev-watch.ts";
+import { createLocalDomMotionPlugin } from "../../vite/local-dom-motion.ts";
+import { createLocalEffectsPlugin } from "../../vite/local-effects.ts";
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "../../..");
 const VIEWER_ROOT = resolve(REPOSITORY_ROOT, "src/apps/viewer");

@@ -1,3 +1,4 @@
+import { createDrawingContextFixture } from "./helpers/drawing-context-fixture.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSvgPartTransform } from "../src/apps/sandbox/runtime/svg-part-transform";
@@ -7,15 +8,14 @@ import {
 } from "../src/apps/sandbox/runtime/svg-vector-parser";
 import { drawSvgVectorAsset } from "../src/apps/sandbox/runtime/svg-vector-renderer";
 
-const originalDomParser = globalThis.DOMParser;
-const originalPath2D = globalThis.Path2D;
+type BitmapFallback = Parameters<typeof drawSvgVectorAsset>[3];
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("sandbox SVG vector owners", () => {
-  afterEach(() => {
-    globalThis.DOMParser = originalDomParser;
-    globalThis.Path2D = originalPath2D;
-  });
-
   it("invalidates cached SVG text even when its length stays the same", () => {
     let parses = 0;
     installSvgGlobals(() => {
@@ -51,8 +51,8 @@ describe("sandbox SVG vector owners", () => {
   });
 
   it("rejects unknown drawing values without calling conversion hooks", () => {
-    const convert = vi.fn(() => 1);
-    const context = createCanvasContextSpy();
+    const convert = vi.fn<() => number>(() => 1);
+    const context = createDrawingContextFixture();
     expect(() =>
       drawSvgVectorAsset(
         context,
@@ -61,7 +61,7 @@ describe("sandbox SVG vector owners", () => {
           svgVector: { width: 10, height: 10, parts: [] },
         },
         { x: { valueOf: convert } },
-        vi.fn(),
+        vi.fn<BitmapFallback>(),
       ),
     ).toThrow("Invalid SVG numeric x");
     expect(convert).not.toHaveBeenCalled();
@@ -78,8 +78,8 @@ describe("sandbox SVG vector owners", () => {
           ]),
         ),
       );
-      const context = createCanvasContextSpy();
-      const convert = vi.fn(() => 2);
+      const context = createDrawingContextFixture();
+      const convert = vi.fn<() => number>(() => 2);
       const options =
         failure === "filter"
           ? {
@@ -99,9 +99,15 @@ describe("sandbox SVG vector owners", () => {
           context,
           { id: `state-${failure}`, svgText: "<svg><rect/></svg>" },
           options,
-          vi.fn(),
+          vi.fn<BitmapFallback>(),
         ),
-      ).toThrow();
+      ).toThrow(
+        failure === "paint"
+          ? "paint failed"
+          : failure === "filter"
+            ? "callback failed"
+            : "Invalid SVG numeric x.",
+      );
       expect(context.restore).toHaveBeenCalledTimes(
         failure === "paint" ? 2 : 1,
       );
@@ -126,13 +132,13 @@ describe("sandbox SVG vector owners", () => {
         kind === "filter"
           ? { partFilter: callback }
           : { partTransform: callback };
-      const context = createCanvasContextSpy();
+      const context = createDrawingContextFixture();
       expect(() =>
         drawSvgVectorAsset(
           context,
           { id: `async-${kind}`, svgText: "<svg><rect/></svg>" },
           options,
-          vi.fn(),
+          vi.fn<BitmapFallback>(),
         ),
       ).toThrow("must be synchronous");
       expect(context.fill).not.toHaveBeenCalled();
@@ -221,10 +227,8 @@ describe("sandbox SVG vector owners", () => {
   });
 
   it("hydrates a serialized SVG vector without DOMParser", () => {
-    globalThis.Path2D = vi.fn(function Path2DStub(this: any, d: string) {
-      this.d = d;
-    }) as any;
-    globalThis.DOMParser = undefined as any;
+    installPathFixture();
+    vi.stubGlobal("DOMParser", undefined);
 
     const parsed = parseSvgAsset({
       cacheKey: "worker-vector-v1",
@@ -279,7 +283,7 @@ describe("sandbox SVG vector owners", () => {
         ]),
       ),
     );
-    const context = createCanvasContextSpy();
+    const context = createDrawingContextFixture();
 
     drawSvgVectorAsset(
       context,
@@ -303,7 +307,7 @@ describe("sandbox SVG vector owners", () => {
         x: 8,
         y: 9,
       },
-      vi.fn(),
+      vi.fn<BitmapFallback>(),
     );
 
     expect(context.translate.mock.calls[0]).toEqual([8, 9]);
@@ -316,11 +320,11 @@ describe("sandbox SVG vector owners", () => {
   });
 
   it("falls back to bitmap drawing when vector parsing is unavailable", () => {
-    globalThis.Path2D = undefined as any;
-    const fallback = vi.fn();
+    vi.stubGlobal("Path2D", undefined);
+    const fallback = vi.fn<BitmapFallback>();
 
     drawSvgVectorAsset(
-      createCanvasContextSpy(),
+      createDrawingContextFixture(),
       { id: "bitmap", svgText: "<svg />" },
       { x: 1 },
       fallback,
@@ -331,8 +335,8 @@ describe("sandbox SVG vector owners", () => {
 
   it("renders a serialized worker vector without retaining source SVG text", () => {
     installSvgGlobals(() => createSvgDocument(node("svg", {}, [])));
-    const context = createCanvasContextSpy();
-    const fallback = vi.fn();
+    const context = createDrawingContextFixture();
+    const fallback = vi.fn<BitmapFallback>();
 
     drawSvgVectorAsset(
       context,
@@ -415,22 +419,31 @@ describe("sandbox SVG vector owners", () => {
   });
 });
 
-function installSvgGlobals(createDocument: () => any) {
-  globalThis.Path2D = vi.fn(function Path2DStub(this: any, d: string) {
-    this.d = d;
-  }) as any;
-  globalThis.DOMParser = class DOMParserStub {
-    parseFromString() {
-      return createDocument();
-    }
-  } as any;
+function installPathFixture(): void {
+  vi.stubGlobal(
+    "Path2D",
+    class {
+      constructor(readonly d?: string | Path2D) {}
+    },
+  );
 }
 
-function createSvgDocument(root: any) {
-  return {
-    documentElement: root,
-    querySelector: () => null,
-  };
+function installSvgGlobals(
+  createDocument: () => ReturnType<typeof createSvgDocument>,
+): void {
+  installPathFixture();
+  vi.stubGlobal(
+    "DOMParser",
+    class {
+      parseFromString() {
+        return createDocument();
+      }
+    },
+  );
+}
+
+function createSvgDocument(root: SvgNodeFixture) {
+  return { documentElement: root, querySelector: () => null };
 }
 
 type SvgNodeFixture = {
@@ -452,34 +465,8 @@ function node(
   };
 }
 
-function createCanvasContextSpy(): any {
-  return {
-    arcTo: vi.fn(),
-    beginPath: vi.fn(),
-    closePath: vi.fn(),
-    fill: vi.fn(),
-    fillStyle: "",
-    filter: "none",
-    globalAlpha: 1,
-    globalCompositeOperation: "source-over",
-    lineCap: "butt",
-    lineJoin: "miter",
-    lineWidth: 1,
-    moveTo: vi.fn(),
-    restore: vi.fn(),
-    rotate: vi.fn(),
-    save: vi.fn(),
-    scale: vi.fn(),
-    shadowBlur: 0,
-    shadowColor: "transparent",
-    stroke: vi.fn(),
-    strokeStyle: "",
-    translate: vi.fn(),
-  };
-}
-
 it("reads SVG preset options without invoking conversion hooks", () => {
-  const convert = vi.fn(() => 1);
+  const convert = vi.fn<() => number>(() => 1);
   const value = { valueOf: convert, toString: convert };
   const transform = createSvgPartTransform({
     reveal: value,

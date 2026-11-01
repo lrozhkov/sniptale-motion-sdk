@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import { createDevServerWatchOptions } from "../../vite/dev-watch";
+import { createDevServerWatchOptions } from "../../vite/dev-watch.ts";
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "../../..");
 const SANDBOX_ROOT = resolve(REPOSITORY_ROOT, "src/apps/sandbox");

@@ -4,20 +4,23 @@ import type { Mp4ExportActions } from "../src/apps/viewer/video-export/actions";
 
 function runtime() {
   return {
-    localizeMp4ExportDialog: vi.fn(),
-    openMp4ExportDialog: vi.fn(async () => {}),
-    closeMp4ExportDialog: vi.fn(),
-    updateMp4ExportSize: vi.fn(async () => {}),
-    updateMp4ExportCustomSize: vi.fn(async () => {}),
-    startMp4Export: vi.fn(async () => {}),
+    localizeMp4ExportDialog:
+      vi.fn<Mp4ExportActions["localizeMp4ExportDialog"]>(),
+    openMp4ExportDialog: vi.fn<() => Promise<void>>(async () => {}),
+    closeMp4ExportDialog: vi.fn<Mp4ExportActions["closeMp4ExportDialog"]>(),
+    updateMp4ExportSize: vi.fn<() => Promise<void>>(async () => {}),
+    updateMp4ExportCustomSize: vi.fn<() => Promise<void>>(async () => {}),
+    startMp4Export: vi.fn<() => Promise<void>>(async () => {}),
   } satisfies Mp4ExportActions;
 }
 
 describe("lazy MP4 actions", () => {
   it("loads once on demand and preserves action arguments and Promise completion", async () => {
     const target = runtime();
-    const load = vi.fn(async () => target);
-    const report = vi.fn();
+    const load = vi.fn<Parameters<typeof createLazyMp4ExportActions>[0]>(
+      async () => target,
+    );
+    const report = vi.fn<Parameters<typeof createLazyMp4ExportActions>[1]>();
     const actions = createLazyMp4ExportActions(load, report, () => "template");
     actions.localizeMp4ExportDialog();
     expect(load).not.toHaveBeenCalled();
@@ -49,7 +52,7 @@ describe("lazy MP4 actions", () => {
       .fn<() => Promise<Mp4ExportActions>>()
       .mockRejectedValueOnce(failure)
       .mockResolvedValueOnce(target);
-    const report = vi.fn();
+    const report = vi.fn<Parameters<typeof createLazyMp4ExportActions>[1]>();
     const actions = createLazyMp4ExportActions(load, report, () => "template");
     await expect(actions.openMp4ExportDialog()).resolves.toBeUndefined();
     expect(report).toHaveBeenCalledWith(failure);
@@ -61,7 +64,7 @@ describe("lazy MP4 actions", () => {
   it("cancels queued opening and starting when the dialog is closed during loading", async () => {
     const pending = Promise.withResolvers<Mp4ExportActions>();
     const target = runtime();
-    const report = vi.fn();
+    const report = vi.fn<Parameters<typeof createLazyMp4ExportActions>[1]>();
     const actions = createLazyMp4ExportActions(
       () => pending.promise,
       report,
@@ -83,7 +86,7 @@ describe("lazy MP4 actions", () => {
     const pending = Promise.withResolvers<Mp4ExportActions>();
     const target = runtime();
     let template = { id: "same-id" };
-    const report = vi.fn();
+    const report = vi.fn<Parameters<typeof createLazyMp4ExportActions>[1]>();
     const actions = createLazyMp4ExportActions(
       () => pending.promise,
       report,
@@ -111,8 +114,10 @@ describe("lazy MP4 actions", () => {
     const target = runtime();
     const failure = new Error("codec failed");
     target.updateMp4ExportSize.mockRejectedValueOnce(failure);
-    const load = vi.fn(async () => target);
-    const report = vi.fn();
+    const load = vi.fn<Parameters<typeof createLazyMp4ExportActions>[0]>(
+      async () => target,
+    );
+    const report = vi.fn<Parameters<typeof createLazyMp4ExportActions>[1]>();
     const actions = createLazyMp4ExportActions(load, report, () => "template");
     await actions.updateMp4ExportSize();
     await actions.updateMp4ExportSize();

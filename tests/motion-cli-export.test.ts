@@ -200,7 +200,7 @@ describe("portable CLI export", () => {
     const signal = AbortSignal.abort();
     await expect(
       exportMotionEffect(source, output, { signal }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ name: "AbortError" });
     await writeFile(source, "{");
     expect(await exportMotionEffect(source, output)).toMatchObject({
       ok: false,
@@ -215,7 +215,7 @@ describe("portable CLI export", () => {
     faults.afterWrite = () => controller.abort();
     await expect(
       exportMotionEffect(source, output, { signal: controller.signal }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ name: "AbortError" });
     await expect(readFile(output)).rejects.toMatchObject({ code: "ENOENT" });
   });
 

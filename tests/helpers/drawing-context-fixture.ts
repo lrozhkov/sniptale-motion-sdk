@@ -1,0 +1,100 @@
+import { vi } from "vitest";
+import {
+  createNativeCanvasFixture,
+  createNativeDrawingContextFixture,
+} from "./native-render-fixtures.js";
+
+/** Native Canvas 2D allocation with observable drawing operations; no rendering logic is duplicated. */
+export function createDrawingContextFixture(width = 120, height = 80) {
+  const context = createNativeDrawingContextFixture({
+    canvas: createNativeCanvasFixture({ width, height }),
+    fillStyle: "",
+    strokeStyle: "",
+    filter: "none",
+    font: "10px sans-serif",
+    globalAlpha: 1,
+    globalCompositeOperation: "source-over",
+    lineCap: "butt",
+    lineJoin: "miter",
+    lineWidth: 1,
+    textAlign: "left",
+    textBaseline: "alphabetic",
+    shadowBlur: 0,
+    shadowColor: "transparent",
+    arc(): void {},
+    arcTo(): void {},
+    beginPath(): void {},
+    bezierCurveTo(): void {},
+    clearRect(): void {},
+    clip(): void {},
+    closePath(): void {},
+    drawImage(): void {},
+    ellipse(): void {},
+    fill(): void {},
+    fillRect(): void {},
+    fillText(): void {},
+    lineTo(): void {},
+    moveTo(): void {},
+    quadraticCurveTo(): void {},
+    rect(): void {},
+    restore(): void {},
+    rotate(): void {},
+    roundRect(): void {},
+    save(): void {},
+    scale(): void {},
+    setTransform(): void {},
+    stroke(): void {},
+    translate(): void {},
+    measureText(text: string): TextMetrics {
+      return createTextMetricsFixture(text.length * 8);
+    },
+  });
+  return Object.assign(context, {
+    arc: vi.spyOn(context, "arc"),
+    arcTo: vi.spyOn(context, "arcTo"),
+    beginPath: vi.spyOn(context, "beginPath"),
+    bezierCurveTo: vi.spyOn(context, "bezierCurveTo"),
+    clearRect: vi.spyOn(context, "clearRect"),
+    clip: vi.spyOn(context, "clip"),
+    closePath: vi.spyOn(context, "closePath"),
+    drawImage: vi.spyOn(context, "drawImage"),
+    ellipse: vi.spyOn(context, "ellipse"),
+    fill: vi.spyOn(context, "fill"),
+    fillRect: vi.spyOn(context, "fillRect"),
+    fillText: vi.spyOn(context, "fillText"),
+    lineTo: vi.spyOn(context, "lineTo"),
+    moveTo: vi.spyOn(context, "moveTo"),
+    quadraticCurveTo: vi.spyOn(context, "quadraticCurveTo"),
+    rect: vi.spyOn(context, "rect"),
+    restore: vi.spyOn(context, "restore"),
+    rotate: vi.spyOn(context, "rotate"),
+    roundRect: vi.spyOn(context, "roundRect"),
+    save: vi.spyOn(context, "save"),
+    scale: vi.spyOn(context, "scale"),
+    setTransform: vi.spyOn(context, "setTransform"),
+    stroke: vi.spyOn(context, "stroke"),
+    translate: vi.spyOn(context, "translate"),
+    measureText: vi.spyOn(context, "measureText"),
+  });
+}
+
+export function createTextMetricsFixture(
+  width: number,
+  ascent = 0,
+  descent = 0,
+): TextMetrics {
+  return {
+    width,
+    actualBoundingBoxAscent: ascent,
+    actualBoundingBoxDescent: descent,
+    actualBoundingBoxLeft: 0,
+    actualBoundingBoxRight: width,
+    fontBoundingBoxAscent: ascent,
+    fontBoundingBoxDescent: descent,
+    emHeightAscent: ascent,
+    emHeightDescent: descent,
+    hangingBaseline: 0,
+    alphabeticBaseline: 0,
+    ideographicBaseline: 0,
+  };
+}

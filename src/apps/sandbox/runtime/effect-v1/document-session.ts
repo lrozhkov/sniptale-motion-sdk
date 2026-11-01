@@ -45,7 +45,9 @@ export async function loadSandboxEffectDocument(
       (message.revision !== undefined &&
         registry.moduleRevisions.get(message.moduleId) !== message.revision)
     ) {
-      const validation = validateEffectV1Document(message.document);
+      const validation = validateEffectV1Document(message.document, {
+        presentationPolicy: "retained",
+      });
       if (!validation.ok || !validation.document) {
         const diagnostic = validation.diagnostics[0];
         throw new Error(

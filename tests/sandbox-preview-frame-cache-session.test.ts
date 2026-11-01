@@ -1,19 +1,47 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   resolvePreviewCacheSessionFrame,
   storePreviewCacheSessionFrame,
 } from "../src/apps/sandbox/runtime/preview-frame-cache-session";
 
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+
+type ResolveOptions = Parameters<
+  typeof resolvePreviewCacheSessionFrame<{ key: string }>
+>[0];
+type StoreOptions = Parameters<
+  typeof storePreviewCacheSessionFrame<{ key: string }>
+>[0];
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe("sandbox preview cache session", () => {
   it("returns cached frames to the viewer without direct GPU presentation", async () => {
-    const bitmap = { close: vi.fn(), height: 90, width: 160 };
+    const bitmap = createNativeBitmapFixture({ height: 90, width: 160 });
     const cacheRequest = { key: "frame:1" };
-    const postToParent = vi.fn();
-    const previewPresenter = { present: vi.fn() };
+    const postToParent = vi.fn<ResolveOptions["postToParent"]>();
+    const previewPresenter = {
+      present:
+        vi.fn<NonNullable<ResolveOptions["previewPresenter"]>["present"]>(),
+    };
     const previewFrameCache = {
-      get: vi.fn(async () => ({ bitmap })),
-      getStats: vi.fn(() => ({
+      get: vi.fn<ResolveOptions["previewFrameCache"]["get"]>(async () => ({
+        bitmap,
+      })),
+      getStats: vi.fn<
+        () => {
+          bytes: number;
+          complete: boolean;
+          evictions: number;
+          frames: number;
+          rawBytes: number;
+          storage: string;
+          totalFrames: number;
+        }
+      >(() => ({
         bytes: 120,
         complete: true,
         evictions: 0,
@@ -22,7 +50,7 @@ describe("sandbox preview cache session", () => {
         storage: "png",
         totalFrames: 1,
       })),
-      prepare: vi.fn(() => cacheRequest),
+      prepare: vi.fn<() => { key: string }>(() => cacheRequest),
     };
 
     const result = await resolvePreviewCacheSessionFrame({
@@ -56,9 +84,13 @@ describe("sandbox preview cache session", () => {
   });
 
   it("keeps the weak-GPU playback cache compact instead of retaining raw frames", async () => {
-    const bitmap = { close: vi.fn(), height: 90, width: 160 };
+    const bitmap = createNativeBitmapFixture({ height: 90, width: 160 });
     const cacheRequest = { key: "frame:1" };
-    const previewFrameCache = { store: vi.fn(async () => true) };
+    const previewFrameCache = {
+      store: vi.fn<StoreOptions["previewFrameCache"]["store"]>(
+        async () => true,
+      ),
+    };
 
     await storePreviewCacheSessionFrame({
       bitmap,

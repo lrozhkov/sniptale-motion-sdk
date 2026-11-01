@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerPlaybackFixture } from "./helpers/viewer-playback-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import type { DirectRenderResponsePort } from "../src/apps/viewer/transport/direct-render-channel.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   advancePlaybackRenderAnchorMs,
@@ -9,10 +13,13 @@ import {
   resolvePlaybackSchedulingLatencyMs,
   resolvePlaybackUiIntervalMs,
 } from "../src/apps/viewer/playback/cadence";
-import {
-  createPlaybackActions,
-  schedulePlaybackTick,
-} from "../src/apps/viewer/playback/service";
+import { schedulePlaybackTick } from "../src/apps/viewer/playback/service";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe("viewer playback render cadence", () => {
   it("keeps the requested cadence for inexpensive frames", () => {
@@ -33,21 +40,33 @@ describe("viewer playback render cadence", () => {
   });
 
   it("schedules direct worker presentation from render cost, not delayed main-thread acknowledgement", () => {
-    const directContext = {
+    const directContext = createViewerPlaybackFixture();
+    Object.assign(directContext, {
       state: {
+        ...directContext.state,
         appliedPreviewScale: 0.125,
         averagePreviewLatencyMs: 52,
         averageRenderMs: 7,
         lastPreviewLatencyMs: 90,
-        currentTemplate: { effectId: "complex", kind: "composition" },
+        currentTemplate: {
+          id: "fixture",
+          duration: 8,
+          effectId: "complex",
+          kind: "composition",
+        },
         directLiveRenderKeys: new Set(["complex:1280x720"]),
         directRenderEffectIds: new Set(["complex"]),
-        directRenderResponsePort: { presentationSurfaceAttached: true },
+        directRenderResponsePort: {
+          close: vi.fn<DirectRenderResponsePort["close"]>(),
+          postMessage: vi.fn<DirectRenderResponsePort["postMessage"]>(),
+          presentationSurfaceAttached: true,
+        },
         previewCacheEnabled: true,
         previewRasterHeight: 720,
         previewRasterWidth: 1280,
       },
-    } as any;
+    } satisfies Partial<ViewerAppContext>);
+
     expect(resolvePlaybackSchedulingLatencyMs(directContext)).toBe(52);
 
     directContext.state.previewCacheWarmActive = true;
@@ -68,7 +87,9 @@ describe("viewer playback render cadence", () => {
     directContext.state.currentTemplate.kind = "graphic";
     expect(resolvePlaybackSchedulingLatencyMs(directContext)).toBe(52);
     directContext.state.currentTemplate.kind = "composition";
-    directContext.state.directRenderResponsePort.presentationSurfaceAttached = false;
+    const port = directContext.state.directRenderResponsePort;
+    if (!port) throw new Error("Missing direct presentation port fixture");
+    port.presentationSurfaceAttached = false;
     expect(resolvePlaybackSchedulingLatencyMs(directContext)).toBe(52);
   });
 
@@ -136,22 +157,26 @@ describe("viewer playback render cadence", () => {
 
   it("keeps at most one playback animation callback pending", () => {
     const callbacks: FrameRequestCallback[] = [];
-    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+    const requestAnimationFrame = vi.fn<
+      typeof globalThis.requestAnimationFrame
+    >((callback: FrameRequestCallback) => {
       callbacks.push(callback);
       return callbacks.length;
     });
-    const playbackTick = vi.fn();
-    const ctx = {
+    const playbackTick = vi.fn<ViewerAppContext["playbackTick"]>();
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       playbackAnimationFrame: null,
       playbackTick,
-    } as any;
+    } satisfies Partial<ViewerAppContext>);
+
     vi.stubGlobal("window", { requestAnimationFrame });
     try {
       schedulePlaybackTick(ctx);
       schedulePlaybackTick(ctx);
       expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
 
-      callbacks[0](42);
+      requiredEntry(callbacks, 0)(42);
       expect(ctx.playbackAnimationFrame).toBeNull();
       expect(playbackTick).toHaveBeenCalledWith(42);
 
@@ -163,11 +188,16 @@ describe("viewer playback render cadence", () => {
   });
 
   it("keeps the timeline frozen while video cache storage is restoring", () => {
-    const requestAnimationFrame = vi.fn(() => 1);
+    const requestAnimationFrame = vi.fn<
+      typeof globalThis.requestAnimationFrame
+    >(() => 1);
     vi.stubGlobal("window", { requestAnimationFrame });
-    const renderCurrentFrame = vi.fn();
-    const syncPreviewAudio = vi.fn();
-    const ctx = {
+    const renderCurrentFrame = vi
+      .fn<ViewerAppContext["renderCurrentFrame"]>()
+      .mockResolvedValue(undefined);
+    const syncPreviewAudio = vi.fn<ViewerAppContext["syncPreviewAudio"]>();
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       formatSeconds: (time: number) => `${time.toFixed(3)}s`,
       getEffectiveDuration: () => 5,
       isPreviewFullscreenActive: () => false,
@@ -177,19 +207,14 @@ describe("viewer playback render cadence", () => {
       lastPlaybackUiTs: 0,
       playbackAnimationFrame: null,
       playbackRenderTimer: null,
-      refs: {
-        fpsInput: { value: "30" },
-        fullscreenTimeOutput: null,
-        fullscreenTimeSlider: null,
-        timeOutput: { textContent: "" },
-        timeSlider: { value: "1" },
-      },
       renderCurrentFrame,
       state: {
+        ...ctx.state,
         averagePlaybackTickMs: 0,
         averagePreviewLatencyMs: 0,
         averageRenderMs: 0,
         currentTemplate: {
+          duration: 5,
           effectId: "heavy",
           id: "heavy",
           kind: "composition",
@@ -201,6 +226,7 @@ describe("viewer playback render cadence", () => {
         loopPlayback: false,
         playbackRange: null,
         playbackRun: {
+          ...ctx.state.playbackRun,
           generation: 1,
           mode: "cache",
           phase: "preparing-video-cache",
@@ -211,19 +237,28 @@ describe("viewer playback render cadence", () => {
         previewCacheWarmActive: false,
         previewFrameCacheComplete: false,
         previewVideoCache: {
+          ...ctx.state.previewVideoCache,
           playbackActive: false,
           preparePromise: Promise.resolve("recording"),
         },
         renderInFlight: false,
       },
-      syncPlaybackVideoCache: vi.fn(() => false),
+      syncPlaybackVideoCache: vi.fn<ViewerAppContext["syncPlaybackVideoCache"]>(
+        () => false,
+      ),
       syncPreviewAudio,
-      updateTimelinePlayhead: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+      updateTimelinePlayhead:
+        vi.fn<ViewerAppContext["updateTimelinePlayhead"]>(),
+    } satisfies Partial<ViewerAppContext>);
+    Object.assign(ctx.refs.fpsInput, { value: "30" } satisfies Partial<
+      typeof ctx.refs.fpsInput
+    >);
+    Object.assign(ctx.refs.timeOutput, { textContent: "" } satisfies Partial<
+      typeof ctx.refs.timeOutput
+    >);
+    Object.assign(ctx.refs.timeSlider, { value: "1" } satisfies Partial<
+      typeof ctx.refs.timeSlider
+    >);
 
     ctx.playbackTick(1100);
 
@@ -239,8 +274,11 @@ describe("viewer playback render cadence", () => {
       clearTimeout: globalThis.clearTimeout,
       setTimeout: globalThis.setTimeout,
     });
-    const refinePreviewAtFullQuality = vi.fn();
-    const ctx = {
+    const refinePreviewAtFullQuality = vi
+      .fn<ViewerAppContext["refinePreviewAtFullQuality"]>()
+      .mockResolvedValue(false);
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       lastPlaybackAudioTs: 0,
       lastPlaybackRenderTs: 0,
       lastPlaybackTs: 0,
@@ -248,22 +286,22 @@ describe("viewer playback render cadence", () => {
       playbackAnimationFrame: null,
       playbackRenderTimer: null,
       refinePreviewAtFullQuality,
-      renderCurrentFrame: vi.fn().mockResolvedValue(undefined),
+      renderCurrentFrame: vi
+        .fn<ViewerAppContext["renderCurrentFrame"]>()
+        .mockResolvedValue(undefined),
       state: {
-        currentTemplate: { id: "paused-template" },
+        ...ctx.state,
+        currentTemplate: { duration: 8, id: "paused-template" },
         playing: true,
       },
-      stopPreviewAudio: vi.fn(),
-      syncPlaybackButtons: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+      stopPreviewAudio: vi.fn<ViewerAppContext["stopPreviewAudio"]>(),
+      syncPlaybackButtons: vi.fn<ViewerAppContext["syncPlaybackButtons"]>(),
+    } satisfies Partial<ViewerAppContext>);
+
     try {
       ctx.togglePlayback();
       await Promise.resolve();
-      ctx.state.currentTemplate = { id: "next-template" };
+      ctx.state.currentTemplate = { id: "next-template", duration: 8 };
       await vi.advanceTimersByTimeAsync(120);
       expect(refinePreviewAtFullQuality).not.toHaveBeenCalled();
     } finally {
@@ -273,28 +311,33 @@ describe("viewer playback render cadence", () => {
   });
 
   it("starts a new run without inheriting elapsed time from the previous playback", () => {
-    vi.stubGlobal("window", { requestAnimationFrame: vi.fn(() => 1) });
-    const ctx = {
+    vi.stubGlobal("window", {
+      requestAnimationFrame: vi.fn<typeof globalThis.requestAnimationFrame>(
+        () => 1,
+      ),
+    });
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       lastPlaybackAudioTs: 0,
       lastPlaybackRenderTs: 900,
       lastPlaybackTs: 800,
       lastPlaybackUiTs: 700,
       playbackAnimationFrame: null,
       playbackRenderTimer: null,
-      refs: { timeSlider: { value: "0" } },
-      schedulePlaybackTick: vi.fn(),
+      schedulePlaybackTick: vi.fn<ViewerAppContext["schedulePlaybackTick"]>(),
       state: {
-        currentTemplate: { id: "template" },
+        ...ctx.state,
+        currentTemplate: { duration: 8, id: "template" },
         playing: false,
         previewCacheEnabled: false,
       },
-      syncPlaybackButtons: vi.fn(),
-      syncPreviewAudio: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+      syncPlaybackButtons: vi.fn<ViewerAppContext["syncPlaybackButtons"]>(),
+      syncPreviewAudio: vi.fn<ViewerAppContext["syncPreviewAudio"]>(),
+    } satisfies Partial<ViewerAppContext>);
+    Object.assign(ctx.refs.timeSlider, { value: "0" } satisfies Partial<
+      typeof ctx.refs.timeSlider
+    >);
+
     try {
       ctx.startPlayback();
 
@@ -307,29 +350,29 @@ describe("viewer playback render cadence", () => {
   });
 
   it("does not start playback in the middle of an active canvas gesture", () => {
-    const ctx = {
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       lastPlaybackAudioTs: 0,
       lastPlaybackRenderTs: 0,
       lastPlaybackTs: 0,
       lastPlaybackUiTs: 0,
       playbackAnimationFrame: null,
       playbackRenderTimer: null,
-      refs: {
-        playButton: { disabled: false },
-        timeSlider: { value: "0" },
-      },
       state: {
+        ...ctx.state,
         canvasTransformDragActive: true,
-        currentTemplate: { id: "template" },
+        currentTemplate: { duration: 8, id: "template" },
         playing: false,
         previewCacheEnabled: false,
       },
-      syncPlaybackButtons: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+      syncPlaybackButtons: vi.fn<ViewerAppContext["syncPlaybackButtons"]>(),
+    } satisfies Partial<ViewerAppContext>);
+    Object.assign(ctx.refs.playButton, { disabled: false } satisfies Partial<
+      typeof ctx.refs.playButton
+    >);
+    Object.assign(ctx.refs.timeSlider, { value: "0" } satisfies Partial<
+      typeof ctx.refs.timeSlider
+    >);
 
     ctx.startPlayback();
 
@@ -338,29 +381,29 @@ describe("viewer playback render cadence", () => {
   });
 
   it("does not start playback in the middle of an active timeline gesture", () => {
-    const ctx = {
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       lastPlaybackAudioTs: 0,
       lastPlaybackRenderTs: 0,
       lastPlaybackTs: 0,
       lastPlaybackUiTs: 0,
       playbackAnimationFrame: null,
       playbackRenderTimer: null,
-      refs: {
-        playButton: { disabled: false },
-        timeSlider: { value: "0" },
-      },
       state: {
-        currentTemplate: { id: "template" },
+        ...ctx.state,
+        currentTemplate: { duration: 8, id: "template" },
         playing: false,
         previewCacheEnabled: false,
         timelineDragActive: true,
       },
-      syncPlaybackButtons: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+      syncPlaybackButtons: vi.fn<ViewerAppContext["syncPlaybackButtons"]>(),
+    } satisfies Partial<ViewerAppContext>);
+    Object.assign(ctx.refs.playButton, { disabled: false } satisfies Partial<
+      typeof ctx.refs.playButton
+    >);
+    Object.assign(ctx.refs.timeSlider, { value: "0" } satisfies Partial<
+      typeof ctx.refs.timeSlider
+    >);
 
     ctx.startPlayback();
 
@@ -369,10 +412,15 @@ describe("viewer playback render cadence", () => {
   });
 
   it("pauses an in-progress cache build without discarding its frames", () => {
-    const stopPlaybackVideoCache = vi.fn();
-    const renderCurrentFrame = vi.fn().mockResolvedValue(undefined);
-    const syncPreviewQualityBadge = vi.fn();
-    const ctx = {
+    const stopPlaybackVideoCache =
+      vi.fn<ViewerAppContext["stopPlaybackVideoCache"]>();
+    const renderCurrentFrame = vi
+      .fn<ViewerAppContext["renderCurrentFrame"]>()
+      .mockResolvedValue(undefined);
+    const syncPreviewQualityBadge =
+      vi.fn<ViewerAppContext["syncPreviewQualityBadge"]>();
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       lastPlaybackAudioTs: 0,
       lastPlaybackRenderTs: 0,
       lastPlaybackTs: 0,
@@ -381,24 +429,25 @@ describe("viewer playback render cadence", () => {
       playbackRenderTimer: null,
       renderCurrentFrame,
       state: {
+        ...ctx.state,
         appliedPreviewScale: 1,
-        currentTemplate: { id: "heavy-template" },
+        currentTemplate: { duration: 8, id: "heavy-template" },
         playing: true,
         previewCacheEnabled: true,
         previewCacheWarmActive: true,
         previewCacheWarmScale: 1,
         previewCacheWarmVisitedFrames: 12,
-        previewVideoCache: { finalizing: false, recording: true },
+        previewVideoCache: {
+          ...ctx.state.previewVideoCache,
+          finalizing: false,
+          recording: true,
+        },
       },
       stopPlaybackVideoCache,
-      stopPreviewAudio: vi.fn(),
-      syncPlaybackButtons: vi.fn(),
+      stopPreviewAudio: vi.fn<ViewerAppContext["stopPreviewAudio"]>(),
+      syncPlaybackButtons: vi.fn<ViewerAppContext["syncPlaybackButtons"]>(),
       syncPreviewQualityBadge,
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+    } satisfies Partial<ViewerAppContext>);
 
     ctx.togglePlayback();
 
@@ -412,8 +461,10 @@ describe("viewer playback render cadence", () => {
   });
 
   it("cancels preparation explicitly when playback yields resources to export", () => {
-    const stopPlaybackVideoCache = vi.fn();
-    const ctx = {
+    const stopPlaybackVideoCache =
+      vi.fn<ViewerAppContext["stopPlaybackVideoCache"]>();
+    const ctx = createViewerPlaybackFixture();
+    Object.assign(ctx, {
       lastPlaybackAudioTs: 0,
       lastPlaybackRenderTs: 0,
       lastPlaybackTs: 0,
@@ -421,20 +472,17 @@ describe("viewer playback render cadence", () => {
       playbackAnimationFrame: null,
       playbackRenderTimer: null,
       state: {
-        currentTemplate: { id: "heavy-template" },
+        ...ctx.state,
+        currentTemplate: { duration: 8, id: "heavy-template" },
         playing: true,
         previewCacheEnabled: true,
         previewCacheWarmActive: true,
-        previewVideoCache: { recording: true },
+        previewVideoCache: { ...ctx.state.previewVideoCache, recording: true },
       },
       stopPlaybackVideoCache,
-      stopPreviewAudio: vi.fn(),
-      syncPlaybackButtons: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPlaybackActions(() => ctx),
-    );
+      stopPreviewAudio: vi.fn<ViewerAppContext["stopPreviewAudio"]>(),
+      syncPlaybackButtons: vi.fn<ViewerAppContext["syncPlaybackButtons"]>(),
+    } satisfies Partial<ViewerAppContext>);
 
     expect(
       ctx.pausePlayback({

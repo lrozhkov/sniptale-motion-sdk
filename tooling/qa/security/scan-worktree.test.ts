@@ -1,11 +1,11 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +20,14 @@ describe("Gitleaks worktree candidate", () => {
     try {
       mkdirSync(join(root, "tooling/configs/qa"), { recursive: true });
       mkdirSync(join(root, "fake-bin"));
-      writeFileSync(join(root, ".gitignore"), "ignored-candidate.txt\n.tmp/\n");
+      writeFileSync(
+        join(root, ".gitignore"),
+        "ignored-candidate.txt\n.tmp/\nfake-bin/\n",
+      );
+      writeFileSync(
+        join(root, "package.json"),
+        JSON.stringify({ type: "commonjs" }),
+      );
       writeFileSync(join(root, "tracked.txt"), "tracked\n");
       writeFileSync(
         join(root, "tooling/configs/qa/gitleaks.toml"),
@@ -51,7 +58,12 @@ describe("Gitleaks worktree candidate", () => {
       });
       execFileSync("git", ["update-index", "--split-index"], { cwd: root });
       writeFileSync(join(root, "ignored-candidate.txt"), "clean-worktree\n");
-      const fakeGitleaks = join(root, "fake-bin", "gitleaks");
+      const fakeGitleaks =
+        process.platform === "win32"
+          ? join(root, "dir")
+          : join(root, "fake-bin", "gitleaks");
+      if (process.platform === "win32")
+        copyFileSync(process.execPath, join(root, "fake-bin", "gitleaks.exe"));
       writeFileSync(
         fakeGitleaks,
         `#!/usr/bin/env node
@@ -129,8 +141,21 @@ writeFileSync(report, "[]\\n");
         { cwd: root },
       );
 
-      symlinkSync("force-staged-ignored-marker", join(root, "candidate-link"));
-      execFileSync("git", ["add", "candidate-link"], { cwd: root });
+      const linkObject = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+        cwd: root,
+        input: "force-staged-ignored-marker",
+        encoding: "utf8",
+      }).trim();
+      execFileSync(
+        "git",
+        [
+          "update-index",
+          "--add",
+          "--cacheinfo",
+          `120000,${linkObject},candidate-link`,
+        ],
+        { cwd: root },
+      );
       const symlinkCandidate = spawnSync(process.execPath, [scanner], {
         cwd: root,
         encoding: "utf8",
@@ -143,5 +168,5 @@ writeFileSync(report, "[]\\n");
     } finally {
       rmSync(root, { force: true, recursive: true });
     }
-  });
+  }, 20_000);
 });

@@ -55,7 +55,9 @@ async function bootstrap(ctx: ViewerAppContext) {
     return;
   }
   ctx.state.pack = loaded.pack;
-  ctx.state.templates = loaded.templates.map(readEditorTemplateSource);
+  ctx.state.templates = loaded.templates.map((source) =>
+    readEditorTemplateSource(source, { presentationPolicy: "retained" }),
+  );
   ctx.state.modules = loaded.modules;
   ctx.state.assets = loaded.assets;
   ctx.state.baseAssets = new Map(loaded.assets);

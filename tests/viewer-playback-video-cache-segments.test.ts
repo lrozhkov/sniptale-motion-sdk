@@ -101,11 +101,8 @@ describe("viewer playback video cache segments", () => {
       },
       8,
     );
-    const state: any = {
-      previewCacheWarmActive: false,
-      previewCacheWarmPrepared: false,
-    };
-    const cache: any = {};
+    const state = createViewerState();
+    const cache = state.previewVideoCache;
 
     expect(
       beginPlaybackVideoSegmentWarm(state, cache, {

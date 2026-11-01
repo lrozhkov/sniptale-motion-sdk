@@ -1,16 +1,21 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { DemoPackIssue } from "../src/sdk/demo-pack-validator/common.js";
 import { describe, expect, it } from "vitest";
 
 import { validateTimelineMotionPaths } from "../src/sdk/demo-pack-validator/motion-paths";
 
 describe("demo pack motion path validation", () => {
   it("accepts paired spatial tracks and rejects mismatched references", () => {
-    const template: any = createTemplate();
-    const validErrors = [];
+    const template = createTemplate();
+    const validErrors: DemoPackIssue[] = [];
     validateTimelineMotionPaths(template, "template", validErrors);
     expect(validErrors).toEqual([]);
 
-    template.timeline.motionPaths[0].points[1].yKeyframeId = "missing";
-    const invalidErrors = [];
+    requiredEntry(
+      requiredEntry(template.timeline.motionPaths, 0).points,
+      1,
+    ).yKeyframeId = "missing";
+    const invalidErrors: DemoPackIssue[] = [];
     validateTimelineMotionPaths(template, "template", invalidErrors);
     expect(invalidErrors).toContainEqual({
       message: "Expected keyframe from the layer y track.",

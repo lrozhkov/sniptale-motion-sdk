@@ -26,8 +26,10 @@ function fixture() {
     blocked: false,
   };
   const applied: string[] = [];
-  const notice = vi.fn();
-  const prepare = vi.fn(async (entry: StudioSource) => entry.source);
+  const notice = vi.fn<(message: string) => void>();
+  const prepare = vi.fn<(entry: StudioSource) => Promise<string>>(
+    async (entry: StudioSource) => entry.source,
+  );
   const target = (): ReloadTarget => ({
     identity: state.identity,
     effectId: "sample",
@@ -35,7 +37,14 @@ function fixture() {
     editor: () => ({ fingerprint: state.editor, dirty: state.dirty }),
     blocked: () => state.blocked,
   });
-  const apply = vi.fn(
+  const apply = vi.fn<
+    (
+      prepared: string,
+      entry: StudioSource,
+      target: ReloadTarget,
+      canCommit: () => boolean,
+    ) => Promise<boolean>
+  >(
     async (
       _prepared: string,
       entry: StudioSource,

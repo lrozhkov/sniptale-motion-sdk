@@ -38,7 +38,7 @@ describe("editor validation receiving boundaries", () => {
     },
   );
   it("does not invoke conversion hooks in timing, references or assets", () => {
-    const convert = vi.fn(() => {
+    const convert = vi.fn<() => never>(() => {
       throw new Error("foreign conversion");
     });
     const foreign = { toString: convert, valueOf: convert };
@@ -85,11 +85,13 @@ describe("editor validation receiving boundaries", () => {
     );
   });
   it("checks asset metadata types before safety callbacks", () => {
-    const convert = vi.fn(() => {
+    const convert = vi.fn<() => never>(() => {
       throw new Error("foreign conversion");
     });
     const foreign = { toString: convert };
-    const safety = vi.fn((value: unknown) => String(value) === "safe");
+    const safety = vi.fn<(value: unknown) => boolean>(
+      (value: unknown) => String(value) === "safe",
+    );
     expect(
       collectEditorValidationIssues(
         { ...valid(), assets: ["mark"] },

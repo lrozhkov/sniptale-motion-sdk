@@ -8,8 +8,10 @@ import { createViewerState } from "../src/apps/viewer/app/state.js";
 
 describe("graph editor lazy actions", () => {
   it("constructs without reading context or loading the runtime", () => {
-    const read = vi.fn(() => fixture().ctx);
-    const load = vi.fn(async () => runtime());
+    const read = vi.fn<() => GraphLazyContext>(() => fixture().ctx);
+    const load = vi.fn<() => Promise<GraphRuntimeActions>>(async () =>
+      runtime(),
+    );
     createLazyGraphEditorActions(read, load);
     expect(read).not.toHaveBeenCalled();
     expect(load).not.toHaveBeenCalled();
@@ -17,7 +19,9 @@ describe("graph editor lazy actions", () => {
 
   it("reports availability without importing the runtime", () => {
     const { ctx, timeline } = fixture();
-    const load = vi.fn(async () => runtime());
+    const load = vi.fn<() => Promise<GraphRuntimeActions>>(async () =>
+      runtime(),
+    );
     const actions = createLazyGraphEditorActions(() => ctx, load);
     actions.renderCurveEditor(timeline);
     expect(ctx.refs.graphEditorButton.disabled).toBe(false);
@@ -45,7 +49,9 @@ describe("graph editor lazy actions", () => {
   it("shares an in-flight import and preserves a later close request", async () => {
     const { ctx } = fixture();
     const deferred = Promise.withResolvers<GraphRuntimeActions>();
-    const load = vi.fn(() => deferred.promise);
+    const load = vi.fn<() => Promise<GraphRuntimeActions>>(
+      () => deferred.promise,
+    );
     const actions = createLazyGraphEditorActions(() => ctx, load);
     const open = actions.toggleGraphEditor();
     expect(ctx.state.graphEditorEnabled).toBe(true);
@@ -117,7 +123,7 @@ describe("graph editor lazy actions", () => {
   it("applies every wheel zoom immediately once the runtime is available", async () => {
     const { ctx } = fixture();
     const loaded = runtime();
-    loaded.zoomGraphEditor = vi.fn(() => {
+    loaded.zoomGraphEditor = vi.fn<() => boolean>(() => {
       ctx.state.graphEditorViewport = {
         templateId: "source",
         timeStart: 0,
@@ -172,37 +178,59 @@ function fixture() {
     phases: [],
     tracks: [{ id: "track", keyframes: [{ id: "key", time: 1, value: 1 }] }],
   };
-  const ctx: GraphLazyContext = {
-    state: {
-      ...createViewerState(),
-      currentTemplate: source,
-      selectedKeyframes: [{ trackId: "track", keyframeId: "key" }],
-    },
+  const ctx = {
+    state: createViewerState(),
     refs: {
-      graphEditorButton: { disabled: true, setAttribute: vi.fn() },
-      timelineEditor: { classList: { remove: vi.fn() } },
-      curveEditor: { hidden: false, replaceChildren: vi.fn() },
+      graphEditorButton: {
+        disabled: true,
+        setAttribute:
+          vi.fn<
+            GraphLazyContext["refs"]["graphEditorButton"]["setAttribute"]
+          >(),
+      },
+      timelineEditor: {
+        classList: {
+          remove:
+            vi.fn<
+              GraphLazyContext["refs"]["timelineEditor"]["classList"]["remove"]
+            >(),
+        },
+      },
+      curveEditor: {
+        hidden: false,
+        replaceChildren:
+          vi.fn<GraphLazyContext["refs"]["curveEditor"]["replaceChildren"]>(),
+      },
     },
-    deps: { t: (_key, fallback = "") => fallback },
-    logDiagnostic: vi.fn(),
+    deps: { t: (key, fallback) => fallback ?? key },
+    logDiagnostic: vi.fn<GraphLazyContext["logDiagnostic"]>(),
     getEffectiveTimeline: () => timeline,
-  };
+  } satisfies GraphLazyContext;
+  ctx.state.currentTemplate = source;
+  ctx.state.selectedKeyframes = [{ trackId: "track", keyframeId: "key" }];
   return { ctx, timeline };
 }
 
-function runtime(): GraphRuntimeActions {
+function runtime() {
   return {
-    toggleGraphEditor: vi.fn(),
-    fitGraphEditor: vi.fn(() => true),
-    zoomGraphEditor: vi.fn(() => true),
-    setGraphEditorViewport: vi.fn(),
-    setGraphEditorLinkedHandles: vi.fn(),
-    renderCurveEditor: vi.fn(),
-    updateGraphEditorPlayhead: vi.fn(),
-    handleGraphEditorWheel: vi.fn(),
-    beginGraphEditorPan: vi.fn(),
-    beginGraphKeyframeDrag: vi.fn(),
-    beginGraphBezierHandleDrag: vi.fn(),
-    beginGraphSelectionScale: vi.fn(),
-  };
+    toggleGraphEditor: vi.fn<GraphRuntimeActions["toggleGraphEditor"]>(),
+    fitGraphEditor: vi.fn<() => boolean>(() => true),
+    zoomGraphEditor: vi.fn<() => boolean>(() => true),
+    setGraphEditorViewport:
+      vi.fn<GraphRuntimeActions["setGraphEditorViewport"]>(),
+    setGraphEditorLinkedHandles:
+      vi.fn<GraphRuntimeActions["setGraphEditorLinkedHandles"]>(),
+    renderCurveEditor: vi.fn<GraphRuntimeActions["renderCurveEditor"]>(),
+    updateGraphEditorPlayhead:
+      vi.fn<GraphRuntimeActions["updateGraphEditorPlayhead"]>(),
+    handleGraphEditorWheel:
+      vi.fn<GraphRuntimeActions["handleGraphEditorWheel"]>(),
+    beginGraphEditorPan: vi.fn<GraphRuntimeActions["beginGraphEditorPan"]>(),
+    beginGraphKeyframeDrag:
+      vi.fn<GraphRuntimeActions["beginGraphKeyframeDrag"]>(),
+    beginGraphBezierHandleDrag:
+      vi.fn<GraphRuntimeActions["beginGraphBezierHandleDrag"]>(),
+    beginGraphSelectionScale:
+      vi.fn<GraphRuntimeActions["beginGraphSelectionScale"]>(),
+  } satisfies GraphRuntimeActions;
 }

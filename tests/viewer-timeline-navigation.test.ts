@@ -1,13 +1,22 @@
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { TimelineLayerRow } from "../src/apps/viewer/timeline/model/row-tree-model.js";
+import type { EffectLayer } from "../src/sdk/types.js";
+import { resolveEffectV1LocaleText } from "../src/sdk/effect-v1/locale-text.js";
 import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
 import type { TimelineSearchIndexContext } from "../src/apps/viewer/timeline/navigation/search-model.js";
 import type { TimelineLayerSearchResult } from "../src/apps/viewer/timeline/navigation/contract.js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { revealTimelineLayer } from "../src/apps/viewer/timeline/navigation/reveal";
 import {
   getTimelineLayerSearchResults,
   getCachedTimelineLayerSearchIndex,
   normalizeTimelineLayerSearch,
 } from "../src/apps/viewer/timeline/navigation/search-model";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("timeline layer navigation", () => {
   it("refreshes cached results after editing and reuses them only for the same source inputs", () => {
@@ -64,7 +73,7 @@ describe("timeline layer navigation", () => {
     expect(build).toHaveBeenCalledTimes(6);
   });
 
-  it("searches translated names, ids, types, and nested group paths", () => {
+  it("searches user names, ids, translated types, and nested group paths", () => {
     const ctx = createSearchContext();
 
     expect(normalizeTimelineLayerSearch("  RévéAL / Карточка  ")).toBe(
@@ -112,7 +121,9 @@ describe("timeline layer navigation", () => {
 
   it("reveals only the required scene and ancestor rows before selection", () => {
     const ctx = createRevealContext();
-    const requestAnimationFrame = vi.fn();
+    const requestAnimationFrame = vi
+      .fn<typeof globalThis.requestAnimationFrame>()
+      .mockReturnValue(1);
     vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
 
     expect(
@@ -153,21 +164,30 @@ describe("timeline layer navigation", () => {
   });
 });
 
-function createSearchContext(): any {
-  const card = {
+function createSearchContext() {
+  const ctx = createViewerContextFixture();
+  const card: EffectLayer = {
     id: "card-layer",
-    name: { en: "Card", ru: "Карточка" },
+    name: "Card",
     type: "rect",
   };
-  const compose = { id: "compose", name: "Compose", type: "group" };
-  const template = {
+  const compose: EffectLayer = {
+    id: "compose",
+    name: "Compose",
+    type: "group",
+  };
+  ctx.state.currentTemplate = {
     id: "fixture",
+    duration: 8,
     layers: [compose, card],
   };
-  const createRows = (sceneId) => [
+  const createRows = (sceneId: string): TimelineLayerRow[] => [
     {
       children: [
         {
+          clip: null,
+          directTracks: [],
+          phases: [],
           depth: 2,
           expansionId: `${sceneId}:card-layer`,
           kind: "layer",
@@ -175,6 +195,9 @@ function createSearchContext(): any {
           layerId: "card-layer",
         },
       ],
+      allLeafIds: ["card-layer"],
+      leafIds: ["card-layer"],
+      parentId: null,
       depth: 1,
       expansionId: `${sceneId}:compose`,
       kind: "group",
@@ -182,47 +205,64 @@ function createSearchContext(): any {
       layerId: "compose",
     },
   ];
-  return {
-    createTimelineRowTree: () => ({
-      globalLayers: [],
-      scenes: [
-        {
-          layers: createRows("main"),
-          scene: { id: "main", label: "Main" },
-        },
-        {
-          layers: createRows("outro"),
-          scene: { id: "outro", label: "Outro" },
-        },
-      ],
-    }),
-    deps: {
-      getLocale: () => "en",
-      t: (key, fallback) =>
-        key === "viewer.timeline.layerTypes.rect" ? "Rectangle" : fallback,
-      translateText: (value, fallback) =>
-        typeof value === "object" ? value.en : value || fallback,
-    },
-    getEffectiveTemplate: () => template,
-    state: { currentTemplate: template },
-  };
+  vi.spyOn(ctx, "createTimelineRowTree").mockImplementation(() => ({
+    globalLayers: [],
+    globalScene: null,
+    scenes: [
+      {
+        layers: createRows("main"),
+        scene: { id: "main", label: "Main", start: 0, duration: 4 },
+        scenePhases: [],
+        sceneTracks: [],
+      },
+      {
+        layers: createRows("outro"),
+        scene: { id: "outro", label: "Outro", start: 4, duration: 4 },
+        scenePhases: [],
+        sceneTracks: [],
+      },
+    ],
+  }));
+  ctx.deps.getLocale = () => "en";
+  ctx.deps.t = (key: string, fallback?: string) =>
+    key === "viewer.timeline.layerTypes.rect" ? "Rectangle" : (fallback ?? key);
+  ctx.deps.translateText = (value, fallback) =>
+    typeof value === "string"
+      ? value
+      : value
+        ? resolveEffectV1LocaleText(value, "en", fallback ?? "")
+        : (fallback ?? "");
+  return ctx;
 }
 
-function createRevealContext(): any {
-  const currentTemplate = { id: "fixture" };
-  return {
-    getEffectiveTemplate: () => ({
-      layers: [{ id: "card", type: "rect" }],
-    }),
-    getTimelineLayerRowIndex: vi.fn(() => 7),
-    renderTimelineStructure: vi.fn(),
-    selectCanvasLayers: vi.fn(),
-    setTimelineRowExpanded: vi.fn(),
-    scrollTimelineRowIntoView: vi.fn(),
-    syncTimelineSelection: vi.fn(),
-    state: {
-      currentTemplate,
-      expandedSceneIds: new Set(),
-    },
+function createRevealContext() {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = {
+    id: "fixture",
+    duration: 1,
+    layers: [{ id: "card", type: "rect" }],
   };
+  vi.spyOn(ctx, "getTimelineLayerRowIndex").mockReturnValue(7);
+  const renderTimelineStructure = vi
+    .spyOn(ctx, "renderTimelineStructure")
+    .mockImplementation(() => {});
+  const selectCanvasLayers = vi
+    .spyOn(ctx, "selectCanvasLayers")
+    .mockImplementation(() => {});
+  const setTimelineRowExpanded = vi
+    .spyOn(ctx, "setTimelineRowExpanded")
+    .mockImplementation(() => {});
+  const scrollTimelineRowIntoView = vi
+    .spyOn(ctx, "scrollTimelineRowIntoView")
+    .mockReturnValue(true);
+  const syncTimelineSelection = vi
+    .spyOn(ctx, "syncTimelineSelection")
+    .mockImplementation(() => {});
+  return Object.assign(ctx, {
+    renderTimelineStructure,
+    selectCanvasLayers,
+    setTimelineRowExpanded,
+    scrollTimelineRowIntoView,
+    syncTimelineSelection,
+  });
 }

@@ -1,21 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPointerDragActions } from "../src/apps/viewer/app/pointer-drag.js";
+import type { PointerDragContext } from "../src/apps/viewer/app/pointer-context.js";
+import type { PointerDragActions } from "../src/apps/viewer/app/pointer-contract.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import { createViewerState } from "../src/apps/viewer/app/state.js";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe("viewer pointer drag ownership", () => {
   it("accepts moves and termination only from the captured pointer", () => {
     const { actions, target, events, ctx, setFingerprint } = fixture();
-    const move = vi.fn(() => {
+    const move = vi.fn<() => void>(() => {
       ctx.state.dragMoved = true;
       setFingerprint("changed");
     });
-    const end = vi.fn();
+    const end = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
     actions.bindPointerDrag(1, target, move, end);
     events.dispatchEvent(new PointerSample("pointermove", 2));
     events.dispatchEvent(new PointerSample("pointerup", 2));
@@ -37,25 +41,37 @@ describe("viewer pointer drag ownership", () => {
 
   it("cancels the previous session before binding another gesture", () => {
     const { actions, target, events, ctx } = fixture();
-    const oldMove = vi.fn();
-    const oldEnd = vi.fn();
-    const nextMove = vi.fn();
+    const oldMove =
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    const oldEnd =
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    const nextMove =
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
     actions.bindPointerDrag(1, target, oldMove, oldEnd);
     actions.bindPointerDrag(2, target, nextMove);
     events.dispatchEvent(new PointerSample("pointermove", 1));
     events.dispatchEvent(new PointerSample("pointermove", 2));
     expect(oldMove).not.toHaveBeenCalled();
     expect(oldEnd).toHaveBeenCalledOnce();
-    expect(oldEnd.mock.calls[0]?.[0].type).toBe("pointercancel");
+    expect(requiredEntry(oldEnd.mock.calls, 0)[0].type).toBe("pointercancel");
     expect(nextMove).toHaveBeenCalledOnce();
     expect(ctx.state.pointerDragCleanup).not.toBeNull();
   });
 
   it("ignores a late lost-capture event after the same pointer is captured by a new session", () => {
     const { actions, target, events } = fixture();
-    const end = vi.fn();
-    actions.bindPointerDrag(1, target, vi.fn());
-    actions.bindPointerDrag(1, target, vi.fn(), end);
+    const end = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    actions.bindPointerDrag(
+      1,
+      target,
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>(),
+    );
+    actions.bindPointerDrag(
+      1,
+      target,
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>(),
+      end,
+    );
     target.dispatchEvent(new PointerSample("lostpointercapture", 1));
     const move = new PointerSample("pointermove", 1);
     events.dispatchEvent(move);
@@ -67,8 +83,8 @@ describe("viewer pointer drag ownership", () => {
   it("keeps window fallback listeners when capture fails", () => {
     const { actions, target, events } = fixture();
     target.captureError = new Error("capture unavailable");
-    const move = vi.fn();
-    const end = vi.fn();
+    const move = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    const end = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
     actions.bindPointerDrag(1, target, move, end);
     events.dispatchEvent(new PointerSample("pointermove", 1));
     events.dispatchEvent(new PointerSample("pointerup", 1));
@@ -79,22 +95,22 @@ describe("viewer pointer drag ownership", () => {
 
   it("cancels once on window blur and removes listeners", () => {
     const { actions, target, events, ctx } = fixture();
-    const move = vi.fn();
-    const end = vi.fn();
+    const move = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    const end = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
     actions.bindPointerDrag(1, target, move, end);
     events.dispatchEvent(new Event("blur"));
     events.dispatchEvent(new PointerSample("pointerup", 1));
     events.dispatchEvent(new PointerSample("pointermove", 1));
     expect(move).not.toHaveBeenCalled();
     expect(end).toHaveBeenCalledOnce();
-    expect(end.mock.calls[0]?.[0].type).toBe("pointercancel");
+    expect(requiredEntry(end.mock.calls, 0)[0].type).toBe("pointercancel");
     expect(ctx.state.pointerDragCleanup).toBeNull();
   });
 
   it("continues through capture loss when a rerender replaces the target", () => {
     const { actions, target, events } = fixture();
-    const move = vi.fn();
-    const end = vi.fn();
+    const move = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    const end = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
     actions.bindPointerDrag(1, target, move, end);
     target.captures.delete(1);
     target.dispatchEvent(new PointerSample("lostpointercapture", 1));
@@ -107,8 +123,8 @@ describe("viewer pointer drag ownership", () => {
 
   it("supports the mouse fallback without accepting pointer events", () => {
     const { actions, target, events } = fixture();
-    const move = vi.fn();
-    const end = vi.fn();
+    const move = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
+    const end = vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>();
     actions.bindPointerDrag(undefined, target, move, end);
     events.dispatchEvent(new PointerSample("pointermove", 1));
     expect(move).not.toHaveBeenCalled();
@@ -134,9 +150,14 @@ describe("viewer pointer drag ownership", () => {
 
   it("cleans up before a failing end callback and remains idempotent", () => {
     const { actions, target, ctx } = fixture();
-    actions.bindPointerDrag(1, target, vi.fn(), () => {
-      throw new Error("end failed");
-    });
+    actions.bindPointerDrag(
+      1,
+      target,
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>(),
+      () => {
+        throw new Error("end failed");
+      },
+    );
     const cancel = ctx.state.pointerDragCleanup;
     expect(() => cancel?.()).toThrow("end failed");
     expect(ctx.state.pointerDragCleanup).toBeNull();
@@ -147,10 +168,22 @@ describe("viewer pointer drag ownership", () => {
 
   it("rejects invalid targets and pointer ids without canceling a valid gesture", () => {
     const { actions, target, ctx } = fixture();
-    actions.bindPointerDrag(1, target, vi.fn());
+    actions.bindPointerDrag(
+      1,
+      target,
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>(),
+    );
     const cancel = ctx.state.pointerDragCleanup;
-    actions.bindPointerDrag(2, null, vi.fn());
-    actions.bindPointerDrag(Number.NaN, target, vi.fn());
+    actions.bindPointerDrag(
+      2,
+      null,
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>(),
+    );
+    actions.bindPointerDrag(
+      Number.NaN,
+      target,
+      vi.fn<Parameters<PointerDragActions["bindPointerDrag"]>[2]>(),
+    );
     expect(ctx.state.pointerDragCleanup).toBe(cancel);
   });
 });
@@ -215,14 +248,14 @@ class Target extends EventTarget {
   getAttribute(name: string): string | null {
     return this.attributes.get(name) ?? null;
   }
-  setPointerCapture = vi.fn((id: number): void => {
+  setPointerCapture = vi.fn<(id: number) => void>((id: number): void => {
     if (this.captureError) throw this.captureError;
     this.captures.add(id);
   });
   hasPointerCapture(id: number): boolean {
     return this.captures.has(id);
   }
-  releasePointerCapture = vi.fn((id: number): void => {
+  releasePointerCapture = vi.fn<(id: number) => void>((id: number): void => {
     this.captures.delete(id);
   });
 }
@@ -249,7 +282,8 @@ function fixture() {
   const ctx = {
     state,
     getEditorContentFingerprint: () => fingerprint,
-    markEditorChanged: vi.fn(),
+    markEditorChanged:
+      vi.fn<NonNullable<PointerDragContext["markEditorChanged"]>>(),
   };
   const actions = createPointerDragActions(() => ctx);
   cleanups.push(() => ctx.state.pointerDragCleanup?.());

@@ -1,3 +1,12 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import {
+  responseObject,
+  responseString,
+} from "../tooling/test/fixtures/response.js";
+import type {
+  EffectV1Document,
+  EffectV1Diagnostic,
+} from "../src/sdk/effect-v1/types.js";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -23,14 +32,16 @@ describe("Effect v1 contract", () => {
       expect(path.test(value)).toBe(false);
   });
   it("keeps the published JSON Schema synchronized with every operation", () => {
-    const published = JSON.parse(
+    const published: unknown = JSON.parse(
       readFileSync("schemas/sniptale-effect-v1.schema.json", "utf8"),
     );
-    const commandOps = EFFECT_V1_JSON_SCHEMA.$defs.command.oneOf.map(
-      (schema: any) => schema.properties.op.const,
+    const commandOps = EFFECT_V1_JSON_SCHEMA.$defs.command.oneOf.map((schema) =>
+      responseString(schema, "properties", "op", "const"),
     );
     const expressionOps = EFFECT_V1_JSON_SCHEMA.$defs.expression.anyOf
-      .map((schema: any) => schema.properties?.op?.const)
+      .map((schema) =>
+        "properties" in schema ? schema.properties.op.const : undefined,
+      )
       .filter(Boolean);
 
     expect(published).toEqual(EFFECT_V1_JSON_SCHEMA);
@@ -52,7 +63,8 @@ describe("Effect v1 contract", () => {
       ok: true,
       summary: { errors: 0, warnings: 0 },
     });
-    expect(normalizeEffectV1ToTemplate(result.document!)).toMatchObject({
+    if (!result.document) throw new Error("Valid effect fixture was rejected.");
+    expect(normalizeEffectV1ToTemplate(result.document)).toMatchObject({
       effectId: "agent-card",
       id: "agent-card",
       kind: "composition",
@@ -102,7 +114,10 @@ describe("Effect v1 contract", () => {
     ];
     expect(validateEffectV1Document(transition).ok).toBe(true);
 
-    transition.program.commands[0].input = "source";
+    const command = requiredEntry(transition.program.commands, 0);
+    if (command.op !== "image")
+      throw new Error("Expected image command fixture.");
+    command.input = "source";
     expect(validateEffectV1Document(transition).diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "IMAGE_INPUT_UNAVAILABLE" }),
@@ -156,12 +171,14 @@ describe("Effect v1 contract", () => {
     );
 
     expect(result).toMatchObject({ ok: false });
-    expect(result.diagnostics[0]).toMatchObject({
+    expect(requiredEntry(result.diagnostics, 0)).toMatchObject({
       code: "JSON_INVALID",
       path: "$",
       severity: "error",
     });
-    expect(result.diagnostics[0].suggestion).toContain("double-quoted");
+    expect(requiredEntry(result.diagnostics, 0).suggestion).toContain(
+      "double-quoted",
+    );
   });
 
   it("requires document-local asset closure", () => {
@@ -185,10 +202,12 @@ describe("Effect v1 contract", () => {
         expect.objectContaining({
           code: "LAYER_ASSET_UNKNOWN",
           path: "$.layers[0].assetId",
-          suggestion: expect.stringContaining("pack-global"),
         }),
       ]),
     );
+    expect(
+      requireDiagnostic(result.diagnostics, "LAYER_ASSET_UNKNOWN").suggestion,
+    ).toContain("pack-global");
   });
 
   it("never silently sorts keyframes", () => {
@@ -237,15 +256,18 @@ describe("Effect v1 contract", () => {
       },
     ];
 
-    expect(validateEffectV1Document(document).diagnostics).toEqual(
+    const result = validateEffectV1Document(document);
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "TRACK_UNUSED",
           path: "$.timeline.tracks[0]",
-          suggestion: expect.stringContaining("tracks.card.opacity"),
         }),
       ]),
     );
+    expect(
+      requireDiagnostic(result.diagnostics, "TRACK_UNUSED").suggestion,
+    ).toContain("tracks.card.opacity");
   });
 
   it("accepts standard tracks consumed through a layer-bound command", () => {
@@ -294,7 +316,7 @@ describe("Effect v1 contract", () => {
 
   it("blocks unbounded render work and expression cycles", () => {
     const document = createDocument();
-    document.program = {
+    responseObject(document).program = {
       commands: [
         {
           commands: [{ color: "#000", op: "clear" }],
@@ -343,27 +365,36 @@ describe("Effect v1 contract", () => {
         expect.objectContaining({ code: "COMMAND_LAYER_UNKNOWN" }),
         expect.objectContaining({
           code: "READ_REFERENCE_UNKNOWN",
-          message: expect.stringContaining('control "missing"'),
         }),
         expect.objectContaining({
           code: "READ_REFERENCE_UNKNOWN",
-          message: expect.stringContaining('track "missing"'),
         }),
         expect.objectContaining({
           code: "READ_REFERENCE_UNKNOWN",
-          message: expect.stringContaining('definition "missing"'),
         }),
         expect.objectContaining({
           code: "READ_REFERENCE_UNKNOWN",
-          message: expect.stringContaining('runtime input "source"'),
         }),
+      ]),
+    );
+    expect(
+      result.diagnostics
+        .filter((issue) => issue.code === "READ_REFERENCE_UNKNOWN")
+        .map((issue) => issue.message),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('control "missing"'),
+        expect.stringContaining('track "missing"'),
+        expect.stringContaining('definition "missing"'),
+        expect.stringContaining('runtime input "source"'),
       ]),
     );
   });
 
   it("reports nested authoring typos and invalid control ranges at exact paths", () => {
     const document = createDocument();
-    document.layers = [{ id: "card", name: "Card", type: "rect", widht: 320 }];
+    document.layers = [{ id: "card", name: "Card", type: "rect" }];
+    responseObject(document, "layers", 0).widht = 320;
     document.clips = [
       { duration: 2, layerId: "card", sceneId: "main", start: 0 },
     ];
@@ -432,7 +463,7 @@ describe("Effect v1 contract", () => {
 
   it("rejects motion paths with unknown layers, keyframes, and point fields", () => {
     const document = createDocument();
-    document.timeline.motionPaths = [
+    responseObject(document, "timeline").motionPaths = [
       {
         layerId: "missing-layer",
         points: [
@@ -490,11 +521,12 @@ describe("Effect v1 contract", () => {
     ];
     expect(validateEffectV1Document(document).ok).toBe(true);
 
-    document.program.commands[0].points = [
+    const pathProbe = responseObject(document, "program", "commands", 0);
+    pathProbe.points = [
       { x: 0, y: 0 },
       { x: 1, y: 1 },
     ];
-    document.program.commands[0].segments[1].typo = 1;
+    responseObject(pathProbe, "segments", 1).typo = 1;
     expect(validateEffectV1Document(document).diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "COMMAND_PATH_SOURCE" }),
@@ -508,12 +540,15 @@ describe("Effect v1 contract", () => {
 
   it("has no localFixture compatibility parser", () => {
     const document = createDocument();
-    document.program = {
-      fixtureId: "legacy-local-fixture",
-      kind: "localFixture",
+    const legacy = {
+      ...document,
+      program: {
+        fixtureId: "legacy-local-fixture",
+        kind: "localFixture",
+      },
     };
 
-    expect(validateEffectV1Document(document).diagnostics).toEqual(
+    expect(validateEffectV1Document(legacy).diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "PROGRAM_KIND" }),
         expect.objectContaining({ code: "UNKNOWN_FIELD" }),
@@ -522,7 +557,7 @@ describe("Effect v1 contract", () => {
   });
 });
 
-function createDocument(): any {
+function createDocument(): EffectV1Document {
   return {
     assets: [],
     clips: [],
@@ -545,4 +580,10 @@ function createDocument(): any {
     schemaVersion: EFFECT_V1_SCHEMA,
     timeline: { phases: [], tracks: [] },
   };
+}
+
+function requireDiagnostic(diagnostics: EffectV1Diagnostic[], code: string) {
+  const diagnostic = diagnostics.find((entry) => entry.code === code);
+  if (!diagnostic) throw new Error(`Missing expected diagnostic ${code}.`);
+  return diagnostic;
 }

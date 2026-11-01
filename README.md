@@ -237,10 +237,10 @@ Run the repository checkpoint after source or documentation changes:
 npm run qa:checkpoint
 ```
 
-Run the full build, coverage, browser smoke, artifact, and legal checks with:
+Run checkpoint, coverage, local and release builds, browser smoke, artifact, and legal checks with:
 
 ```bash
-npm run qa:build
+npm run qa
 ```
 
 `npm run effect:corpus:check` generates the locked cross-repository Effect v1 compatibility corpus twice and verifies its schema copy, ZIP profile, inventory, expectations, contract lock, and SHA-256 closure. From a clean committed `HEAD`, `npm run effect:corpus` writes handoff artifacts to ignored `.tmp/sniptale-effect-corpus` and records that exact commit in the metadata.

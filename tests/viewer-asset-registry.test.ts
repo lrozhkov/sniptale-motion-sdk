@@ -32,7 +32,7 @@ describe("viewer asset registry boundary", () => {
 
   it("materializes validated import metadata without coercing dimensions", () => {
     const blob = new Blob(["image"]);
-    const dataUrlToBlob = vi.fn(() => blob);
+    const dataUrlToBlob = vi.fn<() => Blob>(() => blob);
     const asset = {
       id: "image",
       dataUrl: "data:image/png;base64,YQ==",

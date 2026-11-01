@@ -1,12 +1,16 @@
+import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { syncTimelineInteractionGeometry } from "../src/apps/viewer/timeline/interaction/preview-geometry";
 
 describe("viewer timeline interaction preview geometry", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("updates visible timing geometry without rebuilding timeline rows", () => {
-    vi.stubGlobal("HTMLElement", FakeElement);
     const scene = new FakeElement({ sceneId: "scene" });
     const clipLane = new FakeElement({ parentSceneId: "scene" });
     const clip = new FakeElement({ layerId: "card" }, clipLane);
@@ -43,33 +47,15 @@ describe("viewer timeline interaction preview geometry", () => {
         },
       ],
     };
-    const ctx = {
-      deps: {
-        clamp: (value, min, max) => Math.min(max, Math.max(min, value)),
-      },
-      getEffectiveDuration: () => 10,
-      getEffectiveTemplate: () => ({
-        clips: [{ duration: 4, layerId: "card", start: 1 }],
-        scenes: [{ duration: 6, id: "scene", start: 0.5 }],
-      }),
-      getSceneClampedClipInterval: (value) => ({
-        effectiveEnd: value.start + value.duration,
-        effectiveStart: value.start,
-        rawEnd: value.start + value.duration,
-        rawStart: value.start,
-      }),
-      getTrackLayerId: (track) => track.layerId,
-      normalizeScenes: (scenes) => scenes,
-      refs: {
-        timelineTracks: {
-          querySelectorAll: (selector) => elements.get(selector) ?? [],
-        },
-      },
-      timelineDurationPercent: (value, duration) => (value / duration) * 100,
-      timelinePercent: (value, duration) => (value / duration) * 100,
-    } as any;
+    const ctx = createContext(10, (selector) => elements.get(selector) ?? []);
+    ctx.state.currentTemplate.clips = [
+      { duration: 4, layerId: "card", start: 1 },
+    ];
+    ctx.state.currentTemplate.scenes = [
+      { duration: 6, id: "scene", start: 0.5 },
+    ];
 
-    syncTimelineInteractionGeometry(ctx, { id: "template" }, timeline);
+    syncTimelineInteractionGeometry(ctx, ctx.state.currentTemplate, timeline);
 
     expect(scene.style).toMatchObject({ left: "5%", width: "60%" });
     expect(clip.style).toMatchObject({ left: "10%", width: "40%" });
@@ -87,52 +73,36 @@ describe("viewer timeline interaction preview geometry", () => {
   });
 
   it("derives auto phase geometry from the matching layer tracks", () => {
-    vi.stubGlobal("HTMLElement", FakeElement);
     const phaseLane = new FakeElement({ layerId: "card" });
     const phase = new FakeElement({ phaseId: "auto" }, phaseLane);
-    const ctx = {
-      getEffectiveDuration: () => 8,
-      getEffectiveTemplate: () => ({ clips: [], scenes: [] }),
-      getTrackLayerId: (track) => track.layerId,
-      normalizeScenes: () => [],
-      refs: {
-        timelineTracks: {
-          querySelectorAll: (selector) =>
-            selector === ".phase-block[data-phase-id]" ? [phase] : [],
-        },
-      },
-      timelineDurationPercent: (value, duration) => (value / duration) * 100,
-      timelinePercent: (value, duration) => (value / duration) * 100,
-    } as any;
-
-    syncTimelineInteractionGeometry(
-      ctx,
-      { id: "template" },
-      {
-        duration: 8,
-        phases: [{ id: "auto", start: NaN, duration: NaN }],
-        tracks: [
-          {
-            id: "card.x",
-            keyframes: [
-              { id: "a", phaseId: "auto", time: 1, value: 0 },
-              { id: "b", phaseId: "auto", time: 3, value: 0 },
-            ],
-            layerId: "card",
-            property: "x",
-          },
-          {
-            id: "grid.x",
-            keyframes: [
-              { id: "c", phaseId: "auto", time: 5, value: 0 },
-              { id: "d", phaseId: "auto", time: 7, value: 0 },
-            ],
-            layerId: "grid",
-            property: "x",
-          },
-        ],
-      },
+    const ctx = createContext(8, (selector) =>
+      selector === ".phase-block[data-phase-id]" ? [phase] : [],
     );
+
+    syncTimelineInteractionGeometry(ctx, ctx.state.currentTemplate, {
+      duration: 8,
+      phases: [{ id: "auto", start: NaN, duration: NaN }],
+      tracks: [
+        {
+          id: "card.x",
+          keyframes: [
+            { id: "a", phaseId: "auto", time: 1, value: 0 },
+            { id: "b", phaseId: "auto", time: 3, value: 0 },
+          ],
+          layerId: "card",
+          property: "x",
+        },
+        {
+          id: "grid.x",
+          keyframes: [
+            { id: "c", phaseId: "auto", time: 5, value: 0 },
+            { id: "d", phaseId: "auto", time: 7, value: 0 },
+          ],
+          layerId: "grid",
+          property: "x",
+        },
+      ],
+    });
 
     expect(phase.style).toMatchObject({ left: "12.5%", width: "25%" });
   });
@@ -180,4 +150,27 @@ class SetClassList {
     this.values.add(value);
     return true;
   }
+}
+
+function createContext(
+  duration: number,
+  query: (selector: string) => FakeElement[],
+) {
+  const ctx = createViewerContextFixture();
+  const currentTemplate: EditorTemplateSource = {
+    id: "template",
+    duration,
+    clips: [],
+    scenes: [],
+  };
+  const state = Object.assign(ctx.state, { currentTemplate });
+  vi.stubGlobal("HTMLElement", FakeElement);
+  class FixtureTimelineTracks {
+    querySelectorAll(selector: string): FakeElement[] {
+      return query(selector);
+    }
+  }
+  vi.stubGlobal("HTMLDivElement", FixtureTimelineTracks);
+  ctx.refs.timelineTracks = new HTMLDivElement();
+  return Object.assign(ctx, { state });
 }

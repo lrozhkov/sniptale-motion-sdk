@@ -27,7 +27,10 @@ describe("viewer validation model", () => {
         assets: new Map([
           ["asset-logo", { id: "asset-logo", path: "../escape.svg" }],
         ]),
-        isSafeLocalAssetPath: (path) => !String(path ?? "").includes(".."),
+        isSafeLocalAssetPath: (path) =>
+          path === null ||
+          path === undefined ||
+          (typeof path === "string" && !path.includes("..")),
         isSafeSvgAssetText: () => true,
       },
     );

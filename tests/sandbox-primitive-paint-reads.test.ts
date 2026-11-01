@@ -5,7 +5,7 @@ import { recordPrimitivePaintRead } from "../src/apps/sandbox/runtime/primitive-
 
 describe("sandbox primitive paint reads", () => {
   it("rejects unknown identities and coordinates without conversion hooks", () => {
-    const convert = vi.fn(() => 10);
+    const convert = vi.fn<() => number>(() => 10);
     const value = { toString: convert, valueOf: convert };
     const reads = createBindingReads();
     const context = createPaintContext(reads, { width: 10 });

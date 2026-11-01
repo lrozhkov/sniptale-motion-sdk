@@ -285,20 +285,20 @@ afterEach(() => vi.unstubAllGlobals());
 
 it("releases only native bitmaps when a browser message is rejected", () => {
   class Bitmap {
-    close = vi.fn();
+    close = vi.fn<ImageBitmap["close"]>();
   }
   vi.stubGlobal("ImageBitmap", Bitmap);
   const bitmap = new Bitmap();
   discardSandboxMessageBitmap({ bitmap });
   expect(bitmap.close).toHaveBeenCalledOnce();
-  const fake = { close: vi.fn() };
+  const fake = { close: vi.fn<ImageBitmap["close"]>() };
   discardSandboxMessageBitmap({ bitmap: fake });
   expect(fake.close).not.toHaveBeenCalled();
 });
 
 it("releases a late native render bitmap when its request is no longer pending", () => {
   class Bitmap {
-    close = vi.fn();
+    close = vi.fn<ImageBitmap["close"]>();
   }
   vi.stubGlobal("ImageBitmap", Bitmap);
   const bitmap = new Bitmap();

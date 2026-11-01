@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerPlaybackFixture } from "./helpers/viewer-playback-fixture.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   advancePlaybackCacheWarmResult,
@@ -6,47 +8,30 @@ import {
   invalidatePlaybackCacheRangeCoverage,
 } from "../src/apps/viewer/playback/cache-warm-controller";
 
-function createContext(overrides: Record<string, unknown> = {}) {
-  const state = {
-    playbackRange: null,
-    playing: true,
-    previewCacheEnabled: true,
-    previewCacheWarmActive: false,
-    previewCacheWarmCapacityLimited: false,
-    previewCacheWarmPrepared: false,
-    previewCacheWarmPublicTime: 0,
-    previewCacheWarmRangeEndFrame: 0,
-    previewCacheWarmRangeStartFrame: 0,
-    previewCacheWarmRenderTime: 0,
-    previewCacheWarmScale: 0,
-    previewCacheWarmStartTime: 0,
-    previewCacheWarmTargetFrames: 0,
-    previewCacheWarmUnsupportedResults: 0,
-    previewCacheWarmVisitedFrames: 0,
-    previewFrameCacheComplete: false,
-    ...overrides,
-  };
-  return {
-    formatSeconds: (time: number) => `${time}s`,
-    getEffectiveDuration: () => 1,
-    isPreviewFullscreenActive: () => false,
-    lastPlaybackAudioTs: 0,
-    lastPlaybackRenderTs: 10,
-    lastPlaybackTs: 10,
-    lastPlaybackUiTs: 10,
-    refs: {
-      fpsInput: { value: "30" },
-      fullscreenTimeOutput: null,
-      fullscreenTimeSlider: null,
-      timeOutput: { textContent: "" },
-      timeSlider: { value: "0" },
-    },
-    state,
-    stopPreviewAudio: vi.fn(),
-    syncPreviewAudio: vi.fn(),
-    updateTimelinePlayhead: vi.fn(),
-  } as any;
+type CacheOverrides = Partial<
+  Omit<ViewerAppContext["state"], "previewVideoCache">
+> & {
+  previewVideoCache?: Partial<ViewerAppContext["state"]["previewVideoCache"]>;
+};
+function createContext(overrides: CacheOverrides = {}) {
+  const ctx = createViewerPlaybackFixture();
+  ctx.state.currentTemplate.duration = 1;
+  ctx.state.playing = true;
+  ctx.state.previewCacheEnabled = true;
+  const { previewVideoCache, ...state } = overrides;
+  Object.assign(ctx.state, state);
+  Object.assign(ctx.state.previewVideoCache, previewVideoCache);
+  ctx.lastPlaybackAudioTs = 0;
+  ctx.lastPlaybackRenderTs = 10;
+  ctx.lastPlaybackTs = 10;
+  ctx.lastPlaybackUiTs = 10;
+  return ctx;
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer preview cache warm controller", () => {
   it("invalidates paused exact-frame coverage when the playback range changes", () => {
@@ -63,8 +48,9 @@ describe("viewer preview cache warm controller", () => {
       previewFrameCacheTotalFrames: 181,
       previewVideoCache: {},
     });
-    ctx.syncPlaybackCacheButton = vi.fn();
-    ctx.syncPreviewQualityBadge = vi.fn();
+    const syncPlaybackCacheButton = vi
+      .spyOn(ctx, "syncPlaybackCacheButton")
+      .mockImplementation(() => {});
 
     invalidatePlaybackCacheRangeCoverage(ctx);
 
@@ -80,7 +66,7 @@ describe("viewer preview cache warm controller", () => {
       previewFrameCacheFrames: 0,
       previewFrameCacheTotalFrames: 0,
     });
-    expect(ctx.syncPlaybackCacheButton).toHaveBeenCalledOnce();
+    expect(syncPlaybackCacheButton).toHaveBeenCalledOnce();
     expect(ctx.syncPreviewQualityBadge).toHaveBeenCalledOnce();
   });
 

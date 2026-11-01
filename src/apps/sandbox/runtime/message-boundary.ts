@@ -35,7 +35,9 @@ export function parseSandboxRuntimeMessage(
     return { kind: "dispose" };
   }
   if (message.kind === MessageKind.LOAD_EFFECT_DOCUMENT) {
-    const validation = validateEffectV1Document(message.document);
+    const validation = validateEffectV1Document(message.document, {
+      presentationPolicy: "retained",
+    });
     if (
       (message.revision !== undefined &&
         (typeof message.revision !== "string" ||

@@ -1,3 +1,12 @@
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+const SOURCE_VIEWPORT = {
+  templateId: "alpha",
+  timeStart: 1,
+  timeEnd: 3,
+  valueMin: 0,
+  valueMax: 1,
+};
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   captureCompositionWorkspaceView,
@@ -5,7 +14,10 @@ import {
 } from "../src/apps/viewer/templates/workspace-view-state";
 
 describe("composition workspace view state", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
   for (const change of ["source", "generation", "stored-view"] as const) {
     it(`does not restore stale scroll state after ${change} changes`, () => {
       const ctx = createContext();
@@ -23,10 +35,11 @@ describe("composition workspace view state", () => {
       ctx.refs.timelineTracks.scrollTop = 4;
       ctx.refs.stageWrap.scrollLeft = 5;
       ctx.refs.stageWrap.scrollTop = 6;
-      if (change === "source") ctx.state.currentTemplate = { id: "beta" };
+      if (change === "source")
+        ctx.state.currentTemplate = { id: "beta", duration: 4 };
       if (change === "generation") ctx.state.templateSelectionGeneration += 1;
       if (change === "stored-view") captureCompositionWorkspaceView(ctx);
-      frames[0]?.(0);
+      requiredEntry(frames, 0)(0);
       expect(ctx.refs.timelineTracks.scrollTop).toBe(4);
       expect(ctx.refs.stageWrap.scrollLeft).toBe(5);
       expect(ctx.refs.stageWrap.scrollTop).toBe(6);
@@ -37,7 +50,12 @@ describe("composition workspace view state", () => {
 
   it("restores canvas, timeline, tree, graph, and isolation view per composition", () => {
     const ctx = createContext();
-    const requestAnimationFrame = vi.fn((callback) => callback());
+    const requestAnimationFrame = vi.fn<
+      typeof globalThis.requestAnimationFrame
+    >((callback) => {
+      callback(0);
+      return 1;
+    });
     vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
 
     captureCompositionWorkspaceView(ctx);
@@ -66,7 +84,7 @@ describe("composition workspace view state", () => {
     expect(ctx.refs.stageWrap.scrollLeft).toBe(210);
     expect(ctx.refs.stageWrap.scrollTop).toBe(90);
     expect(ctx.state.graphEditorEnabled).toBe(true);
-    expect(ctx.state.graphEditorViewport).toEqual({ timeStart: 1 });
+    expect(ctx.state.graphEditorViewport).toEqual(SOURCE_VIEWPORT);
     expect(ctx.state.canvasIsolationGroupId).toBe("compose");
     expect(ctx.setPreviewZoom).toHaveBeenCalledWith("100");
     expect(ctx.renderCanvasIsolationBreadcrumb).toHaveBeenCalled();
@@ -86,38 +104,40 @@ describe("composition workspace view state", () => {
   });
 });
 
-function createContext(): any {
-  const currentTemplate = { id: "alpha" };
-  return {
-    deps: {
-      deepClone: (value) => structuredClone(value),
-    },
-    getEffectiveTemplate: () => ({
-      layers: [{ id: "compose", type: "group" }],
-    }),
-    getLayerHierarchy: (template) => ({
-      byId: new Map(template.layers.map((layer) => [layer.id, layer])),
-    }),
-    refs: {
-      stageWrap: { scrollLeft: 210, scrollTop: 90 },
-      timelineTracks: { scrollTop: 180 },
-      timelineZoomInput: { value: "1" },
-    },
-    renderCanvasIsolationBreadcrumb: vi.fn(),
-    setPreviewZoom: vi.fn(),
-    state: {
-      canvasIsolationGroupId: "compose",
-      compositionWorkspaceViews: new Map(),
-      currentTemplate,
-      templateSelectionGeneration: 0,
-      expandedSceneIds: new Set(["main"]),
-      expandedTimelineRowIds: new Set(["scene:main", "group:main:compose"]),
-      graphEditorEnabled: true,
-      graphEditorViewport: { timeStart: 1 },
-      previewZoom: "100",
-      timelineOffset: 1.25,
-      timelineZoom: 2.5,
-    },
-    updateCanvasSelectionBox: vi.fn(),
+function createContext() {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = {
+    id: "alpha",
+    duration: 4,
+    layers: [{ id: "compose", type: "group" }],
   };
+  ctx.state.canvasIsolationGroupId = "compose";
+  ctx.state.expandedSceneIds = new Set(["main"]);
+  ctx.state.expandedTimelineRowIds = new Set([
+    "scene:main",
+    "group:main:compose",
+  ]);
+  ctx.state.graphEditorEnabled = true;
+  ctx.state.graphEditorViewport = structuredClone(SOURCE_VIEWPORT);
+  ctx.state.previewZoom = "100";
+  ctx.state.timelineOffset = 1.25;
+  ctx.state.timelineZoom = 2.5;
+  ctx.refs.stageWrap.scrollLeft = 210;
+  ctx.refs.stageWrap.scrollTop = 90;
+  ctx.refs.timelineTracks.scrollTop = 180;
+  ctx.refs.timelineZoomInput.value = "1";
+  const renderCanvasIsolationBreadcrumb = vi
+    .spyOn(ctx, "renderCanvasIsolationBreadcrumb")
+    .mockImplementation(() => {});
+  const setPreviewZoom = vi
+    .spyOn(ctx, "setPreviewZoom")
+    .mockImplementation(() => {});
+  const updateCanvasSelectionBox = vi
+    .spyOn(ctx, "updateCanvasSelectionBox")
+    .mockImplementation(() => {});
+  return Object.assign(ctx, {
+    renderCanvasIsolationBreadcrumb,
+    setPreviewZoom,
+    updateCanvasSelectionBox,
+  });
 }

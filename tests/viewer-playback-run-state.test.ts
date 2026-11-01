@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { beginPlaybackRun } from "../src/apps/viewer/playback/run";
 import {
@@ -8,46 +8,26 @@ import {
   resolvePlaybackRunPhase,
 } from "../src/apps/viewer/playback/run-state";
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((next) => {
-    resolve = next;
-  });
-  return { promise, resolve };
-}
+import { createViewerPlaybackFixture } from "./helpers/viewer-playback-fixture.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function createRunContext() {
-  return {
-    beginPlaybackVideoCache: vi.fn(),
-    refs: {
-      fpsInput: { value: "30" },
-      timeSlider: { value: "0" },
-    },
-    schedulePlaybackTick: vi.fn(),
-    shouldPreferPlaybackVideoCache: vi.fn(() => true),
-    stopPreviewAudio: vi.fn(),
-    syncPreviewAudio: vi.fn(),
-    state: {
-      currentTemplate: { id: "composition" },
-      playbackRun: {
-        generation: 0,
-        mode: "cache",
-        phase: "idle",
-        templateId: "composition",
-      },
-      playing: true,
-      previewCacheEnabled: true,
-      previewCacheWarmActive: false,
-      previewFrameCacheComplete: false,
-      previewVideoCache: {
-        finalizing: false,
-        playbackActive: false,
-        preparePromise: null,
-        preparing: false,
-        recording: false,
-      },
-    },
-  } as any;
+  const ctx = createViewerPlaybackFixture();
+  ctx.state.currentTemplate.id = "composition";
+  ctx.state.playbackRun = {
+    generation: 0,
+    mode: "cache",
+    phase: "idle",
+    templateId: "composition",
+  };
+  ctx.state.playing = true;
+  ctx.state.previewCacheEnabled = true;
+  vi.spyOn(ctx, "shouldPreferPlaybackVideoCache").mockReturnValue(true);
+  return ctx;
 }
 
 describe("viewer playback run state", () => {
@@ -85,7 +65,7 @@ describe("viewer playback run state", () => {
 
   it("invalidates a pending asynchronous start when the user pauses", async () => {
     const ctx = createRunContext();
-    const videoPreparation = deferred<
+    const videoPreparation = Promise.withResolvers<
       "playback" | "recording" | "unavailable"
     >();
     ctx.beginPlaybackVideoCache.mockReturnValue(videoPreparation.promise);
@@ -105,7 +85,7 @@ describe("viewer playback run state", () => {
 
   it("does not let an older cache response overwrite a newer live run", async () => {
     const ctx = createRunContext();
-    const videoPreparation = deferred<
+    const videoPreparation = Promise.withResolvers<
       "playback" | "recording" | "unavailable"
     >();
     ctx.beginPlaybackVideoCache.mockReturnValue(videoPreparation.promise);

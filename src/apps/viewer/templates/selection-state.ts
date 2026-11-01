@@ -7,7 +7,9 @@ export function resetTemplateSelectionState(
   ctx: ViewerAppContext,
   source: unknown,
 ): void {
-  const template = readEditorTemplateSource(source);
+  const template = readEditorTemplateSource(source, {
+    presentationPolicy: "retained",
+  });
   void ctx.invalidatePlaybackVideoCache?.();
   ctx.state.playing = false;
   ctx.state.currentTemplate = template;

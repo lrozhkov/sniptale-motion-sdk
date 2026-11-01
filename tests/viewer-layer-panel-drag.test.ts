@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLayerOrderActions } from "../src/apps/viewer/layers/order";
-import { createLayerHierarchyIndex } from "../src/apps/viewer/layers/hierarchy";
-import { createViewerState } from "../src/apps/viewer/app/state";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 describe("layer panel order drag authority", () => {
   it("commits once and cannot apply retained callbacks after finalization", () => {
     const f = fixture();
@@ -13,10 +16,8 @@ describe("layer panel order drag authority", () => {
     expect(f.ctx.beginEditorCommand).toHaveBeenCalledOnce();
     expect(f.ctx.setEditorOverride).toHaveBeenCalledOnce();
     expect(
-      f.ctx.setEditorOverride.mock.calls[0][0].layers.map(
-        (layer: { id: string }) => layer.id,
-      ),
-    ).toEqual(["b", "a"]);
+      requiredEntry(f.ctx.setEditorOverride.mock.calls, 0)[0],
+    ).toMatchObject({ layers: [{ id: "b" }, { id: "a" }] });
     f.move(0);
     f.flush();
     f.end();
@@ -31,10 +32,8 @@ describe("layer panel order drag authority", () => {
     f.end();
     expect(f.ctx.setEditorOverride).toHaveBeenCalledOnce();
     expect(
-      f.ctx.setEditorOverride.mock.calls[0][0].layers.map(
-        (layer: { id: string }) => layer.id,
-      ),
-    ).toEqual(["a", "b"]);
+      requiredEntry(f.ctx.setEditorOverride.mock.calls, 0)[0],
+    ).toMatchObject({ layers: [{ id: "a" }, { id: "b" }] });
   });
   it.each(["source", "editor", "timeline"] as const)(
     "discards queued order after %s replacement",
@@ -52,12 +51,19 @@ describe("layer panel order drag authority", () => {
   );
 });
 function fixture() {
-  const source = { id: "source", duration: 2 };
-  const layers = [
-    { id: "a", type: "rect" },
-    { id: "b", type: "rect" },
-  ];
-  const state = createViewerState();
+  const ctx = createViewerContextFixture();
+  const source = {
+    id: "source",
+    duration: 2,
+    layers: [
+      { id: "a", type: "rect" },
+      { id: "b", type: "rect" },
+    ],
+    clips: [],
+    scenes: [],
+    timeline: { duration: 2, phases: [], tracks: [] },
+  };
+  const state = ctx.state;
   state.currentTemplate = source;
   const callbacks = new Map<number, FrameRequestCallback>();
   let sequence = 0;
@@ -66,71 +72,73 @@ function fixture() {
     return sequence;
   });
   vi.stubGlobal("cancelAnimationFrame", (id: number) => callbacks.delete(id));
-  class Row {
+  class Row extends EventTarget {
     closest(selector: string) {
       return selector === ".layer-row" ? this : null;
     }
-    getBoundingClientRect() {
-      return { height: 40 };
+    getBoundingClientRect(): DOMRect {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 40,
+        height: 40,
+        width: 100,
+        toJSON: () => ({}),
+      };
     }
   }
   vi.stubGlobal("Element", Row);
   vi.stubGlobal("HTMLElement", Row);
-  let move = (_event: { clientY: number }) => {};
-  let end = () => {};
-  const ctx = {
-    state,
-    deps: { deepClone: structuredClone },
-    getEffectiveTemplate: () => ({
-      ...source,
-      layers,
-      clips: [],
-      scenes: [],
-      timeline: { duration: 2, phases: [], tracks: [] },
-    }),
-    getLayerHierarchy: () => createLayerHierarchyIndex(layers),
-    selectLayer: vi.fn(),
-    beginEditorCommand: vi.fn(),
-    setEditorOverride: vi.fn((value: unknown) =>
-      state.editorOverrides.set(source.id, value),
-    ),
-    renderTimelineEditor: vi.fn(),
-    renderCurrentFrame: vi.fn(async () => {}),
-    settlePreviewAfterInteraction: vi.fn(async () => {}),
-    bindPointerDrag: (
-      _id: number,
-      _target: unknown,
-      onMove: typeof move,
-      onEnd: typeof end,
-    ) => {
+  const row = new HTMLElement();
+  class FixturePointerEvent {
+    button = 0;
+    target = row;
+    currentTarget = row;
+    pointerId = 1;
+    clientY: number;
+    constructor(_type: string, options: PointerEventInit = {}) {
+      this.clientY = options.clientY ?? 0;
+    }
+    preventDefault(): void {}
+    stopPropagation(): void {}
+  }
+  vi.stubGlobal("PointerEvent", FixturePointerEvent);
+  let move: Parameters<ViewerAppContext["bindPointerDrag"]>[2] | undefined;
+  let end: Parameters<ViewerAppContext["bindPointerDrag"]>[3];
+  vi.spyOn(ctx, "selectLayer").mockImplementation(() => {});
+  const beginEditorCommand = vi
+    .spyOn(ctx, "beginEditorCommand")
+    .mockImplementation(() => {});
+  const setEditorOverride = vi
+    .spyOn(ctx, "setEditorOverride")
+    .mockImplementation((value) => {
+      state.editorOverrides.set(source.id, value);
+    });
+  vi.spyOn(ctx, "renderTimelineEditor").mockImplementation(() => {});
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue();
+  vi.spyOn(ctx, "settlePreviewAfterInteraction").mockResolvedValue(true);
+  vi.spyOn(ctx, "bindPointerDrag").mockImplementation(
+    (_id, _target, onMove, onEnd) => {
       state.dragMoved = false;
       move = onMove;
       end = onEnd;
     },
-  } as any;
-  Object.assign(
-    ctx,
-    createLayerOrderActions(() => ctx),
   );
-  const row = new Row();
-  ctx.beginLayerPanelDrag(
-    {
-      button: 0,
-      target: row,
-      currentTarget: row,
-      pointerId: 1,
-      clientY: 0,
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    },
-    "a",
-  );
+  ctx.beginLayerPanelDrag(new PointerEvent("pointerdown"), "a");
+  if (!move || !end)
+    throw new Error("Layer drag callbacks were not registered.");
+  const onMove = move;
+  const onEnd = end;
   return {
-    ctx,
+    ctx: Object.assign(ctx, { beginEditorCommand, setEditorOverride }),
     state,
     source,
-    move: (clientY: number) => move({ clientY }),
-    end: () => end(),
+    move: (clientY: number) =>
+      onMove(new PointerEvent("pointermove", { clientY })),
+    end: () => onEnd(new PointerEvent("pointerup")),
     flush: () => {
       const queued = [...callbacks.values()];
       callbacks.clear();

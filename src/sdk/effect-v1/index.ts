@@ -59,6 +59,7 @@ export type { EffectV1EditorRegion } from "./types.js";
 
 export {
   EFFECT_V1_CONTROL_GROUPS,
+  EFFECT_V1_CONTROL_ROOT_ICONS,
   EFFECT_V1_CONTROL_UNITS,
   EFFECT_V1_CONTROL_PRESENTATIONS,
   EFFECT_V1_CONTROL_ICONS,
@@ -74,3 +75,6 @@ export type {
   EffectV1ControlIcon,
   EffectV1ControlGroup,
 } from "./control-presentation-model.js";
+
+export type { EffectV1ValidationOptions } from "./validation.js";
+export { resolveEffectV1ControlGroupIcons } from "./control-group-icons.js";

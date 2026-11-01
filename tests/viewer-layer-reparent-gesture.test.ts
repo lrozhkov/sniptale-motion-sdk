@@ -94,13 +94,13 @@ function fixture() {
       end = onEnd ?? null;
     },
     beginTimelineLayerReparent: () => false,
-    logDiagnostic: vi.fn(),
-    selectLayer: vi.fn(),
-    beginEditorCommand: vi.fn(),
-    setEditorOverride: vi.fn(),
-    setSelectedLayers: vi.fn(),
-    renderTimelineEditor: vi.fn(),
-    renderCurrentFrame: vi.fn(async () => {}),
+    logDiagnostic: vi.fn<ReparentContext["logDiagnostic"]>(),
+    selectLayer: vi.fn<ReparentContext["selectLayer"]>(),
+    beginEditorCommand: vi.fn<ReparentContext["beginEditorCommand"]>(),
+    setEditorOverride: vi.fn<ReparentContext["setEditorOverride"]>(),
+    setSelectedLayers: vi.fn<ReparentContext["setSelectedLayers"]>(),
+    renderTimelineEditor: vi.fn<ReparentContext["renderTimelineEditor"]>(),
+    renderCurrentFrame: vi.fn<() => Promise<void>>(async () => {}),
   };
   const actions = createTimelineLayerReparentActions(() => ctx);
   row.addEventListener("pointerdown", (event) => {
@@ -144,3 +144,7 @@ class Row extends EventTarget {
     return { top: 0, height: 20 };
   }
 }
+
+type ReparentContext = ReturnType<
+  Parameters<typeof createTimelineLayerReparentActions>[0]
+>;

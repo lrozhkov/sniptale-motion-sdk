@@ -1,3 +1,5 @@
+import { createViewerPlaybackFixture } from "./helpers/viewer-playback-fixture.js";
+import { createNativeButtonFixture } from "./helpers/native-button-fixture.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,58 +10,28 @@ import {
 import { beginPlaybackRun } from "../src/apps/viewer/playback/run";
 
 function createContext() {
-  const previewCacheButton = {
-    classList: { toggle: vi.fn() },
-    setAttribute: vi.fn(),
-    title: "",
-  };
-  const previewLiveModeButton = {
-    classList: { toggle: vi.fn() },
-    setAttribute: vi.fn(),
-    title: "",
-  };
-  return {
-    beginPlaybackVideoCache: vi.fn(),
-    deps: { t: (_key: string, fallback: string) => fallback },
-    invalidatePlaybackVideoCache: vi.fn(async () => undefined),
-    lastPlaybackAudioTs: 0,
-    refs: {
+  const ctx = createViewerPlaybackFixture();
+  const previewCacheButton = createNativeButtonFixture();
+  const previewLiveModeButton = createNativeButtonFixture();
+  ctx.refs.timeSlider.value = "1.5";
+  ctx.state.playing = true;
+  ctx.state.previewCacheEnabled = true;
+  ctx.state.previewCacheWarmCapacityLimited = true;
+  ctx.state.previewVideoCache.playbackActive = true;
+  ctx.state.previewVideoCache.ready = true;
+  return Object.assign(ctx, {
+    refs: Object.assign(ctx.refs, {
       previewCacheButton,
       previewLiveModeButton,
-      fpsInput: { value: "30" },
-      timeSlider: { value: "1.5" },
-    },
-    getEffectiveDuration: vi.fn(() => 8),
-    renderCurrentFrame: vi.fn(),
-    schedulePlaybackTick: vi.fn(),
-    state: {
-      currentTemplate: { id: "composition" },
-      playbackRange: null,
-      playing: true,
-      previewCacheEnabled: true,
-      previewCacheWarmActive: false,
-      previewCacheWarmCapacityLimited: true,
-      previewCacheWarmPrepared: false,
-      previewCacheWarmTargetFrames: 0,
-      previewCacheWarmVisitedFrames: 0,
-      previewFrameCacheComplete: false,
-      previewVideoCache: {
-        finalizing: false,
-        playbackActive: true,
-        preparing: false,
-        ready: true,
-        recording: false,
-      },
-    },
-    stopPlaybackVideoCache: vi.fn(),
-    stopPreviewAudio: vi.fn(),
-    syncPlaybackButtons: vi.fn(),
-    syncPreviewAudio: vi.fn(),
-  } as any;
+    }),
+  });
 }
 
 describe("viewer playback cache toggle", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("switches cached playback to full-quality live rendering without deleting a ready cache", () => {
     const ctx = createContext();
@@ -153,7 +125,13 @@ describe("viewer playback cache toggle", () => {
     Object.assign(ctx.state.previewVideoCache, {
       recording: true,
       restoredSegmentCount: 1,
-      segmentPlan: [{}, {}, {}],
+      segmentPlan: Array.from({ length: 3 }, (_, index) => ({
+        index,
+        startFrame: index * 10,
+        endFrame: (index + 1) * 10,
+        startTime: index,
+        endTime: index + 1,
+      })),
     });
 
     syncPlaybackCacheButton(ctx);
@@ -184,7 +162,7 @@ describe("viewer playback cache toggle", () => {
   it("restores the timeline preference across page reloads", () => {
     const ctx = createContext();
     vi.stubGlobal("window", {
-      localStorage: { getItem: vi.fn(() => "false") },
+      localStorage: { getItem: vi.fn<Storage["getItem"]>(() => "false") },
     });
 
     initializePlaybackCachePreference(ctx);
@@ -199,7 +177,7 @@ describe("viewer playback cache toggle", () => {
   it("defaults a new profile to immediate Live playback", () => {
     const ctx = createContext();
     vi.stubGlobal("window", {
-      localStorage: { getItem: vi.fn(() => null) },
+      localStorage: { getItem: vi.fn<Storage["getItem"]>(() => null) },
     });
 
     initializePlaybackCachePreference(ctx);
@@ -224,7 +202,7 @@ describe("viewer playback cache toggle", () => {
 
   it("records a high-resolution composition into the video cache", async () => {
     const ctx = createContext();
-    ctx.shouldPreferPlaybackVideoCache = vi.fn(() => true);
+    vi.spyOn(ctx, "shouldPreferPlaybackVideoCache").mockReturnValue(true);
     ctx.beginPlaybackVideoCache.mockResolvedValue("recording");
 
     await beginPlaybackRun(ctx);
@@ -236,7 +214,7 @@ describe("viewer playback cache toggle", () => {
 
   it("falls back to exact frames when high-resolution video is unavailable", async () => {
     const ctx = createContext();
-    ctx.shouldPreferPlaybackVideoCache = vi.fn(() => true);
+    vi.spyOn(ctx, "shouldPreferPlaybackVideoCache").mockReturnValue(true);
     ctx.beginPlaybackVideoCache.mockResolvedValue("unavailable");
 
     await beginPlaybackRun(ctx);

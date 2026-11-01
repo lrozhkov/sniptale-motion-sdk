@@ -1,15 +1,23 @@
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js";
+import type { RendererBindingReads } from "../src/apps/viewer/app/binding-reads.js";
+import type { CanvasBox } from "../src/apps/viewer/canvas/primitive-geometry.js";
 import type { EffectLayer } from "../src/sdk/types.js";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getLayerCanvasBox,
-  getLayerPrimitiveCanvasBox,
   getLayerStaticCanvasBox,
-  layerHasAuthorGeometryHints,
 } from "../src/apps/viewer/canvas/layer-geometry";
 import { getLayerCanvasHitBox } from "../src/apps/viewer/canvas/layer-hit-geometry";
 import { resolveLayerEditorCapabilities } from "../src/apps/viewer/layers/editor-capabilities";
 import { normalizeLayers } from "../src/apps/sandbox/runtime/render-normalization";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer canvas geometry", () => {
   it.each(
@@ -66,7 +74,7 @@ describe("viewer canvas geometry", () => {
 
   it("scales layer boxes around the resolved anchor", () => {
     const ctx = createGeometryContext({
-      getResolvedLayerProperty(layer: any, property: string) {
+      getResolvedLayerProperty(layer, property) {
         if (property === "scaleX") return 2;
         if (property === "scaleY") return 0.5;
         return Number(layer[property]) || 0;
@@ -158,12 +166,23 @@ describe("viewer canvas geometry", () => {
     };
     const layer = { id: "orbit", type: "customDraw" };
     const ctx = createGeometryContext({
-      getLayerEditorCapabilities() {
-        return { canvas: "bounds" };
+      getLayerEditorCapabilities(layer) {
+        return { ...resolveLayerEditorCapabilities(layer), canvas: "bounds" };
       },
       state: {
         canvasTransformPreview: {
           box: previewBox,
+          initialBox: previewBox,
+          awaitingFullRender: false,
+          original: {
+            anchorX: 0,
+            anchorY: 0,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            x: 0,
+            y: 0,
+          },
           layerId: "orbit",
           templateId: "animation",
         },
@@ -185,7 +204,14 @@ describe("viewer canvas geometry", () => {
       state: {
         currentTemplate: {
           layers: [
-            { baseX: 0.5, baseY: 0.48, height: 140, id: "box", width: 140 },
+            {
+              baseX: 0.5,
+              baseY: 0.48,
+              height: 140,
+              id: "box",
+              type: "rect",
+              width: 140,
+            },
           ],
         },
         lastBindingReads: {
@@ -374,18 +400,19 @@ describe("viewer canvas geometry", () => {
   });
 });
 
-function rotatedBounds(box, layer) {
+function rotatedBounds(box: CanvasBox, layer: EffectLayer) {
   const angle = (box.rotation * Math.PI) / 180;
   const pivot = {
     x: box.x + box.width * (0.5 + Number(layer.anchorX || 0)),
     y: box.y + box.height * (0.5 + Number(layer.anchorY || 0)),
   };
-  const corners = [
+  const coordinates: [number, number][] = [
     [box.x, box.y],
     [box.x + box.width, box.y],
     [box.x, box.y + box.height],
     [box.x + box.width, box.y + box.height],
-  ].map(([x, y]) => ({
+  ];
+  const corners = coordinates.map(([x, y]) => ({
     x:
       pivot.x +
       (x - pivot.x) * Math.cos(angle) -
@@ -407,66 +434,34 @@ function rotatedBounds(box, layer) {
   };
 }
 
-function createGeometryContext(overrides: Record<string, unknown> = {}): any {
-  return {
-    deps: {
-      clamp(value: number, min: number, max: number) {
-        return Math.min(max, Math.max(min, value));
-      },
-    },
-    getLayerBaseCanvasBox(layerId: string, layer: any) {
-      return getLayerStaticCanvasBox(
-        this,
-        layerId,
-        this.getResolvedLayerProperty(layer, "x"),
-        this.getResolvedLayerProperty(layer, "y"),
-        layer,
-      );
-    },
-    getLayerEditorCapabilities(layer: any) {
-      return resolveLayerEditorCapabilities(layer);
-    },
-    getLayerCanvasBox(layerId: string, layer: any, resolution: any = {}) {
-      return getLayerCanvasBox(this, layerId, layer, resolution);
-    },
-    getLayerPrimitiveCanvasBox(layerId: string, layer: any) {
-      return getLayerPrimitiveCanvasBox(this, layerId, layer);
-    },
-    layerHasAuthorGeometryHints(layerId: string, layer: any) {
-      return layerHasAuthorGeometryHints(this, layerId, layer);
-    },
-    getResolvedLayerAnchor(layer: any) {
-      return {
-        x: this.deps.clamp(
-          this.getResolvedLayerProperty(layer, "anchorX"),
-          -0.5,
-          0.5,
-        ),
-        y: this.deps.clamp(
-          this.getResolvedLayerProperty(layer, "anchorY"),
-          -0.5,
-          0.5,
-        ),
-      };
-    },
-    getResolvedLayerProperty(layer: any, property: string) {
-      if (property === "scaleX" || property === "scaleY") {
-        return Number.isFinite(Number(layer[property]))
-          ? Number(layer[property])
-          : 1;
-      }
-      return Number(layer[property]) || 0;
-    },
-    refs: {
-      canvas: {
-        height: 720,
-        width: 1280,
-      },
-    },
-    state: {
-      currentTemplate: { layers: [] },
-      lastBindingReads: { primitiveBounds: [] },
-    },
-    ...overrides,
+type GeometryStateOverrides = Partial<
+  Omit<ViewerAppContext["state"], "currentTemplate" | "lastBindingReads">
+> & {
+  currentTemplate?: Partial<EditorTemplateSource>;
+  lastBindingReads?: Partial<RendererBindingReads>;
+};
+type GeometryOverrides = Partial<
+  Pick<
+    ViewerAppContext,
+    "getResolvedLayerProperty" | "getLayerEditorCapabilities"
+  >
+> & { state?: GeometryStateOverrides };
+
+function createGeometryContext(overrides: GeometryOverrides = {}) {
+  const ctx = createViewerContextFixture();
+  ctx.refs.canvas.width = 1280;
+  ctx.refs.canvas.height = 720;
+  ctx.refs.timeSlider.value = "0";
+  const { state = {}, ...actions } = overrides;
+  const { currentTemplate, lastBindingReads, ...values } = state;
+  Object.assign(ctx.state, values);
+  ctx.state.currentTemplate = {
+    id: "template",
+    duration: 2,
+    layers: [],
+    ...currentTemplate,
   };
+  Object.assign(ctx.state.lastBindingReads, lastBindingReads);
+  Object.assign(ctx, actions);
+  return ctx;
 }

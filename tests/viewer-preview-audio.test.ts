@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe("viewer preview audio", () => {
   it("does not coerce malformed audio metadata", () => {
-    const coercion = vi.fn(() => 1);
+    const coercion = vi.fn<() => number>(() => 1);
     const ctx = {
       state: {
         assets: new Map<string, unknown>([
@@ -130,7 +130,7 @@ describe("viewer preview audio", () => {
       state: {
         assets: new Map([["sound", asset]]),
       },
-    } as any;
+    };
 
     expect(
       collectTimelinePreviewAudioClips(

@@ -1,8 +1,13 @@
 import { resolvePrimarySelectionItem } from "../src/apps/viewer/timeline/model/selection-values.js";
-import { createKeyframeSelectionActions } from "../src/apps/viewer/timeline/model/keyframe-selection-state.js";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createTimelineSelectionStateActions } from "../src/apps/viewer/timeline/model/selection-state";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer selection state", () => {
   it("falls back to the composition when a modifier toggle empties a set", () => {
@@ -16,43 +21,35 @@ describe("viewer selection state", () => {
   });
 
   it("keeps layer and interval selection mutually exclusive", () => {
-    const canvasSelections: any[] = [];
-    const ctx: any = {
-      getEffectiveTimeline: () => ({
-        duration: 4,
+    const ctx = createViewerContextFixture();
+    const canvasSelections: ViewerAppContext["state"]["selectedItem"][] = [];
+    ctx.state.currentTemplate = {
+      id: "composition",
+      duration: 4,
+      layers: [
+        { id: "group-1", type: "group" },
+        { id: "card", parentId: "group-1", type: "rect" },
+        { id: "title", type: "text" },
+      ],
+      timeline: {
         phases: [],
         tracks: [
-          { id: "card.x", keyframes: [{ id: "card-x-a", time: 0, value: 1 }] },
+          {
+            id: "card.x",
+            property: "x",
+            layerId: "card",
+            keyframes: [{ id: "card-x-a", time: 0, value: 1 }],
+          },
         ],
-      }),
-      getEffectiveTemplate: () => ({
-        layers: [
-          { id: "group-1", type: "group" },
-          { id: "card", parentId: "group-1", type: "rect" },
-          { id: "title", type: "text" },
-        ],
-      }),
-      setSidebarGroup() {},
-      state: {
-        selectedClips: [],
-        selectedItem: { type: "effect" },
-        selectedKeyframes: [],
-        selectedLayers: [],
-        selectedPhases: [],
-        selectedScenes: [],
-      },
-      updateCanvasSelectionBox() {
-        canvasSelections.push(ctx.state.selectedItem);
-      },
-      syncTimelineSelection() {
-        ctx.updateCanvasSelectionBox();
       },
     };
-    Object.assign(
-      ctx,
-      createTimelineSelectionStateActions(() => ctx),
-      createKeyframeSelectionActions(() => ctx),
-    );
+    vi.spyOn(ctx, "setSidebarGroup").mockImplementation(() => {});
+    vi.spyOn(ctx, "updateCanvasSelectionBox").mockImplementation(() => {
+      canvasSelections.push(ctx.state.selectedItem);
+    });
+    vi.spyOn(ctx, "syncTimelineSelection").mockImplementation(() => {
+      ctx.updateCanvasSelectionBox();
+    });
 
     ctx.selectLayer("card");
     expect(ctx.state.selectedItem).toEqual({

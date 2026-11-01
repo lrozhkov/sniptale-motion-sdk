@@ -15,14 +15,11 @@ import {
   normalizeBindingReads,
 } from "../src/apps/viewer/app/binding-reads";
 import { formatDiagnosticsText } from "../src/apps/viewer/app/diagnostics";
-import { createKeyboardActions } from "../src/apps/viewer/app/keyboard";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import { createViewerRefs } from "../src/apps/viewer/app/refs";
 import { createViewerState } from "../src/apps/viewer/app/state";
-import { createShellActions } from "../src/apps/viewer/app/shell";
-import {
-  createEditorValidationActions,
-  isRendererContractCoveragePending,
-} from "../src/apps/viewer/editor/validation";
+import { isRendererContractCoveragePending } from "../src/apps/viewer/editor/validation";
 import { getInitialTemplateId } from "../src/apps/viewer/templates/selection";
 import {
   resolveSandboxHost,
@@ -55,6 +52,7 @@ describe("viewer app support owners", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -104,59 +102,16 @@ describe("viewer app support owners", () => {
   });
 
   it("leaves Ctrl+C to the browser for selected text", () => {
-    vi.stubGlobal("Element", class {});
-    vi.stubGlobal("window", {
-      getSelection: () => ({
-        isCollapsed: false,
-        toString: () => "selected log text",
-      }),
-    });
-    const preventDefault = vi.fn();
-    const copySelectedKeyframes = vi.fn(() => true);
-    const ctx = {
-      copySelectedKeyframes,
-      isEditingFormControl: () => false,
-    } as any;
-    Object.assign(
-      ctx,
-      createKeyboardActions(() => ctx),
-    );
-
-    ctx.handleGlobalKeydown({
-      code: "KeyC",
-      ctrlKey: true,
-      metaKey: false,
-      preventDefault,
-      target: null,
-    });
-
+    const { ctx, event, preventDefault, copySelectedKeyframes } =
+      createCopyFixture(false);
+    ctx.handleGlobalKeydown(event);
     expect(preventDefault).not.toHaveBeenCalled();
     expect(copySelectedKeyframes).not.toHaveBeenCalled();
   });
 
   it("claims Ctrl+C only when selected keyframes were copied", () => {
-    vi.stubGlobal("Element", class {});
-    vi.stubGlobal("window", {
-      getSelection: () => ({ isCollapsed: true, toString: () => "" }),
-    });
-    const preventDefault = vi.fn();
-    const ctx = {
-      copySelectedKeyframes: vi.fn(() => true),
-      isEditingFormControl: () => false,
-    } as any;
-    Object.assign(
-      ctx,
-      createKeyboardActions(() => ctx),
-    );
-
-    ctx.handleGlobalKeydown({
-      code: "KeyC",
-      ctrlKey: true,
-      metaKey: false,
-      preventDefault,
-      target: null,
-    });
-
+    const { ctx, event, preventDefault } = createCopyFixture(true);
+    ctx.handleGlobalKeydown(event);
     expect(preventDefault).toHaveBeenCalledOnce();
   });
 
@@ -166,9 +121,9 @@ describe("viewer app support owners", () => {
 
     first.assets.set("asset", { id: "asset" });
     first.pending.set("request", {
-      expire: vi.fn(),
-      reject: vi.fn(),
-      resolve: vi.fn(),
+      expire: vi.fn<() => void>(),
+      reject: vi.fn<(reason: unknown) => void>(),
+      resolve: vi.fn<(value: unknown) => void>(),
       timeoutMs: 100,
       timer: 0,
     });
@@ -220,23 +175,15 @@ describe("viewer app support owners", () => {
   });
 
   it("distinguishes preview preparation from ordinary playback", () => {
-    const playButton = {};
-    const fullscreenPlayButton = {};
-    const setIconButton = vi.fn();
-    const ctx = {
-      deps: { t: (_key: string, fallback: string) => fallback },
-      refs: { fullscreenPlayButton, playButton },
-      setIconButton,
-      state: {
-        playing: true,
-        previewCacheWarmActive: true,
-        previewVideoCache: { recording: true },
-      },
-    } as any;
-    Object.assign(
-      ctx,
-      createShellActions(() => ctx),
-    );
+    const ctx = createViewerContextFixture();
+    const playButton = ctx.refs.playButton;
+    const setIconButton = vi
+      .spyOn(ctx, "setIconButton")
+      .mockImplementation(() => {});
+    ctx.deps.t = (key, fallback) => fallback ?? key;
+    ctx.state.playing = true;
+    ctx.state.previewCacheWarmActive = true;
+    ctx.state.previewVideoCache.recording = true;
 
     ctx.syncPlaybackButtons();
     expect(setIconButton).toHaveBeenCalledWith(
@@ -256,11 +203,11 @@ describe("viewer app support owners", () => {
   });
 
   it("does not validate an unfinished renderer contract as missing bindings", () => {
-    const state = createViewerState();
+    const ctx = createViewerContextFixture();
+    const state = ctx.state;
     state.currentTemplate = { id: "template", duration: 1 };
     state.rendererContractTemplateId = "template";
     state.rendererContractCoverageReady = false;
-    const ctx = { state } as any;
 
     expect(isRendererContractCoveragePending(ctx)).toBe(true);
     state.rendererContractCoverageReady = true;
@@ -274,39 +221,30 @@ describe("viewer app support owners", () => {
   });
 
   it("omits renderer coverage from validation until the audit is ready", () => {
-    const collectEditorValidationIssuesModel = vi.fn(
-      (_template: unknown, _options: { rendererCoverage: unknown }) => [],
-    );
-    const state = createViewerState();
+    const ctx = createViewerContextFixture();
+    const collectEditorValidationIssuesModel = vi
+      .spyOn(ctx.deps, "collectEditorValidationIssuesModel")
+      .mockReturnValue([]);
+    const state = ctx.state;
     state.currentTemplate = { id: "template", duration: 1 };
     state.rendererContractTemplateId = "template";
-    state.rendererContractReads = {
-      ...state.rendererContractReads,
-      layers: ["box"],
-    };
-    const ctx = {
-      deps: {
-        collectEditorValidationErrorsModel: vi.fn(() => []),
-        collectEditorValidationIssuesModel,
-        isSafeLocalAssetPath: vi.fn(),
-        isSafeSvgAssetText: vi.fn(),
-      },
-      state,
-    } as any;
-    Object.assign(
-      ctx,
-      createEditorValidationActions(() => ctx),
-    );
+    state.rendererContractReads.layers = ["box"];
 
     ctx.collectEditorValidationIssues(state.currentTemplate);
     expect(
-      collectEditorValidationIssuesModel.mock.lastCall?.[1].rendererCoverage,
+      requiredEntry(
+        collectEditorValidationIssuesModel.mock.calls,
+        collectEditorValidationIssuesModel.mock.calls.length - 1,
+      )[1]?.rendererCoverage,
     ).toBeNull();
 
     state.rendererContractCoverageReady = true;
     ctx.collectEditorValidationIssues(state.currentTemplate);
     expect(
-      collectEditorValidationIssuesModel.mock.lastCall?.[1].rendererCoverage,
+      requiredEntry(
+        collectEditorValidationIssuesModel.mock.calls,
+        collectEditorValidationIssuesModel.mock.calls.length - 1,
+      )[1]?.rendererCoverage,
     ).toBe(state.rendererContractReads);
   });
 
@@ -325,8 +263,12 @@ describe("viewer app support owners", () => {
   });
 
   it("queries stable DOM refs through selector ownership", () => {
-    const querySelector = vi.fn((selector: string) => ({ selector }));
-    const querySelectorAll = vi.fn((selector: string) =>
+    const querySelector = vi.fn<(selector: string) => { selector: string }>(
+      (selector) => ({ selector }),
+    );
+    const querySelectorAll = vi.fn<
+      (selector: string) => { selector: string; index: number }[]
+    >((selector) =>
       Array.from(
         { length: selector === "[data-sidebar-tab]" ? 3 : 2 },
         (_, index) => ({ selector, index }),
@@ -349,17 +291,19 @@ describe("viewer app support owners", () => {
       location: { href: "http://127.0.0.1:4177/" },
       setTimeout: globalThis.setTimeout,
     });
-    const state = {
-      directRenderEffectIds: new Set<string>(),
-      directRenderResponsePort: null,
-      pending: new Map<string, any>(),
-      staleResponses: 0,
-    };
-    const postMessage = vi.fn();
+    const state = createViewerState();
+    const postMessage =
+      vi.fn<
+        (
+          message: unknown,
+          targetOrigin?: string | WindowPostMessageOptions,
+          transfer?: Transferable[],
+        ) => void
+      >();
     const frame = {
       contentWindow: { postMessage },
       src: "http://localhost:4178/sandbox.html",
-    } as any;
+    } satisfies Parameters<typeof postToSandboxWithTimeout>[1];
 
     const pending = postToSandboxWithTimeout(
       state,
@@ -375,9 +319,16 @@ describe("viewer app support owners", () => {
       [],
     );
 
-    const directPost = vi.fn();
+    const directPost =
+      vi.fn<
+        NonNullable<typeof state.directRenderResponsePort>["postMessage"]
+      >();
     state.directRenderEffectIds.add("worker-effect");
-    state.directRenderResponsePort = { postMessage: directPost } as any;
+    state.directRenderResponsePort = {
+      postMessage: directPost,
+      close: vi.fn<() => void>(),
+      presentationSurfaceAttached: true,
+    };
     const direct = postToSandboxWithTimeout(
       state,
       frame,
@@ -466,11 +417,12 @@ describe("viewer app support owners", () => {
       { kind: "renderFrame", requestId: "r3" },
       100,
     );
-    const timeoutExpectation = expect(timedOut).rejects.toThrow(
-      "renderFrame (r3) timed out after 100ms.",
-    );
-    await vi.advanceTimersByTimeAsync(100);
-    await timeoutExpectation;
+    await Promise.all([
+      expect(timedOut).rejects.toThrow(
+        "renderFrame (r3) timed out after 100ms.",
+      ),
+      vi.advanceTimersByTimeAsync(100),
+    ]);
     expect(state.pending.has("r3")).toBe(false);
   });
 });
@@ -483,3 +435,28 @@ it("rejects arbitrary viewer actions at the compiler boundary", () => {
     "unregisteredViewerAction" extends keyof ViewerAppContext ? true : false
   >().toEqualTypeOf<false>();
 });
+
+function createCopyFixture(isCollapsed: boolean) {
+  const ctx = createViewerContextFixture();
+  vi.stubGlobal("window", {
+    getSelection: () => ({
+      isCollapsed,
+      toString: () => (isCollapsed ? "" : "selected log text"),
+    }),
+  });
+  class FixtureKeyboardEvent {
+    code = "KeyC";
+    ctrlKey = true;
+    metaKey = false;
+    target = null;
+    preventDefault(): void {}
+  }
+  vi.stubGlobal("KeyboardEvent", FixtureKeyboardEvent);
+  const event = new KeyboardEvent("keydown");
+  const preventDefault = vi.spyOn(event, "preventDefault");
+  const copySelectedKeyframes = vi
+    .spyOn(ctx, "copySelectedKeyframes")
+    .mockReturnValue(true);
+  vi.spyOn(ctx, "isEditingFormControl").mockReturnValue(false);
+  return { ctx, event, preventDefault, copySelectedKeyframes };
+}

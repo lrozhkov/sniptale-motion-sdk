@@ -1,9 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type {
+  EditorTemplate,
+  EditorTemplateSource,
+} from "../src/apps/viewer/templates/model.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getPrimaryKeyframeSelection,
   reconcileTimelineSelection,
 } from "../src/apps/viewer/timeline/model/selection-consistency";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer selection consistency", () => {
   it("does not coerce malformed primary identifiers", () => {
@@ -13,7 +24,13 @@ describe("viewer selection consistency", () => {
       }),
     ).toBeNull();
     const ctx = createContext(createTemplate());
-    ctx.state.selectedItem = { type: "layer", layerId: { toString: 0 } };
+    // Probe malformed persisted data before reconciliation validates the selection.
+    expect(
+      Reflect.set(ctx.state, "selectedItem", {
+        type: "layer",
+        layerId: { toString: 0 },
+      }),
+    ).toBe(true);
     reconcileTimelineSelection(ctx);
     expect(ctx.state.selectedItem).toEqual({ type: "effect" });
   });
@@ -30,7 +47,7 @@ describe("viewer selection consistency", () => {
   it("validates restored selection against the effective editor template", () => {
     const baseTemplate = createTemplate();
     const effectiveTemplate = createTemplate({
-      layers: [{ id: "added-in-editor" }],
+      layers: [{ id: "added-in-editor", type: "rect" }],
     });
     const ctx = createContext(baseTemplate, effectiveTemplate);
     ctx.state.selectedItem = {
@@ -50,12 +67,19 @@ describe("viewer selection consistency", () => {
 
   it("drops stale and duplicate keyframes and derives a valid primary item", () => {
     const template = createTemplate({
+      layers: [{ id: "card", type: "rect" }],
       timeline: {
+        duration: 4,
         phases: [],
         tracks: [
           {
             id: "opacity",
-            keyframes: [{ id: "start" }, { id: "end" }],
+            layerId: "card",
+            property: "opacity",
+            keyframes: [
+              { id: "start", time: 0, value: 0 },
+              { id: "end", time: 4, value: 1 },
+            ],
           },
         ],
       },
@@ -91,7 +115,7 @@ describe("viewer selection consistency", () => {
 
   it("replaces a stale composition primary with the remaining interval", () => {
     const template = createTemplate({
-      clips: [{ layerId: "card" }],
+      clips: [{ layerId: "card", start: 0, duration: 4 }],
     });
     const ctx = createContext(template);
     ctx.state.selectedClips = ["card"];
@@ -106,8 +130,8 @@ describe("viewer selection consistency", () => {
 
   it("keeps layer and clip collections mutually exclusive", () => {
     const template = createTemplate({
-      clips: [{ layerId: "card" }],
-      layers: [{ id: "card" }],
+      clips: [{ layerId: "card", start: 0, duration: 4 }],
+      layers: [{ id: "card", type: "rect" }],
     });
     const ctx = createContext(template);
     ctx.state.selectedClips = ["card"];
@@ -142,8 +166,8 @@ describe("viewer selection consistency", () => {
 
   it("clears timeline selection for assets and empty templates", () => {
     const template = createTemplate({
-      clips: [{ layerId: "card" }],
-      layers: [{ id: "card" }],
+      clips: [{ layerId: "card", start: 0, duration: 4 }],
+      layers: [{ id: "card", type: "rect" }],
     });
     const ctx = createContext(template);
     ctx.state.assets.set("logo", { id: "logo" });
@@ -169,36 +193,37 @@ describe("viewer selection consistency", () => {
   });
 });
 
-function createTemplate(patch: Record<string, any> = {}) {
+function createTemplate(patch: Partial<EditorTemplate> = {}): EditorTemplate {
   return {
     clips: [],
     duration: 4,
     id: "composition",
     layers: [],
     scenes: [],
-    timeline: { phases: [], tracks: [] },
+    timeline: { duration: 4, phases: [], tracks: [] },
     ...patch,
   };
 }
 
-function createContext(baseTemplate, effectiveTemplate = baseTemplate): any {
-  return {
-    getEffectiveTemplate: (template) => (template ? effectiveTemplate : null),
-    normalizeScenes: (scenes) => scenes,
-    state: {
-      assets: new Map(),
-      currentTemplate: baseTemplate,
-      selectedClips: [],
-      selectedItem: { type: "effect" },
-      selectedKeyframes: [],
-      selectedLayers: [],
-      selectedPhases: [],
-      selectedScenes: [],
-    },
-  };
+function createContext(
+  baseTemplate: EditorTemplateSource,
+  effectiveTemplate: EditorTemplateSource = baseTemplate,
+) {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = baseTemplate;
+  ctx.refs.timeSlider.value = "0";
+  const effective = ctx.getEffectiveTemplate(effectiveTemplate);
+  if (!effective)
+    throw new Error("Missing effective selection template fixture.");
+  vi.spyOn(ctx, "getEffectiveTemplate").mockImplementation((source) =>
+    source ? effective : null,
+  );
+  return ctx;
 }
 
-function expectTimelineSelectionToBeEmpty(state): void {
+function expectTimelineSelectionToBeEmpty(
+  state: ViewerAppContext["state"],
+): void {
   expect(state.selectedClips).toEqual([]);
   expect(state.selectedKeyframes).toEqual([]);
   expect(state.selectedLayers).toEqual([]);

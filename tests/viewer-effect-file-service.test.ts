@@ -1,15 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { createStarterDocument } from "../src/apps/cli/starter.js";
+import { normalizeEffectV1ToTemplate } from "../src/sdk/effect-v1/normalization.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createEffectExportReadinessActions } from "../src/apps/viewer/effect-file/service";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer effect-file export readiness", () => {
   it("blocks export neutrally until renderer contract coverage is ready", () => {
     let pending = true;
     const ctx = createContext(() => pending);
-    Object.assign(
-      ctx,
-      createEffectExportReadinessActions(() => ctx),
-    );
 
     ctx.updateExportAvailability();
 
@@ -38,10 +40,6 @@ describe("viewer effect-file export readiness", () => {
 
   it("keeps validation failures distinct from the pending state", () => {
     const ctx = createContext(() => false, ["Track is not renderer-bound"]);
-    Object.assign(
-      ctx,
-      createEffectExportReadinessActions(() => ctx),
-    );
 
     ctx.updateExportAvailability();
 
@@ -59,36 +57,24 @@ describe("viewer effect-file export readiness", () => {
   });
 });
 
-function createContext(isPending, errors: string[] = []) {
-  const button = () => ({ disabled: false, title: "" });
-  return {
-    collectEditorValidationErrors: vi.fn(() => errors),
-    deps: { t: (_key, fallback) => fallback },
-    getEffectiveTemplate: (template) => template,
-    isRendererContractCoveragePending: isPending,
-    logDiagnostic: vi.fn(),
-    refs: {
-      exportEffectFileButton: button(),
-      exportJsonButton: button(),
-      exportMp4Button: button(),
-      saveJsonButton: button(),
-      timelineSaveStatus: {
-        dataset: {},
-        textContent: "No source file open",
-        title: "",
-      },
-    },
-    state: {
-      currentTemplate: {
-        effectV1: { program: { commands: [], kind: "graph", version: 1 } },
-        id: "template",
-      },
-      templateFileHandle: null,
-    },
-  } as any;
+function createContext(isPending: () => boolean, errors: string[] = []) {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = normalizeEffectV1ToTemplate(
+    createStarterDocument("template", "standalone"),
+  );
+  vi.spyOn(ctx, "collectEditorValidationErrors").mockReturnValue(errors);
+  vi.spyOn(ctx, "isRendererContractCoveragePending").mockImplementation(
+    isPending,
+  );
+  const logDiagnostic = vi
+    .spyOn(ctx, "logDiagnostic")
+    .mockImplementation(() => {});
+  ctx.deps.t = (key: string, fallback?: string) => fallback ?? key;
+  ctx.refs.timelineSaveStatus.textContent = "No source file open";
+  return Object.assign(ctx, { logDiagnostic });
 }
 
-function exportButtons(ctx) {
+function exportButtons(ctx: ReturnType<typeof createContext>) {
   return [
     ctx.refs.exportJsonButton,
     ctx.refs.exportEffectFileButton,

@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry.js";
 import { describe, expect, it } from "vitest";
 
 import { normalizeLayers } from "../src/apps/sandbox/runtime/render-normalization";
@@ -54,7 +55,10 @@ describe("viewer inspector property layout", () => {
       strokeWidth: 1,
       width: 240,
     });
-    const runtimeLayer = normalizeLayers([{ id: "rect", type: "rect" }])[0];
+    const runtimeLayer = requiredEntry(
+      normalizeLayers([{ id: "rect", type: "rect" }]),
+      0,
+    );
     for (const property of [
       "blendMode",
       "fill",

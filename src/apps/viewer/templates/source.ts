@@ -1,3 +1,5 @@
+import type { EffectV1ValidationOptions } from "../../../sdk/effect-v1/validation.js";
+import { validateEffectV1ControlGroupIcons } from "../../../sdk/effect-v1/control-group-icons-validation.js";
 import { isEditorLayer } from "../layers/source.js";
 import { normalizePresets } from "../editor/model.js";
 import {
@@ -29,17 +31,23 @@ export function readTemplateSource(
   return value;
 }
 
-export function readEditorTemplateSource(value: unknown): EditorTemplateSource {
-  if (!isEditorTemplateSource(value))
+export function readEditorTemplateSource(
+  value: unknown,
+  options: EffectV1ValidationOptions = {},
+): EditorTemplateSource {
+  if (!isEditorTemplateSource(value, options))
     throw new Error("Invalid editor template source structure.");
   return value;
 }
 
-function isEditorTemplateSource(value: unknown): value is EditorTemplateSource {
+function isEditorTemplateSource(
+  value: unknown,
+  options: EffectV1ValidationOptions,
+): value is EditorTemplateSource {
   return (
     isSource(value) &&
     finite(value.duration) &&
-    isMetadata(value) &&
+    isMetadata(value, options) &&
     optional(
       value,
       "layers",
@@ -79,7 +87,7 @@ export function readEditorTemplate(
   const clips: unknown = value.clips;
   const scenes: unknown = value.scenes;
   if (
-    !isMetadata(value) ||
+    !isMetadata(value, { presentationPolicy: "retained" }) ||
     !isList(layers) ||
     !layers.every(isEditorLayer) ||
     !isList(clips) ||
@@ -102,8 +110,18 @@ export function readEditorTemplate(
 
 function isMetadata(
   value: Record<string, unknown>,
+  options: EffectV1ValidationOptions,
 ): value is Record<string, unknown> & EditorTemplateMetadata {
+  const report = createEffectV1Diagnostics();
+  validateEffectV1ControlGroupIcons(
+    value.controlGroups,
+    value.controls,
+    options.presentationPolicy === "retained"
+      ? { error: (code, path, message) => report.warning(code, path, message) }
+      : report,
+  );
   return (
+    !report.diagnostics.some((issue) => issue.severity === "error") &&
     optional(value, "default", isBoolean) &&
     optional(value, "assets", (list) => isList(list) && list.every(isString)) &&
     optional(value, "controlGroups", (groups) => {

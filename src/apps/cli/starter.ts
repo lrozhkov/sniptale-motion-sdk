@@ -24,7 +24,6 @@ export function createStarterDocument(
         kind: "color",
         group: "appearance",
         presentation: "color",
-        icon: "palette",
         label: { en: "Accent", ru: "Акцент" },
       },
     ],

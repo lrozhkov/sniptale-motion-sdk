@@ -69,7 +69,7 @@ describe("viewer persistent playback video cache", () => {
       rangeEndFrame: 91,
       rangeStartFrame: 30,
     });
-    const coercion = vi.fn(() => 30);
+    const coercion = vi.fn<() => number>(() => 30);
     for (const fps of ["30", false, null, Infinity, { valueOf: coercion }]) {
       expect(
         normalizePlaybackVideoCacheRecord({ ...record, fps }, "cache-key"),

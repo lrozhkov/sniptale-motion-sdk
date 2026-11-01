@@ -1,24 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { clamp } from "../src/sdk/protocol";
-import { deepClone, normalizeTimeline } from "../src/apps/viewer/editor/model";
-import { createClipMoveActions } from "../src/apps/viewer/timeline/model/clip-move-plans";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { readEditorTimeline } from "../src/apps/viewer/editor/timeline-source.js";
+import type { EditorTemplate } from "../src/apps/viewer/templates/model.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer timeline layer interval move contract", () => {
   it("moves a layer clip with owned keyframes and clamps to its scene", () => {
     const ctx = createClipMoveContext();
-    const template = {
+    const template: EditorTemplate = {
+      layers: [
+        { id: "title", type: "text" },
+        { id: "logo", type: "rect" },
+      ],
       clips: [{ duration: 2, layerId: "title", sceneId: "main", start: 1 }],
       duration: 4,
       id: "interval-contract",
       scenes: [{ duration: 4, id: "main", start: 0 }],
       timeline: {
+        duration: 4,
         phases: [
           { duration: 1.1, id: "title-in", sceneId: "main", start: 1.2 },
         ],
         tracks: [
           {
             id: "title.opacity",
+            layerId: "title",
+            property: "opacity",
             keyframes: [
               { id: "title-a", phaseId: "title-in", time: 1.2, value: 0 },
               { id: "title-b", phaseId: "title-in", time: 2.3, value: 1 },
@@ -30,19 +43,24 @@ describe("viewer timeline layer interval move contract", () => {
       },
     };
 
+    ctx.state.currentTemplate = template;
     const plan = ctx.createClipMovePlan(template, ["title"], 4, true);
 
     expect(plan.maxDelta).toBe(1);
     ctx.applyClipMovePlan(template, plan, plan.maxDelta);
 
-    expect(ctx.editorOverride.clips).toEqual([
+    expect(ctx.getEditorOverride(template).clips).toEqual([
       { duration: 2, layerId: "title", sceneId: "main", start: 2 },
     ]);
-    expect(ctx.timelineOverride.phases).toEqual([
+    const timelineOverride = readEditorTimeline(
+      ctx.state.timelineOverrides.get(template.id),
+      4,
+    );
+    expect(timelineOverride.phases).toEqual([
       expect.objectContaining({ id: "title-in", start: 2.2 }),
     ]);
     expect(
-      ctx.timelineOverride.tracks[0].keyframes.map((keyframe) => ({
+      requiredEntry(timelineOverride.tracks, 0).keyframes.map((keyframe) => ({
         id: keyframe.id,
         time: keyframe.time,
       })),
@@ -54,7 +72,11 @@ describe("viewer timeline layer interval move contract", () => {
 
   it("moves only the selected layer keyframes for shared phases", () => {
     const ctx = createClipMoveContext();
-    const template = {
+    const template: EditorTemplate = {
+      layers: [
+        { id: "title", type: "text" },
+        { id: "logo", type: "rect" },
+      ],
       clips: [
         { duration: 2, layerId: "title", sceneId: "main", start: 1 },
         { duration: 2, layerId: "logo", sceneId: "main", start: 1 },
@@ -63,24 +85,29 @@ describe("viewer timeline layer interval move contract", () => {
       id: "shared-phase-contract",
       scenes: [{ duration: 4, id: "main", start: 0 }],
       timeline: {
+        duration: 4,
         phases: [
           { duration: 1, id: "shared-reveal", sceneId: "main", start: 1 },
         ],
         tracks: [
           {
             id: "title.opacity",
+            layerId: "title",
+            property: "opacity",
             keyframes: [
-              { id: "title-a", phaseId: "shared-reveal", time: 1.1 },
-              { id: "title-b", phaseId: "shared-reveal", time: 1.8 },
+              { id: "title-a", value: 0, phaseId: "shared-reveal", time: 1.1 },
+              { id: "title-b", value: 1, phaseId: "shared-reveal", time: 1.8 },
             ],
             phaseId: "shared-reveal",
             target: "title",
           },
           {
             id: "logo.scale",
+            layerId: "logo",
+            property: "scaleX",
             keyframes: [
-              { id: "logo-a", phaseId: "shared-reveal", time: 1.2 },
-              { id: "logo-b", phaseId: "shared-reveal", time: 1.9 },
+              { id: "logo-a", value: 0, phaseId: "shared-reveal", time: 1.2 },
+              { id: "logo-b", value: 1, phaseId: "shared-reveal", time: 1.9 },
             ],
             phaseId: "shared-reveal",
             target: "logo",
@@ -89,20 +116,25 @@ describe("viewer timeline layer interval move contract", () => {
       },
     };
 
+    ctx.state.currentTemplate = template;
     const plan = ctx.createClipMovePlan(template, ["title"], 4, true);
 
     expect(plan.phaseItems).toEqual([]);
     ctx.applyClipMovePlan(template, plan, 0.4);
 
-    expect(ctx.editorOverride.clips).toEqual([
+    expect(ctx.getEditorOverride(template).clips).toEqual([
       { duration: 2, layerId: "title", sceneId: "main", start: 1.4 },
       { duration: 2, layerId: "logo", sceneId: "main", start: 1 },
     ]);
-    expect(ctx.timelineOverride.phases).toEqual([
+    const timelineOverride = readEditorTimeline(
+      ctx.state.timelineOverrides.get(template.id),
+      4,
+    );
+    expect(timelineOverride.phases).toEqual([
       expect.objectContaining({ id: "shared-reveal", start: 1 }),
     ]);
     expect(
-      ctx.timelineOverride.tracks.map((track) => ({
+      timelineOverride.tracks.map((track) => ({
         id: track.id,
         times: track.keyframes.map((keyframe) => keyframe.time),
       })),
@@ -114,57 +146,10 @@ describe("viewer timeline layer interval move contract", () => {
 });
 
 function createClipMoveContext() {
-  const ctx: any = {
-    deps: {
-      clamp,
-      deepClone,
-      normalizeTimeline,
-    },
-    editorOverride: null,
-    getEffectiveDuration: (template: any) => template.duration,
-    getKeyframeOwnershipSceneId: (timeline: any, track: any, keyframe: any) => {
-      if (typeof keyframe?.sceneId === "string") {
-        return keyframe.sceneId;
-      }
-      if (typeof track?.sceneId === "string") {
-        return track.sceneId;
-      }
-      const phaseId = keyframe?.phaseId ?? track?.phaseId;
-      return timeline.phases?.find((phase: any) => phase.id === phaseId)
-        ?.sceneId;
-    },
-    getTrackLayerId: (track: any) =>
-      track.layerId ?? (track.target === "scene" ? null : track.target),
-    isTimeInsideRange: (time: number, start: number, end: number) =>
-      time >= start - 0.0001 && time <= end + 0.0001,
-    renderCurrentFrame: () => undefined,
-    renderTimelineEditor: () => undefined,
-    setEditorOverride(update: any) {
-      ctx.editorOverride = update;
-    },
-    snapDuration: (value: number) => value,
-    snapTime: (value: number) => Math.round(value * 1000) / 1000,
-    state: {
-      timelineOverrides: new Map<string, any>(),
-    },
-  };
-  Object.defineProperty(ctx, "timelineOverride", {
-    get() {
-      return ctx.state.timelineOverrides.get(
-        ctx.lastTemplateId ?? "interval-contract",
-      );
-    },
-  });
-  const originalSet = ctx.state.timelineOverrides.set.bind(
-    ctx.state.timelineOverrides,
-  );
-  ctx.state.timelineOverrides.set = (key: string, value: any) => {
-    ctx.lastTemplateId = key;
-    return originalSet(key, value);
-  };
-  Object.assign(
-    ctx,
-    createClipMoveActions(() => ctx),
-  );
+  const ctx = createViewerContextFixture();
+  ctx.refs.fpsInput.value = "30";
+  ctx.refs.timeSlider.value = "0";
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
+  vi.spyOn(ctx, "renderTimelineEditor").mockImplementation(() => {});
   return ctx;
 }

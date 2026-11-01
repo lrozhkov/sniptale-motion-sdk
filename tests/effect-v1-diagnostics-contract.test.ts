@@ -22,7 +22,10 @@ describe("Effect v1 diagnostic contract", () => {
       const actual = validateEffectV1Document(
         testCase.document,
       ).diagnostics.map(({ code, path }) => ({ code, path }));
-      expect(actual, testCase.id).toEqual(testCase.expected);
+      expect({ id: testCase.id, diagnostics: actual }).toEqual({
+        id: testCase.id,
+        diagnostics: testCase.expected,
+      });
     }
   });
 });

@@ -38,7 +38,7 @@ Edit `effects/my-effect/effect.sniptale-effect.json`. Keep asset paths relative 
 
 Keep `schemaVersion: "sniptale.effect.v1"`, `program.kind: "graph"` and `program.version: 1`. Supply Russian and English visible metadata. Use supported expressions and commands; do not add JavaScript renderers, imports, network access or host APIs. Every declared asset, control, layer, clip, phase and track must contribute to the graph. Preserve required closure relationships when replacing the starter's design. Layer-owned transforms are added to command-local geometry; avoid applying the same translation twice.
 
-Use clean control labels and declare numeric units separately in `unit` when the value has a meaningful unit. Choose `presentation` for the intended input, and use semantic groups and registry icons as described in the Controls reference. Units never rescale graph values.
+Use clean control labels and declare numeric units separately in `unit` when the value has a meaningful unit. Choose `presentation` for the intended input, and use semantic groups as described in the Controls reference. Assign unique registry icons within each effect to groups and disclosures (see the Controls reference for reserved root icons); keep individual parameter rows and choices text-only. Nested group icons are optional: omit the icon if no accurate semantic match exists. Do not add groups or icons merely to fill the inspector. Units never rescale graph values.
 
 After a meaningful change, validate the exact file and its asset root:
 

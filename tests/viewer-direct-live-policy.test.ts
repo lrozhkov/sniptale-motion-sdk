@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 import {
   SANDBOX_RENDER_PROFILE_FIELDS,
+  parseSandboxRenderProfile,
   type SandboxRenderProfile,
 } from "../src/sdk/render-profile";
 import {
@@ -11,31 +17,32 @@ import {
 } from "../src/apps/viewer/rendering/direct-live-policy";
 
 function createContext() {
-  return {
-    state: {
-      directLiveProfileCompleteKeys: new Set(),
-      directLiveProfileSamples: new Map(),
-      directLiveRenderKeys: new Set(),
-      directRenderEffectIds: new Set(["heavy"]),
-      directRenderResponsePort: { presentationSurfaceAttached: true },
-      playing: true,
-      previewCacheEnabled: false,
-      previewRasterHeight: 720,
-      previewRasterWidth: 1280,
-    },
-  } as any;
+  const ctx = createViewerContextFixture();
+  ctx.state.directRenderEffectIds.add("heavy");
+  ctx.state.directRenderResponsePort = {
+    presentationSurfaceAttached: true,
+    close() {},
+    postMessage(_message: unknown, _transfer?: Transferable[]) {},
+  };
+  ctx.state.playing = true;
+  ctx.state.previewCacheEnabled = false;
+  ctx.state.previewRasterHeight = 720;
+  ctx.state.previewRasterWidth = 1280;
+  return ctx;
 }
 
 function createProfile(
   patch: Partial<SandboxRenderProfile>,
 ): SandboxRenderProfile {
-  return {
+  const profile = parseSandboxRenderProfile({
     ...Object.fromEntries(
       SANDBOX_RENDER_PROFILE_FIELDS.map((field) => [field, 0]),
     ),
     totalMs: 100,
     ...patch,
-  } as SandboxRenderProfile;
+  });
+  if (!profile) throw new Error("Invalid render profile fixture.");
+  return profile;
 }
 
 describe("viewer adaptive direct Live rendering", () => {

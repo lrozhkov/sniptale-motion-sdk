@@ -17,19 +17,21 @@ afterEach(() => vi.unstubAllGlobals());
 function installElements(value: unknown, values: unknown[] = []) {
   vi.stubGlobal("HTMLElement", HtmlElementStub);
   vi.stubGlobal("SVGSVGElement", SvgRootStub);
+  const querySelector = vi.fn<(selector: string) => unknown>(() => value);
   vi.stubGlobal("document", {
-    querySelector: vi.fn(() => value),
-    querySelectorAll: vi.fn(() => values),
+    querySelector,
+    querySelectorAll: vi.fn<() => unknown[]>(() => values),
   });
+  return querySelector;
 }
 
 describe("viewer DOM receiving boundary", () => {
   it("preserves a matching HTML element and parses every list entry", () => {
     const input = new HtmlElementStub("input");
-    installElements(input, [input]);
+    const querySelector = installElements(input, [input]);
     expect(requireHtml("#input", "input")).toBe(input);
     expect(queryHtml("input", "input")).toEqual([input]);
-    expect(document.querySelector).toHaveBeenCalledWith("#input");
+    expect(querySelector).toHaveBeenCalledWith("#input");
   });
 
   it.each([

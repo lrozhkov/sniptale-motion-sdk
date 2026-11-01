@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry.js";
 import { describe, expect, it } from "vitest";
 
 import { parseSerializedSvgVector } from "../src/apps/sandbox/runtime/svg-vector-payload";
@@ -23,10 +24,11 @@ describe("serialized SVG vector boundary", () => {
     const source = { height: 50, parts: [pathPart], width: 100 };
     const parsed = parseSerializedSvgVector(source);
 
+    if (!parsed) throw new Error("Valid SVG vector fixture was rejected.");
     expect(parsed).toEqual(source);
     expect(parsed).not.toBe(source);
-    expect(parsed?.parts).not.toBe(source.parts);
-    expect(parsed?.parts[0].groupIds).not.toBe(pathPart.groupIds);
+    expect(parsed.parts).not.toBe(source.parts);
+    expect(requiredEntry(parsed.parts, 0).groupIds).not.toBe(pathPart.groupIds);
   });
 
   it("rejects malformed and oversized path payloads", () => {

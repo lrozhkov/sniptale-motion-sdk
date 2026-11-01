@@ -1,5 +1,6 @@
+import { createDrawingContextFixture } from "./helpers/drawing-context-fixture.js";
 import { createRuntimeCanvasFixture } from "./helpers/runtime-canvas.js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EFFECT_V1_SCHEMA,
   normalizeEffectV1ToTemplate,
@@ -10,6 +11,11 @@ import {
 } from "../src/sdk/effect-v1";
 import { buildEffectFilePayload } from "../src/apps/viewer/effect-file/builder";
 import { createEffectV1GraphRenderer } from "../src/apps/sandbox/runtime/effect-v1/interpreter";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 const layout: EffectV1ObjectLayout = {
   width: 400,
@@ -120,29 +126,43 @@ describe("standalone object layout", () => {
     ).toEqual({ width: 1200, height: 200 });
     expect(() =>
       resolveEffectV1ObjectLayout(layout, { width: NaN, height: 100 }),
-    ).toThrow();
-    expect(() =>
-      resolveEffectV1ObjectLayout({ ...layout, resize: "bad" } as never),
-    ).toThrow();
+    ).toThrow("Object layout dimensions must be between 1 and 16384.");
+    expect(() => {
+      Reflect.apply(resolveEffectV1ObjectLayout, undefined, [
+        { ...layout, resize: "bad" },
+      ]);
+    }).toThrow("Unknown object resize policy.");
   });
 
-  it.each(["scale", "reflow", undefined] as const)(
-    "renders %s with the appropriate logical coordinate system",
-    async (resize) => {
+  it.each([
+    {
+      resize: "scale",
+      width: 400,
+      height: 100,
+      scale: [2, 2],
+      translate: [0, 100],
+    },
+    {
+      resize: "reflow",
+      width: 800,
+      height: 400,
+      scale: [1, 1],
+      translate: [0, 0],
+    },
+    {
+      resize: undefined,
+      width: 800,
+      height: 400,
+      scale: null,
+      translate: null,
+    },
+  ] as const)(
+    "renders $resize with the appropriate logical coordinate system",
+    async ({ resize, width, height, scale, translate }) => {
       const doc = document();
-      if (resize) doc.objectLayout!.resize = resize;
+      if (resize) doc.objectLayout = { ...layout, resize };
       else delete doc.objectLayout;
-      const c = {
-        clearRect: vi.fn(),
-        fillRect: vi.fn(),
-        save: vi.fn(),
-        restore: vi.fn(),
-        translate: vi.fn(),
-        scale: vi.fn(),
-        beginPath: vi.fn(),
-        rect: vi.fn(),
-        clip: vi.fn(),
-      };
+      const c = createDrawingContextFixture(800, 400);
       const canvas = createRuntimeCanvasFixture(c, 800, 400);
       const renderer = createEffectV1GraphRenderer(doc, {});
       for (const time of [0, 1, 2, 1]) {
@@ -157,19 +177,11 @@ describe("standalone object layout", () => {
           resolveLayer: () => null,
         });
       }
-      expect(c.fillRect).toHaveBeenLastCalledWith(
-        0,
-        0,
-        resize === "scale" ? 400 : 800,
-        resize === "scale" ? 100 : 400,
+      expect(c.fillRect).toHaveBeenLastCalledWith(0, 0, width, height);
+      expect(c.scale.mock.calls).toEqual(
+        scale === null ? [] : Array.from({ length: 4 }, () => scale),
       );
-      if (resize === "scale") {
-        expect(c.scale).toHaveBeenCalledWith(2, 2);
-        expect(c.translate).toHaveBeenCalledWith(0, 100);
-      } else if (resize === "reflow") {
-        expect(c.scale).toHaveBeenCalledWith(1, 1);
-        expect(c.translate).toHaveBeenCalledWith(0, 0);
-      } else expect(c.scale).not.toHaveBeenCalled();
+      expect(c.translate).toHaveBeenCalledWith(...(translate ?? [0, 0]));
     },
   );
 });

@@ -73,7 +73,7 @@ function createRenderModel() {
 }
 
 it("rejects nonnumeric model duration without invoking conversion hooks", () => {
-  const convert = vi.fn(() => 1);
+  const convert = vi.fn<() => number>(() => 1);
   const cache = createRenderModelCache();
   expect(() =>
     cache.resolve({

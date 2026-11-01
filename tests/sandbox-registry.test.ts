@@ -1,3 +1,4 @@
+import type { SandboxRenderer } from "../src/apps/sandbox/runtime/renderer-model.js";
 import { createRenderContext } from "../src/apps/sandbox/runtime/render-context.js";
 import { describe, expect, it, vi } from "vitest";
 
@@ -6,10 +7,10 @@ import { createSandboxRegistry } from "../src/apps/sandbox/runtime/registry";
 describe("sandbox registry", () => {
   it("registers effects and compositions and disposes owned state", () => {
     const registry = createSandboxRegistry();
-    const dispose = vi.fn(() => {
+    const dispose = vi.fn<() => never>(() => {
       throw new Error("ignored");
     });
-    const renderFrame = vi.fn();
+    const renderFrame = vi.fn<SandboxRenderer["renderFrame"]>();
 
     expect(() => registry.registerEffect({ id: "bad" })).toThrow(
       "registerEffect expects an id and renderFrame(ctx).",
@@ -39,8 +40,16 @@ describe("sandbox registry", () => {
   });
   it("replaces a renderer across effect kinds and disposes both kinds", () => {
     const registry = createSandboxRegistry();
-    const first = { id: "same", renderFrame: vi.fn(), dispose: vi.fn() };
-    const second = { id: "same", renderFrame: vi.fn(), dispose: vi.fn() };
+    const first = {
+      id: "same",
+      renderFrame: vi.fn<SandboxRenderer["renderFrame"]>(),
+      dispose: vi.fn<NonNullable<SandboxRenderer["dispose"]>>(),
+    };
+    const second = {
+      id: "same",
+      renderFrame: vi.fn<SandboxRenderer["renderFrame"]>(),
+      dispose: vi.fn<NonNullable<SandboxRenderer["dispose"]>>(),
+    };
     registry.registerEffect(first);
     registry.registerComposition(second);
     expect(first.dispose).toHaveBeenCalledOnce();
@@ -77,7 +86,7 @@ it("preserves renderer receivers and the normalized composition kind", async () 
 
 it("observes asynchronous best-effort renderer disposal", async () => {
   const registry = createSandboxRegistry();
-  const dispose = vi.fn(async () => {
+  const dispose = vi.fn<() => Promise<never>>(async () => {
     throw new Error("teardown failed");
   });
   registry.registerEffect({ id: "async-cleanup", renderFrame() {}, dispose });

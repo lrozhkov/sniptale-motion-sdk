@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { AudioAssetsContext } from "../src/apps/viewer/timeline/model/audio-clips.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  canEncodeAudio: vi.fn(),
-  canEncodeVideo: vi.fn(),
+  canEncodeAudio: vi.fn<typeof import("mediabunny").canEncodeAudio>(),
+  canEncodeVideo: vi.fn<typeof import("mediabunny").canEncodeVideo>(),
 }));
 
 vi.mock("mediabunny", () => ({
@@ -23,6 +25,11 @@ import {
   shouldEncodeExportKeyFrame,
 } from "../src/apps/viewer/video-export/options";
 import { collectTimelineMp4AudioClips } from "../src/apps/viewer/video-export/timeline-audio";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("video-export options", () => {
   it("normalizes export size, even dimensions, fps, and frame timing", () => {
@@ -110,39 +117,36 @@ describe("video-export capabilities", () => {
   it("returns supported-only audio codecs", async () => {
     mocks.canEncodeAudio.mockImplementation(async (codec) => codec === "aac");
 
-    const options = await getSupportedMp4AudioOptions({
-      numberOfChannels: 2,
-      sampleRate: 48000,
-    } as AudioBuffer);
+    installAudioFixtures();
+    const options = await getSupportedMp4AudioOptions(
+      new AudioBuffer({ numberOfChannels: 2, length: 1, sampleRate: 48000 }),
+    );
 
     expect(options.map((option) => option.value)).toEqual(["aac"]);
   });
 });
 
 describe("video-export audio fitting", () => {
-  it("trims and pads decoded audio to export duration", () => {
-    const channels = [new Float32Array([1, 2, 3, 4])];
-    const outputChannels = [new Float32Array(2), new Float32Array(2)];
-    const context = {
-      createBuffer: vi.fn((_channels, _frames, _sampleRate) => ({
-        getChannelData: (channel) => outputChannels[channel],
-        length: _frames,
-        numberOfChannels: _channels,
-        sampleRate: _sampleRate,
-      })),
-    } as any;
-    const source = {
-      getChannelData: (channel) => channels[channel],
-      length: 4,
-      numberOfChannels: 1,
-      sampleRate: 2,
-    } as AudioBuffer;
-
-    fitDecodedAudioBufferForExport(context, source, 1);
-
-    expect(context.createBuffer).toHaveBeenCalledWith(1, 2, 2);
-    expect(Array.from(outputChannels[0])).toEqual([1, 2]);
-  });
+  it.each([
+    { duration: 1, frames: 2, expected: [1, 2] },
+    { duration: 3, frames: 6, expected: [1, 2, 3, 4, 0, 0] },
+  ])(
+    "fits decoded audio to $frames frames",
+    ({ duration, frames, expected }) => {
+      installAudioFixtures();
+      const context = new AudioContext();
+      const createBuffer = vi.spyOn(context, "createBuffer");
+      const source = new AudioBuffer({
+        numberOfChannels: 1,
+        length: 4,
+        sampleRate: 2,
+      });
+      source.getChannelData(0).set([1, 2, 3, 4]);
+      const output = fitDecodedAudioBufferForExport(context, source, duration);
+      expect(createBuffer).toHaveBeenCalledWith(1, frames, 2);
+      expect(Array.from(output.getChannelData(0))).toEqual(expected);
+    },
+  );
 });
 
 describe("video-export timeline audio", () => {
@@ -157,7 +161,7 @@ describe("video-export timeline audio", () => {
       state: {
         assets: new Map([["voice", asset]]),
       },
-    } as any;
+    } satisfies AudioAssetsContext;
 
     const clips = collectTimelineMp4AudioClips(
       ctx,
@@ -196,7 +200,7 @@ describe("video-export timeline audio", () => {
 
 describe("video-export option boundaries", () => {
   it("uses finite defaults and does not coerce objects", () => {
-    const coercion = vi.fn(() => {
+    const coercion = vi.fn<() => never>(() => {
       throw new Error("must not coerce");
     });
     expect(
@@ -214,3 +218,35 @@ describe("video-export option boundaries", () => {
     expect(coercion).not.toHaveBeenCalled();
   });
 });
+
+function installAudioFixtures(): void {
+  class FixtureAudioBuffer {
+    readonly numberOfChannels: number;
+    readonly length: number;
+    readonly sampleRate: number;
+    readonly channels: Float32Array[];
+    constructor(options: AudioBufferOptions) {
+      this.numberOfChannels = options.numberOfChannels ?? 1;
+      this.length = options.length;
+      this.sampleRate = options.sampleRate;
+      this.channels = Array.from(
+        { length: this.numberOfChannels },
+        () => new Float32Array(this.length),
+      );
+    }
+    getChannelData(channel: number): Float32Array {
+      return requiredEntry(this.channels, channel);
+    }
+  }
+  class FixtureAudioContext {
+    createBuffer(
+      numberOfChannels: number,
+      length: number,
+      sampleRate: number,
+    ): AudioBuffer {
+      return new AudioBuffer({ numberOfChannels, length, sampleRate });
+    }
+  }
+  vi.stubGlobal("AudioBuffer", FixtureAudioBuffer);
+  vi.stubGlobal("AudioContext", FixtureAudioContext);
+}

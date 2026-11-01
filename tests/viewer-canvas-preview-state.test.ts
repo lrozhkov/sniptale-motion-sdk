@@ -27,7 +27,7 @@ function context() {
   return {
     state,
     refs: { canvasSelectionBox: { dataset } },
-    renderCurrentFrame: vi.fn(async () => undefined),
+    renderCurrentFrame: vi.fn<() => Promise<undefined>>(async () => undefined),
     getResolvedLayerAnchor: () => ({ x: 0, y: 0 }),
     getResolvedLayerProperty: (
       _layer: EffectLayer,
@@ -45,7 +45,7 @@ describe("canvas preview state ownership", () => {
   it("starts its command once after crossing the movement threshold", () => {
     const ctx = context();
     const preview = createCanvasDragPreview(ctx);
-    const start = vi.fn();
+    const start = vi.fn<() => void>();
     expect(preview.activate(2, start)).toBe(false);
     expect(ctx.state.dragMoved).toBe(false);
     expect(preview.activate(3, start)).toBe(true);
@@ -66,7 +66,7 @@ describe("canvas preview state ownership", () => {
       if (change === "finalized") preview.finalize();
       if (change === "history")
         invalidateCanvasDragPreview(ctx.state, ctx.refs.canvasSelectionBox);
-      const start = vi.fn();
+      const start = vi.fn<() => void>();
       expect(preview.activate(4, start)).toBe(false);
       expect(start).not.toHaveBeenCalled();
       expect(ctx.state.dragMoved).toBe(false);
@@ -79,10 +79,10 @@ describe("canvas preview state ownership", () => {
       frames.push(callback);
       return frames.length;
     });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal("cancelAnimationFrame", vi.fn<() => void>());
     const ctx = context();
     const old = createCanvasDragPreview(ctx);
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     old.scheduleUpdate(update);
     const current = createCanvasDragPreview(ctx);
     frames.shift()?.(0);
@@ -102,10 +102,10 @@ describe("canvas preview state ownership", () => {
       frames.push(callback);
       return frames.length;
     });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal("cancelAnimationFrame", vi.fn<() => void>());
     const ctx = context();
     const old = createCanvasDragPreview(ctx);
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     old.scheduleUpdate(update);
     invalidateCanvasDragPreview(ctx.state, ctx.refs.canvasSelectionBox);
     frames.shift()?.(0);
@@ -123,17 +123,17 @@ describe("canvas preview state ownership", () => {
       frames.push(callback);
       return frames.length;
     });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal("cancelAnimationFrame", vi.fn<() => void>());
     const ctx = context();
     ctx.state.dragMoved = true;
     const old = createCanvasDragPreview(ctx, options);
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     old.scheduleUpdate(update);
     const current = createCanvasDragPreview(ctx, options);
     const snapshot = ctx.state.canvasTransformPreview;
     frames.shift()?.(0);
     old.updateTransform({ x: 100 });
-    const finalUpdate = vi.fn();
+    const finalUpdate = vi.fn<() => void>();
     old.finalize(finalUpdate);
     expect(update).not.toHaveBeenCalled();
     expect(finalUpdate).not.toHaveBeenCalled();
@@ -151,7 +151,7 @@ describe("canvas preview state ownership", () => {
     const ctx = context();
     const old = createCanvasDragPreview(ctx, options);
     ctx.state.currentTemplate = { id: "source", duration: 2 };
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     old.updateTransform({ x: 100 });
     old.finalize(update);
     expect(update).not.toHaveBeenCalled();

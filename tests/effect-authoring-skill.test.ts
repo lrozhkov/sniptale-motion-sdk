@@ -95,7 +95,7 @@ function read(path: string): string {
 }
 
 function readJsonExamples(path: string): unknown[] {
-  return [...read(path).matchAll(/```json\n([\s\S]*?)\n```/g)].map((match) =>
-    JSON.parse(match[1] ?? ""),
+  return [...read(path).matchAll(/```json\n([\s\S]*?)\n```/g)].map(
+    (match): unknown => JSON.parse(match[1] ?? ""),
   );
 }

@@ -1,13 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ViewerAppContext } from "../src/apps/viewer/app/context";
-import { createViewerState } from "../src/apps/viewer/app/state";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import type {
+  getSupportedMp4VideoOptions,
+  getSupportedMp4AudioOptions,
+} from "../src/apps/viewer/video-export/capabilities.js";
+import type {
+  localizeMp4ExportDialog,
+  syncMp4ExportControls,
+} from "../src/apps/viewer/video-export/ui.js";
 import { createVideoExportActions } from "../src/apps/viewer/video-export/controller";
 import type { encodeMp4FromRenderedFrames } from "../src/apps/viewer/video-export/mux";
 
 const mocks = vi.hoisted(() => ({
   audio: vi.fn<() => Promise<AudioBuffer | null>>(),
-  video: vi.fn(),
-  audioOptions: vi.fn(),
+  video: vi.fn<typeof getSupportedMp4VideoOptions>(),
+  audioOptions: vi.fn<typeof getSupportedMp4AudioOptions>(),
   encode: vi.fn<typeof encodeMp4FromRenderedFrames>(),
 }));
 vi.mock("../src/apps/viewer/video-export/timeline-audio", () => ({
@@ -21,8 +30,8 @@ vi.mock("../src/apps/viewer/video-export/mux", () => ({
   encodeMp4FromRenderedFrames: mocks.encode,
 }));
 vi.mock("../src/apps/viewer/video-export/ui", () => ({
-  localizeMp4ExportDialog: vi.fn(),
-  syncMp4ExportControls: vi.fn(),
+  localizeMp4ExportDialog: vi.fn<typeof localizeMp4ExportDialog>(),
+  syncMp4ExportControls: vi.fn<typeof syncMp4ExportControls>(),
   getSelectedCodec: <T extends { value: string }>(
     select: { value: string },
     options: T[],
@@ -34,37 +43,51 @@ vi.mock("../src/apps/viewer/video-export/ui", () => ({
 }));
 
 function context() {
-  const state = createViewerState();
-  state.currentTemplate = { id: "first", duration: 2 };
+  const ctx = createViewerContextFixture();
+  const state = ctx.state;
+  state.currentTemplate = {
+    id: "first",
+    duration: 2,
+    layers: [],
+    clips: [],
+    scenes: [],
+    timeline: { duration: 2, phases: [], tracks: [] },
+  };
   state.controls = { amount: 1 };
   state.mp4Export.videoOptions = [{ value: "avc", labelKey: "avc" }];
-  const refs = {
-    fpsInput: { value: "30" },
-    mp4ExportStatus: { textContent: "" },
-    timelineSaveStatus: { textContent: "" },
-    mp4ExportDialog: { showModal: vi.fn(), close: vi.fn() },
-    mp4ExportVideoCodecSelect: { value: "avc" },
-    mp4ExportAudioCodecSelect: { value: "aac" },
-  };
-  const getEffectiveTemplate = vi.fn(() => state.currentTemplate);
-  const waitForRenderIdle = vi.fn(async () => {});
-  const ctx = {
+  ctx.refs.fpsInput.value = "30";
+  ctx.refs.mp4ExportVideoCodecSelect.value = "avc";
+  ctx.refs.mp4ExportAudioCodecSelect.value = "aac";
+  const dialog = Object.assign(ctx.refs.mp4ExportDialog, {
+    showModal: vi.fn<HTMLDialogElement["showModal"]>(),
+    close: vi.fn<HTMLDialogElement["close"]>(),
+  });
+  const refs = Object.assign(ctx.refs, { mp4ExportDialog: dialog });
+  const effectiveTemplate = ctx.getEffectiveTemplate(state.currentTemplate);
+  if (!effectiveTemplate) throw new Error("Missing export template fixture.");
+  const getEffectiveTemplate = vi
+    .spyOn(ctx, "getEffectiveTemplate")
+    .mockReturnValue(effectiveTemplate);
+  const waitForRenderIdle = vi
+    .spyOn(ctx, "waitForRenderIdle")
+    .mockResolvedValue();
+  ctx.deps.t = (key, fallback) => fallback ?? key;
+  vi.spyOn(ctx, "assertExportable").mockReturnValue(true);
+  vi.spyOn(ctx, "logDiagnostic").mockImplementation(() => {});
+  vi.spyOn(ctx, "pausePlayback").mockReturnValue(true);
+  vi.spyOn(ctx, "drawExportFrame").mockImplementation(() => {});
+  const renderFrameBitmapForExport = vi
+    .spyOn(ctx, "renderFrameBitmapForExport")
+    .mockResolvedValue(createNativeBitmapFixture());
+  return {
+    ctx,
     state,
     refs,
     getEffectiveTemplate,
     waitForRenderIdle,
-    deps: {
-      t: (_key: string, fallback: string) => fallback,
-      deepClone: structuredClone,
-    },
-    getEffectiveDuration: () => 2,
-    assertExportable: () => true,
-    logDiagnostic: vi.fn(),
-    pausePlayback: vi.fn(),
-    drawExportFrame: vi.fn(),
-    renderFrameBitmapForExport: vi.fn(),
-  } as unknown as ViewerAppContext;
-  return { ctx, state, refs, getEffectiveTemplate, waitForRenderIdle };
+    effectiveTemplate,
+    renderFrameBitmapForExport,
+  };
 }
 
 describe("loaded MP4 action authority", () => {
@@ -108,16 +131,38 @@ describe("loaded MP4 action authority", () => {
   });
 
   it("exports the original template, controls, audio and filename across asynchronous waits", async () => {
-    const { ctx, state, waitForRenderIdle, getEffectiveTemplate } = context();
+    const {
+      ctx,
+      state,
+      waitForRenderIdle,
+      getEffectiveTemplate,
+      effectiveTemplate,
+      renderFrameBitmapForExport,
+    } = context();
     const original = state.currentTemplate;
-    const audio = { numberOfChannels: 1, sampleRate: 48000 } as AudioBuffer;
+    class FixtureAudioBuffer {
+      numberOfChannels = 1;
+      sampleRate = 48000;
+    }
+    vi.stubGlobal("AudioBuffer", FixtureAudioBuffer);
+    const audio = new AudioBuffer({
+      length: 1,
+      numberOfChannels: 1,
+      sampleRate: 48000,
+    });
     state.mp4Export.audioBuffer = audio;
     state.mp4Export.audioOptions = [{ value: "aac", labelKey: "aac" }];
     const idle = Promise.withResolvers<void>();
     waitForRenderIdle.mockReturnValue(idle.promise);
-    const link = { href: "", download: "", click: vi.fn() };
-    const revoke = vi.fn();
-    vi.stubGlobal("document", { createElement: vi.fn(() => link) });
+    const link = {
+      href: "",
+      download: "",
+      click: vi.fn<HTMLAnchorElement["click"]>(),
+    };
+    const revoke = vi.fn<typeof URL.revokeObjectURL>();
+    vi.stubGlobal("document", {
+      createElement: vi.fn<() => typeof link>(() => link),
+    });
     vi.stubGlobal("window", {
       setTimeout: (callback: () => void) => {
         callback();
@@ -134,14 +179,14 @@ describe("loaded MP4 action authority", () => {
     idle.resolve();
     await exporting;
     expect(getEffectiveTemplate).toHaveBeenCalledExactlyOnceWith(original);
-    const encoded = mocks.encode.mock.calls[0]?.[0];
-    expect(encoded?.audioBuffer).toBe(audio);
+    const encoded = requiredEntry(mocks.encode.mock.calls, 0)[0];
+    expect(encoded.audioBuffer).toBe(audio);
     expect(link.download).toBe("first.mp4");
     expect(revoke).toHaveBeenCalledWith("blob:export");
-    await encoded?.renderFrame(0.5, 15);
-    expect(ctx.renderFrameBitmapForExport).toHaveBeenCalledWith(
+    await encoded.renderFrame(0.5, 15);
+    expect(renderFrameBitmapForExport).toHaveBeenCalledWith(
       original,
-      original,
+      effectiveTemplate,
       expect.objectContaining({
         controls: { amount: 1 },
         time: 0.5,

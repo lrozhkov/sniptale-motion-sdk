@@ -1,3 +1,4 @@
+import { responseObject } from "../tooling/test/fixtures/response.js";
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -552,7 +553,7 @@ describe("release artifact boundary", () => {
     await writeLegalArtifact(root);
     await writeSdkDeclaration(root, "index", "export type Effect = {};");
     const mapPath = join(root, "sdk/index.d.ts.map");
-    const map = JSON.parse(await readFile(mapPath, "utf8"));
+    const map = responseObject(JSON.parse(await readFile(mapPath, "utf8")));
     map.mappings = "U,L";
     await writeFile(mapPath, JSON.stringify(map));
     await writeDeclarationManifest(root, join(root, ".."));

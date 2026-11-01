@@ -1,3 +1,6 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { EditorTimeline } from "../src/apps/viewer/editor/model-types.js";
+import type { TimelineMotionPath } from "../src/shared/timeline/motion-path.js";
 import { keyframeRefKey } from "../src/apps/viewer/timeline/model/keyframe-reference";
 import { describe, expect, it } from "vitest";
 import {
@@ -23,9 +26,12 @@ describe("motion path keyframe mutations", () => {
 
   it("keeps delimiter-colliding foreign references out of paired path mutations", () => {
     const timeline = createTimeline();
-    timeline.tracks[0].id = "a:b";
-    timeline.tracks[0].keyframes[0].id = "c";
-    timeline.motionPaths[0].points[0].xKeyframeId = "c";
+    requiredEntry(timeline.tracks, 0).id = "a:b";
+    requiredEntry(requiredEntry(timeline.tracks, 0).keyframes, 0).id = "c";
+    requiredEntry(
+      requiredEntry(timeline.motionPaths, 0).points,
+      0,
+    ).xKeyframeId = "c";
     const refs = [{ trackId: "a", keyframeId: "b:c" }];
     expect(expandMotionPathKeyframeSelection(timeline, refs)).toEqual(refs);
     expect(
@@ -52,26 +58,47 @@ describe("motion path keyframe mutations", () => {
 
   it("drops a spatial point when either coordinate key is deleted", () => {
     const timeline = createTimeline();
-    timeline.motionPaths[0].points.push({
-      ...structuredClone(timeline.motionPaths[0].points[1]),
+    requiredEntry(timeline.motionPaths, 0).points.push({
+      ...structuredClone(
+        requiredEntry(requiredEntry(timeline.motionPaths, 0).points, 1),
+      ),
       xKeyframeId: "x-c",
       yKeyframeId: "y-c",
     });
-    timeline.tracks[0].keyframes.push({ id: "x-c", time: 2, value: 20 });
-    timeline.tracks[1].keyframes.push({ id: "y-c", time: 2, value: 20 });
+    requiredEntry(timeline.tracks, 0).keyframes.push({
+      id: "x-c",
+      time: 2,
+      value: 20,
+    });
+    requiredEntry(timeline.tracks, 1).keyframes.push({
+      id: "y-c",
+      time: 2,
+      value: 20,
+    });
 
     expect(
-      removeDeletedMotionPathPoints(
-        timeline,
-        new Set([keyframeRefKey({ trackId: "box.x", keyframeId: "x-b" })]),
-      )[0].points.map((point) => point.xKeyframeId),
+      requiredEntry(
+        removeDeletedMotionPathPoints(
+          timeline,
+          new Set([keyframeRefKey({ trackId: "box.x", keyframeId: "x-b" })]),
+        ),
+        0,
+      ).points.map((point) => point.xKeyframeId),
     ).toEqual(["x-a", "x-c"]);
   });
 
   it("duplicates spatial metadata only when both coordinate keys are inserted", () => {
     const timeline = createTimeline();
-    timeline.tracks[0].keyframes.push({ id: "x-copy", time: 2, value: 20 });
-    timeline.tracks[1].keyframes.push({ id: "y-copy", time: 2, value: 20 });
+    requiredEntry(timeline.tracks, 0).keyframes.push({
+      id: "x-copy",
+      time: 2,
+      value: 20,
+    });
+    requiredEntry(timeline.tracks, 1).keyframes.push({
+      id: "y-copy",
+      time: 2,
+      value: 20,
+    });
 
     const paths = duplicateInsertedMotionPathPoints(timeline, [
       {
@@ -86,7 +113,7 @@ describe("motion path keyframe mutations", () => {
       },
     ]);
 
-    expect(paths[0].points.at(-1)).toMatchObject({
+    expect(requiredEntry(paths, 0).points.at(-1)).toMatchObject({
       kind: "smooth",
       xKeyframeId: "x-copy",
       yKeyframeId: "y-copy",
@@ -94,8 +121,12 @@ describe("motion path keyframe mutations", () => {
   });
 });
 
-function createTimeline(): any {
+function createTimeline(): EditorTimeline & {
+  motionPaths: TimelineMotionPath[];
+} {
   return {
+    duration: 3,
+    phases: [],
     motionPaths: [
       {
         layerId: "box",

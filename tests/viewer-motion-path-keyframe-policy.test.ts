@@ -1,3 +1,5 @@
+import type { EditorTimeline } from "../src/apps/viewer/editor/model-types.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import { describe, expect, it } from "vitest";
 import {
   getTimelineMotionPath,
@@ -6,7 +8,9 @@ import {
 
 describe("motion path keyframe policy", () => {
   it("inserts a newly keyed position into the canonical spatial path", () => {
-    const timeline: any = {
+    const timeline: EditorTimeline = {
+      duration: 2,
+      phases: [],
       motionPaths: [
         {
           layerId: "box",
@@ -36,13 +40,14 @@ describe("motion path keyframe policy", () => {
         },
       ],
     };
-    const path = getTimelineMotionPath(timeline, "box")!;
+    const path = getTimelineMotionPath(timeline, "box");
+    if (!path) throw new Error("Missing canonical spatial path.");
 
     syncMotionPathPositionKeyframes(
       timeline,
       path,
-      timeline.tracks[0].keyframes[1],
-      timeline.tracks[1].keyframes[1],
+      requiredEntry(requiredEntry(timeline.tracks, 0).keyframes, 1),
+      requiredEntry(requiredEntry(timeline.tracks, 1).keyframes, 1),
     );
 
     expect(path.points.map((point) => point.xKeyframeId)).toEqual([
@@ -50,7 +55,9 @@ describe("motion path keyframe policy", () => {
       "x-b",
       "x-c",
     ]);
-    expect(timeline.tracks[1].keyframes[1].easing).toBe("out");
+    expect(
+      requiredEntry(requiredEntry(timeline.tracks, 1).keyframes, 1).easing,
+    ).toBe("out");
   });
 });
 

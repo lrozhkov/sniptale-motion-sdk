@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createRenderAssetCache } from "../src/apps/sandbox/runtime/render-asset-cache";
 import { closeAssetBitmaps } from "../src/apps/sandbox/runtime/render-assets";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("sandbox render asset cache", () => {
   it("reuses an acknowledged bitmap without another cross-frame transfer", () => {
@@ -14,6 +20,8 @@ describe("sandbox render asset cache", () => {
       logo: createAsset({ cacheKey: "logo-v1" }),
     });
 
+    if (!first.logo || !second.logo)
+      throw new Error("Missing cached logo asset.");
     expect(first.logo.bitmap).toBe(bitmap);
     expect(second.logo.bitmap).toBe(bitmap);
     expect(second.logo.path).toBe("logo.svg");
@@ -195,9 +203,6 @@ function createAsset({
 }
 
 function createBitmap() {
-  return {
-    close: vi.fn(),
-    height: 32,
-    width: 64,
-  };
+  const bitmap = createNativeBitmapFixture({ height: 32, width: 64 });
+  return Object.assign(bitmap, { close: vi.spyOn(bitmap, "close") });
 }

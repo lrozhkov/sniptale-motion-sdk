@@ -1,3 +1,4 @@
+import type { EffectV1Document } from "../src/sdk/effect-v1/types.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -137,7 +138,7 @@ describe("SDK demo pack validator", () => {
 });
 
 function createDemoFetch(overrides: Record<string, unknown> = {}) {
-  const files = {
+  const files: Record<string, unknown> = {
     "/demo/assets/logo.svg": new Blob(["<svg></svg>"], {
       type: "image/svg+xml",
     }),
@@ -149,10 +150,14 @@ function createDemoFetch(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 
-  return vi.fn(async (url: string) => {
-    if (!(url in files)) {
-      return createResponse(null, false, 404);
-    }
+  return vi.fn<typeof fetch>().mockImplementation(async (input) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (!Object.hasOwn(files, url)) return createResponse(null, 404);
     return createResponse(files[url]);
   });
 }
@@ -188,7 +193,7 @@ function createDemoManifest() {
   };
 }
 
-function createDemoEffectDocument() {
+function createDemoEffectDocument(): EffectV1Document {
   return {
     assets: [
       {
@@ -247,40 +252,36 @@ function createDemoEffectDocument() {
   };
 }
 
-function createResponse(body: unknown, ok = true, status = 200) {
-  return {
-    ok,
+function createResponse(body: unknown, status = 200): Response {
+  return new Response(body instanceof Blob ? body : JSON.stringify(body), {
     status,
-    async blob() {
-      return body instanceof Blob
-        ? body
-        : new Blob([String(body)], { type: "text/plain" });
-    },
-    async json() {
-      return body;
-    },
-    async text() {
-      return String(body);
-    },
-  };
+  });
 }
 
 function createCanvasContextSpy() {
-  const gradient = { addColorStop: vi.fn() };
+  vi.stubGlobal(
+    "CanvasGradient",
+    class {
+      addColorStop(): void {}
+    },
+  );
+  const gradient = new CanvasGradient();
   return {
     fillStyle: "",
     strokeStyle: "",
     lineWidth: 1,
-    arcTo: vi.fn(),
-    beginPath: vi.fn(),
-    closePath: vi.fn(),
-    createLinearGradient: vi.fn(() => gradient),
-    fill: vi.fn(),
-    fillRect: vi.fn(),
-    lineTo: vi.fn(),
-    moveTo: vi.fn(),
-    restore: vi.fn(),
-    save: vi.fn(),
-    stroke: vi.fn(),
+    arcTo: vi.fn<CanvasRenderingContext2D["arcTo"]>(),
+    beginPath: vi.fn<CanvasRenderingContext2D["beginPath"]>(),
+    closePath: vi.fn<CanvasRenderingContext2D["closePath"]>(),
+    createLinearGradient: vi.fn<
+      CanvasRenderingContext2D["createLinearGradient"]
+    >(() => gradient),
+    fill: vi.fn<CanvasRenderingContext2D["fill"]>(),
+    fillRect: vi.fn<CanvasRenderingContext2D["fillRect"]>(),
+    lineTo: vi.fn<CanvasRenderingContext2D["lineTo"]>(),
+    moveTo: vi.fn<CanvasRenderingContext2D["moveTo"]>(),
+    restore: vi.fn<CanvasRenderingContext2D["restore"]>(),
+    save: vi.fn<CanvasRenderingContext2D["save"]>(),
+    stroke: vi.fn<() => void>(),
   };
 }

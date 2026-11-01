@@ -1,4 +1,7 @@
-import { File as NodeFile } from "node:buffer";
+import {
+  responseObject,
+  responseString,
+} from "../tooling/test/fixtures/response.js";
 
 import { describe, expect, it } from "vitest";
 
@@ -13,15 +16,15 @@ function documentFile(
   assets: unknown[],
   name = "example.sniptale-effect.json",
 ): File {
-  return new NodeFile([JSON.stringify({ assets })], name, {
+  return new File([JSON.stringify({ assets })], name, {
     type: "application/json",
-  }) as unknown as File;
+  });
 }
 
 function svgFile(name = "logo.svg", content = SVG): File {
-  return new NodeFile([content], name, {
+  return new File([content], name, {
     type: "image/svg+xml",
-  }) as unknown as File;
+  });
 }
 
 function pathAsset(path = "assets/logo.svg") {
@@ -66,29 +69,26 @@ describe("Effect v1 import materialization", () => {
     const result = await materializeEffectImportFiles([
       documentFile([pathAsset()]),
       svgFile(),
-    ] as unknown as File[]);
-    const value = JSON.parse(result.source);
+    ]);
+    const value: unknown = JSON.parse(result.source);
 
     expect(result.sourceName).toBe("example.sniptale-effect.json");
-    expect(value.assets[0]).toMatchObject({
+    expect(responseObject(value, "assets", 0)).toMatchObject({
       byteLength: new TextEncoder().encode(SVG).byteLength,
       id: "logo",
       svgText: SVG,
     });
-    expect(value.assets[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(responseString(value, "assets", 0, "sha256")).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
   });
 
   it("rejects missing, unused, duplicate, and traversal-selected files", async () => {
     await expect(
-      materializeEffectImportFiles([
-        documentFile([pathAsset()]),
-      ] as unknown as File[]),
+      materializeEffectImportFiles([documentFile([pathAsset()])]),
     ).rejects.toThrow(/Missing file/);
     await expect(
-      materializeEffectImportFiles([
-        documentFile([]),
-        svgFile(),
-      ] as unknown as File[]),
+      materializeEffectImportFiles([documentFile([]), svgFile()]),
     ).rejects.toThrow(/not referenced/);
 
     const first = svgFile();
@@ -98,7 +98,7 @@ describe("Effect v1 import materialization", () => {
         documentFile([pathAsset()]),
         first,
         duplicate,
-      ] as unknown as File[]),
+      ]),
     ).rejects.toThrow(/Duplicate selected asset path/);
 
     const unsafe = svgFile();
@@ -106,10 +106,7 @@ describe("Effect v1 import materialization", () => {
       value: "../logo.svg",
     });
     await expect(
-      materializeEffectImportFiles([
-        documentFile([pathAsset()]),
-        unsafe,
-      ] as unknown as File[]),
+      materializeEffectImportFiles([documentFile([pathAsset()]), unsafe]),
     ).rejects.toThrow(/Unsafe selected asset path/);
   });
 
@@ -118,7 +115,7 @@ describe("Effect v1 import materialization", () => {
       materializeEffectImportFiles([
         documentFile([pathAsset()]),
         svgFile("logo.svg", "not svg"),
-      ] as unknown as File[]),
+      ]),
     ).rejects.toThrow(/does not match image\/svg\+xml/);
 
     const first = svgFile();
@@ -134,7 +131,7 @@ describe("Effect v1 import materialization", () => {
         documentFile([pathAsset("logo.svg")]),
         first,
         second,
-      ] as unknown as File[]),
+      ]),
     ).rejects.toThrow(/Missing file/);
   });
 
@@ -142,9 +139,12 @@ describe("Effect v1 import materialization", () => {
     const valid = await materializeEffectImportFiles([
       documentFile([pathAsset()]),
       svgFile(),
-    ] as unknown as File[]);
-    const value = JSON.parse(valid.source);
-    value.assets[0].svgText = SVG.replace("0 0 1 1", "0 0 2 2");
+    ]);
+    const value: unknown = JSON.parse(valid.source);
+    responseObject(value, "assets", 0).svgText = SVG.replace(
+      "0 0 1 1",
+      "0 0 2 2",
+    );
 
     await expect(
       verifyMaterializedEffectImportSource(JSON.stringify(value)),

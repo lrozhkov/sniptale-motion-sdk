@@ -1,31 +1,29 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  calculateScaledRenderSize,
-  createPreviewQualityActions,
-} from "../src/apps/viewer/rendering/preview-quality";
+import { calculateScaledRenderSize } from "../src/apps/viewer/rendering/preview-quality";
 import { syncPreviewQualityBadge } from "../src/apps/viewer/rendering/preview-quality-badge";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer explicit preview quality", () => {
   it("keeps preview rendering full quality regardless of measured cost", () => {
-    const ctx = {
-      state: {
-        appliedPreviewScale: 0.25,
-        averageFullRenderMs: 1200,
-        canvasTransformDragActive: true,
-        playing: false,
-        previewCacheWarmActive: true,
-      },
-    } as any;
-    Object.assign(
-      ctx,
-      createPreviewQualityActions(() => ctx),
-    );
+    const ctx = createViewerContextFixture();
+    Object.assign(ctx.state, {
+      appliedPreviewScale: 0.25,
+      averageFullRenderMs: 1200,
+      canvasTransformDragActive: true,
+      playing: false,
+      previewCacheWarmActive: true,
+    } satisfies Partial<ViewerAppContext["state"]>);
 
     expect(
       ctx.getPreviewRenderPlan(1280, 720, {
         interactive: true,
-        previewScale: 0.25,
       }),
     ).toEqual({
       height: 720,
@@ -36,13 +34,10 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("settles interactions with one explicit full-quality render", async () => {
-    const renderCurrentFrame = vi.fn(async () => undefined);
-    const ctx = { renderCurrentFrame, state: {} } as any;
-    Object.assign(
-      ctx,
-      createPreviewQualityActions(() => ctx),
-    );
-
+    const ctx = createViewerContextFixture();
+    const renderCurrentFrame = vi
+      .spyOn(ctx, "renderCurrentFrame")
+      .mockResolvedValue(undefined);
     await ctx.settlePreviewAfterInteraction();
 
     expect(renderCurrentFrame).toHaveBeenCalledOnce();
@@ -53,34 +48,30 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("repairs a stale reduced frame but does not duplicate a full render", async () => {
-    const renderCurrentFrame = vi.fn(async () => undefined);
-    const updateCanvasSelectionBox = vi.fn();
-    const ctx = {
-      renderCurrentFrame,
-      state: {
-        appliedPreviewScale: 0.5,
-        canvasTransformPreview: null,
-        playing: false,
-      },
-      updateCanvasSelectionBox,
-    } as any;
-    Object.assign(
-      ctx,
-      createPreviewQualityActions(() => ctx),
-    );
-
+    const ctx = createViewerContextFixture();
+    const renderCurrentFrame = vi
+      .spyOn(ctx, "renderCurrentFrame")
+      .mockResolvedValue(undefined);
+    const updateCanvasSelectionBox = vi
+      .spyOn(ctx, "updateCanvasSelectionBox")
+      .mockImplementation(() => {});
+    ctx.state.appliedPreviewScale = 0.5;
+    ctx.state.playing = false;
     await expect(ctx.refinePreviewAtFullQuality()).resolves.toBe(true);
     expect(renderCurrentFrame).toHaveBeenCalledWith({ forceFull: true });
 
     ctx.state.appliedPreviewScale = 1;
-    ctx.state.canvasTransformPreview = { awaitingFullRender: true };
+    ctx.state.canvasTransformPreview = {
+      awaitingFullRender: true,
+      templateId: null,
+      boxes: {},
+    };
     await expect(ctx.refinePreviewAtFullQuality()).resolves.toBe(false);
     expect(updateCanvasSelectionBox).toHaveBeenCalledOnce();
   });
 
   it("shows honest active cache progress and remaining-time estimate", () => {
-    const badge = { hidden: true, textContent: "" };
-    const ctx = createBadgeContext(badge, {
+    const ctx = createBadgeContext({
       averagePreviewLatencyMs: 1000,
       playing: true,
       previewCacheWarmAverageFrameMs: 1000,
@@ -89,6 +80,7 @@ describe("viewer explicit preview quality", () => {
       previewCacheWarmTargetFrames: 100,
       previewCacheWarmVisitedFrames: 37,
     });
+    const badge = ctx.refs.previewQualityBadge;
 
     syncPreviewQualityBadge(ctx, 1);
 
@@ -99,15 +91,21 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("distinguishes partial regeneration from a full cache build", () => {
-    const badge = { hidden: true, textContent: "" };
-    const ctx = createBadgeContext(badge, {
+    const ctx = createBadgeContext({
       previewCacheWarmTargetFrames: 32,
       previewCacheWarmVisitedFrames: 8,
       previewVideoCache: {
         restoredSegmentCount: 1,
-        segmentPlan: [{}, {}, {}],
+        segmentPlan: Array.from({ length: 3 }, (_, index) => ({
+          index,
+          startFrame: index * 10,
+          endFrame: (index + 1) * 10,
+          startTime: index,
+          endTime: index + 1,
+        })),
       },
     });
+    const badge = ctx.refs.previewQualityBadge;
 
     syncPreviewQualityBadge(ctx, 1);
 
@@ -117,8 +115,7 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("does not promise a stale ETA before the current warm pass has enough samples", () => {
-    const badge = { hidden: true, textContent: "" };
-    const ctx = createBadgeContext(badge, {
+    const ctx = createBadgeContext({
       averagePreviewLatencyMs: 20,
       lastPreviewLatencyMs: 20,
       playing: true,
@@ -128,6 +125,7 @@ describe("viewer explicit preview quality", () => {
       previewCacheWarmTargetFrames: 196,
       previewCacheWarmVisitedFrames: 1,
     });
+    const badge = ctx.refs.previewQualityBadge;
 
     syncPreviewQualityBadge(ctx, 1);
 
@@ -137,12 +135,12 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("labels paused preparation without moving or losing progress", () => {
-    const badge = { hidden: true, textContent: "" };
-    const ctx = createBadgeContext(badge, {
+    const ctx = createBadgeContext({
       playing: false,
       previewCacheWarmTargetFrames: 100,
       previewCacheWarmVisitedFrames: 37,
     });
+    const badge = ctx.refs.previewQualityBadge;
 
     syncPreviewQualityBadge(ctx, 1);
 
@@ -153,11 +151,11 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("reports a bounded lossless cache instead of silently restarting forever", () => {
-    const badge = { hidden: true, textContent: "" };
-    const ctx = createBadgeContext(badge, {
+    const ctx = createBadgeContext({
       previewCacheWarmActive: false,
       previewCacheWarmCapacityLimited: true,
     });
+    const badge = ctx.refs.previewQualityBadge;
 
     syncPreviewQualityBadge(ctx, 1);
 
@@ -168,17 +166,13 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("announces cache preparation at meaningful milestones", () => {
-    const badge = { hidden: true, textContent: "" };
-    const announcement = createAnnouncement();
-    const ctx = createBadgeContext(
-      badge,
-      {
-        playing: true,
-        previewCacheWarmTargetFrames: 100,
-        previewCacheWarmVisitedFrames: 1,
-      },
-      announcement,
-    );
+    const ctx = createBadgeContext({
+      playing: true,
+      previewCacheWarmTargetFrames: 100,
+      previewCacheWarmVisitedFrames: 1,
+    });
+    const badge = ctx.refs.previewQualityBadge;
+    const announcement = ctx.refs.previewQualityAnnouncement;
 
     syncPreviewQualityBadge(ctx, 1);
     expect(announcement.textContent).toContain("1% · 1/100 frames");
@@ -194,17 +188,12 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("announces cache readiness after preparation finishes", () => {
-    const badge = { hidden: true, textContent: "" };
-    const announcement = createAnnouncement();
-    const ctx = createBadgeContext(
-      badge,
-      {
-        playing: true,
-        previewCacheWarmTargetFrames: 10,
-        previewCacheWarmVisitedFrames: 9,
-      },
-      announcement,
-    );
+    const ctx = createBadgeContext({
+      playing: true,
+      previewCacheWarmTargetFrames: 10,
+      previewCacheWarmVisitedFrames: 9,
+    });
+    const announcement = ctx.refs.previewQualityAnnouncement;
 
     syncPreviewQualityBadge(ctx, 1);
     ctx.state.previewCacheWarmActive = false;
@@ -215,17 +204,12 @@ describe("viewer explicit preview quality", () => {
   });
 
   it("clears a stale preparation announcement when cache mode is cancelled", () => {
-    const badge = { hidden: true, textContent: "" };
-    const announcement = createAnnouncement();
-    const ctx = createBadgeContext(
-      badge,
-      {
-        playing: true,
-        previewCacheWarmTargetFrames: 10,
-        previewCacheWarmVisitedFrames: 2,
-      },
-      announcement,
-    );
+    const ctx = createBadgeContext({
+      playing: true,
+      previewCacheWarmTargetFrames: 10,
+      previewCacheWarmVisitedFrames: 2,
+    });
+    const announcement = ctx.refs.previewQualityAnnouncement;
 
     syncPreviewQualityBadge(ctx, 1);
     ctx.state.previewCacheWarmActive = false;
@@ -249,38 +233,25 @@ describe("viewer explicit preview quality", () => {
   });
 });
 
-function createAnnouncement() {
-  return {
-    dataset: {},
-    textContent: "",
-  } as any;
-}
+type BadgeStateOverrides = Partial<
+  Omit<ViewerAppContext["state"], "previewVideoCache">
+> & {
+  previewVideoCache?: Partial<ViewerAppContext["state"]["previewVideoCache"]>;
+};
 
-function createBadgeContext(badge, overrides, announcement = null) {
-  return {
-    deps: {
-      t: (_key: string, fallback: string) => fallback,
-    },
-    refs: {
-      localeSelect: { value: "en" },
-      previewQualityAnnouncement: announcement,
-      previewQualityBadge: badge,
-    },
-    state: {
-      appliedPreviewScale: 1,
-      averagePreviewLatencyMs: 0,
-      lastPreviewLatencyMs: 0,
-      playing: true,
-      previewCacheWarmActive: true,
-      previewCacheWarmAverageFrameMs: 0,
-      previewCacheWarmCapacityLimited: false,
-      previewCacheWarmElapsedMs: 0,
-      previewCacheWarmPrepared: false,
-      previewCacheWarmSampleCount: 0,
-      previewCacheWarmTargetFrames: 0,
-      previewCacheWarmVisitedFrames: 0,
-      previewFrameCacheComplete: false,
-      ...overrides,
-    },
-  } as any;
+function createBadgeContext(overrides: BadgeStateOverrides) {
+  const ctx = createViewerContextFixture();
+  ctx.deps.t = (key, fallback) => fallback ?? key;
+  ctx.refs.localeSelect.value = "en";
+  ctx.refs.previewQualityBadge.hidden = true;
+  vi.spyOn(ctx, "syncPlaybackCacheButton").mockImplementation(() => {});
+  const { previewVideoCache, ...state } = overrides;
+  Object.assign(ctx.state, {
+    appliedPreviewScale: 1,
+    playing: true,
+    previewCacheWarmActive: true,
+    ...state,
+  } satisfies Partial<ViewerAppContext["state"]>);
+  Object.assign(ctx.state.previewVideoCache, previewVideoCache);
+  return ctx;
 }

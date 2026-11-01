@@ -1,78 +1,93 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { createNativeCanvasFixture } from "./helpers/native-render-fixtures.js";
 import {
   connectDirectRenderResponseChannel,
   prepareDirectPresentationCanvas,
 } from "../src/apps/viewer/transport/direct-render-channel";
 
-const previousWindow = globalThis.window;
-
+const channels: MessageChannel[] = [];
 afterEach(() => {
-  Object.assign(globalThis, { window: previousWindow });
+  for (const channel of channels.splice(0)) {
+    channel.port1.close();
+    channel.port2.close();
+  }
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("viewer direct render channel", () => {
   it("replaces a presentation canvas transferred to an old worker", () => {
-    const replacement = { height: 0, width: 0 };
-    const canvas = {
-      cloneNode: vi.fn(() => replacement),
-      replaceWith: vi.fn(),
-      set height(_value: number) {
-        throw new DOMException("already transferred", "InvalidStateError");
+    const ctx = createViewerContextFixture();
+    const replacement = ctx.refs.fastPreviewCanvas;
+    replacement.width = 0;
+    replacement.height = 0;
+    const replaceWith = vi.fn<HTMLCanvasElement["replaceWith"]>();
+    const canvas = Object.assign(ctx.refs.canvas, {
+      cloneNode: () => replacement,
+      replaceWith,
+    });
+    Object.defineProperties(canvas, {
+      height: {
+        set() {
+          throw new DOMException("already transferred", "InvalidStateError");
+        },
       },
-      set width(_value: number) {
-        throw new DOMException("already transferred", "InvalidStateError");
+      width: {
+        set() {
+          throw new DOMException("already transferred", "InvalidStateError");
+        },
       },
-    } as unknown as HTMLCanvasElement;
-
+    });
     expect(prepareDirectPresentationCanvas(canvas, 1280, 720)).toBe(
       replacement,
     );
-    expect(replacement).toEqual({ height: 720, width: 1280 });
-    expect(canvas.replaceWith).toHaveBeenCalledWith(replacement);
+    expect(replacement).toMatchObject({ height: 720, width: 1280 });
+    expect(replaceWith).toHaveBeenCalledWith(replacement);
   });
 
   it("connects the response port with a transferable presentation surface", () => {
-    const listeners = new Map<string, (event: MessageEvent) => void>();
-    const port1 = {
-      addEventListener: vi.fn((type: string, listener: any) =>
-        listeners.set(type, listener),
-      ),
-      close: vi.fn(),
-      postMessage: vi.fn(),
-      start: vi.fn(),
-    };
-    const port2 = { close: vi.fn() };
-    const surface = { height: 90, width: 160 };
-    const target = { postMessage: vi.fn() };
-    const onMessage = vi.fn();
-    Object.assign(globalThis, {
-      window: { location: { href: "http://viewer.test/index.html" } },
+    const ctx = createViewerContextFixture();
+    const channel = new MessageChannel();
+    channels.push(channel);
+    const surface = createNativeCanvasFixture({ height: 90, width: 160 });
+    class FixtureWindow {
+      location = { href: "http://viewer.test/index.html" };
+      postMessage(): void {}
+    }
+    vi.stubGlobal("Window", FixtureWindow);
+    const target = new Window();
+    const postMessage = vi.spyOn(target, "postMessage");
+    vi.stubGlobal("window", target);
+    const onMessage = vi.fn<(value: unknown) => void>();
+    Object.assign(ctx.refs.canvas, {
+      transferControlToOffscreen: () => surface,
     });
-
+    Object.defineProperty(ctx.refs.sandboxFrame, "contentWindow", {
+      value: target,
+    });
+    ctx.refs.sandboxFrame.src = "http://sandbox.test/sandbox.html";
     const connection = connectDirectRenderResponseChannel({
-      createChannel: () => ({ port1, port2 }) as unknown as MessageChannel,
+      createChannel: () => channel,
       onMessage,
-      presentationCanvas: {
-        transferControlToOffscreen: vi.fn(() => surface),
-      } as unknown as HTMLCanvasElement,
-      sandboxFrame: {
-        contentWindow: target,
-        src: "http://sandbox.test/sandbox.html",
-      } as unknown as HTMLIFrameElement,
+      presentationCanvas: ctx.refs.canvas,
+      sandboxFrame: ctx.refs.sandboxFrame,
     });
-
-    expect(connection?.presentationSurfaceAttached).toBe(true);
-    expect(target.postMessage).toHaveBeenCalledWith(
+    if (!connection)
+      throw new Error("Direct response channel was not connected.");
+    expect(connection.presentationSurfaceAttached).toBe(true);
+    expect(postMessage).toHaveBeenCalledWith(
       {
         kind: "connectDirectRenderPort",
-        port: port2,
+        port: channel.port2,
         presentationSurface: surface,
       },
       "http://sandbox.test",
-      [port2, surface],
+      [channel.port2, surface],
     );
-    listeners.get("message")?.({ data: { kind: "frame" } } as MessageEvent);
+    channel.port1.dispatchEvent(
+      new MessageEvent<unknown>("message", { data: { kind: "frame" } }),
+    );
     expect(onMessage).toHaveBeenCalledWith({ kind: "frame" });
   });
 });

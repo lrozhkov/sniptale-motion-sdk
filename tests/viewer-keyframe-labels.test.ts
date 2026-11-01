@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 import {
   getKeyframeDisplayLabel,
@@ -6,22 +11,30 @@ import {
 } from "../src/apps/viewer/inspector/keyframe-labels";
 
 describe("viewer keyframe labels", () => {
-  const ctx: any = {
-    deps: {
-      t: (key: string, fallback: string) =>
-        key.endsWith(".out") ? "Плавный выход" : fallback,
-    },
-    formatSeconds: (value: number) => `${value.toFixed(3)}с`,
-    getTimelineTrackDisplayLabel: (track: any) => track.label,
-    toTitleLabel: (value: string) => value,
-  };
+  function context() {
+    const ctx = createViewerContextFixture();
+    ctx.deps.t = (key, fallback) =>
+      key.endsWith(".out") ? "Плавный выход" : (fallback ?? key);
+    vi.spyOn(ctx, "formatSeconds").mockImplementation(
+      (value) => `${(typeof value === "number" ? value : 0).toFixed(3)}с`,
+    );
+    vi.spyOn(ctx, "getTimelineTrackDisplayLabel").mockImplementation((track) =>
+      typeof track?.label === "string" ? track.label : (track?.id ?? ""),
+    );
+    vi.spyOn(ctx, "toTitleLabel").mockImplementation((value) =>
+      typeof value === "string" ? value : "",
+    );
+    return ctx;
+  }
 
   it("uses the same localized easing label outside the dropdown", () => {
+    const ctx = context();
     expect(getKeyframeEasingLabel(ctx, "out")).toBe("Плавный выход");
     expect(getKeyframeEasingLabel(ctx, undefined)).toBe("linear");
   });
 
   it("describes a keyframe by track and time instead of a technical id", () => {
+    const ctx = context();
     expect(
       getKeyframeDisplayLabel(
         ctx,

@@ -5,11 +5,27 @@ import {
   getLogicalCanvasScale,
 } from "../src/apps/sandbox/runtime/logical-canvas";
 import { normalizeRenderResult } from "../src/apps/sandbox/runtime/render-result";
-import type { RuntimeCanvas } from "../src/apps/sandbox/runtime/canvas-model";
-afterEach(() => vi.unstubAllGlobals());
+import type { CanvasFactory } from "../src/apps/sandbox/runtime/canvas-model";
+import {
+  createNativeCanvasFixture,
+  createNativeBitmapFixture,
+} from "./helpers/native-render-fixtures.js";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 describe("frame canvas lease boundaries", () => {
   it("rejects allocation through a released lease", () => {
-    const createCanvas = vi.fn((width: number, height: number) => ({
+    const createCanvas = vi.fn<
+      (
+        width: number,
+        height: number,
+      ) => {
+        width: number;
+        height: number;
+        getContext: () => { reset(): void };
+      }
+    >((width: number, height: number) => ({
       width,
       height,
       getContext: () => ({ reset() {} }),
@@ -18,12 +34,23 @@ describe("frame canvas lease boundaries", () => {
     const frame = pool.beginFrame("effect");
     frame.createCanvas(200, 100);
     frame.release();
-    expect(() => frame.createCanvas(200, 100)).toThrow();
+    expect(() => frame.createCanvas(200, 100)).toThrow(
+      "Frame canvas lease is released.",
+    );
     frame.release();
     expect(createCanvas).toHaveBeenCalledOnce();
   });
   it("evicts the least recently used free canvas within capacity", () => {
-    const createCanvas = vi.fn((width: number, height: number) => ({
+    const createCanvas = vi.fn<
+      (
+        width: number,
+        height: number,
+      ) => {
+        width: number;
+        height: number;
+        getContext: () => { reset(): void };
+      }
+    >((width: number, height: number) => ({
       width,
       height,
       getContext: () => ({ reset() {} }),
@@ -45,7 +72,16 @@ describe("frame canvas lease boundaries", () => {
     expect(createCanvas).toHaveBeenCalledTimes(4);
   });
   it("does not evict active canvases when the retained pool is full", () => {
-    const createCanvas = vi.fn((width: number, height: number) => ({
+    const createCanvas = vi.fn<
+      (
+        width: number,
+        height: number,
+      ) => {
+        width: number;
+        height: number;
+        getContext: () => { reset(): void };
+      }
+    >((width: number, height: number) => ({
       width,
       height,
       getContext: () => ({ reset() {} }),
@@ -64,13 +100,13 @@ describe("frame canvas lease boundaries", () => {
     next.release();
   });
   it("does not coerce foreign logical scale values", () => {
-    const convert = vi.fn(() => {
+    const convert = vi.fn<() => never>(() => {
       throw new Error("foreign conversion");
     });
     expect(
-      getLogicalCanvasScale({
-        __sniptaleLogicalScaleX: { valueOf: convert },
-      } as any),
+      Reflect.apply(getLogicalCanvasScale, undefined, [
+        { __sniptaleLogicalScaleX: { valueOf: convert } },
+      ]),
     ).toEqual({ x: 1, y: 1, uniform: 1 });
     expect(convert).not.toHaveBeenCalled();
   });
@@ -94,33 +130,36 @@ describe("logical canvas allocation", () => {
   });
 });
 describe("raster normalization ownership", () => {
-  it.each(["factory", "context", "draw", "bitmap"] as const)(
-    "closes the source bitmap if %s fails",
-    async (mode) => {
-      class TestBitmap {}
-      const bitmap = Object.assign(new TestBitmap(), {
-        width: 200,
-        height: 100,
-        close: vi.fn(),
-      });
-      vi.stubGlobal("ImageBitmap", TestBitmap);
+  it.each([
+    { mode: "factory", draws: 0, transfers: 0 },
+    { mode: "context", draws: 0, transfers: 0 },
+    { mode: "draw", draws: 1, transfers: 0 },
+    { mode: "bitmap", draws: 1, transfers: 1 },
+  ] as const)(
+    "closes the source bitmap if $mode fails",
+    async ({ mode, draws, transfers }) => {
+      const bitmap = createNativeBitmapFixture({ width: 200, height: 100 });
+      const close = vi.spyOn(bitmap, "close");
       const failure = new Error("normalization failed");
+      const draw = vi.fn<OffscreenCanvasRenderingContext2D["drawImage"]>(() => {
+        if (mode === "draw") throw failure;
+      });
+      const transfer = vi.fn<OffscreenCanvas["transferToImageBitmap"]>(() => {
+        throw failure;
+      });
       const createCanvas = () => {
         if (mode === "factory") throw failure;
-        return {
+        return createNativeCanvasFixture({
           getContext: () =>
             mode === "context"
               ? null
               : {
+                  setTransform() {},
                   clearRect() {},
-                  drawImage() {
-                    if (mode === "draw") throw failure;
-                  },
+                  drawImage: draw,
                 },
-          transferToImageBitmap() {
-            throw failure;
-          },
-        } as unknown as RuntimeCanvas;
+          transferToImageBitmap: transfer,
+        });
       };
       await expect(
         normalizeRenderResult(
@@ -131,31 +170,31 @@ describe("raster normalization ownership", () => {
           },
           { createCanvas, width: 100, height: 50 },
         ),
-      ).rejects.toThrow();
-      expect(bitmap.close).toHaveBeenCalledOnce();
+      ).rejects.toThrow(
+        mode === "context"
+          ? "2D canvas context unavailable for raster normalization."
+          : "normalization failed",
+      );
+      expect(close).toHaveBeenCalledOnce();
+      expect(draw).toHaveBeenCalledTimes(draws);
+      expect(transfer).toHaveBeenCalledTimes(transfers);
     },
   );
 });
 
 describe("opaque raster dimensions", () => {
   it("uses source dimensions when no explicit raster size is supplied", async () => {
-    class TestCanvas {
-      width = 200;
-      height = 100;
-    }
-    vi.stubGlobal("OffscreenCanvas", TestCanvas);
-    const source = new TestCanvas();
-    const output = { width: 200, height: 100 };
-    const createCanvas = vi.fn(
-      () =>
-        ({
-          getContext: () => ({
-            setTransform() {},
-            fillRect() {},
-            drawImage() {},
-          }),
-          transferToImageBitmap: () => output,
-        }) as unknown as RuntimeCanvas,
+    const source = createNativeCanvasFixture({ width: 200, height: 100 });
+    const output = createNativeBitmapFixture({ width: 200, height: 100 });
+    const createCanvas = vi.fn<CanvasFactory>(() =>
+      createNativeCanvasFixture({
+        getContext: () => ({
+          setTransform() {},
+          fillRect() {},
+          drawImage() {},
+        }),
+        transferToImageBitmap: () => output,
+      }),
     );
     expect(
       await normalizeRenderResult(
@@ -173,14 +212,9 @@ describe("opaque raster dimensions", () => {
 
 describe("unchanged bitmap ownership", () => {
   it("returns an existing bitmap without closing or copying it", async () => {
-    class TestBitmap {}
-    vi.stubGlobal("ImageBitmap", TestBitmap);
-    const bitmap = Object.assign(new TestBitmap(), {
-      width: 200,
-      height: 100,
-      close: vi.fn(),
-    });
-    const createCanvas = vi.fn((): RuntimeCanvas => {
+    const bitmap = createNativeBitmapFixture({ width: 200, height: 100 });
+    const close = vi.spyOn(bitmap, "close");
+    const createCanvas = vi.fn<CanvasFactory>(() => {
       throw new Error("must not allocate");
     });
     expect(
@@ -193,7 +227,7 @@ describe("unchanged bitmap ownership", () => {
         { createCanvas, width: 200, height: 100 },
       ),
     ).toBe(bitmap);
-    expect(bitmap.close).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
     expect(createCanvas).not.toHaveBeenCalled();
   });
 });

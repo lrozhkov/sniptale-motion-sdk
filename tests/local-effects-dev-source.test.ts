@@ -1,6 +1,8 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import { responseObject } from "../tooling/test/fixtures/response.js";
+import type { EffectV1Document } from "../src/sdk/effect-v1/types.js";
 import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -49,11 +51,13 @@ describe("local Effect v1 development discovery", () => {
       true,
       false,
     ]);
-    expect(JSON.parse(catalog.effects[0].source).assets[0]).toMatchObject({
-      byteLength: expect.any(Number),
-      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-      svgText: expect.stringContaining("#63dbe7"),
-    });
+    const materialized: unknown = JSON.parse(
+      requiredEntry(catalog.effects, 0).source,
+    );
+    const asset = responseObject(materialized, "assets", 0);
+    expect(asset.byteLength).toEqual(expect.any(Number));
+    expect(asset.sha256).toEqual(expect.stringMatching(/^[a-f0-9]{64}$/));
+    expect(asset.svgText).toEqual(expect.stringContaining("#63dbe7"));
   });
 
   it("reports invalid documents without exposing them to the viewer", async () => {
@@ -72,7 +76,8 @@ describe("local Effect v1 development discovery", () => {
 });
 
 async function createTemporaryRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "sniptale-local-effects-"));
+  await mkdir(".tmp/tests", { recursive: true });
+  const root = await mkdtemp(resolve(".tmp/tests/sniptale-local-effects-"));
   temporaryRoots.push(root);
   return root;
 }
@@ -80,7 +85,7 @@ async function createTemporaryRoot(): Promise<string> {
 async function writeEffect(
   root: string,
   id: string,
-  document: any,
+  document: Record<string, unknown>,
   svgText?: string,
 ): Promise<string> {
   const effectRoot = resolve(root, id);
@@ -94,8 +99,8 @@ async function writeEffect(
   return path;
 }
 
-function createEffectWithSvgAsset(id: string): any {
-  const document: any = createNeutralEffectV1Document("standalone");
+function createEffectWithSvgAsset(id: string): EffectV1Document {
+  const document = createNeutralEffectV1Document("standalone");
   document.id = id;
   document.assets = [
     {

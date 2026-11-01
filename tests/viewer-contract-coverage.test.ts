@@ -1,11 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mergePrimitiveBounds } from "../src/apps/viewer/rendering/contract-bounds";
 import { createEmptyBindingReads } from "../src/apps/viewer/app/binding-reads";
-import {
-  createRendererContractCoverageActions,
-  waitForContractSampleSlot,
-} from "../src/apps/viewer/rendering/contract-coverage";
+import { waitForContractSampleSlot } from "../src/apps/viewer/rendering/contract-coverage";
+
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import type { SandboxRenderResponse } from "../src/apps/viewer/transport/contract.js";
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer renderer contract coverage scheduling", () => {
   it("backs off while playback owns the renderer", async () => {
@@ -42,97 +50,41 @@ describe("viewer renderer contract coverage scheduling", () => {
 
 describe("renderer contract sample ownership", () => {
   it.each([
-    "current",
-    "restarted",
-    "changed-template",
-    "replaced-source",
-    "revised-model",
-    "commit-error",
+    { mode: "current", commits: 1, ready: true },
+    { mode: "restarted", commits: 0, ready: false },
+    { mode: "changed-template", commits: 0, ready: false },
+    { mode: "replaced-source", commits: 0, ready: false },
+    { mode: "revised-model", commits: 0, ready: false },
   ] as const)(
-    "handles %s sample responses and releases bitmaps",
-    async (mode) => {
-      vi.stubGlobal("window", { setTimeout: globalThis.setTimeout });
-      const ctx = createContext({});
-      const template = { id: "effect", duration: 2, moduleId: "module" };
-      const reads = createEmptyBindingReads();
-      const bitmap = { close: vi.fn() };
-      let snapshot = {
-        ...template,
-        layers: [],
-        clips: [],
-        scenes: [],
-        timeline: { phases: [], tracks: [] },
-      };
-      Object.assign(ctx.state, {
-        currentTemplate: template,
-        loadedModules: new Set(["module"]),
-        rendererContractReads: reads,
-        lastBindingReads: reads,
-        controls: {},
-      });
-      Object.assign(ctx, {
-        deps: {
-          createEmptyBindingReads,
-          normalizeBindingReads: () => reads,
-          createRequestId: () => "sample",
-        },
-        refs: {
-          canvas: { width: 1280, height: 720 },
-          fpsInput: { value: "30" },
-        },
-        renderValidationPanel: vi.fn(),
-        updateExportAvailability: vi.fn(),
-        renderRendererBindingsPanel: vi.fn(),
-        getRenderTemplateSnapshot: () => snapshot,
-        getContractRenderSize: () => ({ width: 320, height: 180 }),
-        buildRendererBindingCoverage: () => ({ unboundCount: 1 }),
-        createRenderInputFrames: async () => ({ frames: {}, transfer: [] }),
-        createRenderAssets: async () => ({ envelope: {}, transfer: [] }),
-        createRenderModelEnvelope: () => ({}),
-        getRendererType: () => "effect-v1",
-        normalizePreviewBindingReads: () => reads,
-        commitRenderAssetTransfers: vi.fn(() => {
-          if (mode === "commit-error") throw new Error("commit failed");
-        }),
-        commitRenderModelEnvelope: vi.fn(),
-        requestSandbox: vi.fn(async () => {
-          if (mode === "restarted") ctx.state.sandboxRuntimeGeneration++;
-          if (mode === "changed-template")
-            ctx.state.currentTemplate = { ...template, id: "other" };
-          if (mode === "replaced-source")
-            ctx.state.currentTemplate = { ...template };
-          if (mode === "revised-model") snapshot = { ...snapshot };
-          return { ok: true, bitmap, bindingReads: reads };
-        }),
-        ...createRendererContractCoverageActions(() => ctx),
-      });
-      ctx.createRendererContractSampleTimes = () => [0];
-      try {
-        if (mode === "commit-error") {
-          await expect(
-            ctx.refreshRendererContractCoverage(template),
-          ).rejects.toThrow("commit failed");
-        } else {
-          await ctx.refreshRendererContractCoverage(template);
-          expect(ctx.commitRenderAssetTransfers).toHaveBeenCalledTimes(
-            mode === "current" ? 1 : 0,
-          );
-          expect(ctx.commitRenderModelEnvelope).toHaveBeenCalledTimes(
-            mode === "current" ? 1 : 0,
-          );
-          expect(ctx.state.rendererContractCoverageReady).toBe(
-            mode === "current",
-          );
-        }
-        expect(bitmap.close).toHaveBeenCalledOnce();
-        expect(ctx.state.rendererContractRefreshing).toBe(false);
-        expect(ctx.state.rendererContractRefreshPromise).toBeNull();
-        expect(ctx.state.rendererContractRefreshTemplate).toBeNull();
-      } finally {
-        vi.unstubAllGlobals();
-      }
+    "handles $mode sample responses and releases bitmaps",
+    async ({ mode, commits, ready }) => {
+      const { ctx, template, close, commitAssets, commitModel } =
+        createSampleContext(mode);
+      await ctx.refreshRendererContractCoverage(template);
+      expect(commitAssets).toHaveBeenCalledTimes(commits);
+      expect(commitModel).toHaveBeenCalledTimes(commits);
+      expect(ctx.state.rendererContractCoverageReady).toBe(ready);
+      expect(close).toHaveBeenCalledOnce();
+      expect(ctx.state.rendererContractRefreshing).toBe(false);
+      expect(ctx.state.rendererContractRefreshPromise).toBeNull();
+      expect(ctx.state.rendererContractRefreshTemplate).toBeNull();
     },
   );
+
+  it("releases the bitmap and refresh ownership when the asset commit fails", async () => {
+    const { ctx, template, close, commitAssets, commitModel } =
+      createSampleContext("commit-error");
+    await expect(ctx.refreshRendererContractCoverage(template)).rejects.toThrow(
+      "commit failed",
+    );
+    expect(commitAssets).toHaveBeenCalledOnce();
+    expect(commitModel).not.toHaveBeenCalled();
+    expect(ctx.state.rendererContractCoverageReady).toBe(false);
+    expect(close).toHaveBeenCalledOnce();
+    expect(ctx.state.rendererContractRefreshing).toBe(false);
+    expect(ctx.state.rendererContractRefreshPromise).toBeNull();
+    expect(ctx.state.rendererContractRefreshTemplate).toBeNull();
+  });
 });
 
 describe("viewer renderer contract bounds", () => {
@@ -153,18 +105,110 @@ describe("viewer renderer contract bounds", () => {
   });
 });
 
-function createContext(state: Record<string, unknown>) {
-  return {
-    state: {
-      currentTemplate: { id: "effect" },
-      playing: false,
-      renderInFlight: false,
-      renderQueued: false,
+function createContext(state: Partial<ViewerAppContext["state"]>) {
+  const ctx = createViewerContextFixture();
+  Object.assign(
+    ctx.state,
+    {
+      currentTemplate: { id: "effect", duration: 2 },
       sandboxReady: true,
-      sandboxRecoveryPending: false,
       sandboxRuntimeGeneration: 2,
-      ...state,
     },
-    waitForRenderIdle: vi.fn(),
-  } as any;
+    state,
+  );
+  vi.stubGlobal("window", { setTimeout: globalThis.setTimeout });
+  const waitForRenderIdle = vi
+    .spyOn(ctx, "waitForRenderIdle")
+    .mockResolvedValue();
+  return Object.assign(ctx, { waitForRenderIdle });
+}
+
+function createSampleContext(
+  mode:
+    | "current"
+    | "restarted"
+    | "changed-template"
+    | "replaced-source"
+    | "revised-model"
+    | "commit-error",
+) {
+  const ctx = createContext({});
+  const template = { id: "effect", duration: 2, moduleId: "module" };
+  const reads = createEmptyBindingReads();
+  const bitmap = createNativeBitmapFixture();
+  const close = vi.spyOn(bitmap, "close");
+  let snapshot = {
+    ...template,
+    layers: [],
+    clips: [],
+    scenes: [],
+    timeline: { duration: 2, phases: [], tracks: [] },
+  };
+  ctx.state.currentTemplate = template;
+  ctx.state.loadedModules.add("module");
+  ctx.state.rendererContractReads = reads;
+  ctx.state.lastBindingReads = reads;
+  ctx.refs.canvas.width = 1280;
+  ctx.refs.canvas.height = 720;
+  ctx.refs.fpsInput.value = "30";
+  vi.spyOn(ctx.deps, "normalizeBindingReads").mockReturnValue(reads);
+  vi.spyOn(ctx.deps, "createRequestId").mockReturnValue("sample");
+  vi.spyOn(ctx, "renderValidationPanel").mockImplementation(() => {});
+  vi.spyOn(ctx, "updateExportAvailability").mockImplementation(() => {});
+  vi.spyOn(ctx, "renderRendererBindingsPanel").mockImplementation(() => {});
+  vi.spyOn(ctx, "getRenderTemplateSnapshot").mockImplementation(() => snapshot);
+  vi.spyOn(ctx, "getContractRenderSize").mockReturnValue({
+    width: 320,
+    height: 180,
+    scale: 0.25,
+  });
+  vi.spyOn(ctx, "buildRendererBindingCoverage").mockReturnValue({
+    boundCount: 0,
+    totalCount: 1,
+    unboundCount: 1,
+    items: [
+      { bound: false, id: "box", label: "Box", sceneId: null, type: "layer" },
+    ],
+  });
+  vi.spyOn(ctx, "createRenderInputFrames").mockResolvedValue({
+    frames: {},
+    transfer: [],
+  });
+  vi.spyOn(ctx, "createRenderAssets").mockResolvedValue({
+    cacheKeys: [],
+    envelope: { renderAssetsId: "sample-assets" },
+    transfer: [],
+  });
+  vi.spyOn(ctx, "createRenderModelEnvelope").mockReturnValue({});
+  vi.spyOn(ctx, "getRendererType").mockReturnValue("effect");
+  vi.spyOn(ctx, "normalizePreviewBindingReads").mockReturnValue(reads);
+  const commitAssets = vi
+    .spyOn(ctx, "commitRenderAssetTransfers")
+    .mockImplementation(() => {
+      if (mode === "commit-error") throw new Error("commit failed");
+    });
+  const commitModel = vi
+    .spyOn(ctx, "commitRenderModelEnvelope")
+    .mockImplementation(() => {});
+  vi.spyOn(ctx, "requestSandbox").mockImplementation(
+    async (): Promise<SandboxRenderResponse> => {
+      if (mode === "restarted") ctx.state.sandboxRuntimeGeneration++;
+      if (mode === "changed-template")
+        ctx.state.currentTemplate = { ...template, id: "other" };
+      if (mode === "replaced-source")
+        ctx.state.currentTemplate = { ...template };
+      if (mode === "revised-model") snapshot = { ...snapshot };
+      return {
+        kind: "renderFrameResult",
+        requestId: "sample",
+        sequenceId: 0,
+        durationMs: 0,
+        ok: true,
+        bitmap,
+        bindingReads: reads,
+      };
+    },
+  );
+  vi.spyOn(ctx, "createRendererContractSampleTimes").mockReturnValue([0]);
+  return { ctx, template, close, commitAssets, commitModel };
 }

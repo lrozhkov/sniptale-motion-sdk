@@ -1,32 +1,28 @@
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import { createCanvasDragPreview } from "../src/apps/viewer/canvas/drag-preview.js";
-import { createPresetPanelActions } from "../src/apps/viewer/panels/presets.js";
+
 import { normalizePresets } from "../src/apps/viewer/editor/model.js";
 import { createStarterDocument } from "../src/apps/cli/starter.js";
 import {
   normalizeEffectV1ToTemplate,
   validateEffectV1Document,
 } from "../src/sdk/effect-v1/index.js";
-import { createTemplateModelActions } from "../src/apps/viewer/templates/controller.js";
+
 import { buildEffectFilePayload } from "../src/apps/viewer/effect-file/builder.js";
 import { normalizeScenes } from "../src/apps/viewer/editor/model.js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  captureEditorSnapshot,
-  commitEditorHistory,
-  restoreEditorSnapshotState,
-} from "../src/apps/viewer/editor/history";
-import { deepClone } from "../src/apps/viewer/editor/model";
-import { createEditorStoreActions } from "../src/apps/viewer/editor/store";
-import { createEditorHistoryActions } from "../src/apps/viewer/editor/history-controller";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer editor history transactions", () => {
   it("rejects non-numeric duration data without invoking conversion hooks", () => {
     const ctx = createStoreContext();
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
+
     const calls: string[] = [];
     const foreign = {
       valueOf() {
@@ -47,6 +43,7 @@ describe("viewer editor history transactions", () => {
   for (const direction of ["undo", "redo"] as const) {
     it(`keeps ${direction} history consistent when presentation fails after restoration`, async () => {
       const ctx = createHistoryTransitionContext();
+      const markEditorChanged = vi.spyOn(ctx, "markEditorChanged");
       ctx.state.controls = { value: "target" };
       const target = ctx.captureEditorSnapshot("target");
       ctx.state.controls = { value: "current" };
@@ -55,7 +52,7 @@ describe("viewer editor history transactions", () => {
       const destinationStack =
         direction === "undo" ? "historyFuture" : "historyPast";
       ctx.state[sourceStack] = [target];
-      ctx.renderCurrentFrame = vi.fn(async () => {
+      vi.spyOn(ctx, "renderCurrentFrame").mockImplementation(async () => {
         throw new Error("presentation failed");
       });
       await expect(
@@ -64,17 +61,18 @@ describe("viewer editor history transactions", () => {
       expect(ctx.state.controls).toEqual({ value: "target" });
       expect(ctx.state[sourceStack]).toEqual([]);
       expect(ctx.state[destinationStack]).toHaveLength(1);
-      expect(ctx.state[destinationStack][0].controls).toEqual({
+      expect(requiredEntry(ctx.state[destinationStack], 0).controls).toEqual({
         value: "current",
       });
       expect(ctx.state.editorHistoryBusy).toBe(false);
-      expect(ctx.markEditorChanged).toHaveBeenCalledWith(direction, {
+      expect(markEditorChanged).toHaveBeenCalledWith(direction, {
         immediate: true,
       });
     });
 
     it(`rejects an invalid ${direction} snapshot without consuming history`, async () => {
       const ctx = createHistoryTransitionContext();
+      const renderCurrentFrame = vi.spyOn(ctx, "renderCurrentFrame");
       const target = ctx.captureEditorSnapshot("invalid");
       target.assetEntries = [["image", { id: "other" }]];
       const sourceStack =
@@ -89,7 +87,7 @@ describe("viewer editor history transactions", () => {
       ).toBe(false);
       expect(ctx.state[sourceStack]).toEqual([target]);
       expect(ctx.state[destinationStack]).toEqual([]);
-      expect(ctx.renderCurrentFrame).not.toHaveBeenCalled();
+      expect(renderCurrentFrame).not.toHaveBeenCalled();
       expect(ctx.state.editorHistoryBusy).toBe(false);
     });
   }
@@ -98,7 +96,9 @@ describe("viewer editor history transactions", () => {
     const ctx = createHistoryTransitionContext();
     ctx.state.historyPast = [ctx.captureEditorSnapshot("target")];
     const rendered = Promise.withResolvers<void>();
-    ctx.renderCurrentFrame = vi.fn(() => rendered.promise);
+    vi.spyOn(ctx, "renderCurrentFrame").mockImplementation(
+      () => rendered.promise,
+    );
     const pending = ctx.undoEditorEdit();
     expect(ctx.state.historyFuture).toHaveLength(1);
     expect(ctx.state.editorHistoryBusy).toBe(true);
@@ -120,10 +120,9 @@ describe("viewer editor history transactions", () => {
     const source = ctx.state.currentTemplate;
     source.timeline = { phases: [], tracks: [] };
     ctx.state.timelineFullEditorRenderCount = 0;
-    Object.assign(ctx.refs, {
-      timelineTracks: { scrollLeft: 12, scrollTop: 34 },
-      durationInput: { value: "" },
-    });
+    ctx.refs.timelineTracks.scrollLeft = 12;
+    ctx.refs.timelineTracks.scrollTop = 34;
+    ctx.refs.durationInput.value = "";
     for (const name of [
       "reconcileTimelineSelection",
       "renderLayersPanel",
@@ -140,18 +139,24 @@ describe("viewer editor history transactions", () => {
       "renderRendererBindingsPanel",
       "updateCanvasSelectionBox",
       "updateExportAvailability",
-    ])
-      ctx[name] = vi.fn();
-    ctx.getEffectiveTemplate = vi.fn(() => ({ ...source }));
-    Object.assign(
+    ] as const)
+      vi.spyOn(ctx, name).mockImplementation(() => {});
+    const renderTimelineTracks = vi.spyOn(ctx, "renderTimelineTracks");
+    const renderValidationPanel = vi.spyOn(ctx, "renderValidationPanel");
+    const renderRendererBindingsPanel = vi.spyOn(
       ctx,
-      createEditorStoreActions(() => ctx),
+      "renderRendererBindingsPanel",
     );
+    const effectiveTemplate = requireEffectiveTemplate(ctx);
+    const getEffectiveTemplate = vi
+      .spyOn(ctx, "getEffectiveTemplate")
+      .mockReturnValue(effectiveTemplate);
+
     ctx.renderTimelineEditor(source);
-    expect(ctx.renderTimelineTracks.mock.calls[0]?.[0]).toBe(source);
-    expect(ctx.renderValidationPanel.mock.calls[0]?.[0]).toBe(source);
-    expect(ctx.renderRendererBindingsPanel.mock.calls[0]?.[0]).toBe(source);
-    expect(ctx.getEffectiveTemplate).not.toHaveBeenCalled();
+    expect(renderTimelineTracks.mock.calls[0]?.[0]).toBe(source);
+    expect(renderValidationPanel.mock.calls[0]?.[0]).toBe(source);
+    expect(renderRendererBindingsPanel.mock.calls[0]?.[0]).toBe(source);
+    expect(getEffectiveTemplate).not.toHaveBeenCalled();
     expect(ctx.refs.timelineTracks).toMatchObject({
       scrollLeft: 12,
       scrollTop: 34,
@@ -160,39 +165,33 @@ describe("viewer editor history transactions", () => {
 
   it("coalesces repeated keyboard edits without merging unrelated actions", () => {
     const ctx = createStoreContext();
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createEditorHistoryActions(() => ctx),
-    );
+    const markEditorChanged = vi.spyOn(ctx, "markEditorChanged");
 
     ctx.commitHistory("nudge-layer:box", {
       coalesceKey: "nudge-layer:box",
     });
-    ctx.state.editorOverrides.set("template", { layers: [{ x: 1 }] });
+    ctx.state.editorOverrides.set("template", {
+      layers: [{ id: "box", type: "rect", x: 1 }],
+    });
     ctx.commitHistory("nudge-layer:box", {
       coalesceKey: "nudge-layer:box",
     });
-    ctx.state.editorOverrides.set("template", { layers: [{ x: 2 }] });
+    ctx.state.editorOverrides.set("template", {
+      layers: [{ id: "box", type: "rect", x: 2 }],
+    });
     ctx.commitHistory("duration");
 
     expect(ctx.state.historyPast).toHaveLength(2);
-    expect(ctx.state.historyPast[0].editorOverride).toBeNull();
-    expect(ctx.state.historyPast[1].editorOverride).toEqual({
-      layers: [{ x: 2 }],
+    expect(requiredEntry(ctx.state.historyPast, 0).editorOverride).toBeNull();
+    expect(requiredEntry(ctx.state.historyPast, 1).editorOverride).toEqual({
+      layers: [{ id: "box", type: "rect", x: 2 }],
     });
-    expect(ctx.markEditorChanged).toHaveBeenCalledTimes(3);
+    expect(markEditorChanged).toHaveBeenCalledTimes(3);
   });
 
   it("validates opaque overrides without changing source or accepting a partial write", () => {
     const ctx = createStoreContext();
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
+
     expect(ctx.getEffectiveDuration()).toBe(4);
     ctx.setEditorOverride({ duration: 0.02, extension: { keep: true } });
     expect(ctx.getEffectiveDuration()).toBe(0.02);
@@ -234,15 +233,8 @@ describe("viewer editor history transactions", () => {
     const ctx = createStoreContext();
     const template = normalizeEffectV1ToTemplate(document);
     ctx.state.currentTemplate = template;
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createTemplateModelActions(() => ctx),
-    );
-    const effective = ctx.getEffectiveTemplate();
+
+    const effective = requireEffectiveTemplate(ctx);
     expect(effective.scenes).toEqual(document.scenes);
     expect(template.scenes).toEqual(document.scenes);
     const viewScenes = normalizeScenes(effective.scenes, effective.duration);
@@ -261,45 +253,31 @@ describe("viewer editor history transactions", () => {
     const document = createStarterDocument("preset-roundtrip", "standalone");
     const ctx = createStoreContext();
     ctx.state.currentTemplate = normalizeEffectV1ToTemplate(document);
-    Object.assign(ctx.deps, {
-      normalizePresets,
-      t: (_key: string, fallback: string) => fallback,
-      translateText: (_label: unknown, fallback: string) => fallback,
-    });
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createTemplateModelActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createPresetPanelActions(() => ctx),
-    );
-    ctx.applyEditorCommand = vi.fn((_command: unknown, mutate: () => void) =>
-      mutate(),
-    );
+    ctx.deps.normalizePresets = normalizePresets;
+    ctx.deps.t = (_key: string, fallback?: string) => fallback ?? _key;
+    ctx.deps.translateText = (_label: unknown, fallback?: string) =>
+      fallback ?? "";
+
+    const applyEditorCommand = vi
+      .spyOn(ctx, "applyEditorCommand")
+      .mockImplementation((_command, mutate) => mutate());
     for (const name of [
       "clearTimelineSelection",
       "logDiagnostic",
       "renderControls",
       "renderTimelineEditor",
-      "renderCurrentFrame",
-    ])
-      ctx[name] = vi.fn();
+    ] as const)
+      vi.spyOn(ctx, name).mockImplementation(() => {});
+    vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
     ctx.formatSeconds = String;
     ctx.toTitleLabel = String;
-    Object.assign(ctx.refs, {
-      durationInput: { value: "" },
-      timeOutput: { textContent: "" },
-      timelineSaveStatus: { textContent: "" },
-    });
-    const source = ctx.getEffectiveTemplate();
+    ctx.refs.durationInput.value = "";
+    ctx.refs.timeOutput.textContent = "";
+    ctx.refs.timelineSaveStatus.textContent = "";
+    const source = requireEffectiveTemplate(ctx);
     const preset = ctx.createPresetFromTemplate(source, "precise");
     preset.duration = 0.02;
-    preset.clips = preset.clips.map((clip: Record<string, unknown>) => ({
+    preset.clips = preset.clips.map((clip) => ({
       ...clip,
       start: 0.001,
       duration: 0.019,
@@ -312,12 +290,12 @@ describe("viewer editor history transactions", () => {
         label: { ru: "Вступление", en: "Intro" },
       },
     ];
-    preset.timeline = { phases: [], tracks: [] };
+    preset.timeline = { duration: 0.02, phases: [], tracks: [] };
     preset.extension = { retained: true };
     const before = structuredClone(preset);
     ctx.setPresets([preset]);
     expect(await ctx.applyPreset("precise")).toBe(true);
-    const effective = ctx.getEffectiveTemplate();
+    const effective = requireEffectiveTemplate(ctx);
     expect(effective.duration).toBe(0.02);
     expect(effective.scenes).toEqual(before.scenes);
     expect(effective.timeline).toEqual({ ...before.timeline, duration: 0.02 });
@@ -341,26 +319,18 @@ describe("viewer editor history transactions", () => {
       const timeline = structuredClone(
         ctx.state.timelineOverrides.get(document.id),
       );
-      const calls = ctx.applyEditorCommand.mock.calls.length;
+      const calls = applyEditorCommand.mock.calls.length;
       await expect(ctx.applyPreset("precise")).rejects.toThrow(/Invalid/);
       expect(ctx.getEditorOverride()).toEqual(override);
       expect(ctx.state.timelineOverrides.get(document.id)).toEqual(timeline);
-      expect(ctx.applyEditorCommand).toHaveBeenCalledTimes(calls);
+      expect(applyEditorCommand).toHaveBeenCalledTimes(calls);
     }
   });
 
   it("invalidates an active canvas operation when restoring a snapshot", () => {
     const ctx = createStoreContext();
-    ctx.refs.canvasSelectionBox = { dataset: {} };
-    ctx.renderCurrentFrame = vi.fn(async () => undefined);
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createEditorHistoryActions(() => ctx),
-    );
+    vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
+
     const snapshot = ctx.captureEditorSnapshot("before");
     const preview = createCanvasDragPreview(ctx);
     expect(preview.isCurrent()).toBe(true);
@@ -378,14 +348,6 @@ describe("viewer editor history transactions", () => {
     ctx.state.currentTemplate.assets = ["image"];
     ctx.state.assets.set("image", baseAsset);
     ctx.state.baseAssets.set("image", baseAsset);
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createEditorHistoryActions(() => ctx),
-    );
 
     const baseSnapshot = ctx.captureEditorSnapshot("base");
     expect(baseSnapshot.assetEntries).toEqual([]);
@@ -402,14 +364,7 @@ describe("viewer editor history transactions", () => {
 
   it("rejects malformed asset history before changing editor state", () => {
     const ctx = createStoreContext();
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createEditorHistoryActions(() => ctx),
-    );
+
     const snapshot = ctx.captureEditorSnapshot("invalid assets");
     snapshot.assetEntries = [["image", { id: "image", blob: {} }]];
     const override = ctx.state.editorOverrides.get("template");
@@ -421,14 +376,7 @@ describe("viewer editor history transactions", () => {
 
   it("restores structural groups and canonical multi-selection together", () => {
     const ctx = createStoreContext();
-    Object.assign(
-      ctx,
-      createEditorStoreActions(() => ctx),
-    );
-    Object.assign(
-      ctx,
-      createEditorHistoryActions(() => ctx),
-    );
+
     ctx.state.editorOverrides.set("template", {
       layers: [
         { id: "group-1", type: "group" },
@@ -450,7 +398,7 @@ describe("viewer editor history transactions", () => {
     ctx.state.selectedItem = { layerId: "title", type: "layer" };
 
     expect(ctx.restoreEditorSnapshotData(snapshot)).toBe(true);
-    expect(ctx.state.editorOverrides.get("template").layers).toEqual(
+    expect(ctx.getEditorOverride().layers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "group-1", type: "group" }),
         expect.objectContaining({ id: "card", parentId: "group-1" }),
@@ -465,62 +413,31 @@ describe("viewer editor history transactions", () => {
   });
 });
 
-function createStoreContext(): any {
-  const template = { assets: [], duration: 4, id: "template", layers: [] };
-  const state: any = {
-    assets: new Map(),
-    baseAssets: new Map(),
-    controls: {},
-    currentTemplate: template,
-    editorCommands: [],
-    editorOverrides: new Map(),
-    historyCoalescing: null,
-    historyFuture: [],
-    historyPast: [],
-    selectedClips: [],
-    selectedItem: { type: "effect" },
-    selectedKeyframes: [],
-    selectedLayers: [],
-    selectedPhases: [],
-    selectedPresetId: null,
-    selectedScenes: [],
-    timelineOverrides: new Map(),
+function createStoreContext() {
+  const ctx = createViewerContextFixture();
+  const template: EditorTemplateSource = {
+    assets: [],
+    duration: 4,
+    id: "template",
+    layers: [],
   };
-  return {
-    deps: {
-      buildControlsWithDefaults: () => ({}),
-      captureEditorSnapshotState: captureEditorSnapshot,
-      clamp: (value, min, max) => Math.min(max, Math.max(min, value)),
-      commitEditorHistory,
-      deepClone,
-      recordEditorCommandState: vi.fn(),
-      restoreEditorSnapshotState,
-      normalizeTimeline: (timeline) => timeline,
-    },
-    getEffectiveTemplate: () => ({
-      ...template,
-      ...(state.editorOverrides.get("template") ?? {}),
-    }),
-    markEditorChanged: vi.fn(),
-    refs: {
-      timeSlider: { value: "0" },
-    },
-    state,
-    syncEditorWorkflowUi: vi.fn(),
-  };
+  const state = Object.assign(ctx.state, { currentTemplate: template });
+  return Object.assign(ctx, { state });
 }
 
 function createHistoryTransitionContext() {
   const ctx = createStoreContext();
-  Object.assign(
-    ctx,
-    createEditorStoreActions(() => ctx),
-    createEditorHistoryActions(() => ctx),
-  );
+
   ctx.formatSeconds = String;
-  ctx.refs.timeOutput = { textContent: "" };
-  ctx.renderTimelineEditor = vi.fn();
-  ctx.renderControls = vi.fn();
-  ctx.renderCurrentFrame = vi.fn(async () => undefined);
+  ctx.refs.timeOutput.textContent = "";
+  vi.spyOn(ctx, "renderTimelineEditor").mockImplementation(() => {});
+  vi.spyOn(ctx, "renderControls").mockImplementation(() => {});
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
   return ctx;
+}
+
+function requireEffectiveTemplate(ctx: ReturnType<typeof createStoreContext>) {
+  const template = ctx.getEffectiveTemplate();
+  if (!template) throw new Error("Expected an effective fixture template");
+  return template;
 }

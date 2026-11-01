@@ -9,7 +9,7 @@ const runtime = {} as Parameters<typeof loadSandboxEffectDocument>[2];
 describe("sandbox versioned document loading", () => {
   it("replaces a module for a new revision and is idempotent for the same revision", async () => {
     const registry = createSandboxRegistry();
-    const sink = vi.fn();
+    const sink = vi.fn<(message: unknown, transfer?: Transferable[]) => void>();
     const first = createStarterDocument("same", "standalone");
     await loadSandboxEffectDocument(sink, registry, runtime, {
       kind: "loadEffectDocument",

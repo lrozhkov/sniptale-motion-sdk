@@ -4,7 +4,7 @@ import {
   readEffectV1Value,
 } from "../src/apps/sandbox/runtime/effect-v1/expression";
 import { trimPolyline } from "../src/apps/sandbox/runtime/effect-v1/path-drawing";
-const scope = (item: unknown = undefined) => ({
+const scope = (item?: unknown) => ({
   context: { track: () => 0, resolveLayer: () => null },
   definitions: {},
   definitionCache: new Map<string, unknown>(),
@@ -13,7 +13,7 @@ const scope = (item: unknown = undefined) => ({
 });
 describe("Effect v1 evaluation boundaries", () => {
   it("does not invoke conversion hooks on foreign evaluated objects", () => {
-    const convert = vi.fn(() => {
+    const convert = vi.fn<() => never>(() => {
       throw new Error("foreign conversion");
     });
     const item = { valueOf: convert, toString: convert };

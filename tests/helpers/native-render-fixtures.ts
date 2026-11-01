@@ -44,3 +44,17 @@ export function createNativePortFixture(port: object = {}): MessagePort {
     Object.getOwnPropertyDescriptors(port),
   );
 }
+
+class FixtureDrawingContext {}
+
+/** Allocate a native drawing brand; each consumer supplies the operations it observes. */
+export function createNativeDrawingContextFixture(
+  port: Pick<OffscreenCanvasRenderingContext2D, "canvas"> &
+    Partial<OffscreenCanvasRenderingContext2D>,
+): OffscreenCanvasRenderingContext2D {
+  vi.stubGlobal("OffscreenCanvasRenderingContext2D", FixtureDrawingContext);
+  return Object.defineProperties(
+    new OffscreenCanvasRenderingContext2D(),
+    Object.getOwnPropertyDescriptors(port),
+  );
+}

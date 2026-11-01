@@ -1,3 +1,5 @@
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import { responseString } from "../tooling/test/fixtures/response.js";
 import { MAX_ASSET_BYTES } from "../src/sdk/protocol.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -12,7 +14,10 @@ import {
 import { SUPPORTED_AUTHOR_ASSET_TYPES } from "../src/apps/viewer/app/constants.js";
 import type { ViewerAsset } from "../src/apps/viewer/assets/state.js";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("author asset file boundary", () => {
   for (const outcome of [
@@ -23,10 +28,10 @@ describe("author asset file boundary", () => {
   ] as const) {
     it(`closes the decoded bitmap on FileReader ${outcome}`, async () => {
       const close = vi.fn<() => void>();
-      const bitmap: ImageBitmap = { width: 8, height: 4, close };
+      const bitmap = createNativeBitmapFixture({ width: 8, height: 4, close });
       vi.stubGlobal(
         "createImageBitmap",
-        vi.fn(async () => bitmap),
+        vi.fn<typeof globalThis.createImageBitmap>(async () => bitmap),
       );
       vi.stubGlobal(
         "FileReader",
@@ -46,7 +51,9 @@ describe("author asset file boundary", () => {
         },
       );
       const ctx: Parameters<typeof createAuthorAssetFromFile>[0] = {
-        createAssetBitmap: vi.fn(async () => bitmap),
+        createAssetBitmap: vi.fn<
+          Parameters<typeof createAuthorAssetFromFile>[0]["createAssetBitmap"]
+        >(async () => bitmap),
         state: { assets: new Map() },
         deps: {
           normalizeAuthorAssetMimeType,
@@ -60,14 +67,35 @@ describe("author asset file boundary", () => {
         ctx,
         new File(["image"], "image.png", { type: "image/png" }),
       );
-      if (outcome === "success")
-        await expect(pending).resolves.toMatchObject({
-          id: "asset-image",
-          width: 8,
-          height: 4,
-          dataUrl: "data:image/png;base64,AA==",
-        });
-      else await expect(pending).rejects.toThrow(/failed to read/);
+      const actual = await pending.then(
+        (asset) => ({ asset, error: "" }),
+        (error: unknown) => ({
+          asset: null,
+          error: responseString(error, "message"),
+        }),
+      );
+      const fields =
+        actual.asset === null
+          ? null
+          : {
+              id: actual.asset.id,
+              width: actual.asset.width,
+              height: actual.asset.height,
+              dataUrl: actual.asset.dataUrl,
+            };
+      expect(fields).toEqual(
+        outcome === "success"
+          ? {
+              id: "asset-image",
+              width: 8,
+              height: 4,
+              dataUrl: "data:image/png;base64,AA==",
+            }
+          : null,
+      );
+      expect(actual.error).toMatch(
+        outcome === "success" ? /^$/ : /failed to read/,
+      );
       expect(close).toHaveBeenCalledOnce();
     });
   }
@@ -78,6 +106,8 @@ describe("author asset file boundary", () => {
       const next: ViewerAsset = { id: "image", path: "next.png" };
       const decoded = Promise.withResolvers<ViewerAsset>();
       const assets = new Map([[previous.id, previous]]);
+      const replaceAsset =
+        vi.fn<Parameters<typeof replaceSelectedAssetFile>[0]["replaceAsset"]>();
       const ctx: Parameters<typeof replaceSelectedAssetFile>[0] = {
         state: { currentTemplate: {}, pendingAssetReplaceId: "image", assets },
         refs: {
@@ -87,8 +117,12 @@ describe("author asset file boundary", () => {
           },
           timelineSaveStatus: { textContent: "" },
         },
-        createAuthorAssetFromFile: vi.fn(() => decoded.promise),
-        replaceAsset: vi.fn<(asset: ViewerAsset) => void>(),
+        createAuthorAssetFromFile: vi.fn<
+          Parameters<
+            typeof replaceSelectedAssetFile
+          >[0]["createAuthorAssetFromFile"]
+        >(() => decoded.promise),
+        replaceAsset,
         logDiagnostic: vi.fn<(message: string, level?: string) => void>(),
       };
       const pending = replaceSelectedAssetFile(ctx);
@@ -97,9 +131,9 @@ describe("author asset file boundary", () => {
         assets.set("image", { ...previous, path: "renamed.png" });
       decoded.resolve(next);
       await pending;
-      if (change === "none")
-        expect(ctx.replaceAsset).toHaveBeenCalledWith(next);
-      else expect(ctx.replaceAsset).not.toHaveBeenCalled();
+      expect(replaceAsset.mock.calls).toEqual(
+        change === "none" ? [[next]] : [],
+      );
       expect(ctx.state.pendingAssetReplaceId).toBeNull();
       expect(ctx.refs.replaceAssetInput.value).toBe("");
     });

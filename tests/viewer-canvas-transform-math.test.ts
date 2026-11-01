@@ -1,3 +1,7 @@
+import type { CanvasMotionPathTimeline } from "../src/apps/viewer/canvas/motion-path-model.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { createCanvasTransformState } from "../src/apps/viewer/canvas/transform-state.js";
+import type { CanvasTransformBox } from "../src/apps/viewer/canvas/transform-math.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -24,15 +28,8 @@ describe("viewer canvas transform math", () => {
       frames.push(callback);
       return frames.length;
     });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    const renders: any[] = [];
-    const ctx = {
-      refs: { canvasSelectionBox: { dataset: {} } },
-      renderCurrentFrame(options) {
-        renders.push(options);
-      },
-      state: { previewCacheEnabled: false },
-    } as any;
+    vi.stubGlobal("cancelAnimationFrame", vi.fn<typeof cancelAnimationFrame>());
+    const ctx = createDragContext(false);
     const updates: number[] = [];
     const preview = createCanvasDragPreview(ctx);
 
@@ -41,9 +38,11 @@ describe("viewer canvas transform math", () => {
     expect(frames).toHaveLength(1);
     expect(updates).toEqual([]);
 
-    frames[0](0);
+    requiredEntry(frames, 0)(0);
     expect(updates).toEqual([2]);
-    expect(renders).toEqual([{ interactive: true }]);
+    expect(ctx.renderCurrentFrame.mock.calls).toEqual([
+      [{ interactive: true }],
+    ]);
     expect(ctx.state.canvasTransformDragActive).toBe(true);
 
     preview.finalize();
@@ -58,27 +57,23 @@ describe("viewer canvas transform math", () => {
       frames.push(callback);
       return frames.length;
     });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    const ctx = {
-      refs: { canvasSelectionBox: { dataset: {} } },
-      renderCurrentFrame: vi.fn(),
-      state: { previewCacheEnabled: true },
-    } as any;
+    vi.stubGlobal("cancelAnimationFrame", vi.fn<typeof cancelAnimationFrame>());
+    const ctx = createDragContext(true);
     const preview = createCanvasDragPreview(ctx);
 
-    preview.scheduleUpdate(vi.fn());
+    preview.scheduleUpdate(vi.fn<() => void>());
     frames.shift()?.(0);
     vi.advanceTimersByTime(119);
     expect(ctx.renderCurrentFrame).not.toHaveBeenCalled();
 
-    preview.scheduleUpdate(vi.fn());
+    preview.scheduleUpdate(vi.fn<() => void>());
     frames.shift()?.(16);
     vi.advanceTimersByTime(119);
     expect(ctx.renderCurrentFrame).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(ctx.renderCurrentFrame).toHaveBeenCalledWith({ interactive: true });
 
-    preview.scheduleUpdate(vi.fn());
+    preview.scheduleUpdate(vi.fn<() => void>());
     frames.shift()?.(32);
     preview.finalize();
     vi.advanceTimersByTime(120);
@@ -160,7 +155,10 @@ describe("viewer canvas transform math", () => {
         rotation,
       });
 
-      expectFixedCorner(result, x, y, rotation);
+      const before = corner(TEST_BOX, TEST_TRANSFORM, x, y, rotation);
+      const after = corner(TEST_BOX, result, x, y, rotation);
+      expect(after.x).toBeCloseTo(before.x);
+      expect(after.y).toBeCloseTo(before.y);
     },
   );
 
@@ -263,19 +261,21 @@ describe("viewer canvas transform math", () => {
   });
 
   it("uses the canonical motion path for paired spatial tracks", () => {
-    const timeline: any = {
+    const timeline = {
       motionPaths: [
         {
           layerId: "card",
           points: [
             {
               kind: "corner",
+              inTangent: { x: 0, y: 0 },
               outTangent: { x: 100, y: 0 },
               xKeyframeId: "x-a",
               yKeyframeId: "y-a",
             },
             {
               inTangent: { x: 0, y: -100 },
+              outTangent: { x: 0, y: 0 },
               kind: "corner",
               xKeyframeId: "x-b",
               yKeyframeId: "y-b",
@@ -305,7 +305,7 @@ describe("viewer canvas transform math", () => {
           property: "y",
         },
       ],
-    };
+    } satisfies CanvasMotionPathTimeline;
 
     expect(
       resolveNumericTrack(
@@ -330,7 +330,8 @@ describe("viewer canvas transform math", () => {
 
 const TEST_BOX = { height: 50, width: 100, x: 0, y: 0 };
 const TEST_TRANSFORM = { scaleX: 1, scaleY: 1, x: 0, y: 0 };
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 function resize(
   delta: { x: number; y: number },
@@ -348,14 +349,25 @@ function resize(
   });
 }
 
-function expectFixedCorner(result, xFactor, yFactor, rotation = 0) {
+function expectFixedCorner(
+  result: ReturnType<typeof calculateCanvasResize>,
+  xFactor: number,
+  yFactor: number,
+  rotation = 0,
+) {
   const before = corner(TEST_BOX, TEST_TRANSFORM, xFactor, yFactor, rotation);
   const after = corner(TEST_BOX, result, xFactor, yFactor, rotation);
   expect(after.x).toBeCloseTo(before.x);
   expect(after.y).toBeCloseTo(before.y);
 }
 
-function corner(box, transform, xFactor, yFactor, rotation) {
+function corner(
+  box: CanvasTransformBox,
+  transform: ReturnType<typeof calculateCanvasResize>,
+  xFactor: number,
+  yFactor: number,
+  rotation: number,
+) {
   const baseWidth = box.width / TEST_TRANSFORM.scaleX;
   const baseHeight = box.height / TEST_TRANSFORM.scaleY;
   const width = baseWidth * transform.scaleX;
@@ -374,4 +386,15 @@ function corner(box, transform, xFactor, yFactor, rotation) {
     rotation,
   );
   return { x: pivot.x + offset.x, y: pivot.y + offset.y };
+}
+
+function createDragContext(previewCacheEnabled: boolean) {
+  const dataset: DOMStringMap = {};
+  return {
+    refs: { canvasSelectionBox: { dataset } },
+    renderCurrentFrame: vi
+      .fn<Parameters<typeof createCanvasDragPreview>[0]["renderCurrentFrame"]>()
+      .mockResolvedValue(undefined),
+    state: { ...createCanvasTransformState(), previewCacheEnabled },
+  } satisfies Parameters<typeof createCanvasDragPreview>[0];
 }

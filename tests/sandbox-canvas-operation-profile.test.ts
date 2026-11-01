@@ -5,18 +5,23 @@ import { createSandboxRenderProfile } from "../src/apps/sandbox/runtime/render-p
 
 describe("sandbox canvas operation profiler", () => {
   it("counts expensive canvas calls and restores the native context surface", () => {
-    const prototype = {
-      createLinearGradient() {
+    class DrawingContext {
+      filter = "blur(8px)";
+      shadowBlur = 12;
+      createLinearGradient(
+        _x0: number,
+        _y0: number,
+        _x1: number,
+        _y1: number,
+      ): object {
         return {};
-      },
-      drawImage() {},
-      fill() {},
-    };
-    const context = Object.assign(Object.create(prototype), {
-      filter: "blur(8px)",
-      shadowBlur: 12,
-    });
-    const profile = createSandboxRenderProfile(0)!;
+      }
+      drawImage(_source: unknown): void {}
+      fill(): void {}
+    }
+    const context = new DrawingContext();
+    const profile = createSandboxRenderProfile(0);
+    if (!profile) throw new Error("Missing render profile fixture.");
     const profiler = createCanvasOperationProfiler(
       () => ({ getContext: () => context }),
       profile,

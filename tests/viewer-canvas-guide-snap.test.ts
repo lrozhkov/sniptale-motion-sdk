@@ -1,3 +1,8 @@
+import { requiredEntry } from "./helpers/required-entry.js";
+import type {
+  CanvasGuide,
+  CanvasGuideSnapLock,
+} from "../src/apps/viewer/canvas/guide-snap-axis.js";
 import { describe, expect, it } from "vitest";
 
 import { resolveCanvasGuideSnap } from "../src/apps/viewer/canvas/guide-snap";
@@ -6,7 +11,7 @@ import {
   resolveCanvasGuideSnapForAnchors,
 } from "../src/apps/viewer/canvas/guide-snap-axis";
 
-const GUIDES = [
+const GUIDES: [CanvasGuide, CanvasGuide] = [
   { label: "Center", value: 100 },
   { label: "End", value: 200 },
 ];
@@ -109,10 +114,14 @@ describe("viewer canvas guide snapping", () => {
       },
     );
 
-    expect(projected.at(-2)).toBeLessThan(projected.at(-1));
+    expect(requiredEntry(projected, projected.length - 2)).toBeLessThan(
+      requiredEntry(projected, projected.length - 1),
+    );
     expect(projected.at(-1)).toBe(125);
     expect(
-      projected.slice(1).every((value, index) => value >= projected[index]),
+      projected
+        .slice(1)
+        .every((value, index) => value >= requiredEntry(projected, index)),
     ).toBe(true);
   });
 
@@ -197,8 +206,8 @@ describe("viewer canvas guide snapping", () => {
       { label: "66%", value: (1280 * 2) / 3 },
     ];
     const anchorOffsets = [-70, 0, 70];
-    let lock = null;
-    const projected = [];
+    let lock: CanvasGuideSnapLock | null = null;
+    const projected: number[] = [];
     for (let position = 480; position <= 880; position += 4) {
       const snap = resolveCanvasGuideSnapForAnchors(
         position,
@@ -217,7 +226,9 @@ describe("viewer canvas guide snapping", () => {
     }
 
     expect(
-      projected.slice(1).every((value, index) => value >= projected[index]),
+      projected
+        .slice(1)
+        .every((value, index) => value >= requiredEntry(projected, index)),
     ).toBe(true);
   });
 });

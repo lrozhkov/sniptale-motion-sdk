@@ -1,5 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { readEditorTimeline } from "../src/apps/viewer/editor/timeline-source.js";
+import type { EditorTimeline } from "../src/apps/viewer/editor/model-types.js";
+import type {
+  MotionPathTrack,
+  TimelineMotionPath,
+} from "../src/shared/timeline/motion-path.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { updateCanvasMotionPathPointPositions } from "../src/apps/viewer/canvas/motion-path-batch-updates";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("motion path batch updates", () => {
   it("updates multiple spatial points through one normalized override", () => {
@@ -16,7 +29,7 @@ describe("motion path batch updates", () => {
       ),
     ).toBe(true);
 
-    expect(ctx.deps.normalizeTimeline).toHaveBeenCalledTimes(1);
+    expect(ctx.normalizeTimeline).toHaveBeenCalledTimes(1);
     const timeline = ctx.state.timelineOverrides.get("fixture");
     expect(readKeyframe(timeline, "alpha.x", "alpha-x-a").value).toBe(12);
     expect(readKeyframe(timeline, "alpha.y", "alpha-y-a").value).toBe(18);
@@ -27,23 +40,23 @@ describe("motion path batch updates", () => {
   it("does not merge spatial updates whose delimiter-joined identities collide", () => {
     const ctx = createContext();
     const timeline = createTimeline();
-    timeline.motionPaths[0].points = [
+    requiredEntry(timeline.motionPaths, 0).points = [
       {
-        ...timeline.motionPaths[0].points[0],
+        ...requiredEntry(requiredEntry(timeline.motionPaths, 0).points, 0),
         xKeyframeId: "a:b",
         yKeyframeId: "c",
       },
       {
-        ...timeline.motionPaths[0].points[0],
+        ...requiredEntry(requiredEntry(timeline.motionPaths, 0).points, 0),
         xKeyframeId: "a",
         yKeyframeId: "b:c",
       },
     ];
-    timeline.tracks[0].keyframes = [
+    requiredEntry(timeline.tracks, 0).keyframes = [
       { id: "a:b", time: 0, value: 1 },
       { id: "a", time: 1, value: 2 },
     ];
-    timeline.tracks[1].keyframes = [
+    requiredEntry(timeline.tracks, 1).keyframes = [
       { id: "c", time: 0, value: 3 },
       { id: "b:c", time: 1, value: 4 },
     ];
@@ -81,9 +94,10 @@ describe("motion path batch updates", () => {
   });
 });
 
-function createContext(options: { lockedLayerId?: string } = {}): any {
+function createContext(options: { lockedLayerId?: string } = {}) {
+  const ctx = createViewerContextFixture();
   const timeline = createTimeline();
-  const template = {
+  ctx.state.currentTemplate = {
     duration: 3,
     id: "fixture",
     layers: ["alpha", "beta"].map((id) => ({
@@ -93,33 +107,30 @@ function createContext(options: { lockedLayerId?: string } = {}): any {
     })),
     timeline,
   };
-  return {
-    canTransformLayerProperty: () => true,
-    deps: {
-      normalizeTimeline: vi.fn((value) => value),
-      t: (_key, fallback) =>
-        fallback === "Unlock the layer before editing its motion path."
-          ? "locked"
-          : fallback,
-    },
-    getEffectiveDuration: () => 3,
-    getEffectiveTemplate: () => template,
-    getEffectiveTimeline: () => structuredClone(timeline),
-    isLayerActiveAtTime: () => true,
-    logDiagnostic: vi.fn(),
-    renderCurrentFrame: vi.fn(),
-    renderInspector: vi.fn(),
-    renderTimelineEditor: vi.fn(),
-    state: {
-      currentTemplate: template,
-      timelineOverrides: new Map(),
-    },
-    updateCanvasSelectionBox: vi.fn(),
-  };
+  ctx.deps.t = (_key: string, fallback?: string) =>
+    fallback === "Unlock the layer before editing its motion path."
+      ? "locked"
+      : (fallback ?? _key);
+  const normalizeTimeline = vi.spyOn(ctx.deps, "normalizeTimeline");
+  const logDiagnostic = vi
+    .spyOn(ctx, "logDiagnostic")
+    .mockImplementation(() => {});
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
+  for (const key of [
+    "renderInspector",
+    "renderTimelineEditor",
+    "renderTimelineModel",
+    "updateCanvasSelectionBox",
+  ] as const)
+    vi.spyOn(ctx, key).mockImplementation(() => {});
+  vi.spyOn(ctx, "canTransformLayerProperty").mockReturnValue(true);
+  vi.spyOn(ctx, "isLayerActiveAtTime").mockReturnValue(true);
+  return Object.assign(ctx, { normalizeTimeline, logDiagnostic });
 }
 
-function createTimeline(): any {
+function createTimeline() {
   return {
+    duration: 3,
     motionPaths: [
       createPath("alpha", "alpha-x-a", "alpha-y-a"),
       createPath("beta", "beta-x-a", "beta-y-a"),
@@ -134,7 +145,11 @@ function createTimeline(): any {
   };
 }
 
-function createPath(layerId, xKeyframeId, yKeyframeId) {
+function createPath(
+  layerId: string,
+  xKeyframeId: string,
+  yKeyframeId: string,
+): TimelineMotionPath {
   return {
     layerId,
     points: [
@@ -149,7 +164,12 @@ function createPath(layerId, xKeyframeId, yKeyframeId) {
   };
 }
 
-function createTrack(layerId, property, keyframeId, value) {
+function createTrack(
+  layerId: string,
+  property: string,
+  keyframeId: string,
+  value: number,
+): MotionPathTrack {
   return {
     id: `${layerId}.${property}`,
     keyframes: [
@@ -165,7 +185,13 @@ function createTrack(layerId, property, keyframeId, value) {
   };
 }
 
-function createUpdate(layerId, xKeyframeId, yKeyframeId, x, y) {
+function createUpdate(
+  layerId: string,
+  xKeyframeId: string,
+  yKeyframeId: string,
+  x: number,
+  y: number,
+) {
   return {
     layerId,
     position: { x, y },
@@ -174,8 +200,11 @@ function createUpdate(layerId, xKeyframeId, yKeyframeId, x, y) {
   };
 }
 
-function readKeyframe(timeline, trackId, keyframeId) {
-  return timeline.tracks
-    .find((track) => track.id === trackId)
-    .keyframes.find((keyframe) => keyframe.id === keyframeId);
+function readKeyframe(value: unknown, trackId: string, keyframeId: string) {
+  const timeline: EditorTimeline = readEditorTimeline(value, 3);
+  const track = timeline.tracks.find((entry) => entry.id === trackId);
+  const keyframe = track?.keyframes.find((entry) => entry.id === keyframeId);
+  if (!keyframe)
+    throw new Error(`Missing fixture keyframe ${trackId}/${keyframeId}`);
+  return keyframe;
 }

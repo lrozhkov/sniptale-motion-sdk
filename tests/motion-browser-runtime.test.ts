@@ -13,7 +13,10 @@ afterEach(() => {
   launch.mockReset();
 });
 function browser(version = "156.0.8078.4") {
-  return { version: () => version, close: vi.fn(async () => {}) };
+  return {
+    version: () => version,
+    close: vi.fn<() => Promise<void>>(async () => {}),
+  };
 }
 
 describe("optional installed browser runtime", () => {
@@ -86,7 +89,7 @@ describe("optional installed browser runtime", () => {
     await vi.waitFor(() => expect(launch).toHaveBeenCalledOnce());
     controller.abort();
     started.resolve(instance);
-    await expect(pending).rejects.toThrow();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(instance.close).toHaveBeenCalledOnce();
     expect(launch).toHaveBeenCalledOnce();
   });

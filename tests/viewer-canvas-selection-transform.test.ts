@@ -1,6 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import type { CanvasSelectionGestureSnapshot } from "../src/apps/viewer/canvas/selection-transform-state.js";
+import type { CanvasSelectionTransformEntry } from "../src/apps/viewer/canvas/selection-transform-math.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createLayerHierarchyIndex } from "../src/apps/viewer/layers/hierarchy";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 import { resolveCanvasHitSelectionLayerId } from "../src/apps/viewer/canvas/selection-level";
 import {
   getAxisAlignedCanvasBox,
@@ -41,17 +48,21 @@ describe("viewer canvas multi-selection geometry", () => {
     const second = transformCanvasSelection(entries, options);
 
     expect(second).toEqual(first);
-    expect(entries[0].values).toEqual({
+    expect(requiredEntry(entries, 0).values).toEqual({
       rotation: 0,
       scaleX: 1,
       scaleY: 1,
       x: 0,
       y: 0,
     });
-    expect(first.updates.card.rotation).toBeCloseTo(15);
-    expect(first.updates.card.scaleX).toBeCloseTo(1.5);
-    expect(first.updates.title.scaleX).toBeCloseTo(3);
-    expect(first.updates.title.scaleY).toBeCloseTo(0.75);
+    const card = first.updates.card;
+    const title = first.updates.title;
+    if (!card || !title)
+      throw new Error("Missing transformed selection fixture updates");
+    expect(card.rotation).toBeCloseTo(15);
+    expect(card.scaleX).toBeCloseTo(1.5);
+    expect(title.scaleX).toBeCloseTo(3);
+    expect(title.scaleY).toBeCloseTo(0.75);
     expect(first.box.rotation).toBe(0);
   });
 
@@ -98,21 +109,18 @@ describe("viewer canvas multi-selection geometry", () => {
       { id: "a", type: "rect" },
       { id: "b", type: "rect" },
     ];
-    const bounds = resolveCanvasSelectionBounds(
-      {
-        getLayerCanvasBox: (id) =>
-          id === "a"
-            ? { height: 20, rotation: 90, width: 100, x: 10, y: 20 }
-            : { height: 30, rotation: 0, width: 30, x: 100, y: 100 },
-        getLayerCanvasPivot: (box) => ({
-          x: box.x + box.width / 2,
-          y: box.y + box.height / 2,
-        }),
-        isLayerCanvasSelectable: () => true,
-      } as any,
-      { layers },
-      ["a", "b"],
+    const ctx = createViewerContextFixture();
+    vi.spyOn(ctx, "getLayerCanvasBox").mockImplementation((id) =>
+      id === "a"
+        ? { height: 20, rotation: 90, width: 100, x: 10, y: 20 }
+        : { height: 30, rotation: 0, width: 30, x: 100, y: 100 },
     );
+    vi.spyOn(ctx, "getLayerCanvasPivot").mockImplementation((box) => ({
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2,
+    }));
+    vi.spyOn(ctx, "isLayerCanvasSelectable").mockReturnValue(true);
+    const bounds = resolveCanvasSelectionBounds(ctx, { layers }, ["a", "b"]);
 
     expect(bounds?.box).toEqual({
       height: 150,
@@ -124,30 +132,42 @@ describe("viewer canvas multi-selection geometry", () => {
   });
 
   it("writes only properties represented by the current operation", () => {
-    const update = vi.fn();
-    const snapshot = {
-      bounds: null,
-      entries: [],
+    const ctx = createViewerContextFixture();
+    ctx.state.currentTemplate = {
+      id: "fixture",
+      duration: 1,
+      layers: [{ id: "card", type: "rect", width: 20, height: 20 }],
+    };
+    const template = ctx.getEffectiveTemplate();
+    if (!template) throw new Error("Missing selection fixture template");
+    const update = vi
+      .spyOn(ctx, "updateLayerPropertyBatchAtTime")
+      .mockImplementation(() => {});
+    const source = entry("card");
+    const snapshot: CanvasSelectionGestureSnapshot = {
+      bounds: {
+        box: source.box,
+        entries: [
+          {
+            box: source.box,
+            layer: requiredEntry(template.layers, 0),
+            layerId: "card",
+            pivot: source.pivot,
+          },
+        ],
+      },
+      entries: [source],
       layerIds: ["card"],
       operation: "move",
-      template: {},
+      template,
       time: 1,
-    } as any;
-
-    applyCanvasSelectionTransform(
-      {
-        state: { canvasTransformPreview: null },
-        updateLayerPropertyBatchAtTime: update,
-      } as any,
-      snapshot,
-      {
-        box: {},
-        boxes: {},
-        updates: {
-          card: { rotation: 30, scaleX: 2, scaleY: 2, x: 10, y: 20 },
-        },
-      } as any,
-    );
+    };
+    const box = { x: 10, y: 20, width: 40, height: 40, rotation: 30 };
+    applyCanvasSelectionTransform(ctx, snapshot, {
+      box,
+      boxes: { card: box },
+      updates: { card: { rotation: 30, scaleX: 2, scaleY: 2, x: 10, y: 20 } },
+    });
 
     expect(update).toHaveBeenCalledWith(
       1,
@@ -229,21 +249,20 @@ describe("viewer canvas group isolation", () => {
     expect(resolveHit("inner", "card")).toBe("card");
   });
 
-  function resolveHit(isolationId, leafId) {
-    const template = { layers };
-    return resolveCanvasHitSelectionLayerId(
-      {
-        getEffectiveTemplate: () => template,
-        getLayerHierarchy: () => createLayerHierarchyIndex(layers as any),
-        state: { canvasIsolationGroupId: isolationId, currentTemplate: {} },
-      } as any,
-      leafId,
-      template,
-    );
+  function resolveHit(isolationId: string | null, leafId: string) {
+    const ctx = createViewerContextFixture();
+    ctx.state.currentTemplate = { id: "fixture", duration: 1, layers };
+    ctx.state.canvasIsolationGroupId = isolationId;
+    const template = ctx.getEffectiveTemplate();
+    if (!template) throw new Error("Missing isolation fixture template");
+    return resolveCanvasHitSelectionLayerId(ctx, leafId, template);
   }
 });
 
-function entry(id: string, overrides: any = {}) {
+function entry(
+  id: string,
+  overrides: Partial<Omit<CanvasSelectionTransformEntry, "layerId">> = {},
+): CanvasSelectionTransformEntry {
   return {
     anchor: { x: 0, y: 0 },
     box: { height: 20, rotation: 0, width: 20, x: 0, y: 0 },

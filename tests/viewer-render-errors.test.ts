@@ -4,7 +4,9 @@ import { resolveViewerRenderFailureMessage } from "../src/apps/viewer/rendering/
 
 describe("viewer render failure messages", () => {
   it("resolves worker error codes through i18n", () => {
-    const translate = vi.fn((key: string) => `translated:${key}`);
+    const translate = vi.fn<(key: string) => string>(
+      (key: string) => `translated:${key}`,
+    );
 
     expect(
       resolveViewerRenderFailureMessage(translate, {
@@ -19,7 +21,7 @@ describe("viewer render failure messages", () => {
   });
 
   it("keeps an explicit sandbox error before the localized fallback", () => {
-    const translate = vi.fn(() => "localized fallback");
+    const translate = vi.fn<() => string>(() => "localized fallback");
     expect(
       resolveViewerRenderFailureMessage(translate, { error: "Effect error" }),
     ).toBe("Effect error");

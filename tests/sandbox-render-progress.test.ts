@@ -7,7 +7,8 @@ describe("sandbox render progress", () => {
 
   it("keeps the watchdog alive across queue, render, and cache phases", async () => {
     vi.useFakeTimers();
-    const post = vi.fn();
+    const post =
+      vi.fn<Parameters<typeof beginSandboxRenderProgress>[0]["post"]>();
     const progress = beginSandboxRenderProgress({
       post,
       requestId: "frame:slow",
@@ -47,7 +48,8 @@ describe("sandbox render progress", () => {
 
   it("eventually releases a responsive but unresolved render", async () => {
     vi.useFakeTimers();
-    const post = vi.fn();
+    const post =
+      vi.fn<Parameters<typeof beginSandboxRenderProgress>[0]["post"]>();
     beginSandboxRenderProgress({
       post,
       requestId: "frame:unresolved",
@@ -60,7 +62,8 @@ describe("sandbox render progress", () => {
 
   it("keeps an explicitly requested cache render alive beyond the ordinary limit", async () => {
     vi.useFakeTimers();
-    const post = vi.fn();
+    const post =
+      vi.fn<Parameters<typeof beginSandboxRenderProgress>[0]["post"]>();
     const progress = beginSandboxRenderProgress({
       post,
       previewCacheEnabled: true,

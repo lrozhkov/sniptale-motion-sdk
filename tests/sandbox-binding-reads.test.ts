@@ -1,5 +1,9 @@
-import type { RuntimeCanvas } from "../src/apps/sandbox/runtime/canvas-model";
-import { describe, expect, it, vi } from "vitest";
+import type { CanvasFactory } from "../src/apps/sandbox/runtime/canvas-model";
+import {
+  createNativeBitmapFixture,
+  createNativeCanvasFixture,
+} from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createChildBindingReads,
@@ -339,24 +343,27 @@ describe("sandbox render result normalization", () => {
   });
 
   it("scales a direct logical bitmap to the requested raster size", async () => {
-    const drawImage = vi.fn();
-    const clearRect = vi.fn();
-    const resizedBitmap = { height: 1080, width: 1920 };
-    const sourceBitmap = {
-      close: vi.fn(),
-      height: 720,
-      width: 1280,
-    };
-    const createCanvas = vi.fn(
-      () =>
-        ({
-          getContext: () => ({ clearRect, drawImage, setTransform: vi.fn() }),
-          transferToImageBitmap: () => resizedBitmap,
-        }) as unknown as RuntimeCanvas,
+    const drawImage = vi.fn<OffscreenCanvasRenderingContext2D["drawImage"]>();
+    const clearRect = vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>();
+    const resizedBitmap = createNativeBitmapFixture({
+      height: 1080,
+      width: 1920,
+    });
+    const sourceBitmap = Object.assign(
+      createNativeBitmapFixture({ height: 720, width: 1280 }),
+      { close: vi.fn<ImageBitmap["close"]>() },
     );
-    class TestImageBitmap {}
-    Object.setPrototypeOf(sourceBitmap, TestImageBitmap.prototype);
-    vi.stubGlobal("ImageBitmap", TestImageBitmap);
+    const createCanvas = vi.fn<CanvasFactory>(() =>
+      createNativeCanvasFixture({
+        getContext: () => ({
+          clearRect,
+          drawImage,
+          setTransform:
+            vi.fn<OffscreenCanvasRenderingContext2D["setTransform"]>(),
+        }),
+        transferToImageBitmap: () => resizedBitmap,
+      }),
+    );
     try {
       await expect(
         normalizeRenderResult(
@@ -379,31 +386,29 @@ describe("sandbox render result normalization", () => {
 
   it("flattens export bitmaps before they cross the sandbox boundary", async () => {
     const calls: string[] = [];
-    const opaqueBitmap = { height: 720, width: 1280 };
-    const sourceBitmap = {
-      close: vi.fn(),
+    const opaqueBitmap = createNativeBitmapFixture({
       height: 720,
       width: 1280,
-    };
+    });
+    const sourceBitmap = Object.assign(
+      createNativeBitmapFixture({ height: 720, width: 1280 }),
+      { close: vi.fn<ImageBitmap["close"]>() },
+    );
     const context = {
-      clearRect: vi.fn(() => calls.push("clear")),
-      drawImage: vi.fn(() => calls.push("bitmap")),
+      clearRect: vi.fn<() => number>(() => calls.push("clear")),
+      drawImage: vi.fn<() => number>(() => calls.push("bitmap")),
       fillStyle: "transparent",
-      fillRect: vi.fn(() => calls.push("matte")),
+      fillRect: vi.fn<() => number>(() => calls.push("matte")),
       globalAlpha: 0.25,
       globalCompositeOperation: "lighter",
-      setTransform: vi.fn(() => calls.push("transform")),
+      setTransform: vi.fn<() => number>(() => calls.push("transform")),
     };
-    const createCanvas = vi.fn(
-      () =>
-        ({
-          getContext: () => context,
-          transferToImageBitmap: () => opaqueBitmap,
-        }) as unknown as RuntimeCanvas,
+    const createCanvas = vi.fn<CanvasFactory>(() =>
+      createNativeCanvasFixture({
+        getContext: () => context,
+        transferToImageBitmap: () => opaqueBitmap,
+      }),
     );
-    class TestImageBitmap {}
-    Object.setPrototypeOf(sourceBitmap, TestImageBitmap.prototype);
-    vi.stubGlobal("ImageBitmap", TestImageBitmap);
     try {
       await expect(
         normalizeRenderResult(
@@ -431,22 +436,31 @@ describe("sandbox render result normalization", () => {
   });
 
   it("flattens an export canvas before creating its first bitmap", async () => {
-    const opaqueBitmap = { height: 720, width: 1280 };
-    const transferToImageBitmap = vi.fn(() => ({ kind: "wrong-bitmap" }));
+    const opaqueBitmap = createNativeBitmapFixture({
+      height: 720,
+      width: 1280,
+    });
+    const transferToImageBitmap = vi.fn<() => { kind: string }>(() => ({
+      kind: "wrong-bitmap",
+    }));
     class TestOffscreenCanvas {
       height = 720;
       width = 1280;
       transferToImageBitmap = transferToImageBitmap;
     }
     const sourceCanvas = new TestOffscreenCanvas();
-    const drawImage = vi.fn();
-    const fillRect = vi.fn();
-    const createCanvas = vi.fn(
-      () =>
-        ({
-          getContext: () => ({ drawImage, fillRect, setTransform: vi.fn() }),
-          transferToImageBitmap: () => opaqueBitmap,
-        }) as unknown as RuntimeCanvas,
+    const drawImage = vi.fn<OffscreenCanvasRenderingContext2D["drawImage"]>();
+    const fillRect = vi.fn<OffscreenCanvasRenderingContext2D["fillRect"]>();
+    const createCanvas = vi.fn<CanvasFactory>(() =>
+      createNativeCanvasFixture({
+        getContext: () => ({
+          drawImage,
+          fillRect,
+          setTransform:
+            vi.fn<OffscreenCanvasRenderingContext2D["setTransform"]>(),
+        }),
+        transferToImageBitmap: () => opaqueBitmap,
+      }),
     );
     const previousOffscreenCanvas = globalThis.OffscreenCanvas;
     Object.assign(globalThis, { OffscreenCanvas: TestOffscreenCanvas });
@@ -491,8 +505,13 @@ describe("sandbox render result normalization", () => {
 
 it("does not stringify unknown binding IDs", () => {
   const reads = createBindingReads();
-  const convert = vi.fn(() => "spoofed");
+  const convert = vi.fn<() => string>(() => "spoofed");
   recordBindingRead(reads, "layers", { toString: convert });
   expect(convert).not.toHaveBeenCalled();
   expect(reads.layers.size).toBe(0);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

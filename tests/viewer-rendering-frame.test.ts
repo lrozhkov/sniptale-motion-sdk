@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { DirectRenderResponsePort } from "../src/apps/viewer/transport/direct-render-channel.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   shouldUseDirectPreviewSurface,
@@ -13,6 +15,11 @@ import {
   updateFullResolutionRenderAverage,
 } from "../src/apps/viewer/rendering/render-metrics";
 import { recordDirectPreviewPresentation } from "../src/apps/viewer/rendering/presentation-cadence";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer full-resolution render cost estimation", () => {
   it("keeps direct full-resolution measurements unchanged", () => {
@@ -33,10 +40,8 @@ describe("viewer full-resolution render cost estimation", () => {
 
 describe("viewer interactive preview surface", () => {
   it("uses the transferable bitmap surface for direct interactive frames", () => {
-    const ctx = {
-      refs: { canvas: { height: 720, width: 1280 } },
-      state: { canvasTransformDragActive: false, playing: true },
-    } as any;
+    const ctx = createContext();
+    ctx.state.playing = true;
 
     expect(
       shouldUseFastPreviewSurface(
@@ -71,20 +76,17 @@ describe("viewer interactive preview surface", () => {
   });
 
   it("uses adaptive direct presentation for Live playback and canvas transforms", () => {
-    const ctx = {
-      refs: { canvas: { height: 720, width: 1280 } },
-      state: {
-        canvasTransformDragActive: false,
-        directLiveRenderKeys: new Set(),
-        directRenderEffectIds: new Set(["composition-a"]),
-        directRenderResponsePort: { presentationSurfaceAttached: true },
-        playing: true,
-        previewCacheEnabled: true,
-        previewRasterHeight: 720,
-        previewRasterWidth: 1280,
-        previewVideoCache: { recording: false },
-      },
-    } as any;
+    const ctx = createContext();
+    ctx.state.directRenderEffectIds.add("composition-a");
+    ctx.state.directRenderResponsePort = {
+      presentationSurfaceAttached: true,
+      close: vi.fn<DirectRenderResponsePort["close"]>(),
+      postMessage: vi.fn<DirectRenderResponsePort["postMessage"]>(),
+    };
+    ctx.state.playing = true;
+    ctx.state.previewCacheEnabled = true;
+    ctx.state.previewRasterHeight = 720;
+    ctx.state.previewRasterWidth = 1280;
     const template = { effectId: "composition-a", kind: "composition" };
 
     expect(shouldUseDirectPreviewSurface(ctx, template, { scale: 0.25 })).toBe(
@@ -124,13 +126,7 @@ describe("viewer interactive preview surface", () => {
 
 describe("viewer direct presentation cadence", () => {
   it("keeps a bounded sequence of worker presentation intervals", () => {
-    const ctx = {
-      state: {
-        directPresentationIntervalsMs: [],
-        lastDirectPresentationAtMs: null,
-        lastDirectPresentationLocalAtMs: null,
-      },
-    } as any;
+    const ctx = createContext();
 
     recordDirectPreviewPresentation(ctx, 100, 10_100, 140, 10_000);
     recordDirectPreviewPresentation(ctx, 133.5, 10_133.5, 180, 10_000);
@@ -143,13 +139,7 @@ describe("viewer direct presentation cadence", () => {
   });
 
   it("falls back to local receipt time for a previous worker payload", () => {
-    const ctx = {
-      state: {
-        directPresentationIntervalsMs: [],
-        lastDirectPresentationAtMs: null,
-        lastDirectPresentationLocalAtMs: null,
-      },
-    } as any;
+    const ctx = createContext();
 
     recordDirectPreviewPresentation(ctx, 100, undefined, 240, 10_000);
 
@@ -159,22 +149,17 @@ describe("viewer direct presentation cadence", () => {
 
 describe("native presentation metadata boundaries", () => {
   it("does not coerce foreign timestamp or dimension values", () => {
-    const convert = vi.fn(() => {
+    const convert = vi.fn<() => never>(() => {
       throw new Error("foreign conversion");
     });
     const foreign = { valueOf: convert, toString: convert };
-    const ctx = {
-      state: {
-        directPresentationIntervalsMs: [],
-        lastDirectPresentationAtMs: null,
-        lastDirectPresentationLocalAtMs: null,
-      },
-    } as any;
+    const ctx = createContext();
     recordDirectPreviewPresentation(ctx, foreign, foreign, 100, 0);
-    const canvas = { dataset: {}, hidden: true } as any;
+    const canvas = ctx.refs.directPreviewCanvas;
+    canvas.hidden = true;
     syncDirectPreviewSurface(
       canvas,
-      { hidden: true } as any,
+      ctx.refs.fastPreviewCanvas,
       foreign,
       Infinity,
     );
@@ -185,11 +170,13 @@ describe("native presentation metadata boundaries", () => {
   it.each(["160", true, Infinity, NaN])(
     "requires numeric finite bitmap dimensions: %j",
     (width) => {
+      const ctx = createContext();
+      ctx.state.playing = true;
       expect(
         shouldUseFastPreviewSurface(
-          { state: { playing: true } } as any,
+          ctx,
           { kind: "composition" },
-          { width, height: 90 } as any,
+          { width, height: 90 },
         ),
       ).toBe(false);
     },
@@ -204,14 +191,20 @@ describe("viewer direct presentation DOM state", () => {
       renderWidth: "160",
     };
     const dataset = new Proxy(values, {
-      set(target, key, value) {
-        writes.push(String(key));
-        target[String(key)] = String(value);
+      set(target, key, value: unknown) {
+        if (typeof key !== "string" || typeof value !== "string")
+          throw new Error("Expected a string dataset assignment.");
+        writes.push(key);
+        target[key] = value;
         return true;
       },
     });
-    const canvas = { dataset, hidden: false } as any;
-    const fastPreviewCanvas = { hidden: true } as any;
+    const ctx = createContext();
+    const canvas = ctx.refs.directPreviewCanvas;
+    Object.defineProperty(canvas, "dataset", { value: dataset });
+    canvas.hidden = false;
+    const fastPreviewCanvas = ctx.refs.fastPreviewCanvas;
+    fastPreviewCanvas.hidden = true;
 
     syncDirectPreviewSurface(canvas, fastPreviewCanvas, 160, 90);
     expect(writes).toEqual([]);
@@ -229,7 +222,7 @@ describe("viewer direct presentation DOM state", () => {
         get hidden() {
           return hidden;
         },
-        set hidden(value) {
+        set hidden(value: boolean) {
           writes.push(`${name}:${value}`);
           hidden = value;
         },
@@ -237,7 +230,7 @@ describe("viewer direct presentation DOM state", () => {
     };
     const fast = surface("fast");
     const direct = surface("direct");
-    const preview = { style: { opacity: "" } } as any;
+    const preview = createContext().refs.canvas;
 
     syncPreviewSurfaceVisibility(fast, direct, "none", preview);
     expect(preview.style.opacity).toBe("1");
@@ -256,3 +249,21 @@ describe("viewer direct presentation DOM state", () => {
     ]);
   });
 });
+
+function createContext() {
+  const ctx = createViewerContextFixture();
+  ctx.refs.canvas.height = 720;
+  ctx.refs.canvas.width = 1280;
+  ctx.refs.fastPreviewCanvas.hidden = true;
+  ctx.refs.directPreviewCanvas.hidden = true;
+  vi.stubGlobal(
+    "CSSStyleDeclaration",
+    class {
+      opacity = "";
+    },
+  );
+  Object.defineProperty(ctx.refs.canvas, "style", {
+    value: new CSSStyleDeclaration(),
+  });
+  return ctx;
+}

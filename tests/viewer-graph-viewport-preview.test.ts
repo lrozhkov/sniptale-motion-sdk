@@ -91,9 +91,11 @@ function fixture() {
       graphEditorEnabled: true,
       graphEditorViewport: initial,
     },
-    setGraphEditorViewport: vi.fn((viewport: GraphEditorViewport) => {
-      ctx.state.graphEditorViewport = viewport;
-    }),
+    setGraphEditorViewport: vi.fn<(viewport: GraphEditorViewport) => void>(
+      (viewport: GraphEditorViewport) => {
+        ctx.state.graphEditorViewport = viewport;
+      },
+    ),
   };
   return { ctx, source, initial, frames };
 }

@@ -1,3 +1,23 @@
+import {
+  createDrawingContextFixture,
+  createTextMetricsFixture,
+} from "./helpers/drawing-context-fixture.js";
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import { responseObject } from "../tooling/test/fixtures/response.js";
+import type {
+  EffectV1Command,
+  EffectV1Document,
+} from "../src/sdk/effect-v1/types.js";
+import type {
+  EffectV1EvaluationScope,
+  EffectV1EvaluationContext,
+} from "../src/apps/sandbox/runtime/effect-v1/expression.js";
+import type {
+  EffectV1RenderContext,
+  RenderState,
+} from "../src/apps/sandbox/runtime/effect-v1/model.js";
+import type { HydratedSvgPart } from "../src/apps/sandbox/runtime/svg-vector-model.js";
+import { readSvgDrawOptions } from "../src/apps/sandbox/runtime/svg-vector-boundary.js";
 import { requiredEntry } from "./helpers/required-entry.js";
 import { createRuntimeCanvasFixture } from "./helpers/runtime-canvas.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,7 +29,10 @@ import { createBindingReads } from "../src/apps/sandbox/runtime/binding-reads";
 
 describe("sandbox Effect v1 interpreter", () => {
   it("rejects unbranded runtime image inputs before invoking the drawing adapter", async () => {
-    const runtime = { drawImageAsset: vi.fn() };
+    const runtime = {
+      drawImageAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawImageAsset"]>>(),
+    };
     const document = createDocument([
       { op: "image", input: "source", x: 0, y: 0, width: 10, height: 10 },
     ]);
@@ -40,7 +63,7 @@ describe("sandbox Effect v1 interpreter", () => {
       }),
     ).rejects.toThrow("Canvas 2D context is unavailable");
   });
-  it.each(["source-atop", "destination-in"])(
+  it.each(["source-atop", "destination-in"] as const)(
     "preserves the agreed %s compositing operation",
     async (blend) => {
       const context = createPassContext();
@@ -78,20 +101,19 @@ describe("sandbox Effect v1 interpreter", () => {
   it("rejects an unsupported blend instead of silently substituting source-over", async () => {
     const context = createPassContext();
     const canvas = createRuntimeCanvasFixture(context, 32, 32);
-    const renderer = createEffectV1GraphRenderer(
-      createDocument([
-        {
-          op: "fillRect",
-          x: 0,
-          y: 0,
-          width: 32,
-          height: 32,
-          fill: "#fff",
-          blend: "unavailable",
-        },
-      ]),
-      {},
-    );
+    const document = createDocument([
+      {
+        op: "fillRect",
+        x: 0,
+        y: 0,
+        width: 32,
+        height: 32,
+        fill: "#fff",
+        blend: "source-over",
+      },
+    ]);
+    responseObject(document, "program", "commands", 0).blend = "unavailable";
+    const renderer = createEffectV1GraphRenderer(document, {});
     await expect(
       renderer.renderFrame({
         createCanvas: () => canvas,
@@ -160,7 +182,7 @@ describe("sandbox Effect v1 interpreter", () => {
           ? { active: true, opacity: 1, x: -20, y: 10 }
           : { active: true, opacity: 1, x: -30, y: -40 },
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 1280,
     });
 
@@ -199,6 +221,7 @@ describe("sandbox Effect v1 interpreter", () => {
               height: 40,
               layerId: "pass-child",
               op: "fillRect",
+              fill: "#fff",
               width: 30,
               x: 10,
               y: 20,
@@ -238,7 +261,7 @@ describe("sandbox Effect v1 interpreter", () => {
       progress: 0,
       resolveLayer: () => ({ active: true, opacity: 1, x: 0, y: 0 }),
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 400,
     });
 
@@ -259,16 +282,12 @@ describe("sandbox Effect v1 interpreter", () => {
   });
 
   it("draws type-owned runtime inputs without evaluating bundle code", async () => {
-    class Bitmap {
-      height = 100;
-      width = 200;
-      close() {}
-    }
-    vi.stubGlobal("ImageBitmap", Bitmap);
-    const source = new Bitmap();
+    const source = createNativeBitmapFixture({ height: 100, width: 200 });
     const runtime = {
-      drawImageAsset: vi.fn(),
-      drawSvgVectorAsset: vi.fn(),
+      drawImageAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawImageAsset"]>>(),
+      drawSvgVectorAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawSvgVectorAsset"]>>(),
     };
     const document = createDocument([
       {
@@ -293,9 +312,11 @@ describe("sandbox Effect v1 interpreter", () => {
       height: 100,
       inputFrames: { source },
       progress: 0,
-      resolveLayer: vi.fn(),
+      resolveLayer: vi
+        .fn<EffectV1RenderContext["resolveLayer"]>()
+        .mockReturnValue(null),
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 200,
     });
 
@@ -308,9 +329,10 @@ describe("sandbox Effect v1 interpreter", () => {
 
   it("evaluates custom SVG part transforms in a bounded part scope", async () => {
     const runtime = {
-      drawImageAsset: vi.fn(),
-      drawSvgVectorAsset: vi.fn(),
-      svgPartTransform: vi.fn(),
+      drawImageAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawImageAsset"]>>(),
+      drawSvgVectorAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawSvgVectorAsset"]>>(),
     };
     const document = createDocument([
       {
@@ -343,7 +365,10 @@ describe("sandbox Effect v1 interpreter", () => {
     ];
     const renderer = createEffectV1GraphRenderer(document, runtime);
     const canvas = createCanvas(200, 100, []);
-    Object.assign(canvas.getContext("2d"), {
+    const drawingContext = canvas.getContext("2d");
+    if (!drawingContext)
+      throw new Error("Missing native drawing context fixture.");
+    Object.assign(drawingContext, {
       __sniptaleLogicalScaleX: 3,
       __sniptaleLogicalScaleY: 3,
     });
@@ -357,15 +382,46 @@ describe("sandbox Effect v1 interpreter", () => {
       height: 100,
       inputFrames: {},
       progress: 0,
-      resolveLayer: vi.fn(),
+      resolveLayer: vi
+        .fn<EffectV1RenderContext["resolveLayer"]>()
+        .mockReturnValue(null),
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 200,
     });
 
-    const args = requiredEntry(runtime.drawSvgVectorAsset.mock.calls, 0)[2];
+    const args = readSvgDrawOptions(
+      requiredEntry(runtime.drawSvgVectorAsset.mock.calls, 0)[2],
+    );
+    const part: HydratedSvgPart = {
+      type: "rect",
+      id: "first",
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+      rx: 0,
+      cx: 11,
+      cy: 0,
+      opacity: 1,
+      fill: "#fff",
+      stroke: null,
+      strokeWidth: 1,
+      strokeLineCap: "butt",
+      strokeLineJoin: "miter",
+      groupId: null,
+      groupIds: [],
+    };
+    const transform = args.partTransform;
+    if (!transform) throw new Error("Missing computed SVG part transform.");
     expect(args.alpha).toBe(1);
-    expect(args.partTransform({ cx: 11 }, 1, { parts: [{}, {}] })).toEqual({
+    expect(
+      transform(part, 1, {
+        width: 100,
+        height: 40,
+        parts: [part, { ...part, id: "second" }],
+      }),
+    ).toEqual({
       alpha: 1.5,
       filter: "blur(6.00px)",
       originX: 11,
@@ -374,20 +430,22 @@ describe("sandbox Effect v1 interpreter", () => {
   });
 
   it("evaluates bounded numeric, timeline, and geometry expressions", () => {
-    const scope = {
+    const scope: EffectV1EvaluationScope = {
       context: {
         controls: { amplitude: 4 },
         height: 720,
-        resolveLayer: vi.fn(() => ({ opacity: 0.75 })),
-        track: vi.fn(() => 0.5),
+        resolveLayer: vi.fn<EffectV1EvaluationContext["resolveLayer"]>(() => ({
+          opacity: 0.75,
+        })),
+        track: vi.fn<EffectV1EvaluationContext["track"]>(() => 0.5),
         width: 1280,
       },
       definitions: {
         half: { args: [{ op: "read", path: "width" }, 0.5], op: "mul" },
       },
-      definitionCache: new Map(),
+      definitionCache: new Map<string, unknown>(),
       vars: { offset: 12 },
-    } as any;
+    };
 
     expect(
       evaluateEffectV1Expression(
@@ -431,8 +489,10 @@ describe("sandbox Effect v1 interpreter", () => {
   it("renders a graph without evaluating bundle code", async () => {
     const operations: string[] = [];
     const runtime = {
-      drawImageAsset: vi.fn(),
-      drawSvgVectorAsset: vi.fn(),
+      drawImageAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawImageAsset"]>>(),
+      drawSvgVectorAsset:
+        vi.fn<NonNullable<RenderState["runtime"]["drawSvgVectorAsset"]>>(),
     };
     const renderer = createEffectV1GraphRenderer(
       createDocument([
@@ -523,9 +583,14 @@ describe("sandbox Effect v1 interpreter", () => {
       height: 180,
       inputFrames: {},
       progress: 0.25,
-      resolveLayer: vi.fn(() => ({ active: true, opacity: 1, x: 0, y: 0 })),
+      resolveLayer: vi.fn<EffectV1RenderContext["resolveLayer"]>(() => ({
+        active: true,
+        opacity: 1,
+        x: 0,
+        y: 0,
+      })),
       time: 0.5,
-      track: vi.fn(() => 12),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(() => 12),
       width: 320,
     });
 
@@ -552,14 +617,13 @@ describe("sandbox Effect v1 interpreter", () => {
 
   it("clears backing pixels but paints the background in logical coordinates", async () => {
     const calls: Array<{ args: unknown[]; name: string }> = [];
-    const context: any = {
-      clearRect: record("clearRect"),
-      fillRect: record("fillRect"),
-      globalAlpha: 1,
-      restore: record("restore"),
-      save: record("save"),
-      setTransform: record("setTransform"),
-    };
+    const context: OffscreenCanvasRenderingContext2D =
+      createDrawingContextFixture(3840, 2160);
+    context.clearRect = record("clearRect");
+    context.fillRect = record("fillRect");
+    context.restore = record("restore");
+    context.save = record("save");
+    context.setTransform = record("setTransform");
     const canvas = createRuntimeCanvasFixture(context, 3840, 2160);
     const renderer = createEffectV1GraphRenderer(
       createDocument([{ color: "#101820", op: "clear" }]),
@@ -575,9 +639,11 @@ describe("sandbox Effect v1 interpreter", () => {
       height: 720,
       inputFrames: {},
       progress: 0,
-      resolveLayer: vi.fn(),
+      resolveLayer: vi
+        .fn<EffectV1RenderContext["resolveLayer"]>()
+        .mockReturnValue(null),
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 1280,
     });
 
@@ -593,13 +659,15 @@ describe("sandbox Effect v1 interpreter", () => {
     ]);
 
     function record(name: string) {
-      return (...args: unknown[]) => calls.push({ args, name });
+      return (...args: unknown[]): void => {
+        calls.push({ args, name });
+      };
     }
   });
 
   it("composites an intermediate backing canvas at its logical size", async () => {
-    const drawImage = vi.fn();
-    const rootContext = createPassContext({ drawImage });
+    const rootContext = createPassContext();
+    const drawImage = rootContext.drawImage;
     const passContext = createPassContext();
     const rootCanvas = createRuntimeCanvasFixture(rootContext, 3840, 2160, {
       __sniptaleLogicalHeight: 720,
@@ -646,9 +714,11 @@ describe("sandbox Effect v1 interpreter", () => {
       height: 720,
       inputFrames: {},
       progress: 0,
-      resolveLayer: vi.fn(),
+      resolveLayer: vi
+        .fn<EffectV1RenderContext["resolveLayer"]>()
+        .mockReturnValue(null),
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 1280,
     });
 
@@ -690,9 +760,11 @@ describe("sandbox Effect v1 interpreter", () => {
       height: 720,
       inputFrames: {},
       progress: 0,
-      resolveLayer: vi.fn(),
+      resolveLayer: vi
+        .fn<EffectV1RenderContext["resolveLayer"]>()
+        .mockReturnValue(null),
       time: 0,
-      track: vi.fn(),
+      track: vi.fn<EffectV1EvaluationContext["track"]>(),
       width: 1280,
     });
 
@@ -705,23 +777,15 @@ describe("sandbox Effect v1 interpreter", () => {
   });
 });
 
-function createPassContext(overrides: Record<string, unknown> = {}): any {
-  return {
-    clearRect: vi.fn(),
-    drawImage: vi.fn(),
-    fillRect: vi.fn(),
-    filter: "none",
-    globalAlpha: 1,
-    globalCompositeOperation: "source-over",
-    restore: vi.fn(),
-    rotate: vi.fn(),
-    save: vi.fn(),
-    translate: vi.fn(),
-    ...overrides,
-  };
+type LogicalDrawingScale = {
+  __sniptaleLogicalScaleX?: number;
+  __sniptaleLogicalScaleY?: number;
+};
+function createPassContext(overrides: LogicalDrawingScale = {}) {
+  return Object.assign(createDrawingContextFixture(), overrides);
 }
 
-function createDocument(commands: any[]): any {
+function createDocument(commands: EffectV1Command[]): EffectV1Document {
   return {
     assets: [],
     clips: [],
@@ -738,21 +802,13 @@ function createDocument(commands: any[]): any {
   };
 }
 
-function createCanvas(
-  width: number,
-  height: number,
-  operations: string[],
-): any {
-  let composite = "source-over";
-  const context: any = {
-    filter: "none",
-    globalAlpha: 1,
-    restore: record("restore"),
-    save: record("save"),
-  };
+function createCanvas(width: number, height: number, operations: string[]) {
+  let composite: GlobalCompositeOperation = "source-over";
+  const context: OffscreenCanvasRenderingContext2D =
+    createDrawingContextFixture(width, height);
   Object.defineProperty(context, "globalCompositeOperation", {
     get: () => composite,
-    set: (value) => {
+    set: (value: GlobalCompositeOperation) => {
       composite = value;
       operations.push(`blend:${value}`);
     },
@@ -773,82 +829,110 @@ function createCanvas(
     "moveTo",
     "quadraticCurveTo",
     "rect",
+    "restore",
     "rotate",
     "roundRect",
+    "save",
     "scale",
     "setTransform",
     "stroke",
     "translate",
-  ]) {
+  ] as const)
     context[name] = record(name);
-  }
-  context.createLinearGradient = () => ({
-    addColorStop: record("gradientStop"),
-  });
-  context.createRadialGradient = context.createLinearGradient;
-  context.measureText = (text: string) => ({ width: text.length * 8 });
-  const canvas = createRuntimeCanvasFixture(context, width, height);
-  return canvas;
-
-  function record(name: string) {
-    return () => operations.push(name);
+  vi.stubGlobal(
+    "CanvasGradient",
+    class {
+      addColorStop(): void {}
+    },
+  );
+  const gradient = new CanvasGradient();
+  vi.spyOn(gradient, "addColorStop").mockImplementation(record("gradientStop"));
+  context.createLinearGradient = () => gradient;
+  context.createRadialGradient = () => gradient;
+  return createRuntimeCanvasFixture(context, width, height);
+  function record(name: string): () => void {
+    return () => {
+      operations.push(name);
+    };
   }
 }
 
-function createGeometryTrackingContext(): any {
-  let matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-  const stack: any[] = [];
-  const context: any = {
-    beginPath: vi.fn(),
-    clearRect: vi.fn(),
-    drawImage: vi.fn(),
-    fill: vi.fn(),
-    fillRect: vi.fn(),
-    fillText: vi.fn(),
-    filter: "none",
-    font: "10px sans-serif",
-    getTransform: () => ({ ...matrix }),
-    globalAlpha: 1,
-    globalCompositeOperation: "source-over",
-    measureText: () => ({
-      actualBoundingBoxAscent: 28,
-      actualBoundingBoxDescent: 8,
-      width: 160,
-    }),
-    restore() {
-      matrix = stack.pop() ?? matrix;
+type Matrix2D = Pick<DOMMatrix, "a" | "b" | "c" | "d" | "e" | "f">;
+function createGeometryTrackingContext() {
+  let matrix: Matrix2D = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const stack: Matrix2D[] = [];
+  const context: OffscreenCanvasRenderingContext2D =
+    createDrawingContextFixture();
+  vi.stubGlobal(
+    "DOMMatrix",
+    class {
+      a: number;
+      b: number;
+      c: number;
+      d: number;
+      e: number;
+      f: number;
+      constructor(values: number[] = []) {
+        this.a = values[0] ?? 1;
+        this.b = values[1] ?? 0;
+        this.c = values[2] ?? 0;
+        this.d = values[3] ?? 1;
+        this.e = values[4] ?? 0;
+        this.f = values[5] ?? 0;
+      }
     },
-    rotate(angle: number) {
-      multiply(
-        Math.cos(angle),
-        Math.sin(angle),
-        -Math.sin(angle),
-        Math.cos(angle),
-        0,
-        0,
-      );
-    },
-    roundRect: vi.fn(),
-    save() {
-      stack.push({ ...matrix });
-    },
-    scale(x: number, y: number) {
-      multiply(x, 0, 0, y, 0, 0);
-    },
-    setTransform(
-      a: number,
-      b: number,
-      c: number,
-      d: number,
-      e: number,
-      f: number,
-    ) {
-      matrix = { a, b, c, d, e, f };
-    },
-    stroke: vi.fn(),
-    translate(x: number, y: number) {
-      multiply(1, 0, 0, 1, x, y);
-    },
+  );
+  context.getTransform = () =>
+    new DOMMatrix([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f]);
+  context.measureText = () => createTextMetricsFixture(160, 28, 8);
+  context.restore = () => {
+    matrix = stack.pop() ?? matrix;
+  };
+  context.save = () => {
+    stack.push({ ...matrix });
+  };
+  context.rotate = (angle) => {
+    multiply(
+      Math.cos(angle),
+      Math.sin(angle),
+      -Math.sin(angle),
+      Math.cos(angle),
+      0,
+      0,
+    );
+  };
+  context.scale = (x, y) => {
+    multiply(x, 0, 0, y, 0, 0);
+  };
+  context.translate = (x, y) => {
+    multiply(1, 0, 0, 1, x, y);
+  };
+  context.setTransform = (
+    transform?: number | DOMMatrix2DInit,
+    b?: number,
+    c?: number,
+    d?: number,
+    e?: number,
+    f?: number,
+  ) => {
+    matrix =
+      typeof transform === "number"
+        ? {
+            a: transform,
+            b: b ?? 0,
+            c: c ?? 0,
+            d: d ?? 1,
+            e: e ?? 0,
+            f: f ?? 0,
+          }
+        : {
+            a: transform?.a ?? 1,
+            b: transform?.b ?? 0,
+            c: transform?.c ?? 0,
+            d: transform?.d ?? 1,
+            e: transform?.e ?? 0,
+            f: transform?.f ?? 0,
+          };
   };
   return context;
 
@@ -871,4 +955,7 @@ function createGeometryTrackingContext(): any {
   }
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});

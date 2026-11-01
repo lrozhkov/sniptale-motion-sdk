@@ -1,71 +1,104 @@
-import { describe, expect, it, vi } from "vitest";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import type { EditorTemplateSource } from "../src/apps/viewer/templates/model.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import {
+  createNativeBitmapFixture,
+  createNativeCanvasFixture,
+  createNativeDrawingContextFixture,
+} from "./helpers/native-render-fixtures.js";
+import { createEmptyBindingReads } from "../src/apps/viewer/app/binding-reads.js";
+import { createStarterDocument } from "../src/apps/cli/starter.js";
 
-import { createExportFrameActions } from "../src/apps/viewer/rendering/export-frame";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+function createExportContext() {
+  const ctx = createViewerContextFixture();
+  const bitmap = createNativeBitmapFixture({ height: 1080, width: 1920 });
+  const bindingReads = createEmptyBindingReads();
+  const requestSandbox = vi.spyOn(ctx, "requestSandbox").mockResolvedValue({
+    kind: "renderFrameResult",
+    requestId: "export",
+    sequenceId: 0,
+    durationMs: 0,
+    bindingReads,
+    bitmap,
+    ok: true,
+  });
+  const createRenderInputFrames = vi
+    .spyOn(ctx, "createRenderInputFrames")
+    .mockResolvedValue({ frames: {}, transfer: [] });
+  vi.spyOn(ctx, "createRenderAssets").mockResolvedValue({
+    cacheKeys: [],
+    envelope: { renderAssetsId: "assets" },
+    transfer: [],
+  });
+  vi.spyOn(ctx, "createRenderModelEnvelope").mockReturnValue({});
+  vi.spyOn(ctx, "commitRenderAssetTransfers").mockImplementation(() => {});
+  vi.spyOn(ctx, "commitRenderModelEnvelope").mockImplementation(() => {});
+  const mergeRendererContractReads = vi
+    .spyOn(ctx, "mergeRendererContractReads")
+    .mockImplementation(() => {});
+  vi.spyOn(ctx, "getCompositionDesignSize").mockReturnValue({
+    height: 720,
+    width: 1280,
+  });
+  ctx.deps.t = (key, fallback) => fallback ?? key;
+  ctx.deps.createRequestId = () => "export";
+  ctx.state.loadedModules.add("module");
+  return {
+    ctx,
+    bitmap,
+    bindingReads,
+    requestSandbox,
+    createRenderInputFrames,
+    mergeRendererContractReads,
+  };
+}
 
 describe("viewer export frame coordinates", () => {
   it("keeps authoring coordinates while rendering a larger raster", async () => {
-    const bitmap = { height: 1080, width: 1920 };
-    const bindingReads = { primitiveBounds: [] };
-    const normalizedReads = { primitiveBounds: [{ layerId: "box" }] };
-    const requestSandbox = vi.fn(async () => ({
-      bindingReads,
-      bitmap,
-      ok: true,
-    }));
-    const createRenderInputFrames = vi.fn(async () => ({
-      frames: {},
-      transfer: [],
-    }));
-    const ctx = {
-      commitRenderAssetTransfers: vi.fn(),
-      commitRenderModelEnvelope: vi.fn(),
-      createRenderAssets: vi.fn(async () => ({ envelope: {}, transfer: [] })),
-      createRenderInputFrames,
-      createRenderModelEnvelope: vi.fn(() => ({})),
-      deps: {
-        createRequestId: () => "mp4:1",
-        t: (_key, fallback) => fallback,
-      },
-      ensureModuleLoaded: vi.fn(async () => true),
-      getCompositionDesignSize: () => ({ height: 720, width: 1280 }),
-      getRendererType: () => "compiled-js",
-      mergeRendererContractReads: vi.fn(),
-      normalizePreviewBindingReads: vi.fn(() => normalizedReads),
-      requestSandbox,
-      state: {
-        controls: {},
-        loadedModules: new Set(["module"]),
-      },
-    } as any;
-    Object.assign(
+    const {
       ctx,
-      createExportFrameActions(() => ctx),
-    );
+      bitmap,
+      bindingReads,
+      requestSandbox,
+      createRenderInputFrames,
+      mergeRendererContractReads,
+    } = createExportContext();
+    const normalizedReads = {
+      ...createEmptyBindingReads(),
+      primitiveBounds: [
+        { layerId: "box", x: 0, y: 0, width: 1280, height: 720 },
+      ],
+    };
+    const normalizePreviewBindingReads = vi
+      .spyOn(ctx, "normalizePreviewBindingReads")
+      .mockReturnValue(normalizedReads);
     const template = {
-      effectId: "effect",
       id: "template",
+      duration: 2,
+      effectId: "effect",
       kind: "composition",
       moduleId: "module",
       target: "scene",
     };
-
+    const effective = requireEffectiveTemplate(ctx, template);
     await expect(
-      ctx.renderFrameBitmapForExport(
-        template,
-        { duration: 2 },
-        {
-          controls: {},
-          fps: 30,
-          frameIndex: 30,
-          height: 1080,
-          time: 1,
-          width: 1920,
-        },
-      ),
+      ctx.renderFrameBitmapForExport(template, effective, {
+        controls: {},
+        fps: 30,
+        frameIndex: 30,
+        height: 1080,
+        time: 1,
+        width: 1920,
+      }),
     ).resolves.toBe(bitmap);
-
     expect(createRenderInputFrames).toHaveBeenCalledWith(
-      { duration: 2 },
+      effective,
       1280,
       720,
       0.5,
@@ -81,8 +114,8 @@ describe("viewer export frame coordinates", () => {
       expect.any(Number),
       expect.any(Array),
     );
-    expect(ctx.normalizePreviewBindingReads).toHaveBeenCalledWith(bindingReads);
-    expect(ctx.mergeRendererContractReads).toHaveBeenCalledWith(
+    expect(normalizePreviewBindingReads).toHaveBeenCalledWith(bindingReads);
+    expect(mergeRendererContractReads).toHaveBeenCalledWith(
       "template",
       normalizedReads,
     );
@@ -91,81 +124,47 @@ describe("viewer export frame coordinates", () => {
   it.each(["failed-response", "commit-error"] as const)(
     "releases export bitmap on %s",
     async (mode) => {
-      const bitmap = { close: vi.fn() };
-      const failure = new Error("commit failed");
-      const ctx = {
-        state: { controls: {}, loadedModules: new Set(["module"]) },
-        deps: {
-          createRequestId: () => "export",
-          t: (_key: string, fallback: string) => fallback,
-        },
-        getCompositionDesignSize: () => ({ width: 1280, height: 720 }),
-        getRendererType: () => "effect-v1",
-        createRenderInputFrames: async () => ({ frames: {}, transfer: [] }),
-        createRenderAssets: async () => ({ envelope: {}, transfer: [] }),
-        createRenderModelEnvelope: () => ({}),
-        requestSandbox: async () => ({
-          ok: mode !== "failed-response",
-          bitmap,
-        }),
-        commitRenderAssetTransfers: () => {
-          throw failure;
-        },
-      } as any;
-      Object.assign(
-        ctx,
-        createExportFrameActions(() => ctx),
-      );
+      const { ctx, bitmap, requestSandbox } = createExportContext();
+      const close = vi.spyOn(bitmap, "close");
+      requestSandbox.mockResolvedValue({
+        kind: "renderFrameResult",
+        requestId: "export",
+        sequenceId: 0,
+        durationMs: 0,
+        ok: mode !== "failed-response",
+        bitmap,
+        error: "render failed",
+      });
+      vi.spyOn(ctx, "commitRenderAssetTransfers").mockImplementation(() => {
+        throw new Error("commit failed");
+      });
+      const template = { id: "effect", duration: 1, moduleId: "module" };
       await expect(
         ctx.renderFrameBitmapForExport(
-          { id: "effect", moduleId: "module" },
-          { duration: 1 },
+          template,
+          requireEffectiveTemplate(ctx, template),
           { fps: 30, frameIndex: 0, width: 1280, height: 720, time: 0 },
         ),
-      ).rejects.toThrow();
-      expect(bitmap.close).toHaveBeenCalledOnce();
+      ).rejects.toThrow(
+        mode === "failed-response" ? "render failed" : "commit failed",
+      );
+      expect(close).toHaveBeenCalledOnce();
     },
   );
 
   it("keeps target-effect frames transparent for source compositing", async () => {
-    const requestSandbox = vi.fn(async () => ({
-      bitmap: { height: 720, width: 1280 },
-      ok: true,
-    }));
-    const ctx = {
-      commitRenderAssetTransfers: vi.fn(),
-      commitRenderModelEnvelope: vi.fn(),
-      createRenderAssets: vi.fn(async () => ({ envelope: {}, transfer: [] })),
-      createRenderInputFrames: vi.fn(async () => ({
-        frames: {},
-        transfer: [],
-      })),
-      createRenderModelEnvelope: vi.fn(() => ({})),
-      deps: {
-        createRequestId: () => "mp4:target",
-        t: (_key, fallback) => fallback,
-      },
-      getCompositionDesignSize: () => ({ height: 720, width: 1280 }),
-      getRendererType: () => "graph",
-      mergeRendererContractReads: vi.fn(),
-      normalizePreviewBindingReads: vi.fn(() => ({})),
-      requestSandbox,
-      state: { controls: {}, loadedModules: new Set(["module"]) },
-    } as any;
-    Object.assign(
-      ctx,
-      createExportFrameActions(() => ctx),
-    );
-
+    const { ctx, requestSandbox } = createExportContext();
+    const template = {
+      id: "target",
+      duration: 1,
+      effectId: "effect",
+      kind: "targetEffect",
+      moduleId: "module",
+      target: "selection",
+    };
     await ctx.renderFrameBitmapForExport(
-      {
-        effectId: "effect",
-        id: "target",
-        kind: "targetEffect",
-        moduleId: "module",
-        target: "selection",
-      },
-      { duration: 1 },
+      template,
+      requireEffectiveTemplate(ctx, template),
       {
         controls: {},
         fps: 30,
@@ -175,7 +174,6 @@ describe("viewer export frame coordinates", () => {
         width: 1280,
       },
     );
-
     expect(requestSandbox).toHaveBeenCalledWith(
       expect.objectContaining({ opaqueBackground: false }),
       expect.any(Number),
@@ -184,41 +182,60 @@ describe("viewer export frame coordinates", () => {
   });
 
   it.each([
-    { kind: "composition" },
-    { kind: "layerEffect", effectV1: { kind: "targetEffect" } },
+    { id: "composition", duration: 1, kind: "composition" },
+    {
+      id: "target",
+      duration: 1,
+      kind: "layerEffect",
+      effectV1: createStarterDocument("target", "targetEffect"),
+    },
   ])(
     "flattens complete RGBA frames onto a fresh opaque MP4 matte",
     (template) => {
       const calls: string[] = [];
-      const context = {
-        canvas: { height: 720, width: 1280 },
-        clearRect: vi.fn(() => calls.push("clear")),
-        drawImage: vi.fn(() => calls.push("bitmap")),
-        fillRect: vi.fn(() => calls.push("matte")),
+      const context = createNativeDrawingContextFixture({
+        canvas: createNativeCanvasFixture({ height: 720, width: 1280 }),
+        clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(() => {
+          calls.push("clear");
+        }),
+        drawImage: () => {
+          calls.push("bitmap");
+        },
+        fillRect: vi.fn<OffscreenCanvasRenderingContext2D["fillRect"]>(() => {
+          calls.push("matte");
+        }),
         filter: "blur(8px)",
         globalAlpha: 0.4,
         globalCompositeOperation: "lighter",
         imageSmoothingEnabled: false,
         imageSmoothingQuality: "low",
-        reset: vi.fn(() => calls.push("reset")),
-        restore: vi.fn(() => calls.push("restore")),
-        save: vi.fn(() => calls.push("save")),
-        setTransform: vi.fn(() => calls.push("transform")),
+        reset: vi.fn<OffscreenCanvasRenderingContext2D["reset"]>(() => {
+          calls.push("reset");
+        }),
+        restore: vi.fn<OffscreenCanvasRenderingContext2D["restore"]>(() => {
+          calls.push("restore");
+        }),
+        save: vi.fn<OffscreenCanvasRenderingContext2D["save"]>(() => {
+          calls.push("save");
+        }),
+        setTransform: () => {
+          calls.push("transform");
+        },
         shadowBlur: 12,
         shadowColor: "#fff",
         shadowOffsetX: 4,
         shadowOffsetY: 4,
-      } as any;
-      const ctx = {
-        drawBaseForTemplate: vi.fn(() => calls.push("base")),
-      } as any;
-      Object.assign(
-        ctx,
-        createExportFrameActions(() => ctx),
+      });
+      const ctx = createViewerContextFixture();
+      vi.spyOn(ctx, "drawBaseForTemplate").mockImplementation(() => {
+        calls.push("base");
+      });
+      ctx.drawExportFrame(
+        context,
+        template,
+        createNativeBitmapFixture({ height: 720, width: 1280 }),
+        0.5,
       );
-
-      ctx.drawExportFrame(context, template, { height: 720, width: 1280 }, 0.5);
-
       expect(calls).toEqual([
         "reset",
         "save",
@@ -240,20 +257,35 @@ describe("viewer export frame coordinates", () => {
   );
 });
 
-import { createTemplateModelActions } from "../src/apps/viewer/templates/controller";
 it("does not paint a sample scene behind an imported targetEffect", () => {
-  const sample = vi.fn();
-  const ctx = { deps: { drawSampleScene: sample } } as any;
-  Object.assign(
-    ctx,
-    createTemplateModelActions(() => ctx),
-  );
-  const context = { canvas: { width: 128, height: 72 }, clearRect: vi.fn() };
+  const ctx = createViewerContextFixture();
+  const sample = vi
+    .spyOn(ctx.deps, "drawSampleScene")
+    .mockImplementation(() => {});
+  const context = createNativeDrawingContextFixture({
+    canvas: createNativeCanvasFixture({ width: 128, height: 72 }),
+    clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+  });
+  const clearRect = vi.spyOn(context, "clearRect");
   ctx.drawBaseForTemplate(
     context,
-    { kind: "layerEffect", effectV1: { kind: "targetEffect" } },
+    {
+      id: "target",
+      duration: 1,
+      kind: "layerEffect",
+      effectV1: createStarterDocument("target", "targetEffect"),
+    },
     0.5,
   );
   expect(sample).not.toHaveBeenCalled();
-  expect(context.clearRect).toHaveBeenCalledWith(0, 0, 128, 72);
+  expect(clearRect).toHaveBeenCalledWith(0, 0, 128, 72);
 });
+
+function requireEffectiveTemplate(
+  ctx: ViewerAppContext,
+  source: EditorTemplateSource,
+) {
+  const template = ctx.getEffectiveTemplate(source);
+  if (!template) throw new Error("Missing effective export template fixture.");
+  return template;
+}

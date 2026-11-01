@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -33,7 +34,7 @@ describe("timeline motion path model", () => {
         ],
       },
     ]);
-    expect(paths[0].points[0]).toEqual({
+    expect(requiredEntry(requiredEntry(paths, 0).points, 0)).toEqual({
       xKeyframeId: "x",
       yKeyframeId: "y",
       kind: "linear",
@@ -77,9 +78,7 @@ describe("timeline motion path model", () => {
   it("evaluates absolute 2D tangents with shared temporal easing", () => {
     const geometry = createMotionPathGeometry(createCurvedTimeline(), "card");
     expect(geometry.ok).toBe(true);
-    if (!geometry.ok) {
-      return;
-    }
+    if (!geometry.ok) throw new Error("Expected valid curved geometry fixture");
 
     expect(evaluateMotionPathGeometry(geometry, 0.5)).toEqual({
       x: 87.5,
@@ -89,18 +88,17 @@ describe("timeline motion path model", () => {
 
   it("ignores tangents for linear points and rejects temporal mismatch", () => {
     const timeline = createCurvedTimeline();
-    timeline.motionPaths[0].points[0].kind = "linear";
-    timeline.motionPaths[0].points[1].kind = "smooth";
+    requiredEntry(requiredEntry(timeline.motionPaths, 0).points, 0).kind =
+      "linear";
+    requiredEntry(requiredEntry(timeline.motionPaths, 0).points, 1).kind =
+      "smooth";
     const linear = createMotionPathGeometry(timeline, "card");
     expect(linear.ok).toBe(true);
-    if (linear.ok) {
-      expect(evaluateMotionPathGeometry(linear, 0.5)).toEqual({
-        x: 50,
-        y: 50,
-      });
-    }
+    if (!linear.ok) throw new Error("Expected valid linear geometry fixture");
+    expect(evaluateMotionPathGeometry(linear, 0.5)).toEqual({ x: 50, y: 50 });
 
-    timeline.tracks[1].keyframes[0].easing = "out";
+    requiredEntry(requiredEntry(timeline.tracks, 1).keyframes, 0).easing =
+      "out";
     expect(createMotionPathGeometry(timeline, "card")).toEqual({
       layerId: "card",
       ok: false,

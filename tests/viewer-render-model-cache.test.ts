@@ -1,4 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import type { EditorTemplate } from "../src/apps/viewer/templates/model.js";
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 import {
   commitRenderModelEnvelope,
@@ -9,22 +15,15 @@ import {
 
 describe("viewer render model cache", () => {
   it("reuses an effective template until an editor model reference changes", () => {
-    const template = { id: "template-a" };
+    const template = { id: "template-a", duration: 6.5 };
     const first = createEffectiveTemplate("first");
     const second = createEffectiveTemplate("second");
+    const ctx = createViewerContextFixture();
+    ctx.state.currentTemplate = template;
     const getEffectiveTemplate = vi
-      .fn()
+      .spyOn(ctx, "getEffectiveTemplate")
       .mockReturnValueOnce(first)
       .mockReturnValueOnce(second);
-    const ctx = {
-      getEffectiveTemplate,
-      state: {
-        currentTemplate: template,
-        editorOverrides: new Map(),
-        renderTemplateSnapshot: null,
-        timelineOverrides: new Map(),
-      },
-    } as any;
 
     expect(resolveRenderTemplateSnapshot(ctx, template)).toBe(first);
     expect(resolveRenderTemplateSnapshot(ctx, template)).toBe(first);
@@ -48,9 +47,9 @@ describe("viewer render model cache", () => {
         scenes: template.scenes,
         timeline: template.timeline,
       },
-      renderModelId: expect.any(String),
     });
 
+    expect(typeof first.renderModelId).toBe("string");
     commitRenderModelEnvelope(state, first);
     expect(createRenderModelEnvelope(state, template)).toEqual({
       renderModelId: first.renderModelId,
@@ -63,13 +62,13 @@ describe("viewer render model cache", () => {
   });
 });
 
-function createEffectiveTemplate(label: string) {
+function createEffectiveTemplate(label: string): EditorTemplate {
   return {
     clips: [{ duration: 6.5, layerId: "logo", start: 0 }],
     duration: 6.5,
     id: label,
-    layers: [{ id: "logo", opacity: 1 }],
+    layers: [{ id: "logo", type: "rect", opacity: 1 }],
     scenes: [{ duration: 6.5, id: "main", start: 0 }],
-    timeline: { phases: [], tracks: [] },
+    timeline: { duration: 6.5, phases: [], tracks: [] },
   };
 }

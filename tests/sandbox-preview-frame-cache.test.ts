@@ -1,12 +1,19 @@
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
 import { requiredEntry } from "./helpers/required-entry.js";
 import type { RetainedPreviewFrame } from "../src/apps/sandbox/runtime/preview-frame-codec.js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import {
   applyPreviewFrameCacheSample,
   resolvePreviewFrameCacheRequest,
 } from "../src/apps/sandbox/runtime/preview-frame-cache-key";
 import { createPreviewFrameCache } from "../src/apps/sandbox/runtime/preview-frame-cache";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+type RetainFrame = NonNullable<Parameters<typeof createPreviewFrameCache>[1]>;
 
 function createMessage(overrides: Record<string, unknown> = {}) {
   return {
@@ -31,32 +38,31 @@ function createMessage(overrides: Record<string, unknown> = {}) {
 }
 
 function createBitmap(width = 10, height = 10) {
-  return { close: vi.fn(), height, width };
+  const bitmap = createNativeBitmapFixture({ height, width });
+  return Object.assign(bitmap, { close: vi.spyOn(bitmap, "close") });
 }
 
 function createCache(maxBytes = 800) {
   const clones: ReturnType<typeof createBitmap>[] = [];
   const retentionOptions: unknown[] = [];
-  const retainFrame = vi.fn(
-    async (bitmap: { height: number; width: number }, options: unknown) => {
-      retentionOptions.push(options);
-      const retained = createBitmap(bitmap.width, bitmap.height);
-      clones.push(retained);
-      return {
-        bytes: bitmap.width * bitmap.height * 4,
-        height: bitmap.height,
-        rawBytes: bitmap.width * bitmap.height * 4,
-        release: retained.close,
-        restore: async () => {
-          const restored = createBitmap(bitmap.width, bitmap.height);
-          clones.push(restored);
-          return restored;
-        },
-        storage: "bitmap" as const,
-        width: bitmap.width,
-      };
-    },
-  );
+  const retainFrame = vi.fn<RetainFrame>(async (bitmap, options) => {
+    retentionOptions.push(options);
+    const retained = createBitmap(bitmap.width, bitmap.height);
+    clones.push(retained);
+    return {
+      bytes: bitmap.width * bitmap.height * 4,
+      height: bitmap.height,
+      rawBytes: bitmap.width * bitmap.height * 4,
+      release: retained.close,
+      restore: async () => {
+        const restored = createBitmap(bitmap.width, bitmap.height);
+        clones.push(restored);
+        return restored;
+      },
+      storage: "bitmap" as const,
+      width: bitmap.width,
+    };
+  });
   return {
     cache: createPreviewFrameCache(maxBytes, retainFrame),
     clones,
@@ -132,13 +138,15 @@ describe("sandbox preview frame cache", () => {
 
   it("borrows a reusable cached bitmap without restoring another copy", async () => {
     const bitmap = createBitmap();
-    const restore = vi.fn(async () => createBitmap());
-    const retainFrame = vi.fn(async () => ({
+    const restore = vi.fn<RetainedPreviewFrame["restore"]>(async () =>
+      createBitmap(),
+    );
+    const retainFrame = vi.fn<RetainFrame>(async () => ({
       borrow: () => bitmap,
       bytes: 400,
       height: 10,
       rawBytes: 400,
-      release: vi.fn(),
+      release: vi.fn<() => void>(),
       restore,
       storage: "bitmap" as const,
       width: 10,
@@ -234,16 +242,20 @@ describe("sandbox preview frame cache", () => {
   });
 
   it("primes upcoming exact frames before sequential replay reaches them", async () => {
-    const primes = new Map<number, ReturnType<typeof vi.fn>>();
-    const retainFrame = vi.fn(async (bitmap: any) => {
-      const prime = vi.fn();
-      primes.set(bitmap.frame, prime);
+    const primes = new Map<number, Mock<() => void>>();
+    const frameIndices = new WeakMap<ImageBitmap, number>();
+    const retainFrame = vi.fn<RetainFrame>(async (bitmap) => {
+      const prime = vi.fn<() => void>();
+      const frameIndex = frameIndices.get(bitmap);
+      if (frameIndex === undefined)
+        throw new Error("Missing fixture frame index.");
+      primes.set(frameIndex, prime);
       return {
         bytes: 20,
         height: bitmap.height,
         prime,
         rawBytes: bitmap.width * bitmap.height * 4,
-        release: vi.fn(),
+        release: vi.fn<() => void>(),
         restore: async () => createBitmap(bitmap.width, bitmap.height),
         storage: "png" as const,
         width: bitmap.width,
@@ -254,7 +266,8 @@ describe("sandbox preview frame cache", () => {
       const request = cache.prepare(
         createMessage({ duration: 1, frameIndex }),
       )!;
-      const bitmap = Object.assign(createBitmap(), { frame: frameIndex });
+      const bitmap = createBitmap();
+      frameIndices.set(bitmap, frameIndex);
       await cache.store(request, bitmap, undefined);
     }
 
@@ -267,17 +280,15 @@ describe("sandbox preview frame cache", () => {
   });
 
   it("tracks complete compressed coverage by retained bytes", async () => {
-    const retainFrame = vi.fn(
-      async (bitmap: { height: number; width: number }) => ({
-        bytes: 20,
-        height: bitmap.height,
-        rawBytes: bitmap.width * bitmap.height * 4,
-        release: vi.fn(),
-        restore: async () => createBitmap(bitmap.width, bitmap.height),
-        storage: "png" as const,
-        width: bitmap.width,
-      }),
-    );
+    const retainFrame = vi.fn<RetainFrame>(async (bitmap) => ({
+      bytes: 20,
+      height: bitmap.height,
+      rawBytes: bitmap.width * bitmap.height * 4,
+      release: vi.fn<() => void>(),
+      restore: async () => createBitmap(bitmap.width, bitmap.height),
+      storage: "png" as const,
+      width: bitmap.width,
+    }));
     const cache = createPreviewFrameCache(80, retainFrame);
     let request = cache.prepare(
       createMessage({ duration: 0.1, frameIndex: 0 }),
@@ -457,7 +468,7 @@ function retainedFrame(
     height: 10,
     width: 10,
     rawBytes: 400,
-    release: vi.fn(),
+    release: vi.fn<() => void>(),
     restore,
     storage: "bitmap",
   };
@@ -533,7 +544,7 @@ it.each([
   "effectId",
   "renderQuality",
 ])("rejects unknown cache %s without coercion", (key) => {
-  const convert = vi.fn(() => 1);
+  const convert = vi.fn<() => number>(() => 1);
   expect(
     resolvePreviewFrameCacheRequest(
       createMessage({ [key]: { valueOf: convert, toString: convert } }),

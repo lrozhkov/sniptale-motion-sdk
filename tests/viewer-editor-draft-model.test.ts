@@ -1,3 +1,4 @@
+import { requiredEntry } from "./helpers/required-entry.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -120,11 +121,12 @@ describe("viewer editor draft model", () => {
       expected,
     );
 
-    expect(record?.historyPast).toHaveLength(EDITOR_DRAFT_HISTORY_LIMIT);
-    expect(record?.historyPast[0].label).toBe("edit-5");
+    if (!record) throw new Error("Valid editor draft fixture was rejected.");
+    expect(record.historyPast).toHaveLength(EDITOR_DRAFT_HISTORY_LIMIT);
+    expect(requiredEntry(record.historyPast, 0).label).toBe("edit-5");
     expect(record?.historyFuture).toEqual([]);
     expect(record?.current.assetScopeIds).toEqual(["image"]);
-    const restoredAsset = record?.current.assetEntries[0][1];
+    const restoredAsset = requiredEntry(record.current.assetEntries, 0)[1];
     if (
       !restoredAsset ||
       typeof restoredAsset !== "object" ||
@@ -152,7 +154,7 @@ describe("viewer editor draft model", () => {
         expected,
       ),
     ).toBeNull();
-    const circular: any = {};
+    const circular: Record<string, unknown> = {};
     circular.self = circular;
     expect(
       normalizeEditorDraftRecord(
@@ -199,15 +201,14 @@ describe("viewer editor draft model", () => {
   });
 
   it("migrates the legacy primary keyframe into the canonical selection set", () => {
+    const legacy: Record<string, unknown> = {
+      ...snapshot("template"),
+      selectedKeyframe: { keyframeId: "end", trackId: "opacity" },
+    };
+    delete legacy.selectedKeyframes;
     const normalized = normalizeEditorDraftRecord(
       {
-        current: snapshot("template", {
-          selectedKeyframe: {
-            keyframeId: "end",
-            trackId: "opacity",
-          },
-          selectedKeyframes: undefined as any,
-        }),
+        current: legacy,
         historyFuture: [],
         historyPast: [],
         key: "pack::template::source",

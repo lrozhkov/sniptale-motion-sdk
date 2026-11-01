@@ -43,7 +43,7 @@ describe("explicit browser installation process", () => {
     );
     await expect(
       runBrowserInstaller(file, AbortSignal.abort()),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ name: "AbortError" });
     await expect(readFile(join(root, "started"))).rejects.toMatchObject({
       code: "ENOENT",
     });
@@ -58,7 +58,10 @@ describe("explicit browser installation process", () => {
       setInterval(() => {}, 1000);`);
     const controller = new AbortController();
     const pending = runBrowserInstaller(file, controller.signal);
-    const failed = expect(pending).rejects.toThrow();
+    const failed = pending.then(
+      () => null,
+      (error: unknown) => error,
+    );
     let pid = 0;
     try {
       await vi.waitFor(async () => {
@@ -68,7 +71,7 @@ describe("explicit browser installation process", () => {
     } finally {
       controller.abort();
     }
-    await failed;
-    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
+    await expect(failed).resolves.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow("ESRCH"));
   });
 });

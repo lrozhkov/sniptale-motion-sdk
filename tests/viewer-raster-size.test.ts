@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  createPreviewRasterActions,
-  parseRasterSize,
-} from "../src/apps/viewer/rendering/raster-size";
+import { parseRasterSize } from "../src/apps/viewer/rendering/raster-size";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 import { MAX_RENDER_PIXELS } from "../src/sdk/protocol";
 
 describe("viewer preview raster size", () => {
@@ -35,25 +39,21 @@ describe("viewer preview raster size", () => {
   });
 
   it("changes raster density without changing composition coordinates", () => {
-    const ctx = {
-      invalidatePlaybackVideoCache: vi.fn(async () => undefined),
-      refs: {
-        canvas: { height: 720, width: 1280 },
-        sizeSelect: { value: "640x360" },
-      },
-      setPreviewZoom: vi.fn(),
-      state: {
-        interactivePreviewScale: 0.5,
-        previewRasterHeight: 720,
-        previewRasterWidth: 1280,
-        previewZoom: "fit",
-      },
-      updateCanvasSelectionBox: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createPreviewRasterActions(() => ctx),
-    );
+    const ctx = createViewerContextFixture();
+    ctx.refs.canvas.height = 720;
+    ctx.refs.canvas.width = 1280;
+    ctx.refs.sizeSelect.value = "640x360";
+    ctx.state.interactivePreviewScale = 0.5;
+    ctx.state.previewRasterHeight = 720;
+    ctx.state.previewRasterWidth = 1280;
+    ctx.state.previewZoom = "fit";
+    const invalidate = vi
+      .spyOn(ctx, "invalidatePlaybackVideoCache")
+      .mockResolvedValue();
+    const zoom = vi.spyOn(ctx, "setPreviewZoom").mockImplementation(() => {});
+    const selection = vi
+      .spyOn(ctx, "updateCanvasSelectionBox")
+      .mockImplementation(() => {});
 
     ctx.applyPreviewRasterSize();
 
@@ -64,9 +64,9 @@ describe("viewer preview raster size", () => {
     expect(ctx.getPreviewRasterSize()).toEqual({ height: 360, width: 640 });
     expect(ctx.refs.canvas).toMatchObject({ height: 720, width: 1280 });
     expect(ctx.state.interactivePreviewScale).toBe(1);
-    expect(ctx.invalidatePlaybackVideoCache).toHaveBeenCalledOnce();
-    expect(ctx.setPreviewZoom).toHaveBeenCalledWith("fit");
-    expect(ctx.updateCanvasSelectionBox).toHaveBeenCalledOnce();
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(zoom).toHaveBeenCalledWith("fit");
+    expect(selection).toHaveBeenCalledOnce();
   });
 
   it("falls back when a raster preset is malformed", () => {

@@ -5,9 +5,8 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { request } from "node:http";
-import { join } from "node:path";
+import { request, type Server } from "node:http";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { startStaticServer } from "../tooling/http/static-server.ts";
@@ -175,7 +174,8 @@ describe("static server path boundary", () => {
 });
 
 function createFixture() {
-  const parent = mkdtempSync(join(tmpdir(), "sniptale-static-server-"));
+  mkdirSync(".tmp/tests", { recursive: true });
+  const parent = mkdtempSync(resolve(".tmp/tests/sniptale-static-server-"));
   cleanup.push(parent);
   const root = join(parent, "public");
   const siblingName = "public-secret";
@@ -189,7 +189,7 @@ function createFixture() {
   return { packRoot, root, sibling, siblingName };
 }
 
-function serverUrl(server, pathname: string): string {
+function serverUrl(server: Server, pathname: string): string {
   const address = server.address();
   if (!address || typeof address === "string") {
     throw new Error("Expected a TCP server address.");
@@ -197,14 +197,14 @@ function serverUrl(server, pathname: string): string {
   return `http://127.0.0.1:${address.port}${pathname}`;
 }
 
-function closeServer(server): Promise<void> {
+function closeServer(server: Server): Promise<void> {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
 }
 
 function rawRequest(
-  server,
+  server: Server,
   path: string,
   hostHeader: string,
 ): Promise<{ body: string; status: number | undefined }> {
@@ -222,7 +222,13 @@ function rawRequest(
       },
       (response) => {
         const chunks: Buffer[] = [];
-        response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on("data", (chunk: unknown) => {
+          if (!(chunk instanceof Uint8Array)) {
+            reject(new Error("Expected binary HTTP response chunk."));
+            return;
+          }
+          chunks.push(Buffer.from(chunk));
+        });
         response.on("end", () =>
           resolve({
             body: Buffer.concat(chunks).toString("utf8"),

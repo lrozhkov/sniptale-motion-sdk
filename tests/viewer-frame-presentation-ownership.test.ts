@@ -1,79 +1,111 @@
-import { describe, expect, it, vi } from "vitest";
-import { createFramePresentationActions } from "../src/apps/viewer/rendering/frame";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import {
+  createNativeBitmapFixture,
+  createNativeCanvasFixture,
+} from "./helpers/native-render-fixtures.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("frame presentation bitmap ownership", () => {
   it.each([
-    "direct-draw-error",
-    "buffer-null",
-    "fast-transfer-error",
-    "fast-null",
-    "fast-draw-error",
-    "direct-success",
-    "transfer-success",
-  ] as const)("handles %s without losing a bitmap", (mode) => {
-    const failure = new Error("drawing failed");
-    const bitmap = { width: 160, height: 90, close: vi.fn() };
-    const transfer = vi.fn(() => {
+    { mode: "direct-draw-error", error: "drawing failed" },
+    { mode: "buffer-null", error: "Canvas 2D context is unavailable." },
+    { mode: "fast-transfer-error", error: "drawing failed" },
+    { mode: "fast-null", error: "Canvas 2D context is unavailable." },
+    { mode: "fast-draw-error", error: "drawing failed" },
+  ] as const)("releases the bitmap on $mode", ({ mode, error }) => {
+    const { draw, close, drawBase } = fixture(mode);
+    expect(draw).toThrow(error);
+    expect(close).toHaveBeenCalledOnce();
+    expect(drawBase).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { mode: "direct-success", closes: 1, transfers: 0 },
+    { mode: "transfer-success", closes: 0, transfers: 1 },
+  ] as const)(
+    "handles $mode without losing ownership",
+    ({ mode, closes, transfers }) => {
+      const { draw, close, transfer, bitmap } = fixture(mode);
+      draw();
+      expect(close).toHaveBeenCalledTimes(closes);
+      expect(transfer.mock.calls).toEqual(transfers === 1 ? [[bitmap]] : []);
+    },
+  );
+});
+
+type Mode =
+  | "direct-draw-error"
+  | "buffer-null"
+  | "fast-transfer-error"
+  | "fast-null"
+  | "fast-draw-error"
+  | "direct-success"
+  | "transfer-success";
+
+function fixture(mode: Mode) {
+  const ctx = createViewerContextFixture();
+  const bitmap = createNativeBitmapFixture({ width: 160, height: 90 });
+  const close = vi.spyOn(bitmap, "close");
+  const failure = new Error("drawing failed");
+  const drawing = Object.assign(ctx.previewContext, {
+    clearRect(): void {},
+    drawImage(): void {
+      if (mode.endsWith("draw-error")) throw failure;
+    },
+  });
+  class FixtureBitmapContext {
+    transferFromImageBitmap(): void {
       if (mode === "fast-transfer-error") throw failure;
-    });
-    const drawing = {
-      clearRect: vi.fn(),
-      drawImage: vi.fn(() => {
-        if (mode.endsWith("draw-error")) throw failure;
-      }),
-    };
-    const surface = () => ({
+    }
+  }
+  vi.stubGlobal("ImageBitmapRenderingContext", FixtureBitmapContext);
+  const bitmapContext = new ImageBitmapRenderingContext();
+  const transfer = vi.spyOn(bitmapContext, "transferFromImageBitmap");
+  for (const surface of [
+    ctx.refs.canvas,
+    ctx.refs.fastPreviewCanvas,
+    ctx.refs.directPreviewCanvas,
+  ]) {
+    Object.assign(surface, {
       hidden: true,
       width: 1280,
       height: 720,
-      dataset: {},
       style: { opacity: "1" },
     });
-    const fast = {
-      ...surface(),
-      getContext: (kind: string) =>
-        kind === "bitmaprenderer"
-          ? mode.includes("transfer")
-            ? { transferFromImageBitmap: transfer }
-            : null
-          : mode === "fast-null"
-            ? null
-            : drawing,
-    };
-    const ctx = {
-      state: {
-        playing: mode.startsWith("fast") || mode === "transfer-success",
+  }
+  vi.spyOn(ctx.refs.fastPreviewCanvas, "getContext").mockImplementation(
+    (kind) =>
+      kind === "bitmaprenderer"
+        ? mode.includes("transfer")
+          ? bitmapContext
+          : null
+        : mode === "fast-null"
+          ? null
+          : drawing,
+  );
+  ctx.state.playing = mode.startsWith("fast") || mode === "transfer-success";
+  ctx.deps.t = (key, fallback) => fallback ?? key;
+  vi.spyOn(ctx, "hidePlaybackVideoCacheSurface").mockImplementation(() => {});
+  const drawBase = vi
+    .spyOn(ctx, "drawBaseForTemplate")
+    .mockImplementation(() => {});
+  vi.spyOn(ctx, "createFrameBuffer").mockReturnValue(
+    createNativeCanvasFixture({}),
+  );
+  const draw = () =>
+    ctx.drawCompletedFrame(
+      {
+        id: "effect",
+        duration: 2,
+        kind: mode === "buffer-null" ? "layerEffect" : "composition",
       },
-      refs: {
-        canvas: surface(),
-        fastPreviewCanvas: fast,
-        directPreviewCanvas: surface(),
-      },
-      deps: { t: (_key: string, fallback: string) => fallback },
-      previewContext: drawing,
-      drawBaseForTemplate: vi.fn(),
-    } as any;
-    Object.assign(
-      ctx,
-      createFramePresentationActions(() => ctx),
+      bitmap,
+      0,
     );
-    ctx.createFrameBuffer = () => ({ getContext: () => null });
-    const draw = () =>
-      ctx.drawCompletedFrame(
-        {
-          id: "effect",
-          kind: mode === "buffer-null" ? "layerEffect" : "composition",
-        },
-        bitmap,
-        0,
-      );
-    if (mode.endsWith("success")) draw();
-    else expect(draw).toThrow();
-    if (mode === "transfer-success") {
-      expect(transfer).toHaveBeenCalledWith(bitmap);
-      expect(bitmap.close).not.toHaveBeenCalled();
-    } else expect(bitmap.close).toHaveBeenCalledOnce();
-    if (mode === "buffer-null")
-      expect(ctx.drawBaseForTemplate).not.toHaveBeenCalled();
-  });
-});
+  return { draw, close, transfer, bitmap, drawBase };
+}

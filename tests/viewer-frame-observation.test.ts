@@ -38,7 +38,7 @@ describe("presented frame identity", () => {
       staleResponses: 0,
     };
     const token = { template, sequence: 2, generation: 1 };
-    const close = vi.fn();
+    const close = vi.fn<ImageBitmap["close"]>();
     const response = { sequenceId: 2, bitmap: { close } };
     expect(discardStaleFrame({ state }, token, response)).toBe(false);
     state.currentTemplate = { id: "same" };

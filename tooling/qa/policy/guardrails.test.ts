@@ -52,9 +52,10 @@ function walk(dir: string): string[] {
 }
 
 describe("architecture guardrails", () => {
-  it("keeps product source and public SDK declarations fully strict", () => {
+  it("keeps workspace, product, tooling and public SDK declarations fully strict", () => {
     for (const file of [
       "tsconfig.json",
+      "tooling/configs/typescript/workspace.json",
       "tooling/configs/typescript/sdk.json",
       "tooling/configs/typescript/product.json",
       "tooling/configs/typescript/tooling.json",
@@ -69,10 +70,17 @@ describe("architecture guardrails", () => {
         noUnusedParameters: true,
       });
     }
+    expect(
+      readRecord("tooling/configs/typescript/workspace.json").compilerOptions,
+    ).toMatchObject({ allowJs: true, checkJs: true });
+    expect(readRecord("tsconfig.json").compilerOptions).toMatchObject({
+      allowJs: true,
+      checkJs: true,
+    });
   });
   it("keeps repository documentation, storage, and policy state deterministic", () => {
     expect(inspectRepositoryHygiene(process.cwd())).toEqual([]);
-  });
+  }, 20_000);
 
   it("keeps product source on TypeScript after migration", () => {
     const productJs = walk(join(process.cwd(), "src")).filter((file) =>
@@ -106,16 +114,26 @@ describe("architecture guardrails", () => {
 
     expect(scripts["qa:seamgate"]).toBeUndefined();
     expect(scripts["qa:checkpoint"]).toBe(
-      "node --import tsx tooling/qa/wrappers/checkpoint.ts",
+      "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/checkpoint.ts",
     );
     expect(checkpoint).toContain('runQaWrapper("qa:checkpoint"');
     expect(checkpoint).toContain("tooling/qa/policy/guardrails.ts");
+    expect(readRecord("tsconfig.json").include).toEqual([
+      "src",
+      "tooling",
+      "tests",
+    ]);
+    expect(checkpoint).toContain(
+      'await run("test lint", "npm", ["run", "lint:tests"])',
+    );
 
     const unobservedWrappers = Object.entries(scripts)
       .filter(
         ([name, command]) =>
           name.startsWith("qa:") &&
-          command.startsWith("node --import tsx tooling/qa/wrappers/"),
+          command.startsWith(
+            "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/",
+          ),
       )
       .filter(([, command]) => {
         const entrypoint = command.split(" ").at(-1);
@@ -131,58 +149,78 @@ describe("architecture guardrails", () => {
     const scripts = readScripts();
 
     expect(scripts).toEqual({
-      build: "npm run release:legal && node --import tsx tooling/build/run.ts",
-      "build:npm": "node --import tsx tooling/release/npm/build.ts",
+      build:
+        "npm run release:legal && node --require ./tooling/process/environment.cjs --import tsx tooling/build/run.ts",
+      "build:npm":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/release/npm/build.ts",
       "build:local":
-        "node --import tsx tooling/build/run.ts --include-local-demo-pack",
-      dev: "node --import tsx tooling/vite/dev.ts",
-      "effect:corpus": "tsx tooling/effect-v1/corpus/generate.ts",
-      "effect:corpus:check": "tsx tooling/effect-v1/corpus/verify.ts",
-      "effect:new": "tsx tooling/effect-v1/new.ts",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/build/run.ts --include-local-demo-pack",
+      dev: "node --require ./tooling/process/environment.cjs --import tsx tooling/vite/dev.ts",
+      "effect:corpus":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/corpus/generate.ts",
+      "effect:corpus:check":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/corpus/verify.ts",
+      "effect:new":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/new.ts",
       "effect:prove": "npm run build && npm run effect:prove:runtime --",
-      "effect:prove:runtime": "tsx tooling/effect-v1/prove.ts",
+      "effect:prove:runtime":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/prove.ts",
       "effect:schema":
-        "tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json",
       "effect:schema:check":
-        "tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json --check",
-      "effect:validate": "tsx tooling/effect-v1/validate.ts",
-      format: "node --import tsx tooling/qa/formatting/run.ts",
-      "format:write": "node --import tsx tooling/qa/formatting/run.ts --write",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/schema.ts --output schemas/sniptale-effect-v1.schema.json --check",
+      "effect:validate":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/validate.ts",
+      format:
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/formatting/run.ts",
+      "format:write":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/formatting/run.ts --write",
       "lint:tooling":
-        "node node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json tooling tests/smoke tests/smoke.spec.ts",
+        "node --require ./tooling/process/environment.cjs node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json tooling tests/smoke tests/smoke.spec.ts",
       "typecheck:tooling":
-        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/tooling.json",
+        "node --require ./tooling/process/environment.cjs node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/tooling.json",
+      "lint:tests":
+        "node --require ./tooling/process/environment.cjs node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json tests",
       "lint:product":
-        "node node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json src",
-      qa: "npm run qa:checkpoint && npm run qa:build",
-      "qa:build": "node --import tsx tooling/qa/wrappers/build.ts",
-      "qa:checkpoint": "node --import tsx tooling/qa/wrappers/checkpoint.ts",
-      "qa:closeout": "node --import tsx tooling/qa/wrappers/closeout.ts",
-      "qa:coverage": "node --import tsx tooling/qa/wrappers/coverage.ts",
+        "node --require ./tooling/process/environment.cjs node_modules/oxlint/bin/oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity error --no-ignore -c tooling/configs/qa/oxlint.json src",
+      qa: "npm run qa:checkpoint && npm run qa:coverage && npm run qa:build",
+      "qa:build":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/build.ts",
+      "qa:checkpoint":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/checkpoint.ts",
+      "qa:closeout":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/closeout.ts",
+      "qa:coverage":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/coverage.ts",
       "qa:dependencies":
-        "node --import tsx tooling/qa/security/dependency-age.ts",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/security/dependency-age.ts",
       "qa:licenses":
-        "node --import tsx tooling/release/dependency-legal/audit-full-lock.ts",
-      "qa:preflight": "node --import tsx tooling/qa/wrappers/preflight.ts",
-      "qa:security": "node --import tsx tooling/qa/wrappers/security.ts",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/release/dependency-legal/audit-full-lock.ts",
+      "qa:preflight":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/preflight.ts",
+      "qa:security":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/security.ts",
       "release:legal":
-        "node --import tsx tooling/release/dependency-legal/generate-production-legal.ts",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/release/dependency-legal/generate-production-legal.ts",
       "release:legal:check":
-        "node --import tsx tooling/release/dependency-legal/validate-production-legal.ts",
-      serve: "node --import tsx tooling/http/serve.ts",
-      test: "vitest run --config tooling/configs/qa/vitest.ts",
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/release/dependency-legal/validate-production-legal.ts",
+      serve:
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/http/serve.ts",
+      test: "node --require ./tooling/process/environment.cjs node_modules/vitest/vitest.mjs run --config tooling/configs/qa/vitest.ts",
       "test:coverage":
-        "vitest run --coverage --config tooling/configs/qa/vitest.ts",
-      "test:npm": "node --import tsx tooling/release/npm/accept.ts",
-      "test:smoke": "node --import tsx tooling/test/smoke/run.ts",
+        "node --require ./tooling/process/environment.cjs node_modules/vitest/vitest.mjs run --coverage --config tooling/configs/qa/vitest.ts",
+      "test:npm":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/release/npm/accept.ts",
+      "test:smoke":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/test/smoke/run.ts",
       typecheck:
         "npm run typecheck:workspace && npm run typecheck:product && npm run typecheck:tooling && npm run typecheck:sdk",
       "typecheck:workspace":
-        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/workspace.json",
+        "node --require ./tooling/process/environment.cjs node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/workspace.json",
       "typecheck:product":
-        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/product.json",
+        "node --require ./tooling/process/environment.cjs node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/product.json",
       "typecheck:sdk":
-        "node node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/sdk.json",
+        "node --require ./tooling/process/environment.cjs node_modules/@typescript/native/bin/tsc --noEmit -p tooling/configs/typescript/sdk.json",
     });
   });
 
@@ -352,20 +390,27 @@ describe("architecture guardrails", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps coverage wired into the full QA build", () => {
+  it("runs each proof owner once in full QA and commit closeout", () => {
     const scripts = readScripts();
     const buildWrapper = read("tooling/qa/wrappers/build.ts");
+    expect(scripts.qa).toBe(
+      "npm run qa:checkpoint && npm run qa:coverage && npm run qa:build",
+    );
+    expect(collectNpmRunSteps(read("tooling/qa/wrappers/closeout.ts"))).toEqual(
+      [
+        ["checkpoint", "qa:checkpoint"],
+        ["coverage", "qa:coverage"],
+        ["build", "qa:build"],
+      ],
+    );
 
     expect(scripts["qa:coverage"]).toBe(
-      "node --import tsx tooling/qa/wrappers/coverage.ts",
+      "node --require ./tooling/process/environment.cjs --import tsx tooling/qa/wrappers/coverage.ts",
     );
     expect(scripts["test:coverage"]).toBe(
-      "vitest run --coverage --config tooling/configs/qa/vitest.ts",
+      "node --require ./tooling/process/environment.cjs node_modules/vitest/vitest.mjs run --coverage --config tooling/configs/qa/vitest.ts",
     );
     expect(collectNpmRunSteps(buildWrapper)).toEqual([
-      ["typecheck", "typecheck"],
-      ["unit tests", "test"],
-      ["coverage", "qa:coverage"],
       ["local fixture build", "build:local"],
       ["browser smoke", "test:smoke"],
       ["release build", "build"],

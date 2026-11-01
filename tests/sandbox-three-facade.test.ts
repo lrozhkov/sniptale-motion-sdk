@@ -16,7 +16,7 @@ describe("sandbox React facade", () => {
       React.createElement("rect", { fill: "#fff", height: 10, width: 10 }),
     );
 
-    expect(String((element as any).$$typeof)).toContain("react");
+    expect(React.isValidElement(element)).toBe(true);
     expect(React.renderToSvg(element)).toBe(
       '<svg view-box="0 0 10 10"><rect fill="#fff" height="10" width="10"></rect></svg>',
     );
@@ -30,11 +30,10 @@ describe("sandbox Three facade", () => {
     expect(runtime.THREE.Scene).toBeTypeOf("function");
     expect(runtime.THREE.MeshStandardMaterial).toBeTypeOf("function");
     expect(runtime.THREE.MathUtils).toBeTypeOf("object");
-    const THREE = runtime.THREE as any;
-    expect(THREE.Loader).toBeUndefined();
-    expect(THREE.FileLoader).toBeUndefined();
-    expect(THREE.TextureLoader).toBeUndefined();
-    expect(THREE.AudioLoader).toBeUndefined();
+    expect(runtime.THREE).not.toHaveProperty("Loader");
+    expect(runtime.THREE).not.toHaveProperty("FileLoader");
+    expect(runtime.THREE).not.toHaveProperty("TextureLoader");
+    expect(runtime.THREE).not.toHaveProperty("AudioLoader");
     expect(runtime.three.createFrameRenderer).toBeTypeOf("function");
     expect(runtime.r3f.createFrameRenderer).toBeTypeOf("function");
   });

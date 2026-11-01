@@ -22,7 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function frame(postMessage = vi.fn(() => undefined)) {
+function frame(postMessage = vi.fn<() => undefined>(() => undefined)) {
   return {
     src: "http://127.0.0.1:4178/sandbox.html",
     contentWindow: { postMessage },
@@ -34,7 +34,7 @@ describe("sandbox request queue", () => {
     const state = createViewerState();
     const error = new Error("Cannot clone payload");
     const target = frame(
-      vi.fn(() => {
+      vi.fn<() => never>(() => {
         throw error;
       }),
     );
@@ -122,7 +122,7 @@ describe("sandbox request queue", () => {
 
   it("expires the original request after its sender object changes", async () => {
     const state = createViewerState();
-    const coercion = vi.fn(() => {
+    const coercion = vi.fn<() => never>(() => {
       throw new Error("Must not coerce metadata");
     });
     const request = {
@@ -131,13 +131,14 @@ describe("sandbox request queue", () => {
       effectId: { toString: coercion },
     };
     const pending = postToSandboxWithTimeout(state, frame(), request, 100);
-    const rejected = expect(pending).rejects.toMatchObject({
-      requestId: "original",
-      requestTarget: "",
-    });
     request.requestId = "changed";
-    await vi.advanceTimersByTimeAsync(100);
-    await rejected;
+    await Promise.all([
+      expect(pending).rejects.toMatchObject({
+        requestId: "original",
+        requestTarget: "",
+      }),
+      vi.advanceTimersByTimeAsync(100),
+    ]);
     expect(state.pending.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
     expect(coercion).not.toHaveBeenCalled();

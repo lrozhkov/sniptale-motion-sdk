@@ -1,3 +1,4 @@
+import { resolveToolCommand } from "../../process/command.ts";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createWriteStream, mkdirSync, openSync } from "node:fs";
@@ -83,7 +84,9 @@ export function createQaRun({
     const commandStartedAt = Date.now();
 
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(command, args, {
+      const invocation = resolveToolCommand(command, args, environment);
+      const child = spawn(invocation.command, invocation.args, {
+        shell: false,
         cwd: repoRoot,
         env: options.env ?? environment,
         stdio: ["ignore", "pipe", "pipe"],

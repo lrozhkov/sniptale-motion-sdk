@@ -9,10 +9,14 @@ describe("sandbox direct render surface lease", () => {
     const fallbackCanvas = createNativeCanvasFixture({ fallback: true });
     const surface = createNativeCanvasFixture({ height: 720, width: 1280 });
     const presenter = {
-      acquireRenderSurface: vi.fn(() => surface),
-      isRenderSurface: vi.fn((candidate) => candidate === surface),
+      acquireRenderSurface: vi.fn<Presenter["acquireRenderSurface"]>(
+        () => surface,
+      ),
+      isRenderSurface: vi.fn<Presenter["isRenderSurface"]>(
+        (candidate) => candidate === surface,
+      ),
     };
-    const fallback = vi.fn(() => fallbackCanvas);
+    const fallback = vi.fn<Fallback>(() => fallbackCanvas);
     const lease = createDirectRenderSurfaceLease({
       cacheRequest: null,
       directPresentation: true,
@@ -31,8 +35,8 @@ describe("sandbox direct render surface lease", () => {
   it("keeps cache renders on pooled canvases", () => {
     const fallbackCanvas = createNativeCanvasFixture({ fallback: true });
     const presenter = {
-      acquireRenderSurface: vi.fn(),
-      isRenderSurface: vi.fn(),
+      acquireRenderSurface: vi.fn<Presenter["acquireRenderSurface"]>(),
+      isRenderSurface: vi.fn<Presenter["isRenderSurface"]>(),
     };
     const lease = createDirectRenderSurfaceLease({
       cacheRequest: {},
@@ -47,3 +51,10 @@ describe("sandbox direct render surface lease", () => {
     expect(presenter.acquireRenderSurface).not.toHaveBeenCalled();
   });
 });
+
+type Presenter = NonNullable<
+  Parameters<typeof createDirectRenderSurfaceLease>[0]["presenter"]
+>;
+type Fallback = Parameters<
+  typeof createDirectRenderSurfaceLease
+>[0]["fallback"];

@@ -12,18 +12,27 @@ import {
   prepareWorkerRenderMessage,
 } from "../src/apps/sandbox/runtime/execution-router";
 
+type RouterOptions = Parameters<typeof createSandboxExecutionRouter>[0];
+type ForegroundSession = ReturnType<RouterOptions["createForegroundSession"]>;
+
 function createWorkerHarness() {
-  const listeners = new Map<string, (event: any) => void>();
-  const worker = {
-    addEventListener: vi.fn((type: string, listener: (event: any) => void) => {
-      listeners.set(type, listener);
-    }),
-    postMessage: vi.fn(),
-    terminate: vi.fn(),
-  };
+  class FixtureWorker extends EventTarget {
+    postMessage(_message: unknown, _transfer?: Transferable[]): void {}
+    terminate(): void {}
+  }
+  vi.stubGlobal("Worker", FixtureWorker);
+  const nativeWorker = new Worker("fixture-worker");
+  const worker = Object.assign(nativeWorker, {
+    postMessage: vi.spyOn(nativeWorker, "postMessage"),
+    terminate: vi.spyOn(nativeWorker, "terminate"),
+  });
   return {
-    emit(type: string, data: unknown = undefined) {
-      listeners.get(type)?.(type === "message" ? { data } : data);
+    emit(type: "message" | "error", data?: unknown) {
+      worker.dispatchEvent(
+        type === "message"
+          ? new MessageEvent<unknown>("message", { data })
+          : new Event("error"),
+      );
     },
     worker,
   };
@@ -57,13 +66,16 @@ function createLoadMessage(): Extract<
 describe("sandbox execution router", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
   it("routes declarative graph documents through the worker and transfers frames", async () => {
     const harness = createWorkerHarness();
-    const foregroundHandle = vi.fn(async () => undefined);
-    const postToParent = vi.fn();
+    const foregroundHandle = vi.fn<() => Promise<undefined>>(
+      async () => undefined,
+    );
+    const postToParent = vi.fn<RouterOptions["postToParent"]>();
     const router = createSandboxExecutionRouter({
       createForegroundSession: () => ({ handleMessage: foregroundHandle }),
       createWorker: () => harness.worker,
@@ -108,13 +120,17 @@ describe("sandbox execution router", () => {
 
   it("attaches a direct response port and settles its worker request", async () => {
     const harness = createWorkerHarness();
-    const postToParent = vi.fn();
+    const postToParent = vi.fn<RouterOptions["postToParent"]>();
     const router = createSandboxExecutionRouter({
-      createForegroundSession: () => ({ handleMessage: vi.fn() }),
+      createForegroundSession: () => ({
+        handleMessage: vi
+          .fn<ForegroundSession["handleMessage"]>()
+          .mockResolvedValue(),
+      }),
       createWorker: () => harness.worker,
       postToParent,
     });
-    const port = createNativePortFixture({ close: vi.fn() });
+    const port = createNativePortFixture({ close: vi.fn<() => void>() });
     const presentationSurface = createNativeCanvasFixture({
       width: 160,
       height: 90,
@@ -160,11 +176,13 @@ describe("sandbox execution router", () => {
 
   it("falls back to the foreground when a worker fails during module load", async () => {
     const harness = createWorkerHarness();
-    const foregroundHandle = vi.fn(async () => undefined);
+    const foregroundHandle = vi.fn<() => Promise<undefined>>(
+      async () => undefined,
+    );
     const router = createSandboxExecutionRouter({
       createForegroundSession: () => ({ handleMessage: foregroundHandle }),
       createWorker: () => harness.worker,
-      postToParent: vi.fn(),
+      postToParent: vi.fn<RouterOptions["postToParent"]>(),
     });
     const load = createLoadMessage();
     await router.handleMessage(load);
@@ -176,9 +194,13 @@ describe("sandbox execution router", () => {
 
   it("settles pending frames and restarts on a worker runtime failure", async () => {
     const harness = createWorkerHarness();
-    const postToParent = vi.fn();
+    const postToParent = vi.fn<RouterOptions["postToParent"]>();
     const router = createSandboxExecutionRouter({
-      createForegroundSession: () => ({ handleMessage: vi.fn() }),
+      createForegroundSession: () => ({
+        handleMessage: vi
+          .fn<ForegroundSession["handleMessage"]>()
+          .mockResolvedValue(),
+      }),
       createWorker: () => harness.worker,
       postToParent,
     });
@@ -229,9 +251,13 @@ describe("sandbox execution router", () => {
 
   it("settles a frame when worker payload preparation fails", async () => {
     const harness = createWorkerHarness();
-    const postToParent = vi.fn();
+    const postToParent = vi.fn<RouterOptions["postToParent"]>();
     const router = createSandboxExecutionRouter({
-      createForegroundSession: () => ({ handleMessage: vi.fn() }),
+      createForegroundSession: () => ({
+        handleMessage: vi
+          .fn<ForegroundSession["handleMessage"]>()
+          .mockResolvedValue(),
+      }),
       createWorker: () => harness.worker,
       postToParent,
     });
@@ -244,11 +270,8 @@ describe("sandbox execution router", () => {
       ok: true,
       requestId: "load:1",
     });
-    const bitmap = {
-      close: vi.fn(),
-      height: 32,
-      width: 32,
-    };
+    const bitmap = createNativeBitmapFixture({ height: 32, width: 32 });
+    const close = vi.spyOn(bitmap, "close");
 
     await router.handleMessage({
       assets: {
@@ -268,7 +291,7 @@ describe("sandbox execution router", () => {
       width: 320,
     });
 
-    expect(bitmap.close).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
     expect(postToParent).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "renderFrameResult",
@@ -281,9 +304,13 @@ describe("sandbox execution router", () => {
   it("keeps cache preparation alive outside a blocked render worker", async () => {
     vi.useFakeTimers();
     const harness = createWorkerHarness();
-    const postToParent = vi.fn();
+    const postToParent = vi.fn<RouterOptions["postToParent"]>();
     const router = createSandboxExecutionRouter({
-      createForegroundSession: () => ({ handleMessage: vi.fn() }),
+      createForegroundSession: () => ({
+        handleMessage: vi
+          .fn<ForegroundSession["handleMessage"]>()
+          .mockResolvedValue(),
+      }),
       createWorker: () => harness.worker,
       postToParent,
     });
@@ -326,7 +353,11 @@ describe("sandbox execution router", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(
       postToParent.mock.calls.filter(
-        ([message]) => message.kind === "renderFrameProgress",
+        ([message]) =>
+          message !== null &&
+          typeof message === "object" &&
+          "kind" in message &&
+          message.kind === "renderFrameProgress",
       ),
     ).toHaveLength(1);
   });
@@ -334,9 +365,13 @@ describe("sandbox execution router", () => {
   it("relays progress for a cache render sent over the direct worker port", async () => {
     vi.useFakeTimers();
     const harness = createWorkerHarness();
-    const postToParent = vi.fn();
+    const postToParent = vi.fn<RouterOptions["postToParent"]>();
     const router = createSandboxExecutionRouter({
-      createForegroundSession: () => ({ handleMessage: vi.fn() }),
+      createForegroundSession: () => ({
+        handleMessage: vi
+          .fn<ForegroundSession["handleMessage"]>()
+          .mockResolvedValue(),
+      }),
       createWorker: () => harness.worker,
       postToParent,
     });
@@ -375,7 +410,9 @@ describe("sandbox render transferables", () => {
   it("rejects non-transferable bitmap impostors before posting", () => {
     expect(() =>
       collectRenderTransferables({
-        assets: { a: { bitmap: { width: 1, height: 1, close: vi.fn() } } },
+        assets: {
+          a: { bitmap: { width: 1, height: 1, close: vi.fn<() => void>() } },
+        },
       }),
     ).toThrow("native ImageBitmap");
     expect(() =>

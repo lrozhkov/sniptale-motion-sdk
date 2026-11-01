@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  findCollisionFreeKeyframeOffset,
-  createKeyframeClipboardActions,
-} from "../src/apps/viewer/timeline/interaction/keyframe-clipboard";
+import { findCollisionFreeKeyframeOffset } from "../src/apps/viewer/timeline/interaction/keyframe-clipboard";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer keyframe clipboard", () => {
   it("finds one common frame offset without changing relative timing", () => {
@@ -60,10 +64,7 @@ describe("viewer keyframe clipboard", () => {
 
   it("copies opaque keyframe values without sharing the source payload", () => {
     const ctx = createContext();
-    Object.assign(
-      ctx,
-      createKeyframeClipboardActions(() => ctx),
-    );
+
     const value = { nested: [true, ""], zero: 0 };
     ctx.state.timelineOverrides.set("template", {
       duration: 4,
@@ -71,17 +72,15 @@ describe("viewer keyframe clipboard", () => {
       tracks: [{ id: "opacity", keyframes: [{ id: "a", time: 1, value }] }],
     });
     expect(ctx.copySelectedKeyframes()).toBe(true);
-    const copied: unknown = ctx.state.keyframeClipboard[0].keyframe.value;
+    const copied: unknown = requiredEntry(ctx.state.keyframeClipboard ?? [], 0)
+      .keyframe.value;
     expect(copied).toEqual(value);
     expect(copied).not.toBe(value);
   });
 
   it("keeps an existing clipboard when part of the selected source is missing", () => {
     const ctx = createContext();
-    Object.assign(
-      ctx,
-      createKeyframeClipboardActions(() => ctx),
-    );
+
     expect(ctx.copySelectedKeyframes()).toBe(true);
     const previous = ctx.state.keyframeClipboard;
     ctx.state.selectedKeyframes.push({
@@ -95,18 +94,20 @@ describe("viewer keyframe clipboard", () => {
 
   it("duplicates and deletes the whole selection with one command each", () => {
     const ctx = createContext();
-    Object.assign(
-      ctx,
-      createKeyframeClipboardActions(() => ctx),
-    );
+    const originalKeyframes = requiredEntry(
+      ctx.deps.normalizeTimeline(ctx.getEffectiveTimeline(), 4).tracks,
+      0,
+    ).keyframes;
 
     expect(ctx.duplicateSelectedKeyframes()).toBe(true);
     expect(ctx.beginEditorCommand).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "duplicateKeyframes" }),
     );
-    const duplicated = ctx.state.timelineOverrides
-      .get("template")
-      .tracks[0].keyframes.find((keyframe) => keyframe.id !== "a");
+    const duplicated = requiredEntry(
+      ctx.getEffectiveTimeline().tracks,
+      0,
+    ).keyframes.find((keyframe) => keyframe.id !== "a");
+    if (!duplicated) throw new Error("Missing duplicated keyframe fixture");
     expect(duplicated.time).toBeCloseTo(1 + 1 / 30);
     expect(ctx.state.selectedKeyframes).toEqual([
       { keyframeId: duplicated.id, trackId: "opacity" },
@@ -117,56 +118,36 @@ describe("viewer keyframe clipboard", () => {
       expect.objectContaining({ type: "deleteKeyframes" }),
     );
     expect(
-      ctx.state.timelineOverrides.get("template").tracks[0].keyframes,
-    ).toEqual([{ id: "a", time: 1, value: 0 }]);
+      requiredEntry(ctx.getEffectiveTimeline().tracks, 0).keyframes,
+    ).toEqual(originalKeyframes);
   });
 });
 
-function createContext(): any {
-  const template = { duration: 4, id: "template" };
-  const baseTimeline = {
+function createContext() {
+  const ctx = createViewerContextFixture();
+  ctx.state.currentTemplate = {
     duration: 4,
-    phases: [],
-    tracks: [
-      {
-        id: "opacity",
-        keyframes: [{ id: "a", time: 1, value: 0 }],
-      },
-    ],
-  };
-  const state: any = {
-    currentTemplate: template,
-    keyframeClipboard: null,
-    selectedKeyframes: [{ keyframeId: "a", trackId: "opacity" }],
-    timelineOverrides: new Map(),
-  };
-  return {
-    assignKeyframeOwnershipAtTime: vi.fn(),
-    beginEditorCommand: vi.fn(),
-    createKeyframeId: (_timeline, trackId, prefix, time) =>
-      `${trackId}-${prefix}-${time.toFixed(3)}`,
-    deps: {
-      clamp: (value, min, max) => Math.min(max, Math.max(min, value)),
-      deepClone: (value) => structuredClone(value),
-      normalizeTimeline: (timeline) => structuredClone(timeline),
-      t: (_key, fallback) => fallback,
+    id: "template",
+    timeline: {
+      duration: 4,
+      phases: [],
+      tracks: [{ id: "opacity", keyframes: [{ id: "a", time: 1, value: 0 }] }],
     },
-    getEffectiveDuration: () => 4,
-    getEffectiveTimeline: () =>
-      structuredClone(state.timelineOverrides.get("template") ?? baseTimeline),
-    getSelectedKeyframeRefs: () => structuredClone(state.selectedKeyframes),
-    logDiagnostic: vi.fn(),
-    refs: {
-      fpsInput: { value: "30" },
-      timeSlider: { value: "1" },
-    },
-    renderCurrentFrame: vi.fn(),
-    renderTimelineEditor: vi.fn(),
-    setSelectedKeyframes(refs) {
-      state.selectedKeyframes = structuredClone(refs);
-    },
-    setSidebarGroup: vi.fn(),
-    snapTime: (value) => value,
-    state,
   };
+  ctx.state.selectedKeyframes = [{ keyframeId: "a", trackId: "opacity" }];
+  ctx.refs.fpsInput.value = "30";
+  ctx.refs.timeSlider.value = "1";
+  const beginEditorCommand = vi
+    .spyOn(ctx, "beginEditorCommand")
+    .mockImplementation(() => {});
+  for (const key of [
+    "assignKeyframeOwnershipAtTime",
+    "logDiagnostic",
+    "renderTimelineEditor",
+    "setSidebarGroup",
+  ] as const)
+    vi.spyOn(ctx, key).mockImplementation(() => {});
+  vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue(undefined);
+  vi.spyOn(ctx, "snapTime").mockImplementation((value) => value);
+  return Object.assign(ctx, { beginEditorCommand });
 }

@@ -1,8 +1,13 @@
-import { createKeyframeEditActions } from "../src/apps/viewer/timeline/interaction/keyframes.js";
-import { describe, expect, it, vi } from "vitest";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createKeyframeSelectionInspectorModel } from "../src/apps/viewer/inspector/keyframe-selection-model";
-import { createKeyframePropertyActions } from "../src/apps/viewer/timeline/interaction/keyframe-properties";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("viewer multi-keyframe inspector", () => {
   it("reports mixed values, ownership, and range capabilities", () => {
@@ -12,6 +17,7 @@ describe("viewer multi-keyframe inspector", () => {
       ctx.state.currentTemplate,
     );
 
+    if (!model) throw new Error("Missing keyframe selection model fixture");
     expect(model.bounds).toEqual({
       count: 3,
       duration: 2,
@@ -35,7 +41,8 @@ describe("viewer multi-keyframe inspector", () => {
     (value) => {
       const ctx = createContext();
       const timeline = ctx.getEffectiveTimeline();
-      timeline.tracks[0].keyframes[0].value = value;
+      requiredEntry(requiredEntry(timeline.tracks, 0).keyframes, 0).value =
+        value;
       ctx.getEffectiveTimeline = () => timeline;
       const model = createKeyframeSelectionInspectorModel(
         ctx,
@@ -51,18 +58,16 @@ describe("viewer multi-keyframe inspector", () => {
     "preserves state mutation while refresh is %s",
     async (refresh) => {
       const ctx = createContext();
-      Object.assign(
-        ctx,
-        createKeyframeEditActions(() => ctx),
-      );
       await ctx.updateSelectedKeyframe({ value: 0.5 }, "opacity", "a", {
         history: refresh,
         render: refresh,
         timeline: refresh,
       });
       expect(
-        ctx.state.timelineOverrides.get("template").tracks[0].keyframes[0]
-          .value,
+        requiredEntry(
+          requiredEntry(ctx.getEffectiveTimeline().tracks, 0).keyframes,
+          0,
+        ).value,
       ).toBe(0.5);
       expect(ctx.beginEditorCommand).toHaveBeenCalledTimes(refresh ? 1 : 0);
       expect(ctx.renderTimelineEditor).toHaveBeenCalledTimes(refresh ? 1 : 0);
@@ -72,10 +77,6 @@ describe("viewer multi-keyframe inspector", () => {
 
   it("updates every selected numeric keyframe with one command", () => {
     const ctx = createContext();
-    Object.assign(
-      ctx,
-      createKeyframePropertyActions(() => ctx),
-    );
 
     expect(ctx.updateSelectedKeyframesBatch({ value: 0.75 })).toBe(true);
     expect(ctx.beginEditorCommand).toHaveBeenCalledOnce();
@@ -83,8 +84,8 @@ describe("viewer multi-keyframe inspector", () => {
       expect.objectContaining({ type: "updateKeyframes" }),
     );
     expect(
-      ctx.state.timelineOverrides
-        .get("template")
+      ctx
+        .getEffectiveTimeline()
         .tracks.flatMap((track) =>
           track.keyframes
             .filter((keyframe) => ["a", "b", "x"].includes(keyframe.id))
@@ -94,8 +95,8 @@ describe("viewer multi-keyframe inspector", () => {
   });
 });
 
-function createContext(): any {
-  const template = { duration: 5, id: "template" };
+function createContext() {
+  const ctx = createViewerContextFixture();
   const timeline = {
     duration: 5,
     phases: [],
@@ -121,33 +122,27 @@ function createContext(): any {
       },
     ],
   };
-  const state: any = {
-    currentTemplate: template,
-    selectedKeyframes: [
-      { keyframeId: "a", trackId: "opacity" },
-      { keyframeId: "b", trackId: "opacity" },
-      { keyframeId: "x", trackId: "scale" },
-    ],
-    timelineOverrides: new Map(),
-  };
-  return {
-    beginEditorCommand: vi.fn(),
-    deps: {
-      normalizeHandles: (handles) => ({
-        x1: handles?.x1 ?? 0.25,
-        x2: handles?.x2 ?? 0.25,
-        y1: handles?.y1 ?? 0.1,
-        y2: handles?.y2 ?? 1,
-      }),
-      normalizeTimeline: (value) => structuredClone(value),
-    },
-    getEffectiveDuration: () => 5,
-    getEffectiveTimeline: () =>
-      structuredClone(state.timelineOverrides.get("template") ?? timeline),
-    getSelectedKeyframeRefs: () => structuredClone(state.selectedKeyframes),
-    renderCurrentFrame: vi.fn(),
-    renderTimelineEditor: vi.fn(),
-    setSelectedKeyframes: vi.fn(),
+
+  const template = { duration: 5, id: "template", timeline };
+  const state = Object.assign(ctx.state, { currentTemplate: template });
+  ctx.state.selectedKeyframes = [
+    { keyframeId: "a", trackId: "opacity" },
+    { keyframeId: "b", trackId: "opacity" },
+    { keyframeId: "x", trackId: "scale" },
+  ];
+  const beginEditorCommand = vi
+    .spyOn(ctx, "beginEditorCommand")
+    .mockImplementation(() => {});
+  const renderCurrentFrame = vi
+    .spyOn(ctx, "renderCurrentFrame")
+    .mockResolvedValue(undefined);
+  const renderTimelineEditor = vi
+    .spyOn(ctx, "renderTimelineEditor")
+    .mockImplementation(() => {});
+  return Object.assign(ctx, {
     state,
-  };
+    beginEditorCommand,
+    renderCurrentFrame,
+    renderTimelineEditor,
+  });
 }

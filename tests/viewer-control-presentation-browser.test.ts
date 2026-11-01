@@ -1,3 +1,7 @@
+import type {
+  EditorControl,
+  EditorTemplateSource,
+} from "../src/apps/viewer/templates/model.js";
 import {
   afterAll,
   afterEach,
@@ -81,6 +85,76 @@ describe("control presentation in Chromium", () => {
       .toBe("76");
   });
 
+  const sliderFixtures: {
+    value: number;
+    min: string;
+    max: string;
+    step: string;
+    bounds: Pick<EditorControl, "min" | "max" | "step">;
+  }[] = [
+    { value: 50, min: "0", max: "100", step: "1", bounds: {} },
+    { value: 550, min: "500", max: "600", step: "1", bounds: { min: 500 } },
+    { value: -550, min: "-600", max: "-500", step: "1", bounds: { max: -500 } },
+    {
+      value: 20,
+      min: "0",
+      max: "50",
+      step: "0.5",
+      bounds: { min: 0, max: 50, step: 0.5 },
+    },
+    { value: -2500, min: "-2500", max: "100", step: "1", bounds: {} },
+  ];
+  it.each(sliderFixtures)(
+    "keeps explicit slider $value within a practical viewport",
+    async (fixture) => {
+      const result = await page.evaluate((fixture) => {
+        const api = window.ControlPanelProof;
+        const field = api.createControlField(api, {
+          id: "amount",
+          kind: "number",
+          presentation: "slider",
+          defaultValue: fixture.value,
+          ...fixture.bounds,
+        });
+        document.body.append(field.element);
+        const range = field.element.querySelector('input[type="range"]');
+        const number = field.element.querySelector('input[type="number"]');
+        if (
+          !(range instanceof HTMLInputElement) ||
+          !(number instanceof HTMLInputElement)
+        )
+          throw new Error("Missing slider inputs.");
+        const initial = {
+          min: range.min,
+          max: range.max,
+          step: range.step,
+          value: range.value,
+          raw: field.readValue(),
+          numberMin: number.min,
+          numberMax: number.max,
+        };
+        number.value = "2500";
+        number.dispatchEvent(new Event("input", { bubbles: true }));
+        return { initial, typed: field.readValue(), rangeMax: range.max };
+      }, fixture);
+      expect(result.initial).toEqual({
+        min: fixture.min,
+        max: fixture.max,
+        step: fixture.step,
+        value: String(fixture.value),
+        raw: String(fixture.value),
+        numberMin:
+          fixture.bounds.min === undefined ? "" : String(fixture.bounds.min),
+        numberMax:
+          fixture.bounds.max === undefined ? "" : String(fixture.bounds.max),
+      });
+      expect(result.typed).toBe("2500");
+      expect(result.rangeMax).toBe(
+        fixture.bounds.max === undefined ? "2500" : String(fixture.bounds.max),
+      );
+    },
+  );
+
   it("uses dropdown for auto options, numeric input for number and multiline text for textarea", async () => {
     expect(
       await page.evaluate(() => {
@@ -153,7 +227,7 @@ describe("control presentation in Chromium", () => {
           .getByRole("button", { name: "Первый" })
           .getAttribute("aria-pressed"),
       ).toBe("false");
-      expect(await page.locator('svg[aria-hidden="true"]').count()).toBe(2);
+      expect(await page.locator('svg[aria-hidden="true"]').count()).toBe(0);
     },
   );
 
@@ -171,7 +245,7 @@ describe("control presentation in Chromium", () => {
                 id: "paint",
                 parentId: "appearance",
                 label: { ru: "Краска", en: "Paint" },
-                icon: "palette",
+                icon: "stroke",
               },
               {
                 id: "fill",
@@ -199,6 +273,10 @@ describe("control presentation in Chromium", () => {
           root: document.querySelector(
             '[data-control-group="advanced"] > summary',
           )?.textContent,
+          iconGroups: Array.from(
+            document.querySelectorAll(".control-group > summary > svg"),
+            (svg) => svg.closest("details")?.dataset.controlGroup,
+          ),
         };
       }),
     ).toEqual({
@@ -208,10 +286,66 @@ describe("control presentation in Chromium", () => {
       heading: "<img src=x>",
       images: 0,
       root: "Дополнительно",
+      iconGroups: ["appearance", "paint", "advanced"],
     });
   });
 
-  it("maps all 44 semantic icons and localizes unit suffixes without changing numbers", async () => {
+  it("hides retained duplicate group icons while preserving labels and source", async () => {
+    const result = await page.evaluate(() => {
+      const api = window.ControlPanelProof;
+      const panel = document.createElement("div");
+      document.body.append(panel);
+      const template = {
+        id: "retained",
+        duration: 1,
+        controls: [
+          { id: "a", kind: "number", defaultValue: 1, group: "nested" },
+          { id: "b", kind: "number", defaultValue: 1, group: "later" },
+        ],
+        controlGroups: [
+          {
+            id: "nested",
+            parentId: "typography",
+            label: { en: "Heading" },
+            icon: "type",
+          },
+          {
+            id: "first",
+            parentId: "typography",
+            label: { en: "First" },
+            icon: "drawing",
+          },
+          {
+            id: "later",
+            parentId: "first",
+            label: { en: "Later" },
+            icon: "drawing",
+          },
+        ],
+      } satisfies EditorTemplateSource;
+      const source = JSON.stringify(template);
+      api.createControlGroupContainers(panel, template, api);
+      return {
+        sourceUnchanged: JSON.stringify(template) === source,
+        groups: Array.from(panel.querySelectorAll("details"), (group) => ({
+          id: group.dataset.controlGroup,
+          label: group.querySelector("summary")?.textContent,
+          icons: group.querySelector("summary")?.querySelectorAll("svg").length,
+        })),
+      };
+    });
+    expect(result).toEqual({
+      sourceUnchanged: true,
+      groups: [
+        { id: "typography", label: "Типографика", icons: 1 },
+        { id: "nested", label: "Heading", icons: 0 },
+        { id: "first", label: "First", icons: 1 },
+        { id: "later", label: "Later", icons: 0 },
+      ],
+    });
+  });
+
+  it("maps all 57 semantic icons and localizes unit suffixes without changing numbers", async () => {
     expect(
       await page.evaluate(() => {
         const api = window.ControlPanelProof;
@@ -225,6 +359,15 @@ describe("control presentation in Chromium", () => {
           icons: api.EFFECT_V1_CONTROL_ICONS.map(
             (icon) => api.createControlIcon(icon).tagName,
           ),
+          uniqueGlyphs: new Set(
+            api.EFFECT_V1_CONTROL_ICONS.map(
+              (icon) => api.createControlIcon(icon).innerHTML,
+            ),
+          ).size,
+          frequency: api.controlUnitLabel(
+            { id: "frequency", defaultValue: 20, unit: "hz" },
+            api,
+          ),
           english,
           russian: api.controlUnitLabel(
             { id: "n", defaultValue: 1, unit: "count" },
@@ -237,7 +380,9 @@ describe("control presentation in Chromium", () => {
         };
       }),
     ).toEqual({
-      icons: Array.from({ length: 44 }, () => "svg"),
+      icons: Array.from({ length: 57 }, () => "svg"),
+      uniqueGlyphs: 57,
+      frequency: "Гц",
       english: "units",
       russian: "шт.",
       ratio: "×",

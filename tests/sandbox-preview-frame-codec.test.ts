@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+
 import { createPreviewFrameRetainer } from "../src/apps/sandbox/runtime/preview-frame-codec";
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -11,22 +14,17 @@ describe("sandbox preview frame codec", () => {
   afterEach(() => vi.useRealTimers());
 
   it("retains a reusable bitmap when a complete sequence fits the cache", async () => {
-    const retainedBitmap = {
-      close: vi.fn(),
-      height: 5,
-      width: 8,
-    };
-    const restoredBitmap = { close: vi.fn(), height: 5, width: 8 };
+    const retainedBitmap = createBitmap();
+    const restoredBitmap = createBitmap();
     const createImageBitmap = vi
-      .fn()
+      .fn<typeof globalThis.createImageBitmap>()
       .mockResolvedValueOnce(retainedBitmap)
       .mockResolvedValueOnce(restoredBitmap);
     vi.stubGlobal("createImageBitmap", createImageBitmap);
 
-    const retained = await createPreviewFrameRetainer()(
-      { close: vi.fn(), height: 5, width: 8 },
-      { preferReusableBitmap: true },
-    );
+    const retained = await createPreviewFrameRetainer()(createBitmap(), {
+      preferReusableBitmap: true,
+    });
 
     expect(retained).toMatchObject({
       bytes: 160,
@@ -39,8 +37,11 @@ describe("sandbox preview frame codec", () => {
   });
 
   it("stores lossless PNG data with transparency and restores on demand", async () => {
-    const context = { clearRect: vi.fn(), drawImage: vi.fn() };
-    const png = { size: 37 };
+    const context = {
+      clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+      drawImage: vi.fn<OffscreenCanvasRenderingContext2D["drawImage"]>(),
+    };
+    const png = new Blob([new Uint8Array(37)], { type: "image/png" });
     const contextOptions: unknown[] = [];
     class FakeOffscreenCanvas {
       height: number;
@@ -57,13 +58,15 @@ describe("sandbox preview frame codec", () => {
         return png;
       }
     }
-    const restored = { close: vi.fn(), height: 5, width: 8 };
-    const createImageBitmap = vi.fn(async () => restored);
+    const restored = createBitmap();
+    const createImageBitmap = vi.fn<typeof globalThis.createImageBitmap>(
+      async () => restored,
+    );
     vi.stubGlobal("OffscreenCanvas", FakeOffscreenCanvas);
     vi.stubGlobal("createImageBitmap", createImageBitmap);
 
     const retain = createPreviewFrameRetainer();
-    const source = { close: vi.fn(), height: 5, width: 8 };
+    const source = createBitmap();
     const retained = await retain(source);
 
     expect(retained).toMatchObject({
@@ -82,7 +85,10 @@ describe("sandbox preview frame codec", () => {
   });
 
   it("falls back to a bounded bitmap when PNG encoding is unavailable", async () => {
-    const context = { clearRect: vi.fn(), drawImage: vi.fn() };
+    const context = {
+      clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+      drawImage: vi.fn<OffscreenCanvasRenderingContext2D["drawImage"]>(),
+    };
     class FakeOffscreenCanvas {
       height: number;
       width: number;
@@ -97,20 +103,16 @@ describe("sandbox preview frame codec", () => {
         throw new Error("encoder unavailable");
       }
     }
-    const retainedBitmap = { close: vi.fn(), height: 5, width: 8 };
-    const restoredBitmap = { close: vi.fn(), height: 5, width: 8 };
+    const retainedBitmap = createBitmap();
+    const restoredBitmap = createBitmap();
     const createImageBitmap = vi
-      .fn()
+      .fn<typeof globalThis.createImageBitmap>()
       .mockResolvedValueOnce(retainedBitmap)
       .mockResolvedValueOnce(restoredBitmap);
     vi.stubGlobal("OffscreenCanvas", FakeOffscreenCanvas);
     vi.stubGlobal("createImageBitmap", createImageBitmap);
 
-    const retained = await createPreviewFrameRetainer()({
-      close: vi.fn(),
-      height: 5,
-      width: 8,
-    });
+    const retained = await createPreviewFrameRetainer()(createBitmap());
 
     expect(retained).toMatchObject({ bytes: 160, storage: "bitmap" });
     retained.prime?.();
@@ -122,7 +124,10 @@ describe("sandbox preview frame codec", () => {
 
   it("abandons a stalled PNG encoder without blocking the rendered frame", async () => {
     vi.useFakeTimers();
-    const context = { clearRect: vi.fn(), drawImage: vi.fn() };
+    const context = {
+      clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+      drawImage: vi.fn<OffscreenCanvasRenderingContext2D["drawImage"]>(),
+    };
     class FakeOffscreenCanvas {
       height: number;
       width: number;
@@ -137,16 +142,14 @@ describe("sandbox preview frame codec", () => {
         return new Promise<Blob>(() => {});
       }
     }
-    const retainedBitmap = { close: vi.fn(), height: 5, width: 8 };
-    const createImageBitmap = vi.fn(async () => retainedBitmap);
+    const retainedBitmap = createBitmap();
+    const createImageBitmap = vi.fn<typeof globalThis.createImageBitmap>(
+      async () => retainedBitmap,
+    );
     vi.stubGlobal("OffscreenCanvas", FakeOffscreenCanvas);
     vi.stubGlobal("createImageBitmap", createImageBitmap);
 
-    const pending = createPreviewFrameRetainer()({
-      close: vi.fn(),
-      height: 5,
-      width: 8,
-    });
+    const pending = createPreviewFrameRetainer()(createBitmap());
     await vi.advanceTimersByTimeAsync(2_000);
     const retained = await pending;
 
@@ -170,20 +173,16 @@ it.each([false, true])(
     vi.stubGlobal("OffscreenCanvas", undefined);
     vi.stubGlobal(
       "createImageBitmap",
-      vi.fn(() => decoded),
+      vi.fn<typeof globalThis.createImageBitmap>(() => decoded),
     );
-    const pending = createPreviewFrameRetainer()(
-      {
-        close: vi.fn(),
-        height: 5,
-        width: 8,
-      },
-      { preferReusableBitmap },
-    );
-    const rejected = expect(pending).rejects.toThrow("codec did not respond");
-    await vi.advanceTimersByTimeAsync(2_000);
-    await rejected;
-    const late = { close: vi.fn(), height: 5, width: 8 };
+    const pending = createPreviewFrameRetainer()(createBitmap(), {
+      preferReusableBitmap,
+    });
+    await Promise.all([
+      expect(pending).rejects.toThrow("codec did not respond"),
+      vi.advanceTimersByTimeAsync(2_000),
+    ]);
+    const late = createBitmap();
     resolveLate(late);
     await Promise.resolve();
     expect(late.close).toHaveBeenCalledOnce();
@@ -193,8 +192,8 @@ it.each([false, true])(
 
 it("bounds restoration time and releases the late decoded bitmap", async () => {
   vi.useFakeTimers();
-  const source = { close: vi.fn(), height: 5, width: 8 };
-  const retainedBitmap = { close: vi.fn(), height: 5, width: 8 };
+  const source = createBitmap();
+  const retainedBitmap = createBitmap();
   let resolveDecode: (bitmap: ImageBitmap) => void = () => {
     throw new Error("Decoder is not ready.");
   };
@@ -208,13 +207,19 @@ it("bounds restoration time and releases the late decoded bitmap", async () => {
   );
   const retained = await createPreviewFrameRetainer()(source);
   const restoration = retained.restore();
-  const rejected = expect(restoration).rejects.toThrow("codec did not respond");
-  await vi.advanceTimersByTimeAsync(2_000);
-  await rejected;
-  const late = { close: vi.fn(), height: 5, width: 8 };
+  await Promise.all([
+    expect(restoration).rejects.toThrow("codec did not respond"),
+    vi.advanceTimersByTimeAsync(2_000),
+  ]);
+  const late = createBitmap();
   resolveDecode(late);
   await Promise.resolve();
   expect(late.close).toHaveBeenCalledOnce();
   retained.release();
   expect(retainedBitmap.close).toHaveBeenCalledOnce();
 });
+
+function createBitmap() {
+  const bitmap = createNativeBitmapFixture({ width: 8, height: 5 });
+  return Object.assign(bitmap, { close: vi.spyOn(bitmap, "close") });
+}

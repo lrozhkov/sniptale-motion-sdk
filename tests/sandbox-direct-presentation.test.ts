@@ -7,14 +7,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDirectPreviewPresenter } from "../src/apps/sandbox/runtime/direct-presentation";
 
 describe("sandbox direct preview presentation", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
   it("rejects structural canvas impostors and resets an existing connection", () => {
     const presenter = createDirectPreviewPresenter();
     const surface = createNativeCanvasFixture({
-      getContext: () => ({ clearRect: vi.fn(), drawImage: vi.fn() }),
+      getContext: () => ({
+        clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+        drawImage: vi.fn<DrawImagePort>(),
+      }),
     });
     expect(presenter.connect(surface)).toBe(true);
-    const getContext = vi.fn();
+    const getContext = vi.fn<OffscreenCanvas["getContext"]>();
     expect(presenter.connect({ width: 1, height: 1, getContext })).toBe(false);
     expect(getContext).not.toHaveBeenCalled();
     expect(presenter.acquireRenderSurface(1, 1)).toBeNull();
@@ -22,10 +28,12 @@ describe("sandbox direct preview presentation", () => {
   });
 
   it("transfers a rendered bitmap into the connected surface", () => {
-    const transferFromImageBitmap = vi.fn();
+    const transferFromImageBitmap =
+      vi.fn<ImageBitmapRenderingContext["transferFromImageBitmap"]>();
     const surface = createNativeCanvasFixture({
-      getContext: vi.fn((type: string) =>
-        type === "bitmaprenderer" ? { transferFromImageBitmap } : null,
+      getContext: vi.fn<(type: string) => PreviewContextPort | null>(
+        (type: string) =>
+          type === "bitmaprenderer" ? { transferFromImageBitmap } : null,
       ),
       height: 1,
       width: 1,
@@ -43,14 +51,16 @@ describe("sandbox direct preview presentation", () => {
   });
 
   it("prefers a reusable 2d render surface when both contexts are available", () => {
-    const clearRect = vi.fn();
-    const drawImage = vi.fn();
-    const transferFromImageBitmap = vi.fn();
+    const clearRect = vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>();
+    const drawImage = vi.fn<DrawImagePort>();
+    const transferFromImageBitmap =
+      vi.fn<ImageBitmapRenderingContext["transferFromImageBitmap"]>();
     const surface = createNativeCanvasFixture({
-      getContext: vi.fn((type: string) =>
-        type === "bitmaprenderer"
-          ? { transferFromImageBitmap }
-          : { clearRect, drawImage },
+      getContext: vi.fn<(type: string) => PreviewContextPort | null>(
+        (type: string) =>
+          type === "bitmaprenderer"
+            ? { transferFromImageBitmap }
+            : { clearRect, drawImage },
       ),
       height: 45,
       width: 80,
@@ -66,10 +76,12 @@ describe("sandbox direct preview presentation", () => {
   });
 
   it("can render directly into and commit the connected 2d surface", () => {
-    const commit = vi.fn();
+    const commit = vi.fn<() => void>();
     const context = { commit };
     const surface = createNativeCanvasFixture({
-      getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
+      getContext: vi.fn<(type: string) => PreviewContextPort | null>(
+        (type: string) => (type === "2d" ? context : null),
+      ),
       height: 45,
       width: 80,
     });
@@ -85,16 +97,19 @@ describe("sandbox direct preview presentation", () => {
 
   it("falls back to a 2d surface and closes the consumed bitmap", () => {
     const context = {
-      clearRect: vi.fn(),
-      drawImage: vi.fn(),
+      clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+      drawImage: vi.fn<DrawImagePort>(),
     };
     const surface = createNativeCanvasFixture({
-      getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
+      getContext: vi.fn<(type: string) => PreviewContextPort | null>(
+        (type: string) => (type === "2d" ? context : null),
+      ),
       height: 1,
       width: 1,
     });
+    const close = vi.fn<ImageBitmap["close"]>();
     const bitmap = createNativeBitmapFixture({
-      close: vi.fn(),
+      close,
       height: 45,
       width: 80,
     });
@@ -104,22 +119,26 @@ describe("sandbox direct preview presentation", () => {
     expect(presenter.canPresentReusableBitmap()).toBe(true);
     expect(presenter.present(bitmap)).toBe(true);
     expect(context.drawImage).toHaveBeenCalledWith(bitmap, 0, 0);
-    expect(bitmap.close).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("falls back to a reusable 2d surface when bitmap presentation is unavailable", () => {
     const context = {
-      clearRect: vi.fn(),
-      drawImage: vi.fn(),
+      clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+      drawImage: vi.fn<DrawImagePort>(),
     };
-    const transferFromImageBitmap = vi.fn();
+    const transferFromImageBitmap =
+      vi.fn<ImageBitmapRenderingContext["transferFromImageBitmap"]>();
     const surface = createNativeCanvasFixture({
-      getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
+      getContext: vi.fn<(type: string) => PreviewContextPort | null>(
+        (type: string) => (type === "2d" ? context : null),
+      ),
       height: 90,
       width: 160,
     });
+    const close = vi.fn<ImageBitmap["close"]>();
     const bitmap = createNativeBitmapFixture({
-      close: vi.fn(),
+      close,
       height: 90,
       width: 160,
     });
@@ -128,19 +147,21 @@ describe("sandbox direct preview presentation", () => {
     expect(presenter.connect(surface)).toBe(true);
     expect(presenter.present(bitmap, { reusable: true })).toBe(true);
     expect(context.drawImage).toHaveBeenCalledWith(bitmap, 0, 0);
-    expect(bitmap.close).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
     expect(transferFromImageBitmap).not.toHaveBeenCalled();
   });
 
   it("does not reset an already correctly sized presentation surface", () => {
     const context = {
-      clearRect: vi.fn(),
-      drawImage: vi.fn(),
+      clearRect: vi.fn<OffscreenCanvasRenderingContext2D["clearRect"]>(),
+      drawImage: vi.fn<DrawImagePort>(),
     };
-    const setWidth = vi.fn();
-    const setHeight = vi.fn();
+    const setWidth = vi.fn<(value: number) => void>();
+    const setHeight = vi.fn<(value: number) => void>();
     const surface = createNativeCanvasFixture({
-      getContext: vi.fn((type: string) => (type === "2d" ? context : null)),
+      getContext: vi.fn<(type: string) => PreviewContextPort | null>(
+        (type: string) => (type === "2d" ? context : null),
+      ),
       get height() {
         return 90;
       },
@@ -164,3 +185,16 @@ describe("sandbox direct preview presentation", () => {
     expect(setHeight).not.toHaveBeenCalled();
   });
 });
+
+type PreviewContextPort =
+  | (Pick<OffscreenCanvasRenderingContext2D, "clearRect"> & {
+      drawImage: DrawImagePort;
+    })
+  | Pick<ImageBitmapRenderingContext, "transferFromImageBitmap">
+  | { commit(): void };
+
+type DrawImagePort = (
+  image: Parameters<OffscreenCanvasRenderingContext2D["drawImage"]>[0],
+  x: number,
+  y: number,
+) => void;

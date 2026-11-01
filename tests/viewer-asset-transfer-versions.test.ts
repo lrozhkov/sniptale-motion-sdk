@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createViewerState } from "../src/apps/viewer/app/state";
 import {
   commitRenderAssetTransfers,
@@ -9,15 +10,14 @@ import { createSvgDataUrl } from "../src/shared/svg-data-url";
 describe("render asset version leases", () => {
   it("resends an old asset after replacement and undo rather than using an evicted descriptor", async () => {
     const state = createViewerState();
-    const bitmap = {
-      width: 10,
-      height: 10,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
+    const bitmap = createNativeBitmapFixture({ width: 10, height: 10 });
     const ctx = {
       state,
-      createAssetBitmap: vi.fn(async () => bitmap),
-      logDiagnostic: vi.fn(),
+      createAssetBitmap: vi.fn<
+        Parameters<typeof createRenderAssets>[0]["createAssetBitmap"]
+      >(async () => bitmap),
+      logDiagnostic:
+        vi.fn<Parameters<typeof createRenderAssets>[0]["logDiagnostic"]>(),
     };
     const original = { id: "logo", mimeType: "image/png" };
     const replacement = { id: "logo", mimeType: "image/png" };
@@ -40,15 +40,14 @@ describe("render asset version leases", () => {
 
   it("retires removed global assets and ignores acknowledgements from an old runtime", async () => {
     const state = createViewerState();
-    const bitmap = {
-      width: 10,
-      height: 10,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
+    const bitmap = createNativeBitmapFixture({ width: 10, height: 10 });
     const ctx = {
       state,
-      createAssetBitmap: vi.fn(async () => bitmap),
-      logDiagnostic: vi.fn(),
+      createAssetBitmap: vi.fn<
+        Parameters<typeof createRenderAssets>[0]["createAssetBitmap"]
+      >(async () => bitmap),
+      logDiagnostic:
+        vi.fn<Parameters<typeof createRenderAssets>[0]["logDiagnostic"]>(),
     };
     state.assets.set("old", { id: "old" });
     const first = await createRenderAssets(ctx, {
@@ -76,15 +75,14 @@ describe("render asset version leases", () => {
 
   it("invalidates leases after a stale selection acknowledgement", async () => {
     const state = createViewerState();
-    const bitmap = {
-      width: 10,
-      height: 10,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
+    const bitmap = createNativeBitmapFixture({ width: 10, height: 10 });
     const ctx = {
       state,
-      createAssetBitmap: vi.fn(async () => bitmap),
-      logDiagnostic: vi.fn(),
+      createAssetBitmap: vi.fn<
+        Parameters<typeof createRenderAssets>[0]["createAssetBitmap"]
+      >(async () => bitmap),
+      logDiagnostic:
+        vi.fn<Parameters<typeof createRenderAssets>[0]["logDiagnostic"]>(),
     };
     state.assets.set("logo", { id: "logo" });
     const first = await createRenderAssets(ctx, {
@@ -112,4 +110,9 @@ describe("SVG text data URL", () => {
     );
     expect(new TextDecoder().decode(bytes)).toBe(svg);
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

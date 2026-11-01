@@ -1,6 +1,12 @@
+import { readEditorTemplateSource } from "../src/apps/viewer/templates/source.js";
+import { createEffectV1Diagnostics } from "../src/sdk/effect-v1/diagnostics.js";
+import { validateEffectV1ControlGroupIcons } from "../src/sdk/effect-v1/control-group-icons-validation.js";
 import { describe, expect, it } from "vitest";
 import {
   EFFECT_V1_CONTROL_ICONS,
+  EFFECT_V1_CONTROL_ROOT_ICONS,
+  parseEffectV1Source,
+  resolveEffectV1ControlGroupIcons,
   EFFECT_V1_CONTROL_UNITS,
   normalizeEffectV1ToTemplate,
   resolveEffectV1ControlGroup,
@@ -20,7 +26,10 @@ describe("Effect v1 control metadata", () => {
   it.each(fixtures.filter((fixture) => fixture.diagnostic === undefined))(
     "accepts $id without diagnostics",
     (fixture) => {
-      const result = validateEffectV1Document(fixture.document);
+      const result = validateEffectV1Document(
+        fixture.document,
+        fixture.validationOptions,
+      );
       expect(result.ok).toBe(true);
       expect(result.diagnostics).toEqual([]);
     },
@@ -33,7 +42,10 @@ describe("Effect v1 control metadata", () => {
   it.each(diagnosticFixtures)(
     "validates $id at its declared boundary",
     (fixture) => {
-      const result = validateEffectV1Document(fixture.document);
+      const result = validateEffectV1Document(
+        fixture.document,
+        fixture.validationOptions,
+      );
       expect(result.ok).toBe(fixture.accepted);
       expect(result.diagnostics).toContainEqual(
         expect.objectContaining(fixture.diagnostic),
@@ -69,9 +81,192 @@ describe("Effect v1 control metadata", () => {
     },
   );
 
+  it("rejects duplicate group icons at the editor template boundary", () => {
+    const document = createControlPresentationDocument();
+    const template = normalizeEffectV1ToTemplate(document);
+    expect(() => readEditorTemplateSource(template)).not.toThrow();
+    requiredEntry(template.controlGroups ?? [], 0).icon = "palette";
+    expect(() => readEditorTemplateSource(template)).toThrow(
+      /Invalid editor template source/,
+    );
+  });
+
+  it.each(["unknown", "cycle", "depth", "ambiguous"])(
+    "does not reserve an invalid %s hierarchy root",
+    (kind) => {
+      const groups = [
+        { id: "one", parentId: "appearance", icon: "palette" },
+        { id: "two", parentId: "one" },
+        { id: "three", parentId: "two" },
+        { id: "four", parentId: "three" },
+      ];
+      let group = "one";
+      if (kind === "unknown") group = "missing";
+      if (kind === "cycle") requiredEntry(groups, 0).parentId = "two";
+      if (kind === "depth") group = "four";
+      if (kind === "ambiguous")
+        groups.push({ id: "one", parentId: "geometry" });
+      const report = createEffectV1Diagnostics();
+      validateEffectV1ControlGroupIcons(groups, [{ group }], report);
+      expect(report.diagnostics).toEqual([]);
+    },
+  );
+
+  it.each(Object.entries(EFFECT_V1_CONTROL_ROOT_ICONS))(
+    "reserves used %s root icon %s before custom groups",
+    (root, icon) => {
+      const report = createEffectV1Diagnostics();
+      validateEffectV1ControlGroupIcons(
+        [
+          { id: "first", parentId: root, icon },
+          { id: "second", parentId: root, icon },
+        ],
+        [{ group: "first" }],
+        report,
+      );
+      expect(
+        report.diagnostics.map(({ severity, code, path }) => ({
+          severity,
+          code,
+          path,
+        })),
+      ).toEqual([
+        {
+          severity: "error",
+          code: "CONTROL_GROUP_ICON_DUPLICATE",
+          path: "$.controlGroups[0].icon",
+        },
+        {
+          severity: "error",
+          code: "CONTROL_GROUP_ICON_DUPLICATE",
+          path: "$.controlGroups[1].icon",
+        },
+      ]);
+    },
+  );
+
+  it("reports only later custom collisions in declaration order", () => {
+    const report = createEffectV1Diagnostics();
+    validateEffectV1ControlGroupIcons(
+      [
+        { id: "first", parentId: "appearance", icon: "stroke" },
+        { id: "omitted", parentId: "appearance" },
+        { id: "second", parentId: "appearance", icon: "stroke" },
+        { id: "third", parentId: "appearance", icon: "stroke" },
+      ],
+      [],
+      report,
+    );
+    expect(
+      report.diagnostics.map(({ code, path }) => ({ code, path })),
+    ).toEqual([
+      { code: "CONTROL_GROUP_ICON_DUPLICATE", path: "$.controlGroups[2].icon" },
+      { code: "CONTROL_GROUP_ICON_DUPLICATE", path: "$.controlGroups[3].icon" },
+    ]);
+  });
+
+  it("replays retained duplicate presentation metadata without source mutation", () => {
+    const document = createControlPresentationDocument();
+    requiredEntry(document.controlGroups ?? [], 0).icon = "palette";
+    const source = JSON.stringify(document);
+    const before = structuredClone(document);
+    expect(validateEffectV1Document(document).ok).toBe(false);
+    expect(parseEffectV1Source(source).ok).toBe(false);
+    const retained = validateEffectV1Document(document, {
+      presentationPolicy: "retained",
+    });
+    expect(retained.ok).toBe(true);
+    expect(retained.document).toEqual(before);
+    expect(
+      retained.diagnostics.map(({ code, path, severity }) => ({
+        code,
+        path,
+        severity,
+      })),
+    ).toEqual([
+      {
+        code: "CONTROL_GROUP_ICON_DUPLICATE",
+        path: "$.controlGroups[0].icon",
+        severity: "warning",
+      },
+    ]);
+    expect(
+      parseEffectV1Source(source, { presentationPolicy: "retained" }),
+    ).toEqual(retained);
+    expect(document).toEqual(before);
+    expect(JSON.stringify(document)).toBe(source);
+    const template = normalizeEffectV1ToTemplate(document);
+    expect(() => readEditorTemplateSource(template)).toThrow(
+      /Invalid editor template source/,
+    );
+    expect(
+      readEditorTemplateSource(template, { presentationPolicy: "retained" })
+        .controlGroups,
+    ).toEqual(document.controlGroups);
+    expect(
+      buildEffectFilePayload({ template, assets: new Map() }).controlGroups,
+    ).toEqual(document.controlGroups);
+    expect([
+      ...resolveEffectV1ControlGroupIcons(
+        document.controlGroups,
+        document.controls,
+      ),
+    ]).toEqual([[1, "fill"]]);
+  });
+
+  it.each(
+    fixtures.filter(
+      (fixture) => !fixture.accepted && !fixture.id.startsWith("group-icon-"),
+    ),
+  )("retained keeps structural rejection of $id", (fixture) => {
+    const strict = validateEffectV1Document(
+      fixture.document,
+      fixture.validationOptions,
+    );
+    const retained = validateEffectV1Document(fixture.document, {
+      presentationPolicy: "retained",
+    });
+    expect(retained.ok).toBe(false);
+    expect(retained.document).toBeUndefined();
+    expect(
+      retained.diagnostics.filter(
+        (issue) => issue.code !== "CONTROL_GROUP_ICON_DUPLICATE",
+      ),
+    ).toEqual(
+      strict.diagnostics.filter(
+        (issue) => issue.code !== "CONTROL_GROUP_ICON_DUPLICATE",
+      ),
+    );
+  });
+
+  it.each(["source", "code", "renderer", "compiledJs"])(
+    "retained rejects executable %s payloads",
+    (key) => {
+      const document = {
+        ...createControlPresentationDocument(),
+        [key]: "evil()",
+      };
+      const strict = validateEffectV1Document(document);
+      const retained = validateEffectV1Document(document, {
+        presentationPolicy: "retained",
+      });
+      expect(retained.ok).toBe(false);
+      expect(retained.document).toBeUndefined();
+      expect(
+        retained.diagnostics.filter(
+          (issue) => issue.code !== "CONTROL_GROUP_ICON_DUPLICATE",
+        ),
+      ).toEqual(
+        strict.diagnostics.filter(
+          (issue) => issue.code !== "CONTROL_GROUP_ICON_DUPLICATE",
+        ),
+      );
+    },
+  );
+
   it("has a unique finite icon registry", () => {
-    expect(EFFECT_V1_CONTROL_ICONS).toHaveLength(44);
-    expect(new Set(EFFECT_V1_CONTROL_ICONS).size).toBe(44);
+    expect(EFFECT_V1_CONTROL_ICONS).toHaveLength(57);
+    expect(new Set(EFFECT_V1_CONTROL_ICONS).size).toBe(57);
   });
 
   it.each(["content", "geometry"])(

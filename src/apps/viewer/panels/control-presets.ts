@@ -30,7 +30,9 @@ export function renderControlPresetSelector(
   }
   select.addEventListener("change", () => {
     if (!select.value) return;
-    const validated = validateEffectV1Document(template.effectV1);
+    const validated = validateEffectV1Document(template.effectV1, {
+      presentationPolicy: "retained",
+    });
     if (!validated.ok || !validated.document) {
       ctx.logDiagnostic(
         validated.diagnostics

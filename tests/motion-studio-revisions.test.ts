@@ -220,7 +220,7 @@ describe("durable Studio revisions", () => {
     expect(await listStudioRevisions(project, "sample")).toEqual([]);
     await expect(
       adoptStudioRevision(project, "sample", faults.id),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: "ENOENT" });
     expect(await readFile(file, "utf8")).toBe(original);
     expect(
       (await readStudioEffect(project, "sample")).selection.revisionId,
@@ -378,7 +378,7 @@ describe("durable Studio revisions", () => {
     await symlink(external, join(project, "effects/sample/revisions"));
     await expect(
       saveStudioRevision(project, "sample", { source, baseRevision }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("outside the permitted directory");
     await rm(join(project, "effects/sample/revisions"));
     const doc = createStarterDocument("sample", "standalone");
     doc.assets = [

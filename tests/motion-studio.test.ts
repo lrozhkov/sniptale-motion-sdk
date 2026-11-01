@@ -1,3 +1,5 @@
+import { responseString } from "../tooling/test/fixtures/response.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import { createStarterDocument } from "../src/apps/cli/starter";
 import { readBoundedFile } from "../src/apps/cli/files";
 import { parseLocalEffectCatalog } from "../src/apps/viewer/effect-file/local-catalog";
@@ -121,10 +123,12 @@ describe("installed Motion Studio server", () => {
         {
           default: true,
           sourceName: "first.sniptale-effect.json",
-          source: expect.stringContaining('"id": "first"'),
         },
       ],
     });
+    expect(responseString(value, "effects", 0, "source")).toContain(
+      '"id": "first"',
+    );
     expect(catalog.headers.get("cache-control")).toBe("no-store");
     expect(catalog.headers.get("referrer-policy")).toBe("origin");
     expect(catalog.headers.has("access-control-allow-origin")).toBe(false);
@@ -148,8 +152,8 @@ describe("installed Motion Studio server", () => {
     expect(forbidden.status).toBe(403);
     await studio.close();
     await studio.close();
-    await expect(fetch(studio.viewerOrigin)).rejects.toThrow();
-    await expect(fetch(studio.sandboxOrigin)).rejects.toThrow();
+    await expect(fetch(studio.viewerOrigin)).rejects.toThrow("fetch failed");
+    await expect(fetch(studio.sandboxOrigin)).rejects.toThrow("fetch failed");
   });
 
   it("rejects unauthenticated, foreign-origin, sandbox and DNS-rebinding API requests", async () => {
@@ -282,8 +286,8 @@ describe("installed Motion Studio server", () => {
     expect(parsed.document?.assets[0]).toMatchObject({
       svgText: svg,
       byteLength: Buffer.byteLength(svg),
-      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
     });
+    expect(parsed.document?.assets[0]?.sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(await readFile(file, "utf8")).toBe(source);
     expect(
       await readFile(join(project, "effects/asset/mark.svg"), "utf8"),
@@ -298,15 +302,17 @@ describe("installed Motion Studio server", () => {
     const file = join(root, "bounded.txt");
     await writeFile(file, "12345");
     await expect(readBoundedFile(file, 4)).rejects.toThrow("size limit");
-    await expect(readBoundedFile(root, 10)).rejects.toThrow();
+    await expect(readBoundedFile(root, 10)).rejects.toThrow("regular file");
     expect((await readBoundedFile(file, 5)).toString()).toBe("12345");
   });
 
   it("releases the first listener when starting the second listener fails", async () => {
     const { project, packageRoot } = await fixture();
-    const original = Server.prototype.listen;
+    const original: unknown = Reflect.get(Server.prototype, "listen");
+    if (typeof original !== "function")
+      throw new Error("Missing native server listener.");
     let calls = 0;
-    let first: Server | undefined;
+    const started: Server[] = [];
     vi.spyOn(Server.prototype, "listen").mockImplementation(function (
       this: Server,
       ...args: unknown[]
@@ -317,14 +323,16 @@ describe("installed Motion Studio server", () => {
         );
         return this;
       }
-      first = this;
-      return Reflect.apply(original, this, args) as Server;
+      started.push(this);
+      Reflect.apply(original, this, args);
+      return this;
     });
     await expect(startMotionStudio(project, packageRoot)).rejects.toThrow(
       "second listener failed",
     );
-    expect(first?.listening).toBe(false);
-    expect(first?.address()).toBeNull();
+    const first = requiredEntry(started, 0);
+    expect(first.listening).toBe(false);
+    expect(first.address()).toBeNull();
   });
 
   it("emits one machine result and closes both listeners on cancellation", async () => {
@@ -347,13 +355,9 @@ describe("installed Motion Studio server", () => {
     expect(await running).toBe(0);
     expect(errors).toEqual([]);
     expect(output).toHaveLength(1);
-    if (
-      result &&
-      typeof result === "object" &&
-      "viewerOrigin" in result &&
-      typeof result.viewerOrigin === "string"
-    )
-      await expect(fetch(result.viewerOrigin)).rejects.toThrow();
+    await expect(fetch(responseString(result, "viewerOrigin"))).rejects.toThrow(
+      "fetch failed",
+    );
   });
 });
 
@@ -375,6 +379,6 @@ describe("Studio sandbox origin boundary", () => {
     ])
       expect(() =>
         resolveStudioSandboxOrigin(value, "http://127.0.0.1:54321"),
-      ).toThrow();
+      ).toThrow("Invalid Studio sandbox origin.");
   });
 });

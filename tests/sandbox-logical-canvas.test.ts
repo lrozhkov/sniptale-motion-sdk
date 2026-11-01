@@ -1,3 +1,4 @@
+import type { CanvasSurfaceContext } from "../src/apps/sandbox/runtime/canvas-model.js";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,9 +9,15 @@ import {
 
 describe("sandbox logical canvas", () => {
   it("keeps composition coordinates while reducing backing pixels", () => {
-    const setTransform = vi.fn();
+    const setTransform =
+      vi.fn<NonNullable<CanvasSurfaceContext["setTransform"]>>();
     const context = { setTransform };
-    const createCanvas = vi.fn((width, height) => ({
+    const createCanvas = vi.fn<
+      (
+        width: number,
+        height: number,
+      ) => { getContext(): typeof context; height: number; width: number }
+    >((width, height) => ({
       getContext: () => context,
       height,
       width,
@@ -43,8 +50,16 @@ describe("sandbox logical canvas", () => {
   });
 
   it("scales temporary logical canvases by the same pixel ratio", () => {
-    const createCanvas = vi.fn((width, height) => ({
-      getContext: () => ({ setTransform: vi.fn() }),
+    const context = {
+      setTransform: vi.fn<NonNullable<CanvasSurfaceContext["setTransform"]>>(),
+    };
+    const createCanvas = vi.fn<
+      (
+        width: number,
+        height: number,
+      ) => { getContext(): typeof context; height: number; width: number }
+    >((width, height) => ({
+      getContext: () => context,
       height,
       width,
     }));

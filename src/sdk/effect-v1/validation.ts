@@ -1,3 +1,4 @@
+import { validateEffectV1ControlGroupIcons } from "./control-group-icons-validation.js";
 import { validateEffectV1ControlGroups } from "./control-groups-validation.js";
 import { formatEffectV1DiagnosticValue } from "./diagnostics.js";
 import { isUnknownArray } from "./validation-shared.js";
@@ -86,7 +87,15 @@ const STYLED_COMMAND_OPS = new Set([
   "text",
 ]);
 
-export function parseEffectV1Source(source: string): EffectV1ValidationResult {
+export type EffectV1ValidationOptions = {
+  /** Retained replay preserves legacy presentation metadata; structural/security errors remain errors. */
+  presentationPolicy?: "authoring" | "retained";
+};
+
+export function parseEffectV1Source(
+  source: string,
+  options: EffectV1ValidationOptions = {},
+): EffectV1ValidationResult {
   if (typeof source !== "string" || source.trim() === "") {
     return finishEffectV1Validation([
       {
@@ -99,7 +108,7 @@ export function parseEffectV1Source(source: string): EffectV1ValidationResult {
     ]);
   }
   try {
-    return validateEffectV1Document(JSON.parse(source));
+    return validateEffectV1Document(JSON.parse(source), options);
   } catch (error) {
     return finishEffectV1Validation([
       {
@@ -116,12 +125,14 @@ export function parseEffectV1Source(source: string): EffectV1ValidationResult {
 
 export function validateEffectV1Document(
   input: unknown,
+  options: EffectV1ValidationOptions = {},
 ): EffectV1ValidationResult {
-  return validateEffectV1DocumentInternal(input);
+  return validateEffectV1DocumentInternal(input, options);
 }
 
 function validateEffectV1DocumentInternal(
   input: unknown,
+  options: EffectV1ValidationOptions = {},
 ): EffectV1ValidationResult {
   const report = createEffectV1Diagnostics();
   if (!isRecord(input)) {
@@ -148,6 +159,18 @@ function validateEffectV1DocumentInternal(
     input.controls,
     report,
     input.controlGroups,
+  );
+  const iconReport: EffectV1ValidationErrorReport =
+    options.presentationPolicy === "retained"
+      ? {
+          error: (code, path, message, suggestion) =>
+            report.warning(code, path, message, suggestion),
+        }
+      : report;
+  validateEffectV1ControlGroupIcons(
+    input.controlGroups,
+    input.controls,
+    iconReport,
   );
   validateEffectV1ControlPresets(input, report);
   validateEffectV1EditorRegion(input, report);

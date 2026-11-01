@@ -1,3 +1,4 @@
+import { responseArray } from "../tooling/test/fixtures/response.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assessUpdate,
@@ -83,14 +84,16 @@ describe("explicit npm update check", () => {
       install: {
         global: {
           command: "npm",
-          args: expect.arrayContaining([
-            "@sniptale/motion@0.2.0",
-            "--ignore-scripts",
-            "--engine-strict",
-          ]),
         },
       },
     });
+    expect(responseArray(value, "install", "global", "args")).toEqual(
+      expect.arrayContaining([
+        "@sniptale/motion@0.2.0",
+        "--ignore-scripts",
+        "--engine-strict",
+      ]),
+    );
     expect(
       assessUpdate(metadata(), "0.1.0", "0.3.0", now, "v24.21.0"),
     ).toMatchObject({ status: "deferred" });
@@ -146,20 +149,22 @@ describe("explicit npm update check", () => {
     ).toMatchObject({ status: "rollback-available", version: "0.1.0" });
     expect(() =>
       assessUpdate(metadata(), "0.1.0", "latest", now, "v24.21.0"),
-    ).toThrow();
+    ).toThrow("UPDATE_VERSION");
   });
   it("fails closed for malformed integrity or metadata", () => {
     const input = metadata();
     input.versions["0.2.0"].dist.integrity = "SECRET";
     expect(() =>
       assessUpdate(input, "0.1.0", undefined, now, "v24.21.0"),
-    ).toThrow();
-    expect(() =>
-      assessUpdate({}, "0.1.0", undefined, now, "v24.21.0"),
-    ).toThrow();
+    ).toThrow("UPDATE_METADATA");
+    expect(() => assessUpdate({}, "0.1.0", undefined, now, "v24.21.0")).toThrow(
+      "UPDATE_METADATA",
+    );
   });
   it("uses one fixed public endpoint without credentials and handles an unpublished package", async () => {
-    const request = vi.fn(async () => new Response("SECRET", { status: 404 }));
+    const request = vi.fn<typeof fetch>(
+      async () => new Response("SECRET", { status: 404 }),
+    );
     vi.stubGlobal("fetch", request);
     const context = {
       cwd: ".",
@@ -182,7 +187,9 @@ describe("explicit npm update check", () => {
     );
   });
   it("does not expose registry bodies, rejects invalid selectors before network access, and honors cancellation", async () => {
-    const request = vi.fn(async () => new Response("SECRET", { status: 500 }));
+    const request = vi.fn<typeof fetch>(
+      async () => new Response("SECRET", { status: 500 }),
+    );
     vi.stubGlobal("fetch", request);
     const context = {
       cwd: ".",
@@ -207,7 +214,7 @@ describe("explicit npm update check", () => {
         undefined,
         "en",
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ name: "AbortError" });
     expect(request).not.toHaveBeenCalled();
   });
 });

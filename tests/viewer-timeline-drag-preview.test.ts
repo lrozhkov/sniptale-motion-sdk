@@ -1,16 +1,21 @@
-import { createKeyframeDragActions } from "../src/apps/viewer/timeline/interaction/keyframe-drag.js";
+import type { ViewerAppContext } from "../src/apps/viewer/app/context.js";
+import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
+import { requiredEntry } from "./helpers/required-entry.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTimelineDragPreview } from "../src/apps/viewer/timeline/interaction/drag-preview";
 
 describe("viewer timeline drag preview", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("starts history only after crossing the drag threshold", () => {
     const { ctx, source } = createPreviewFixture();
     ctx.state.dragMoved = false;
     ctx.state.playing = false;
     const preview = createTimelineDragPreview(ctx, source);
-    const startCommand = vi.fn();
+    const startCommand = vi.fn<() => void>();
     expect(preview.activate(2, startCommand)).toBe(false);
     expect(preview.activate(3, startCommand)).toBe(true);
     expect(preview.activate(4, startCommand)).toBe(true);
@@ -30,7 +35,7 @@ describe("viewer timeline drag preview", () => {
     preview.scheduleUpdate(() => updates.push(2));
     expect(frames).toHaveLength(1);
     expect(updates).toEqual([]);
-    frames[0]?.(0);
+    requiredEntry(frames, 0)(0);
     expect(updates).toEqual([2]);
     expect(calls).toEqual(["curve", "crumb", "playhead", "selection"]);
     expect(renders).toEqual([{ interactive: true }]);
@@ -43,10 +48,10 @@ describe("viewer timeline drag preview", () => {
   it("discards a pending update when the source is replaced with the same identity", () => {
     const { ctx, source, frames, renders, calls } = createPreviewFixture();
     const preview = createTimelineDragPreview(ctx, source);
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     preview.scheduleUpdate(update);
     ctx.state.currentTemplate = { ...source };
-    frames[0]?.(0);
+    requiredEntry(frames, 0)(0);
     preview.finalize();
     expect(update).not.toHaveBeenCalled();
     expect(renders).toEqual([]);
@@ -54,15 +59,15 @@ describe("viewer timeline drag preview", () => {
     expect(ctx.state.timelineDragActive).toBe(false);
   });
 
-  it.each(["editorOverrides", "timelineOverrides"])(
+  it.each(["editorOverrides", "timelineOverrides"] as const)(
     "discards pending work after a foreign %s replacement",
     (owner) => {
       const { ctx, source, frames, calls, renders } = createPreviewFixture();
       const preview = createTimelineDragPreview(ctx, source);
-      const update = vi.fn();
+      const update = vi.fn<() => void>();
       preview.scheduleUpdate(update);
       ctx.state[owner].set(source.id, {});
-      frames[0]?.(0);
+      requiredEntry(frames, 0)(0);
       preview.finalize();
       expect(update).not.toHaveBeenCalled();
       expect(calls).toEqual([]);
@@ -74,14 +79,14 @@ describe("viewer timeline drag preview", () => {
   it("accepts consecutive updates of its own override revisions", () => {
     const { ctx, source, frames } = createPreviewFixture();
     const preview = createTimelineDragPreview(ctx, source);
-    const update = vi.fn(() => {
+    const update = vi.fn<() => void>(() => {
       ctx.state.timelineOverrides.set(source.id, {});
       ctx.state.editorOverrides.set(source.id, {});
     });
     preview.scheduleUpdate(update);
-    frames[0]?.(0);
+    requiredEntry(frames, 0)(0);
     preview.scheduleUpdate(update);
-    frames[1]?.(0);
+    requiredEntry(frames, 1)(0);
     preview.finalize();
     expect(update).toHaveBeenCalledTimes(2);
     expect(ctx.state.timelineDragActive).toBe(false);
@@ -89,68 +94,90 @@ describe("viewer timeline drag preview", () => {
 
   it("does not begin a history command when a pointer move belongs to a replaced source", () => {
     const { ctx, source } = createPreviewFixture();
-    class Point {
-      parentElement = { getBoundingClientRect: () => ({ width: 100 }) };
+    const target = new HTMLElement();
+    const parent = new HTMLElement();
+    Object.defineProperties(target, { parentElement: { value: parent } });
+    Object.assign(parent, {
+      getBoundingClientRect: (): DOMRect => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 20,
+        width: 100,
+        height: 20,
+        toJSON: () => ({}),
+      }),
+    });
+    class FixturePointerEvent {
+      button = 0;
+      shiftKey = false;
+      metaKey = false;
+      ctrlKey = false;
+      pointerId = 1;
+      currentTarget = target;
+      clientX: number;
+      constructor(_type: string, options: PointerEventInit = {}) {
+        this.clientX = options.clientX ?? 0;
+      }
+      preventDefault(): void {}
+      stopPropagation(): void {}
     }
-    vi.stubGlobal("HTMLElement", Point);
+    vi.stubGlobal("PointerEvent", FixturePointerEvent);
     ctx.state.dragMoved = false;
     ctx.state.playing = false;
-    ctx.prepareKeyframeSelectionForPointer = vi.fn();
-    ctx.getSelectedKeyframeRefs = () => [
+    vi.spyOn(ctx, "prepareKeyframeSelectionForPointer").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(ctx, "getSelectedKeyframeRefs").mockReturnValue([
       { trackId: "track", keyframeId: "key" },
-    ];
-    ctx.setSelectedKeyframes = vi.fn();
-    ctx.renderInspector = vi.fn();
-    ctx.getEffectiveTimeline = () => ({
+    ]);
+    vi.spyOn(ctx, "setSelectedKeyframes").mockImplementation(() => {});
+    vi.spyOn(ctx, "renderInspector").mockImplementation(() => {});
+    vi.spyOn(ctx, "getEffectiveTimeline").mockReturnValue({
       duration: 3,
       phases: [],
-      tracks: [{ id: "track", keyframes: [{ id: "key", time: 1, value: 1 }] }],
+      tracks: [
+        {
+          id: "track",
+          property: "x",
+          layerId: "layer",
+          keyframes: [{ id: "key", time: 1, value: 1 }],
+        },
+      ],
     });
-    ctx.refs.fpsInput = { value: "30" };
-    ctx.snapTime = (time: number) => time;
-    ctx.timelineDeltaFromPixels = () => 0.5;
-    ctx.beginEditorCommand = vi.fn();
-    let onMove: ((event: { clientX: number }) => void) | undefined;
-    ctx.bindPointerDrag = (
-      _id: number,
-      _target: unknown,
-      callback: typeof onMove,
-    ) => {
-      onMove = callback;
-    };
-    Object.assign(
-      ctx,
-      createKeyframeDragActions(() => ctx),
-    );
-    ctx.beginKeyframeDrag(
-      {
-        button: 0,
-        clientX: 0,
-        currentTarget: new Point(),
-        pointerId: 1,
-        preventDefault: vi.fn(),
-        stopPropagation: vi.fn(),
+    ctx.refs.fpsInput.value = "30";
+    vi.spyOn(ctx, "snapTime").mockImplementation((time) => time);
+    vi.spyOn(ctx, "timelineDeltaFromPixels").mockReturnValue(0.5);
+    const beginEditorCommand = vi
+      .spyOn(ctx, "beginEditorCommand")
+      .mockImplementation(() => {});
+    let onMove: Parameters<ViewerAppContext["bindPointerDrag"]>[2] | undefined;
+    vi.spyOn(ctx, "bindPointerDrag").mockImplementation(
+      (_id, _target, callback) => {
+        onMove = callback;
       },
-      "track",
-      "key",
     );
+    ctx.beginKeyframeDrag(new PointerEvent("pointerdown"), "track", "key");
     ctx.state.currentTemplate = { ...source };
-    onMove?.({ clientX: 10 });
-    expect(ctx.beginEditorCommand).not.toHaveBeenCalled();
+    if (!onMove) throw new Error("Pointer drag callback was not registered.");
+    onMove(new PointerEvent("pointermove", { clientX: 10 }));
+    expect(beginEditorCommand).not.toHaveBeenCalled();
   });
 
   it("ignores a dequeued frame and further updates after finalization", () => {
     const { ctx, source, frames, renders, calls } = createPreviewFixture();
     const preview = createTimelineDragPreview(ctx, source);
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     preview.scheduleUpdate(update);
-    const oldFrame = frames[0];
+    const oldFrame = requiredEntry(frames, 0);
     preview.finalize();
     expect(update).toHaveBeenCalledTimes(1);
     calls.splice(0);
-    oldFrame?.(0);
+    oldFrame(0);
     preview.scheduleUpdate(update);
-    const startCommand = vi.fn();
+    const startCommand = vi.fn<() => void>();
     expect(preview.activate(10, startCommand)).toBe(false);
     expect(startCommand).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledTimes(1);
@@ -162,17 +189,17 @@ describe("viewer timeline drag preview", () => {
   it("does not let an old finalizer clear a newer drag session", () => {
     const { ctx, source, frames } = createPreviewFixture();
     const first = createTimelineDragPreview(ctx, source);
-    const oldUpdate = vi.fn();
+    const oldUpdate = vi.fn<() => void>();
     first.scheduleUpdate(oldUpdate);
-    const oldFrame = frames[0];
+    const oldFrame = requiredEntry(frames, 0);
     const second = createTimelineDragPreview(ctx, source);
     first.finalize();
-    oldFrame?.(0);
+    oldFrame(0);
     expect(oldUpdate).not.toHaveBeenCalled();
     expect(ctx.state.timelineDragActive).toBe(true);
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
     second.scheduleUpdate(update);
-    frames.at(-1)?.(0);
+    requiredEntry(frames, frames.length - 1)(0);
     expect(update).toHaveBeenCalledTimes(1);
     second.finalize();
     expect(ctx.state.timelineDragActive).toBe(false);
@@ -180,41 +207,61 @@ describe("viewer timeline drag preview", () => {
 });
 
 function createPreviewFixture() {
+  const ctx = createViewerContextFixture();
   const frames: FrameRequestCallback[] = [];
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
     frames.push(callback);
     return frames.length;
   });
-  vi.stubGlobal("cancelAnimationFrame", vi.fn());
-  const source = { id: "template" };
+  vi.stubGlobal("cancelAnimationFrame", vi.fn<typeof cancelAnimationFrame>());
+  const source = {
+    id: "template",
+    duration: 3,
+    clips: [],
+    scenes: [],
+    timeline: { phases: [], tracks: [] },
+  };
+  ctx.state.currentTemplate = source;
+  ctx.state.dragMoved = true;
+  ctx.state.playing = true;
   const calls: string[] = [];
-  const renders: unknown[] = [];
-  const ctx = {
-    getEffectiveDuration: () => 3,
-    getEffectiveTemplate: () => ({ clips: [], scenes: [] }),
-    getEffectiveTimeline: () => ({ phases: [], tracks: [] }),
-    normalizeScenes: () => [],
-    pausePlayback: vi.fn(() => {
+  const renders: Parameters<ViewerAppContext["renderCurrentFrame"]>[0][] = [];
+  Object.assign(ctx.refs.timelineTracks, { querySelectorAll: () => [] });
+  const pausePlayback = vi
+    .spyOn(ctx, "pausePlayback")
+    .mockImplementation(() => {
       ctx.state.playing = false;
-    }),
-    refs: { timelineTracks: { querySelectorAll: () => [] } },
-    renderCurrentFrame(options?: unknown) {
-      renders.push(options);
+      return true;
+    });
+  vi.spyOn(ctx, "renderCurrentFrame").mockImplementation(async (options) => {
+    renders.push(options);
+  });
+  vi.spyOn(ctx, "renderCurveEditor").mockImplementation(() => {
+    calls.push("curve");
+  });
+  vi.spyOn(ctx, "renderSelectionCrumb").mockImplementation(() => {
+    calls.push("crumb");
+  });
+  vi.spyOn(ctx, "settlePreviewAfterInteraction").mockImplementation(
+    async () => {
+      calls.push("settle");
+      return true;
     },
-    renderCurveEditor: () => calls.push("curve"),
-    renderSelectionCrumb: () => calls.push("crumb"),
-    settlePreviewAfterInteraction: () => calls.push("settle"),
-    renderTimelineEditor: () => calls.push("editor"),
-    state: {
-      currentTemplate: source,
-      editorOverrides: new Map(),
-      timelineOverrides: new Map(),
-      dragMoved: true,
-      playing: true,
-      timelineDragActive: false,
-    },
-    updateCanvasSelectionBox: () => calls.push("selection"),
-    updateTimelinePlayhead: () => calls.push("playhead"),
-  } as any;
-  return { ctx, source, frames, calls, renders };
+  );
+  vi.spyOn(ctx, "renderTimelineEditor").mockImplementation(() => {
+    calls.push("editor");
+  });
+  vi.spyOn(ctx, "updateCanvasSelectionBox").mockImplementation(() => {
+    calls.push("selection");
+  });
+  vi.spyOn(ctx, "updateTimelinePlayhead").mockImplementation(() => {
+    calls.push("playhead");
+  });
+  return {
+    ctx: Object.assign(ctx, { pausePlayback }),
+    source,
+    frames,
+    calls,
+    renders,
+  };
 }

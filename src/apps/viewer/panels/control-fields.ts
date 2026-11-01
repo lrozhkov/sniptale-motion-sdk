@@ -1,6 +1,5 @@
 import type { EditorControl, EditorText } from "../templates/model.js";
 import { createCssColorField } from "../controls/css-color-field.js";
-import { createControlIcon } from "./control-icons.js";
 
 export type ControlField = { element: HTMLElement; readValue(): string };
 export type ControlPresentationLocale = {
@@ -15,7 +14,7 @@ export function controlUnitLabel(
   const unit = control.unit;
   if (!unit) return "";
   if (unit === "count") return locale.t("viewer.controls.units.count");
-  if (unit === "s" || unit === "ms")
+  if (unit === "s" || unit === "ms" || unit === "hz")
     return locale.t(`viewer.controls.units.${unit}`);
   return unit === "percent"
     ? "%"
@@ -71,7 +70,9 @@ export function createControlField(
   value.type = "number";
   if (control.min !== undefined) value.min = String(control.min);
   if (control.max !== undefined) value.max = String(control.max);
-  value.step = String(control.step ?? 0.01);
+  value.step = String(
+    control.step ?? (control.presentation === "slider" ? 1 : 0.01),
+  );
   value.value = controlValueText(currentValue);
   if (control.presentation === "number")
     return { element: value, readValue: () => value.value };
@@ -79,15 +80,27 @@ export function createControlField(
   wrap.className = "control-inline";
   const range = document.createElement("input");
   range.type = "range";
-  range.min = String(control.min ?? 0);
-  range.max = String(control.max ?? 1);
+  function syncRange(): void {
+    const numeric = Number(value.value);
+    const current = Number.isFinite(numeric) ? numeric : 0;
+    const explicit = control.presentation === "slider";
+    range.min = String(
+      control.min ??
+        (explicit ? Math.min(0, current, (control.max ?? 100) - 100) : 0),
+    );
+    range.max = String(
+      control.max ??
+        (explicit ? Math.max(100, current, (control.min ?? 0) + 100) : 1),
+    );
+    range.value = value.value;
+  }
   range.step = value.step;
-  range.value = value.value;
+  syncRange();
   range.addEventListener("input", () => {
     value.value = range.value;
   });
   value.addEventListener("input", () => {
-    range.value = value.value;
+    syncRange();
   });
   wrap.append(range, value);
   // Read the editable numeric value without browser range rounding or clamping.
@@ -113,7 +126,6 @@ function createOptionButtons(
     button.type = "button";
     button.value = String(option.value);
     button.setAttribute("aria-pressed", String(selected === button.value));
-    if (option.icon) button.append(createControlIcon(option.icon));
     button.append(
       document.createTextNode(locale.translateText(option.label, button.value)),
     );
