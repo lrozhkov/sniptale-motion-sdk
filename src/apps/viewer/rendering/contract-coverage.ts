@@ -9,6 +9,7 @@ import { BINDING_READ_LIST_FIELDS } from "../app/binding-reads.js";
 import type { ViewerAppContext } from "../app/context.js";
 import { mergePrimitiveBounds } from "./contract-bounds.js";
 import { resolveViewerRenderTimeoutMs } from "./timeouts.js";
+import { shouldReportSandboxRequestFailure } from "../transport/sandbox-client.js";
 
 const CONTRACT_PLAYBACK_RECHECK_INTERVAL_MS = 250;
 
@@ -83,8 +84,18 @@ async function refreshRendererContractCoverage(
   }
   if (ctx.state.rendererContractRefreshing) {
     const activeTemplate = ctx.state.rendererContractRefreshTemplate;
-    await ctx.state.rendererContractRefreshPromise;
-    if (activeTemplate !== template && ctx.state.currentTemplate === template) {
+    try {
+      await ctx.state.rendererContractRefreshPromise;
+    } catch (error) {
+      // A new runtime can restore coverage after cancellation of its predecessor.
+      if (shouldReportSandboxRequestFailure(error)) throw error;
+    }
+    if (
+      ctx.state.currentTemplate === template &&
+      (activeTemplate !== template ||
+        ctx.state.rendererContractTemplateId !== template.id ||
+        !ctx.state.rendererContractCoverageReady)
+    ) {
       return refreshRendererContractCoverage(ctx, template);
     }
     return ctx.state.rendererContractReads;

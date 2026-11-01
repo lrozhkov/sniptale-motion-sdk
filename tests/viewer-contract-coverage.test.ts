@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mergePrimitiveBounds } from "../src/apps/viewer/rendering/contract-bounds";
 import { createEmptyBindingReads } from "../src/apps/viewer/app/binding-reads";
 import { waitForContractSampleSlot } from "../src/apps/viewer/rendering/contract-coverage";
+import { restoreCurrentTemplateAfterSandboxRestart } from "../src/apps/viewer/transport/controller";
+import {
+  SandboxRuntimeRecoveryError,
+  SandboxRequestTimeoutError,
+} from "../src/apps/viewer/transport/sandbox-client";
 
 import { createViewerContextFixture } from "./helpers/viewer-context-fixture.js";
 import { createNativeBitmapFixture } from "./helpers/native-render-fixtures.js";
@@ -50,6 +55,94 @@ describe("viewer renderer contract coverage scheduling", () => {
 
 describe("renderer contract sample ownership", () => {
   it.each([
+    { stage: "load", invalidation: "source" },
+    { stage: "load", invalidation: "generation" },
+    { stage: "frame", invalidation: "source" },
+    { stage: "frame", invalidation: "generation" },
+  ])(
+    "does not restore coverage after $invalidation changes during $stage",
+    async ({ stage, invalidation }) => {
+      const { ctx, template } = createSampleContext("current");
+      const invalidate = () => {
+        if (invalidation === "source")
+          ctx.state.currentTemplate = { ...template };
+        else ctx.state.sandboxRuntimeGeneration++;
+      };
+      vi.spyOn(ctx, "ensureModuleLoaded").mockImplementation(async () => {
+        if (stage === "load") invalidate();
+        return true;
+      });
+      vi.spyOn(ctx, "syncPlaybackButtons").mockImplementation(() => {});
+      vi.spyOn(ctx, "renderCurrentFrame").mockImplementation(async () => {
+        if (stage === "frame") invalidate();
+      });
+      const refresh = vi.spyOn(ctx, "refreshRendererContractCoverage");
+      await restoreCurrentTemplateAfterSandboxRestart(ctx);
+      expect(refresh).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["stale-bitmap", "cancelled", "recovery-timeout"])(
+    "finishes coverage after recovery with an old-generation $0 sample",
+    async (outcome) => {
+      const started = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      let samples = 0;
+      const { ctx, template, close, commitAssets } = createSampleContext(
+        "current",
+        async () => {
+          if (++samples !== 1) return;
+          started.resolve();
+          await release.promise;
+          if (outcome === "cancelled") throw new SandboxRuntimeRecoveryError();
+          if (outcome === "recovery-timeout") {
+            const error = new SandboxRequestTimeoutError(
+              "sample",
+              "renderFrame",
+              900,
+            );
+            error.recoveryStarted = true;
+            throw error;
+          }
+        },
+      );
+      const originalRefresh = ctx.refreshRendererContractCoverage.bind(ctx);
+      const recoveryRefresh = Promise.withResolvers<void>();
+      let calls = 0;
+      vi.spyOn(ctx, "refreshRendererContractCoverage").mockImplementation(
+        (source) => {
+          const refresh = originalRefresh(source);
+          if (++calls === 2) recoveryRefresh.resolve();
+          return refresh;
+        },
+      );
+      vi.spyOn(ctx, "ensureModuleLoaded").mockResolvedValue(true);
+      vi.spyOn(ctx, "syncPlaybackButtons").mockImplementation(() => {});
+      vi.spyOn(ctx, "renderCurrentFrame").mockResolvedValue();
+      const refreshing = ctx.refreshRendererContractCoverage(template).then(
+        () => "resolved",
+        () => "rejected",
+      );
+      await started.promise;
+      ctx.state.sandboxRuntimeGeneration++;
+      const restoring = restoreCurrentTemplateAfterSandboxRestart(ctx);
+      // Release the old sample after restoration requests coverage, or after the
+      // old implementation returns without requesting it.
+      await Promise.race([recoveryRefresh.promise, restoring]);
+      release.resolve();
+      const [initialOutcome] = await Promise.all([refreshing, restoring]);
+      expect(initialOutcome).toBe(
+        outcome === "stale-bitmap" ? "resolved" : "rejected",
+      );
+      expect(samples).toBe(2);
+      expect(commitAssets).toHaveBeenCalledOnce();
+      expect(close).toHaveBeenCalledTimes(outcome === "stale-bitmap" ? 2 : 1);
+      expect(ctx.state.rendererContractCoverageReady).toBe(true);
+      expect(ctx.state.rendererContractRefreshing).toBe(false);
+    },
+  );
+
+  it.each([
     { mode: "current", commits: 1, ready: true },
     { mode: "restarted", commits: 0, ready: false },
     { mode: "changed-template", commits: 0, ready: false },
@@ -93,9 +186,12 @@ describe("renderer contract sample ownership", () => {
   it("releases the bitmap and refresh ownership when the asset commit fails", async () => {
     const { ctx, template, close, commitAssets, commitModel } =
       createSampleContext("commit-error");
-    await expect(ctx.refreshRendererContractCoverage(template)).rejects.toThrow(
-      "commit failed",
-    );
+    await expect(
+      Promise.all([
+        ctx.refreshRendererContractCoverage(template),
+        ctx.refreshRendererContractCoverage(template),
+      ]),
+    ).rejects.toThrow("commit failed");
     expect(commitAssets).toHaveBeenCalledOnce();
     expect(commitModel).not.toHaveBeenCalled();
     expect(ctx.state.rendererContractCoverageReady).toBe(false);
@@ -150,6 +246,7 @@ function createSampleContext(
     | "replaced-source"
     | "revised-model"
     | "commit-error",
+  beforeSample?: () => Promise<void>,
 ) {
   const ctx = createContext({});
   const template = { id: "effect", duration: 2, moduleId: "module" };
@@ -211,6 +308,7 @@ function createSampleContext(
     .mockImplementation(() => {});
   vi.spyOn(ctx, "requestSandbox").mockImplementation(
     async (): Promise<SandboxRenderResponse> => {
+      await beforeSample?.();
       if (mode === "restarted") ctx.state.sandboxRuntimeGeneration++;
       if (mode === "changed-template")
         ctx.state.currentTemplate = { ...template, id: "other" };

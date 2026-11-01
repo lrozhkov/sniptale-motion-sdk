@@ -46,7 +46,14 @@ function handleSandboxMessage(ctx: ViewerAppContext, value: unknown) {
     ctx.state.sandboxReady = true;
     ctx.logDiagnostic("Sandbox runtime ready.", "ok");
     if (ctx.state.currentTemplate) {
-      void restoreCurrentTemplateAfterSandboxRestart(ctx);
+      void restoreCurrentTemplateAfterSandboxRestart(ctx).catch((error) => {
+        if (shouldReportSandboxRequestFailure(error)) {
+          ctx.logDiagnostic(
+            error instanceof Error ? error.message : String(error),
+            "error",
+          );
+        }
+      });
     } else {
       void ctx.selectInitialTemplateWhenReady();
     }
@@ -86,20 +93,25 @@ function handleSandboxMessage(ctx: ViewerAppContext, value: unknown) {
   }
 }
 
-async function restoreCurrentTemplateAfterSandboxRestart(
+export async function restoreCurrentTemplateAfterSandboxRestart(
   ctx: ViewerAppContext,
 ) {
   const template = ctx.state.currentTemplate;
   if (!template) {
     return;
   }
+  const generation = ctx.state.sandboxRuntimeGeneration;
+  const isCurrent = () =>
+    ctx.state.currentTemplate === template &&
+    ctx.state.sandboxRuntimeGeneration === generation;
   if (!(await ctx.ensureModuleLoaded(template.moduleId))) {
     return;
   }
+  if (!isCurrent()) return;
   ctx.syncPlaybackButtons();
-  if (ctx.state.currentTemplate?.id === template.id) {
-    await ctx.renderCurrentFrame({ allowColdStart: true, interactive: true });
-  }
+  await ctx.renderCurrentFrame({ allowColdStart: true, interactive: true });
+  if (!isCurrent()) return;
+  await ctx.refreshRendererContractCoverage(template);
 }
 async function ensureModuleLoaded(
   ctx: ViewerAppContext,

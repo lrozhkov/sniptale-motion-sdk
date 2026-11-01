@@ -3,7 +3,7 @@ import type { EffectV1Kind } from "../../../sdk/effect-v1/types.js";
 import { renderProofFrame } from "./frames.js";
 import { MAX_STUDIO_SOURCE_BYTES } from "../../../shared/studio/protocol.js";
 
-async function exportedSource(page: Page): Promise<string> {
+export async function exportProofSource(page: Page): Promise<string> {
   await page.locator("#appActionsButton").click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -54,7 +54,7 @@ export async function proveSessionMedia(
       : kind === "transition"
         ? ["from", "to"]
         : [];
-  const before = await exportedSource(page);
+  const before = await exportProofSource(page);
   const changed: Record<string, boolean> = {};
   for (const slot of slots) {
     const selector =
@@ -93,7 +93,7 @@ export async function proveSessionMedia(
     changed[slot] =
       hashes[0]?.some((hash, index) => hash !== hashes[1]?.[index]) === true;
   }
-  const after = await exportedSource(page);
+  const after = await exportProofSource(page);
   return {
     changed,
     exportUnchanged: after === before,

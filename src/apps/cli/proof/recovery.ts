@@ -1,6 +1,7 @@
 import type { Page } from "playwright-core";
 import { FRAME_OBSERVATION_ATTRIBUTE } from "../../../shared/proof/frame-observation.js";
 import { renderProofFrame } from "./frames.js";
+import { exportProofSource } from "./media.js";
 
 export async function proveViewerRecovery(
   page: Page,
@@ -50,6 +51,7 @@ export async function proveViewerRecovery(
     },
   );
   const recovered = await renderProofFrame(page, templateId, time);
+  await exportProofSource(page);
   return {
     rapidSeekStable: settled.hash === baseline.hash,
     restartStable: recovered.hash === baseline.hash,
