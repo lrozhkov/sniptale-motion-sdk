@@ -181,8 +181,7 @@ await writeFile(
 const manifest = {
   name: "@sniptale/motion",
   version: rootManifest.version,
-  // Removed only during the separately authorized publication preparation.
-  private: true,
+  publishConfig: { access: "public" },
   description: rootManifest.description,
   license: rootManifest.license,
   author: rootManifest.author,

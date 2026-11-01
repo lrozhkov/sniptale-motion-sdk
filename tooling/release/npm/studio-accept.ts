@@ -102,6 +102,7 @@ export async function acceptInstalledStudio({
     failure = { error };
   }
   let timedOut = false;
+  let stopped: Awaited<typeof exited> | undefined;
   const timeout = setTimeout(() => {
     timedOut = true;
     child.kill("SIGKILL");
@@ -110,6 +111,7 @@ export async function acceptInstalledStudio({
     if (child.exitCode === null && child.signalCode === null)
       child.kill("SIGINT");
     const result = await exited;
+    stopped = result;
     await writeFile(join(evidence, "studio.stdout"), stdout);
     await writeFile(join(evidence, "studio.stderr"), stderr);
     if (timedOut)
@@ -129,6 +131,8 @@ export async function acceptInstalledStudio({
   assert.equal(stdout.trim().split("\n").length, 1);
   await assert.rejects(fetch(ready.viewerOrigin));
   await assert.rejects(fetch(ready.sandboxOrigin));
+  assert.ok(stopped, "Studio must report its actual exit status.");
+  return stopped;
 }
 
 async function checkBrowser(ready: StudioReady, evidence: string, cli: string) {

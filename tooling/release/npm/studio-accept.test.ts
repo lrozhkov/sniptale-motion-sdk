@@ -64,7 +64,8 @@ describe.skipIf(process.platform === "win32")(
   () => {
     it("waits for shutdown and verifies that both HTTP origins stop", async () => {
       const options = await fixture();
-      await acceptInstalledStudio(options);
+      const result = await acceptInstalledStudio(options);
+      expect(result).toEqual({ code: 130, signal: null });
       expect(await readFile(join(options.project, "stopped.txt"), "utf8")).toBe(
         "closed",
       );

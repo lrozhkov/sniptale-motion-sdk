@@ -6,6 +6,8 @@ This document defines local readiness checks and the authorized source-publicati
 
 `package.json` uses a private package identity for workspace tooling. Registry publication requires a separate maintainer decision. `npm run build:npm` prepares a local installable archive under `.tmp/npm-package`; `npm run test:npm` verifies that archive in an isolated installation. These commands do not publish it.
 
+The distribution manifest omits the workspace's `private` flag and declares public scoped-package access. The reviewed archive can therefore remain byte-identical for a later authorized publication; it does not need a manifest rewrite. Actual publication still requires a separate maintainer decision and an npm account with publishing access to the package scope.
+
 ## Candidate checks
 
 1. Run `npm run qa:licenses` and resolve every unknown, denied, or unresolved license decision.

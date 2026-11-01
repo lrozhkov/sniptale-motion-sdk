@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 
 const repo = resolve(import.meta.dirname, "../../..");
 const output = join(repo, ".tmp/npm-package");
@@ -40,6 +40,8 @@ const steps: Array<{ label: string; exitCode: number | null }> = [];
 await mkdir(workspace);
 await rm(evidence, { recursive: true, force: true });
 await mkdir(evidence);
+let failure: { error: unknown } | undefined;
+let studioExit: Awaited<ReturnType<typeof acceptInstalledStudio>> | undefined;
 try {
   const suppliedArchive = join(workspace, "motion.tgz");
   await cp(archive, suppliedArchive);
@@ -73,6 +75,12 @@ try {
   );
   assert.equal(installedManifest.name, "@sniptale/motion");
   assert.equal(installedManifest.version, inventory.version);
+  assert.equal(
+    installedManifest.private,
+    undefined,
+    "The reviewed distribution must not need a manifest rewrite before a separately authorized publication.",
+  );
+  assert.deepEqual(installedManifest.publishConfig, { access: "public" });
   assert.deepEqual(
     Object.keys(
       inputRecord(installedManifest.dependencies, "Installed dependencies"),
@@ -88,18 +96,31 @@ try {
     undefined,
     "Installed package must not require lifecycle scripts.",
   );
-  if (process.platform !== "win32") {
-    assert.equal(
-      responseField(
-        await run("global-shim", join(prefix, "bin/sniptale-motion"), [
-          "--version",
-          "--json",
-        ]),
-        "version",
-      ),
-      inventory.version,
-    );
-  }
+  const shim =
+    process.platform === "win32"
+      ? {
+          command: join(
+            process.env.SystemRoot ?? "C:\\Windows",
+            "System32/cmd.exe",
+          ),
+          args: ["/d", "/s", "/c", "sniptale-motion.cmd --version --json"],
+        }
+      : {
+          command: join(prefix, "bin/sniptale-motion"),
+          args: ["--version", "--json"],
+        };
+  assert.equal(
+    responseField(
+      await run("global-shim", shim.command, shim.args, workspace, 0, {
+        ...process.env,
+        PATH: [prefix, dirname(process.execPath), process.env.PATH ?? ""].join(
+          delimiter,
+        ),
+      }),
+      "version",
+    ),
+    inventory.version,
+  );
   assert.equal(
     responseField(
       await run("npx", process.execPath, [
@@ -249,13 +270,16 @@ try {
   );
   if (process.env.MOTION_NPM_BROWSER_ACCEPT === "1")
     await acceptInstalledProof({ invoke, project });
-  await acceptInstalledStudio({
+  studioExit = await acceptInstalledStudio({
     cli,
     project,
     evidence,
     browserCheck: process.env.MOTION_NPM_BROWSER_ACCEPT === "1",
   });
-  steps.push({ label: "installed-studio-http-and-stop", exitCode: 130 });
+  steps.push({
+    label: "installed-studio-http-and-stop",
+    exitCode: studioExit.code,
+  });
   if (process.env.MOTION_NPM_BROWSER_ACCEPT === "1")
     steps.push({ label: "installed-studio-browser", exitCode: 0 });
   const assetDirectory = join(project, "effects/standalone");
@@ -371,22 +395,33 @@ try {
     ),
     false,
   );
-  inputRecord(inventory.checks, "Candidate checks").standaloneInstall =
-    "passed";
-  await writeFile(
-    join(output, "inventory.json"),
-    `${JSON.stringify(inventory, null, 2)}\n`,
-  );
-  await writeFile(
-    join(evidence, "summary.json"),
-    `${JSON.stringify({ status: "passed", sha256: digest, platform: process.platform, node: process.version, sourceRepositoryRequired: false, steps, nativeWindows: process.platform === "win32" ? "incomplete-shim-check" : "not-run" }, null, 2)}\n`,
-  );
-  console.log(
-    `Standalone npm acceptance passed: ${steps.length} steps; archive ${digest}.`,
-  );
-} finally {
-  await rm(temporary, { recursive: true, force: true });
+} catch (error) {
+  failure = { error };
 }
+try {
+  await rm(temporary, { recursive: true, force: true });
+} catch (cleanupError) {
+  if (failure)
+    throw new AggregateError(
+      [failure.error, cleanupError],
+      "Installed npm acceptance failed and fixture cleanup also failed.",
+    );
+  throw cleanupError;
+}
+if (failure) throw failure.error;
+assert.ok(studioExit, "Studio acceptance must report its actual exit status.");
+inputRecord(inventory.checks, "Candidate checks").standaloneInstall = "passed";
+await writeFile(
+  join(output, "inventory.json"),
+  `${JSON.stringify(inventory, null, 2)}\n`,
+);
+await writeFile(
+  join(evidence, "summary.json"),
+  `${JSON.stringify({ status: "passed", sha256: digest, platform: process.platform, node: process.version, sourceRepositoryRequired: false, steps, nativeWindows: process.platform === "win32" ? "passed" : "not-run", studioExit, studioStop: process.platform === "win32" ? "process-termination-and-ports-closed; console Ctrl+C requires separate proof" : "SIGINT-130-and-ports-closed" }, null, 2)}\n`,
+);
+console.log(
+  `Standalone npm acceptance passed: ${steps.length} steps; archive ${digest}.`,
+);
 
 async function run(
   label: string,
