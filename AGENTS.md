@@ -14,23 +14,49 @@ Code, schemas, tests, and deterministic policies own implementation behavior. Do
 - Do not add debt baselines, broad allowlists, or known-failure snapshots. Track real deferred defects separately from proven tool false positives. Debt records never authorize failed QA. Exact tool-noise decisions require evidence, rule, source scope, owner, and removal condition. Read the [technical-debt report](docs/engineering/tech-debt-report.md). Do not generate policies that normalize current debt.
 - Store temporary inputs, assets, packs, reports, coverage, browser output, and caches under ignored `.tmp/` storage. Do not commit placeholders there. Keep `docs/` free of empty directories.
 
+## Scope and implementation
+
+- Record observable acceptance criteria, non-goals, planned paths, consumers, boundaries, and required proof before implementation.
+- Check the current Git state. Preserve changes outside the task scope.
+- Expand scope only for acceptance, an established defect, an existing invariant, a reachable supported flow, or a material risk.
+- Material risks concern security, privacy, authorization, trust boundaries, or permanent data loss.
+- Keep established defects, hypotheses, and implementation choices separate. Test a hypothesis before making it an architecture constraint.
+- Give each investigation a question, a minimal check, and a stopping condition. Stop when evidence supports the task decision.
+- Start with the simplest approach that satisfies acceptance and existing invariants. Add infrastructure only after evidence shows a limitation.
+- Define failure behavior before implementation. Preserve valid source data and completed work. Restrict only operations affected by the failure.
+- For interactive changes, check the actual user flow before blocking QA. Check affected selection, navigation, editing, and recovery.
+- Prove the requested result. Tests of internal state alone do not prove the user result.
+
 ## Required loop
 
-1. Define acceptance criteria, non-goals, owners, boundaries, and required proof. Run `npm run qa:preflight -- --files <files>` before a change across owners.
-2. Implement the complete bounded change inside its semantic owners. Do not edit source or tests while a compiler or blocking QA run owns them.
-3. Run focused tests. Run `npm run qa:checkpoint` for the complete candidate.
-4. Run coverage for changed test surfaces or source coverage. Run build proof for runtime, artifact, or browser changes. Run security proof for dependencies, publication, or trust boundaries. Use `npm run ci:proof` for the complete repository proof. Use `npm run ci:release` to also check a local npm candidate.
-5. Complete applicable local reviews. Collect findings before one correction batch. Rerun only invalidated proof and reviews.
-6. Add a deterministic check when it can reject the failure without a debt exception.
+1. Record scope and proof. Run `npm run qa:preflight -- --files <files>` before changing production behavior, public contracts, boundaries, topology, or QA tooling. Preflight is also required across owners. Repeat preflight before expanding the recorded scope.
+2. For an escaped defect, obtain failing proof before the correction. Record why existing QA missed it. Decide whether a deterministic guard can reject it without a debt exception. Add that guard before final proof when applicable.
+3. Implement the complete bounded change inside its semantic owners. Do not edit source or tests during a compiler or blocking QA run.
+4. Run focused tests and check required success, failure, and recovery paths. Then run `npm run qa:checkpoint` for the complete candidate.
+5. Run required coverage, build, and security proof. Preflight reports the conservative command route. Use `npm run ci:proof` for complete repository proof. Use `npm run ci:release` to also check a local npm candidate.
+6. Complete applicable local reviews. Collect all findings before corrections. Check each finding against acceptance, evidence, and existing invariants. Apply one correction batch. Repeat only proof and reviews invalidated by corrections.
 7. Run `npm run qa:closeout -- -m "message"` only after the user requests a commit. Closeout owns staging and the commit. It must reject failed proof or changed candidate inputs. It must not publish, push, or amend.
 
-Use each blocking wrapper sequentially. Keep the candidate fixed during QA and independent review. A successful tool exit does not replace report validation or semantic review.
+Use each blocking wrapper sequentially in the main agent. Keep the candidate fixed during QA and independent review. A successful tool exit does not replace report validation or semantic review. Diagnose the failed stage after a wrapper failure. Return to preflight if the correction changes scope or boundaries.
+
+## Persistence proof
+
+For changes to persistent writes, deletion, or restoration, record these cases in the scope manifest:
+
+- Parallel writers.
+- Delayed writes after deletion or restoration.
+- Recreation of the same identity.
+- Command retry after failure or refusal.
+
+For each applicable case, state the invariant, test file, and test name. Explain each inapplicable case from the supported flow. Include opening operations that can write before an editor session exists. Control operation order in tests. Do not use timing delays to create a race. Checkpoint must execute the selected tests. Fix existing test discovery if it misses them.
 
 ## Reviews
 
 Use [architecture review](.agents/skills/architecture-code-review/SKILL.md) for changed ownership, state authority, public contracts, parsing, dependency direction, or i18n ownership. Use [security review](.agents/skills/security-code-review/SKILL.md) for changed trust, assets, messages, import/export, dependencies, publication, or CI permissions. Use [topology review](.agents/skills/topology-plan-review/SKILL.md) before broad owner moves. Mechanical formatting and behavior-preserving local extraction do not require an independent review by themselves.
 
-Start each required independent review in a fresh read-only agent with `fork_turns: "none"`. Supply the complete bounded manifest, exact diff, consumers, acceptance criteria, QA results, and known limitations. Do not supply desired findings or a desired verdict. The reviewer must not edit files or run blocking QA. Keep review evidence under `.tmp/reviews/`.
+Check the actual diff against every review trigger. Preflight routing cannot cancel a required review. Record each required review or an implementation-based reason why it does not apply. For persistence changes, reviewers check case selection, test evidence, and inapplicability reasons.
+
+Start each required independent review in a fresh read-only agent with `fork_turns: "none"`. Supply the complete bounded manifest, exact diff, consumers, acceptance criteria, preflight result, QA results, and known limitations. Do not supply desired findings or a desired verdict. The reviewer must not edit files or run blocking QA. Keep review evidence under `.tmp/reviews/`.
 
 Classify findings in this order:
 
@@ -40,6 +66,10 @@ Classify findings in this order:
 - `pre-existing hardening`: an evidenced defect predates the candidate and does not block its acceptance.
 
 The first three classes block completion. Report pre-existing hardening only when it affects the verdict or the user requests an inventory. Require a reachable trigger and the smallest correction. Do not introduce requirements from hypothetical future behavior.
+
+Repeat review when a correction changes behavior, ownership, public contracts, dependency direction, parser semantics, or security authority. Mechanical cleanup alone does not require another review. Treat heuristic findings as investigation inputs. Inspect the flagged implementation before investigating a possible tool false positive. Establish evidence before requesting an exact tool-noise decision.
+
+If a required tool, check, or reviewer is unavailable, preserve completed work. Continue independent work and report the exact blocker. Do not cancel the requirement or claim completion without its result.
 
 User model restrictions always apply.
 

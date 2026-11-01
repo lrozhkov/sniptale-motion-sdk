@@ -12,7 +12,10 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
-export type ProofLane = "checkpoint" | "ci-proof" | "ci-release";
+export type ProofLane = "checkpoint" | "coverage" | "ci-proof" | "ci-release";
+export function proofWrapper(lane: ProofLane): string {
+  return lane.startsWith("ci-") ? lane.replace("ci-", "ci:") : `qa:${lane}`;
+}
 function receiptPath(lane: ProofLane) {
   return `.tmp/qa-proof/${lane}.json`;
 }
@@ -36,9 +39,7 @@ function logDigest(root: string, path: string, lane: ProofLane): string {
   const text = bytes.toString("utf8");
   const lines = text.trimEnd().split("\n");
   if (
-    !text.startsWith(
-      `wrapper=${lane === "checkpoint" ? "qa:checkpoint" : lane.replace("ci-", "ci:")}\n`,
-    ) ||
+    !text.startsWith(`wrapper=${proofWrapper(lane)}\n`) ||
     lines.at(-3) !== "status=passed" ||
     !lines.at(-2)?.startsWith("finishedAt=") ||
     lines.at(-1) !== `log=${path}`

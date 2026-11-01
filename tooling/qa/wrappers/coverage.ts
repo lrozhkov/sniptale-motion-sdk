@@ -1,8 +1,14 @@
+import { initializeQaEnvironment } from "../runtime/environment.ts";
+import { candidateDigest } from "../workflow/candidate.ts";
+import { recordProof, removeProof } from "../workflow/proof.ts";
 import { readCoverageReport } from "../coverage/report.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runQaWrapper } from "../runtime/wrapper-runner.ts";
 
+initializeQaEnvironment();
+removeProof("coverage");
+const candidate = candidateDigest();
 const repoRoot = process.cwd();
 const summaryPath = join(
   repoRoot,
@@ -13,19 +19,28 @@ const summaryPath = join(
 );
 const lcovPath = join(repoRoot, ".tmp", "qa", "coverage", "lcov.info");
 
-await runQaWrapper("qa:coverage", async ({ run, writeStdout }) => {
-  await run("vitest coverage", "npm", ["run", "test:coverage"]);
+const session = await runQaWrapper(
+  "qa:coverage",
+  async ({ run, writeStdout }) => {
+    await run("vitest coverage", "npm", ["run", "test:coverage"]);
 
-  if (!existsSync(summaryPath)) {
-    throw new Error("Missing .tmp/qa/coverage/coverage-summary.json report.");
-  }
-  if (!existsSync(lcovPath)) {
-    throw new Error("Missing .tmp/qa/coverage/lcov.info report.");
-  }
+    if (!existsSync(summaryPath)) {
+      throw new Error("Missing .tmp/qa/coverage/coverage-summary.json report.");
+    }
+    if (!existsSync(lcovPath)) {
+      throw new Error("Missing .tmp/qa/coverage/lcov.info report.");
+    }
 
-  const summary: unknown = JSON.parse(readFileSync(summaryPath, "utf8"));
-  const report = readCoverageReport(summary);
+    const summary: unknown = JSON.parse(readFileSync(summaryPath, "utf8"));
+    const report = readCoverageReport(summary);
 
-  writeStdout(`[qa:coverage] report ready: ${report}\n`);
-  writeStdout("[qa:coverage] artifacts: .tmp/qa/coverage/lcov.info\n");
-});
+    writeStdout(`[qa:coverage] report ready: ${report}\n`);
+    writeStdout("[qa:coverage] artifacts: .tmp/qa/coverage/lcov.info\n");
+  },
+);
+
+if (session.status === "passed") {
+  if (candidateDigest() !== candidate)
+    throw new Error("Candidate changed during coverage. Run coverage again.");
+  recordProof("coverage", candidate, session.logRelativePath);
+}

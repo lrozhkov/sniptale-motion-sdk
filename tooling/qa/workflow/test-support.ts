@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { recordProof, type ProofLane } from "./proof.ts";
+import { recordProof, proofWrapper, type ProofLane } from "./proof.ts";
 import { candidateDigest } from "./candidate.ts";
 
 export function createCandidateFixture() {
@@ -34,7 +34,7 @@ export function proveFixture(root: string, lane: ProofLane = "ci-proof"): void {
   mkdirSync(join(root, ".tmp/qa-logs"), { recursive: true });
   writeFileSync(
     join(root, log),
-    `wrapper=${lane === "checkpoint" ? "qa:checkpoint" : lane.replace("ci-", "ci:")}\n\nstatus=passed\nfinishedAt=2026-11-01T00:00:00Z\nlog=${log}\n`,
+    `wrapper=${proofWrapper(lane)}\n\nstatus=passed\nfinishedAt=2026-11-01T00:00:00Z\nlog=${log}\n`,
   );
   recordProof(lane, candidateDigest(root), log, root);
 }

@@ -42,8 +42,8 @@ await runQaWrapper("qa:preflight", async ({ writeStdout }) => {
     ...[...docs].map((doc) => `- ${doc}`),
     "",
     `Owners: ${scope.owners.join(", ")}`,
-    `Required proof: checkpoint${scope.coverage ? ", coverage" : ""}${scope.build ? ", build" : ""}${scope.security ? ", security" : ""}`,
-    "Review owner boundaries, state authority, untrusted inputs, i18n, and applicable local review skills.",
+    `Required proof: ${scope.full ? "ci:proof (complete repository)" : scope.coverage ? "checkpoint, coverage" : "checkpoint"}`,
+    "Review routing is advisory. Check the actual diff against each local review skill. Record each required review or its inapplicability reason.",
     "",
     "Line-count risks:",
     ...(hotspots.length === 0

@@ -1,26 +1,30 @@
-export function classifyScope(files: readonly string[]) {
-  const source = files.some((file) => /^(src|tests|tooling)\//u.test(file));
-  const dependency = files.some((file) =>
-    /^(package(?:-lock)?\.json|\.npmrc)$|^tooling\/(?:ci|release|qa\/security|configs\/ci)\//u.test(
-      file,
-    ),
+function isUnitTest(file: string): boolean {
+  return (
+    /^(?:tests|tooling)\/.*\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file) &&
+    !/^tests\/(?:smoke(?:\/|\.)|fixtures\/)/u.test(file) &&
+    !/^tooling\/test\//u.test(file)
   );
-  const security =
-    dependency ||
-    files.some((file) =>
-      /(?:boundary|sanitiz|security|asset|import|export|transport|codeql|workflow)/iu.test(
-        file,
-      ),
-    );
+}
+function isOrdinaryDocumentation(file: string): boolean {
+  return (
+    /^(?:(?:AGENTS|README|CONTRIBUTING|SECURITY)\.md|(?:docs|\.agents\/skills)\/.*\.md)$/u.test(
+      file,
+    ) &&
+    !/^(?:docs\/authoring|\.agents\/skills\/create-effect)\//u.test(file) &&
+    !/(?:boundary|sanitiz|security|asset|import|export|transport|codeql|workflow)/iu.test(
+      file,
+    )
+  );
+}
+export function classifyScope(files: readonly string[]) {
+  const full = files.some(
+    (file) => !isUnitTest(file) && !isOrdinaryDocumentation(file),
+  );
   return {
-    coverage: source,
-    build:
-      source ||
-      dependency ||
-      files.some((file) =>
-        /^(docs\/authoring|\.agents\/skills\/create-effect)\//u.test(file),
-      ),
-    security,
+    full,
+    coverage: files.some((file) => /^(src|tests|tooling)\//u.test(file)),
+    build: full,
+    security: full,
     owners: [
       ...new Set(
         files.map((file) =>

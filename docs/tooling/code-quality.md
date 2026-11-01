@@ -30,9 +30,11 @@ Full npm browser acceptance remains enabled. Registry, OSV, and upstream downloa
 
 Checkpoint accepts no path filter. It records successful proof only after its log closes and candidate inputs remain unchanged. The receipt binds HEAD, the semantic index, tracked and untracked candidate bytes, file modes, runtime identity, selected environment, and installed tool metadata. It also binds the completed log digest. Ignored `.tmp/` evidence does not change candidate identity.
 
-Closeout requires `-m` and checks the full current diff. It reuses only a successful checkpoint for those exact inputs. Missing, malformed, failed, or stale evidence requires another checkpoint. These receipts prevent accidental stale-proof reuse. They do not authenticate evidence against a malicious local user.
+Closeout requires `-m` and checks the full current diff. It reuses successful checkpoint and coverage receipts only for those exact inputs. Missing, malformed, failed, or stale evidence requires the affected lane again. These receipts prevent accidental stale-proof reuse. They do not authenticate evidence against a malicious local user.
 
-Closeout requires full repository proof for source, test, tooling, runtime, artifact, and security changes. A successful exact-input `ci:proof` or `ci:release` run satisfies that requirement. Documentation-only changes require checkpoint. It checks for candidate drift before staging and before committing. A failed command stops the sequence.
+Closeout requires full repository proof for production, executable tooling, harnesses, configuration, artifacts, security paths, and unknown paths. A successful exact-input `ci:proof` or `ci:release` run satisfies that requirement.
+
+Ordinary documentation requires checkpoint. Unit test or spec changes under `tests/` and `tooling/` require checkpoint and coverage. Smoke tests and `tooling/test/` remain on the full route. Packaged authoring instructions also remain on the full route. Mixed candidates use the strongest required route. Coverage records success only after report validation, log completion, and an unchanged candidate. It checks for candidate drift before staging and before committing. A failed command stops the sequence.
 
 A debt record cannot authorize failure. Closeout does not push, publish, amend, or change GitHub settings.
 

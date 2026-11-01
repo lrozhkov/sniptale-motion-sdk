@@ -418,6 +418,7 @@ describe("architecture guardrails", () => {
       [
         ["complete repository proof", "ci:proof"],
         ["checkpoint", "qa:checkpoint"],
+        ["coverage", "qa:coverage"],
       ],
     );
 

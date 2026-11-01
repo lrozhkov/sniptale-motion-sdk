@@ -111,4 +111,22 @@ describe("candidate-bound QA", () => {
       "original\n",
     );
   });
+  it("binds coverage to its completed log and rejects another wrapper", () => {
+    const { root } = fixture();
+    const log = ".tmp/qa-logs/coverage.log";
+    mkdirSync(join(root, ".tmp/qa-logs"), { recursive: true });
+    const passed = `wrapper=qa:coverage\n\nstatus=passed\nfinishedAt=2026-11-02T00:00:00Z\nlog=${log}\n`;
+    writeFileSync(join(root, log), passed);
+    const digest = candidateDigest(root);
+    recordProof("coverage", digest, log, root);
+    expect(hasProof("coverage", digest, root)).toBe(true);
+    writeFileSync(
+      join(root, log),
+      passed.replace("qa:coverage", "qa:checkpoint"),
+    );
+    expect(hasProof("coverage", digest, root)).toBe(false);
+    expect(() => recordProof("coverage", digest, log, root)).toThrow(
+      "did not pass",
+    );
+  });
 });
