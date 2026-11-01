@@ -41,7 +41,7 @@ Classify findings in this order:
 
 The first three classes block completion. Report pre-existing hardening only when it affects the verdict or the user requests an inventory. Require a reachable trigger and the smallest correction. Do not introduce requirements from hypothetical future behavior.
 
-External review remains optional. Configuring [Devin review](.agents/skills/devin-review/SKILL.md) does not authorize a start. User model restrictions always apply.
+User model restrictions always apply.
 
 ## Text and documentation
 

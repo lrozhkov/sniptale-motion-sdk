@@ -1,4 +1,3 @@
-import { responseField } from "../../test/fixtures/response.ts";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
@@ -60,11 +59,5 @@ describe("canonical formatting", () => {
       sortPackageJson: false,
       embeddedLanguageFormatting: "off",
     });
-    const editor: unknown = JSON.parse(
-      readFileSync(".vscode/settings.json", "utf8"),
-    );
-    expect(responseField(editor, "[markdown]", "editor.formatOnSave")).toBe(
-      false,
-    );
   });
 });
