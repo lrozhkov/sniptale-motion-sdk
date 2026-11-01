@@ -10,6 +10,8 @@ import {
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runMotionCli } from "../src/apps/cli/commands.js";
+import { resolveEffectV1ObjectLayout } from "../src/sdk/effect-v1/index.js";
+import { parseEffectV1Fixture } from "../tooling/test/fixtures/effect-v1-documents.js";
 
 const cleanup: string[] = [];
 afterEach(async () => {
@@ -43,9 +45,17 @@ async function invoke(cwd: string, ...args: string[]) {
 }
 
 describe("installed Motion CLI contracts", () => {
-  it.each(["standalone", "targetEffect", "transition"])(
-    "creates and validates %s without repository commands",
-    async (kind) => {
+  it.each([
+    {
+      kind: "standalone",
+      layout: { width: 1280, height: 720, resize: "scale" },
+      fitted: { width: 922, height: 518.625 },
+    },
+    { kind: "targetEffect", layout: undefined, fitted: null },
+    { kind: "transition", layout: undefined, fitted: null },
+  ])(
+    "creates and validates $kind without repository commands",
+    async ({ kind, layout, fitted }) => {
       const root = await fixture();
       expect(
         (await invoke(root, "init", "проект с пробелами", "--json")).exitCode,
@@ -67,6 +77,20 @@ describe("installed Motion CLI contracts", () => {
         ok: true,
         proof: { runtime: "not-run" },
       });
+      const document = parseEffectV1Fixture(
+        await readFile(
+          join(project, "effects/hello/effect.sniptale-effect.json"),
+          "utf8",
+        ),
+      );
+      expect(document.objectLayout).toEqual(layout);
+      const actualFit = document.objectLayout
+        ? resolveEffectV1ObjectLayout(document.objectLayout, {
+            width: 922,
+            height: 519,
+          })
+        : null;
+      expect(actualFit).toEqual(fitted);
     },
   );
 

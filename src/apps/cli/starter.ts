@@ -11,7 +11,7 @@ export function createStarterDocument(
 ): EffectV1Document {
   const label = titleFromId(id);
   const inputCommands = createInputCommands(kind);
-  return {
+  const document: EffectV1Document = {
     assets: [],
     clips: [
       { duration: 3, layerId: "background", sceneId: "main", start: 0 },
@@ -98,6 +98,10 @@ export function createStarterDocument(
     schemaVersion: EFFECT_V1_SCHEMA,
     timeline: { phases: [], tracks: [] },
   };
+  if (kind === "standalone") {
+    document.objectLayout = { width: 1280, height: 720, resize: "scale" };
+  }
+  return document;
 }
 
 function createInputCommands(kind: EffectV1Kind): EffectV1Command[] {
