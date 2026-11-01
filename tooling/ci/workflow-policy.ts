@@ -23,6 +23,18 @@ function permissions(value: unknown): void {
     if (access !== "read" && access !== "none")
       throw new Error("Workflow permissions must be read-only.");
 }
+function inputs(
+  value: unknown,
+  names: readonly string[],
+): Record<string, unknown> {
+  const fields = object(value);
+  if (
+    Object.keys(fields).length !== names.length ||
+    names.some((name) => !Object.hasOwn(fields, name))
+  )
+    throw new Error("Action inputs must match the declared CI boundary.");
+  return fields;
+}
 export function inspectWorkflow(source: string): string[] {
   try {
     const document = parseDocument(source, { uniqueKeys: true });
@@ -42,7 +54,7 @@ export function inspectWorkflow(source: string): string[] {
     const toolchain = readToolchain();
     const actions = toolchain.actions;
     if (
-      /secrets\s*\.|(?:NPM_TOKEN|NODE_AUTH_TOKEN)|\bnpm\s+publish\b|\bgit\s+push\b/iu.test(
+      /secrets\s*(?:\.|\[)|(?:NPM_TOKEN|NODE_AUTH_TOKEN)|\bnpm\s+publish\b|\bgit\s+push\b/iu.test(
         source,
       )
     )
@@ -53,6 +65,8 @@ export function inspectWorkflow(source: string): string[] {
     if (!jobs.length) throw new Error("Workflow must contain checks.");
     for (const rawJob of jobs) {
       const job = object(rawJob);
+      if (job.if !== undefined)
+        throw new Error("Required CI jobs must not be conditional.");
       if (job.uses || job.environment)
         throw new Error(
           "Reusable workflows and deployment environments are not authorized.",
@@ -60,6 +74,7 @@ export function inspectWorkflow(source: string): string[] {
       if (job.permissions !== undefined) permissions(job.permissions);
       if (
         typeof job["timeout-minutes"] !== "number" ||
+        !Number.isInteger(job["timeout-minutes"]) ||
         job["timeout-minutes"] <= 0 ||
         job["timeout-minutes"] > 60
       )
@@ -73,6 +88,8 @@ export function inspectWorkflow(source: string): string[] {
         throw new Error("Every CI job needs steps.");
       for (const rawStep of job.steps) {
         const step = object(rawStep);
+        if (step.if !== undefined)
+          throw new Error("Required CI steps must not be conditional.");
         if (
           step["continue-on-error"] !== undefined &&
           step["continue-on-error"] !== false
@@ -90,17 +107,40 @@ export function inspectWorkflow(source: string): string[] {
             );
           if (
             step.uses.startsWith("actions/checkout@") &&
-            object(step.with)["persist-credentials"] !== false
+            inputs(step.with, ["persist-credentials"])[
+              "persist-credentials"
+            ] !== false
           )
             throw new Error("Checkout must not persist credentials.");
           if (
             step.uses.startsWith("actions/setup-node@") &&
-            (object(step.with)["node-version"] !== toolchain.node.version ||
+            (inputs(step.with, ["node-version", "package-manager-cache"])[
+              "node-version"
+            ] !== toolchain.node.version ||
               object(step.with)["package-manager-cache"] !== false)
           )
             throw new Error(
               "Setup Node must match the locked runtime and disable package-manager caching.",
             );
+          if (step.uses.startsWith("actions/upload-artifact@")) {
+            const fields = inputs(step.with, [
+              "name",
+              "path",
+              "include-hidden-files",
+              "if-no-files-found",
+              "retention-days",
+            ]);
+            if (
+              fields.path !==
+                ".tmp/npm-package/*.tgz\n.tmp/npm-package/inventory.json\n.tmp/npm-package/acceptance/summary.json\n" ||
+              fields["include-hidden-files"] !== true ||
+              fields["if-no-files-found"] !== "error" ||
+              fields["retention-days"] !== 7
+            )
+              throw new Error(
+                "CI artifacts must contain only the candidate archive, inventory and acceptance summary.",
+              );
+          }
         }
         if (
           step.run !== undefined &&

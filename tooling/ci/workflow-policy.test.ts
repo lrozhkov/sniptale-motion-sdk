@@ -27,6 +27,47 @@ describe("checks-only workflows", () => {
   });
   it.each([
     [
+      "foreign checkout",
+      (value: string) =>
+        value.replace(
+          "persist-credentials: false",
+          "persist-credentials: false\n          repository: untrusted/project",
+        ),
+      "Action inputs",
+    ],
+    [
+      "runtime mirror",
+      (value: string) =>
+        value.replace(
+          "package-manager-cache: false",
+          "package-manager-cache: false\n          mirror: https://example.test/node",
+        ),
+      "Action inputs",
+    ],
+    [
+      "broad artifact upload",
+      (value: string) => value.replace(".tmp/npm-package/*.tgz", "**/*"),
+      "only the candidate",
+    ],
+    [
+      "conditional job",
+      (value: string) =>
+        value.replace(
+          "    timeout-minutes: 30",
+          "    if: false\n    timeout-minutes: 30",
+        ),
+      "must not be conditional",
+    ],
+    [
+      "conditional step",
+      (value: string) =>
+        value.replace(
+          "      - run: node tooling/ci/npm.cjs run qa",
+          "      - if: false\n        run: node tooling/ci/npm.cjs run qa",
+        ),
+      "must not be conditional",
+    ],
+    [
       "undeclared command",
       (value: string) =>
         value.replace(
