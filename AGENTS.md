@@ -35,7 +35,9 @@ Code, schemas, tests, and deterministic policies own implementation behavior. Do
 4. Run focused tests and check required success, failure, and recovery paths. Then run `npm run qa:checkpoint` for the complete candidate.
 5. Run required coverage, build, and security proof. Preflight reports the conservative command route. Use `npm run ci:proof` for complete repository proof. Use `npm run ci:release` to also check a local npm candidate.
 6. Complete applicable local reviews. Collect all findings before corrections. Check each finding against acceptance, evidence, and existing invariants. Apply one correction batch. Repeat only proof and reviews invalidated by corrections.
-7. Run `npm run qa:closeout -- -m "message"` only after the user requests a commit. Closeout owns staging and the commit. It must reject failed proof or changed candidate inputs. It must not publish, push, or amend.
+7. After successful required checks and reviews, run `npm run qa:closeout -- -m "message"` automatically. Skip closeout only if the user explicitly forbids a commit. Closeout owns staging and the commit. It must reject failed proof or changed candidate inputs. It must not publish, push, or amend.
+
+Push only after a separate explicit user request. Authorization to implement, check, review, or commit does not authorize push.
 
 Use each blocking wrapper sequentially in the main agent. Keep the candidate fixed during QA and independent review. A successful tool exit does not replace report validation or semantic review. Diagnose the failed stage after a wrapper failure. Return to preflight if the correction changes scope or boundaries.
 

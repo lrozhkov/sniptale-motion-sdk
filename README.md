@@ -52,7 +52,7 @@ npm run ci:release
 
 Checkpoint checks the complete candidate. `ci:proof` runs repository checks, coverage, builds, browser smoke, workflow lint, duplication, dependency audits, and CodeQL. `ci:release` also builds the npm archive and checks installation. Both commands run locally without GitHub Actions. Neither command commits or publishes.
 
-Use `npm run qa:closeout -- -m "message"` for an explicitly requested commit. Read [code quality](docs/tooling/code-quality.md) for prerequisites, proof reuse, and platform limits.
+Use `npm run qa:closeout -- -m "message"` for local closeout. [AGENTS.md](AGENTS.md) defines commit and push authorization. Read [code quality](docs/tooling/code-quality.md) for prerequisites, proof reuse, and platform limits.
 
 ## Project contracts
 
