@@ -107,7 +107,7 @@ export function createAssetLayer(
           partReveal: 1,
           partSpread: 0,
           partStagger: 0.08,
-          svgPartIds: "",
+          svgPartIds: [],
           svgPartMode: "none",
         }
       : {}),
@@ -141,7 +141,7 @@ export function withAssetLayerTypeDefaults<
     partReveal: 1,
     partSpread: 0,
     partStagger: 0.08,
-    svgPartIds: "",
+    svgPartIds: [],
     svgPartMode: "none",
     ...layer,
   };

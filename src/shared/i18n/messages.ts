@@ -1442,6 +1442,10 @@ export const messages = {
         en: "Loaded {count} local effects",
         ru: "Загружено локальных эффектов: {count}",
       },
+      localEffectsRejected: {
+        en: "Effect loading failed. Correct the source files and reload this page.",
+        ru: "Ошибка загрузки эффектов. Исправьте исходные файлы и обновите страницу.",
+      },
       readyForImport: {
         en: "Ready to import an effect package",
         ru: "Готово к импорту пакета эффектов",

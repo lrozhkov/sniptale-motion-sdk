@@ -140,6 +140,8 @@ Controls are user parameters, not animation state. Use tracks for time-keyed val
 
 Use layers to define authoring identity, hierarchy, visibility, editing bounds, base transform values, asset ownership, and the bridge between timeline values and graph commands. Supported layer types are `audio`, `customDraw`, `ellipse`, `group`, `imageAsset`, `line`, `path`, `rect`, `svgAsset`, and `text`.
 
+Layer `name` is an optional plain string, not a locale map. Use locale maps only for fields whose schema explicitly accepts them, such as effect, scene, control and custom-group labels. Layer `fontFamily`, `fill`, `stroke`, `color`, `blendMode`, `partOrder` and `svgPartMode` are also plain strings; `svgPartIds` is an array of strings, and a scene `transition` is an object.
+
 Every spatial layer type (`ellipse`, `imageAsset`, `line`, `path`, `rect`, `svgAsset`, and `text`) requires positive `width` and `height`. `audio`, `imageAsset`, and `svgAsset` require a matching `assetId`. A `text` layer requires `text`. Common numeric authoring properties include `x`, `y`, `anchorX`, `anchorY`, `rotation`, `scaleX`, `scaleY`, `opacity`, `blur`, sizes, typography, path trim, SVG-part values, and volume.
 
 Use a layer `editor` object only to declare operations that the viewer may safely expose. `canvas` accepts `bounds`, `fullFrame`, or `none`; `operations` accepts `delete`, `duplicate`, and `reorder`; `transform` accepts `anchorX`, `anchorY`, `rotation`, `scaleX`, `scaleY`, `x`, and `y`; `properties` and `keyframeProperties` are string lists.

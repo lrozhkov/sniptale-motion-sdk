@@ -11,6 +11,50 @@ afterEach(() => {
 });
 
 describe("viewer local effect startup", () => {
+  it.each(["catalog", "rejected", "thrown"] as const)(
+    "shows %s failures instead of an empty ready workspace",
+    async (mode) => {
+      const ctx = createViewerContextFixture();
+      vi.stubGlobal("window", {
+        location: { search: `?studioSession=${"a".repeat(64)}` },
+      });
+      const message = "LAYER_STRING $.layers[0].name: Expected a string.";
+      vi.spyOn(ctx.deps, "loadLocalEffectCatalog").mockResolvedValue({
+        effects:
+          mode === "catalog"
+            ? []
+            : [
+                {
+                  source: "invalid source",
+                  sourceName: "bad.json",
+                  default: true,
+                },
+              ],
+        errors: mode === "catalog" ? [message] : [],
+      });
+      const importer = vi.spyOn(ctx, "importEffectFileSource");
+      if (mode === "thrown") importer.mockRejectedValue(new Error(message));
+      else
+        importer.mockResolvedValue({
+          ok: false,
+          templateId: null,
+          errors: [message],
+        });
+      vi.spyOn(ctx, "logDiagnostic").mockImplementation(() => {});
+      vi.spyOn(ctx, "populateTemplates").mockImplementation(() => {});
+      const select = vi
+        .spyOn(ctx, "selectInitialTemplateWhenReady")
+        .mockResolvedValue(undefined);
+      const status = vi
+        .spyOn(ctx, "setPackStatus")
+        .mockImplementation(() => {});
+      await expect(ctx.bootstrapLocalEffects()).resolves.toBe(true);
+      expect(ctx.refs.localEffectErrors.hidden).toBe(false);
+      expect(ctx.refs.localEffectErrorDetails.textContent).toContain(message);
+      expect(status).toHaveBeenCalledWith(expect.any(String), "error");
+      expect(select).not.toHaveBeenCalled();
+    },
+  );
   it("parses the dev endpoint as an unknown boundary", () => {
     expect(
       parseLocalEffectCatalog({

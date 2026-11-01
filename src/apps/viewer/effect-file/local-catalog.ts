@@ -73,6 +73,7 @@ export function parseLocalEffectCatalog(value: unknown): LocalEffectCatalog {
   }
   const errors = Array.isArray(value.errors)
     ? value.errors
+        .slice(0, MAX_STUDIO_EFFECTS)
         .filter((item): item is string => typeof item === "string")
         .map((item) => item.slice(0, 4000))
     : ["Local effect discovery response has no error list."];

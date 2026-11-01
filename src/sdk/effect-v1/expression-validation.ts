@@ -92,7 +92,20 @@ export function validateCommandExpressions(
 ): void {
   for (const [key, value] of Object.entries(command)) {
     if (["commands", "items", "op"].includes(key)) continue;
-    walkExpressionCandidates(value, `${path}.${key}`, report, references);
+    if (
+      command.op === "text" &&
+      ["text", "fontFamily", "fontWeight"].includes(key)
+    ) {
+      validateEffectV1Expression(
+        value,
+        `${path}.${key}`,
+        0,
+        report,
+        references,
+      );
+    } else {
+      walkExpressionCandidates(value, `${path}.${key}`, report, references);
+    }
   }
 }
 

@@ -71,7 +71,7 @@ function appendSvgPartPicker(
       );
       if (current.has(part.id)) current.delete(part.id);
       else current.add(part.id);
-      const value = [...current].join(", ");
+      const value = [...current];
       ctx.beginEditorCommand({
         payload: { layerId: layer.id, property: "svgPartIds", value },
         type: "updateLayerProperty",
@@ -168,6 +168,12 @@ function normalizeSvgPaint(value: string | null): string | null {
 }
 
 export function parseSvgPartIdList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    const entries: unknown[] = value;
+    return entries.every((entry): entry is string => typeof entry === "string")
+      ? [...entries]
+      : [];
+  }
   return typeof value === "string"
     ? value
         .split(",")

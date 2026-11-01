@@ -46,7 +46,7 @@ export async function assertInspectorSvgFlow({
       width: 200,
       height: 100,
       svgPartMode: "reveal",
-      svgPartIds: "",
+      svgPartIds: [],
       partReveal: 1,
       partStagger: 0,
       partSpread: 0,
@@ -150,7 +150,7 @@ export async function assertInspectorSvgFlow({
     const exported = parseEffectV1Fixture(source);
     const logo = exported.layers.find((layer) => layer.id === "logo");
     assert.ok(logo, "Export must contain the edited SVG layer.");
-    assert.equal(logo.svgPartIds, "glyph.rect-0");
+    assert.deepEqual(logo.svgPartIds, ["glyph.rect-0"]);
     const asset = exported.assets.find((item) => item.id === "neutral-mark");
     assert.ok(
       asset && typeof asset.svgText === "string",

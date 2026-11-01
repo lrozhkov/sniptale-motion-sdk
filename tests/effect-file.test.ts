@@ -28,6 +28,23 @@ import { SNIPTALE_EFFECT_FILE_SCHEMA } from "../src/apps/viewer/app/constants";
 import { createEffectExportReadinessActions } from "../src/apps/viewer/effect-file/service";
 
 describe("Effect v1 file builder", () => {
+  it("round-trips canonical SVG part selections as arrays", () => {
+    const template = createTemplate();
+    const layer = template.layers[0];
+    if (!layer) throw new Error("Expected fixture layer.");
+    layer.svgPartIds = ["glyph.rect-0", "literal,comma"];
+    const source = buildEffectFileSource({ assets: createAssets(), template });
+    const validation = validateSniptaleEffectFile(source);
+    expect(validation.ok).toBe(true);
+    const normalized = normalizeEffectFilePayload(validation.payload);
+    expect(normalized?.template.layers[0]?.svgPartIds).toEqual([
+      "glyph.rect-0",
+      "literal,comma",
+    ]);
+    expect(normalized?.template.layers[0]?.svgPartIds).not.toBe(
+      layer.svgPartIds,
+    );
+  });
   it("round-trips an imported display label without source-file metadata", () => {
     const template = createTemplate();
     const originalLabel = { ...template.label };

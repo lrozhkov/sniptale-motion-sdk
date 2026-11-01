@@ -170,8 +170,10 @@ function validateLayerContract(
   assets: Map<string, Record<string, unknown>>,
   report: EffectV1ValidationErrorReport,
 ): void {
-  if (typeof layer.type === "string" && SPATIAL_LAYER_TYPES.has(layer.type)) {
-    for (const field of ["height", "width"]) {
+  const spatial =
+    typeof layer.type === "string" && SPATIAL_LAYER_TYPES.has(layer.type);
+  for (const field of ["height", "width"]) {
+    if (spatial || layer[field] !== undefined) {
       if (
         typeof layer[field] !== "number" ||
         !Number.isFinite(layer[field]) ||
@@ -180,7 +182,7 @@ function validateLayerContract(
         report.error(
           "LAYER_SIZE_REQUIRED",
           `${path}.${field}`,
-          `Spatial layer "${layer.type}" requires a positive ${field}.`,
+          `Layer requires a positive ${field}.`,
         );
       }
     }
@@ -252,6 +254,36 @@ function validateLayerValues(
   path: string,
   report: EffectV1ValidationErrorReport,
 ): void {
+  for (const key of [
+    "blendMode",
+    "color",
+    "fill",
+    "fontFamily",
+    "name",
+    "partOrder",
+    "stroke",
+    "svgPartMode",
+    "text",
+  ]) {
+    if (layer[key] !== undefined && typeof layer[key] !== "string")
+      report.error("LAYER_STRING", `${path}.${key}`, "Expected a string.");
+  }
+  if (layer.pathPoints !== undefined && !isUnknownArray(layer.pathPoints))
+    report.error(
+      "LAYER_PATH_POINTS",
+      `${path}.pathPoints`,
+      "Expected a point array.",
+    );
+  if (
+    layer.svgPartIds !== undefined &&
+    (!isUnknownArray(layer.svgPartIds) ||
+      layer.svgPartIds.some((id: unknown) => typeof id !== "string"))
+  )
+    report.error(
+      "LAYER_SVG_PART_IDS",
+      `${path}.svgPartIds`,
+      "Expected a string array.",
+    );
   for (const key of LAYER_NUMBER_KEYS) {
     if (
       layer[key] !== undefined &&
@@ -278,6 +310,16 @@ function validateLayerValues(
       );
     } else {
       rejectUnknownKeys(layer.editor, EDITOR_KEYS, `${path}.editor`, report);
+      if (
+        layer.editor.canvas !== undefined &&
+        (typeof layer.editor.canvas !== "string" ||
+          !["bounds", "fullFrame", "none"].includes(layer.editor.canvas))
+      )
+        report.error(
+          "LAYER_EDITOR_CANVAS",
+          `${path}.editor.canvas`,
+          "Expected bounds, fullFrame, or none.",
+        );
       for (const key of [
         "keyframeProperties",
         "operations",
@@ -294,6 +336,33 @@ function validateLayerValues(
             `${path}.editor.${key}`,
             "Expected a string array.",
           );
+        } else if (isUnknownArray(layer.editor[key])) {
+          const allowed =
+            key === "operations"
+              ? ["delete", "duplicate", "reorder"]
+              : key === "transform"
+                ? [
+                    "anchorX",
+                    "anchorY",
+                    "rotation",
+                    "scaleX",
+                    "scaleY",
+                    "x",
+                    "y",
+                  ]
+                : null;
+          if (
+            allowed &&
+            layer.editor[key].some(
+              (item: unknown) =>
+                typeof item !== "string" || !allowed.includes(item),
+            )
+          )
+            report.error(
+              "LAYER_EDITOR_CAPABILITY",
+              `${path}.editor.${key}`,
+              "Unsupported editor capability.",
+            );
         }
       }
     }

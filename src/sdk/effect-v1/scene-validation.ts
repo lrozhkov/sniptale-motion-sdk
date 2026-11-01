@@ -81,6 +81,14 @@ export function validateEffectV1Scenes(
     validateRange(scene.start, scene.duration, duration, path, report);
     validateOptionalBoolean(scene.enabled, `${path}.enabled`, report);
     validateOptionalBoolean(scene.locked, `${path}.locked`, report);
+    if (scene.label !== undefined && typeof scene.label !== "string")
+      validateLocaleText(scene.label, `${path}.label`, false, report);
+    if (scene.transition !== undefined && !isRecord(scene.transition))
+      report.error(
+        "SCENE_TRANSITION",
+        `${path}.transition`,
+        "Expected a transition object.",
+      );
   });
   return scenes;
 }
@@ -205,37 +213,37 @@ function validateControlValue(
   path: string,
   report: EffectV1ValidationErrorReport,
 ): void {
+  for (const key of ["defaultValue", "max", "min", "step"]) {
+    const required = key === "defaultValue" && control.kind === "number";
+    const optional = key !== "defaultValue" && control[key] !== undefined;
+    if ((required || optional) && !isFiniteNumber(control[key])) {
+      report.error(
+        "CONTROL_NUMBER",
+        `${path}.${key}`,
+        "Expected a finite number.",
+      );
+    }
+  }
+  if (
+    control.kind === "number" &&
+    isFiniteNumber(control.min) &&
+    isFiniteNumber(control.max) &&
+    control.min >= control.max
+  ) {
+    report.error(
+      "CONTROL_RANGE",
+      path,
+      "Control min must be lower than max so the parameter can change.",
+    );
+  }
+  if (isFiniteNumber(control.step) && control.step <= 0) {
+    report.error(
+      "CONTROL_STEP",
+      `${path}.step`,
+      "Control step must be greater than zero.",
+    );
+  }
   if (control.kind === "number") {
-    for (const key of ["defaultValue", "max", "min", "step"]) {
-      if (
-        (key === "defaultValue" || control[key] !== undefined) &&
-        (typeof control[key] !== "number" || !Number.isFinite(control[key]))
-      ) {
-        report.error(
-          "CONTROL_NUMBER",
-          `${path}.${key}`,
-          "Expected a finite number.",
-        );
-      }
-    }
-    if (
-      isFiniteNumber(control.min) &&
-      isFiniteNumber(control.max) &&
-      control.min >= control.max
-    ) {
-      report.error(
-        "CONTROL_RANGE",
-        path,
-        "Control min must be lower than max so the parameter can change.",
-      );
-    }
-    if (isFiniteNumber(control.step) && control.step <= 0) {
-      report.error(
-        "CONTROL_STEP",
-        `${path}.step`,
-        "Control step must be greater than zero.",
-      );
-    }
     if (
       isFiniteNumber(control.defaultValue) &&
       ((isFiniteNumber(control.min) && control.defaultValue < control.min) ||

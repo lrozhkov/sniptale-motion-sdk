@@ -1,10 +1,18 @@
 import { bindViewerAction } from "../app/bind-action.js";
-import type { EffectFileActions } from "./contract.js";
+import type { EffectFileActions, EffectImportResult } from "./contract.js";
 import { getStudioSession } from "./local-catalog.js";
 import type { ViewerAppContext } from "../app/context.js";
 
 async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
   const catalog = await ctx.deps.loadLocalEffectCatalog();
+  const errors = [...catalog.errors];
+  const showErrors = () => {
+    ctx.refs.localEffectErrors.hidden = errors.length === 0;
+    ctx.refs.localEffectErrorDetails.textContent = errors
+      .map((error) => error.slice(0, 4000))
+      .join("\n");
+  };
+  showErrors();
   catalog.errors.forEach((error) =>
     ctx.logDiagnostic(`Local effect discovery: ${error}`, "error"),
   );
@@ -20,16 +28,29 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
   let imported = 0;
   let firstImportedTemplateId: string | null = null;
   for (const effect of catalog.effects) {
-    const result = await ctx.importEffectFileSource(
-      effect.source,
-      effect.sourceName,
-      {
-        appendImportedLabel: false,
-        preferOriginalId: true,
-        select: false,
-      },
-    );
-    if (!result.ok || !result.templateId) continue;
+    let result: EffectImportResult;
+    try {
+      result = await ctx.importEffectFileSource(
+        effect.source,
+        effect.sourceName,
+        {
+          appendImportedLabel: false,
+          preferOriginalId: true,
+          select: false,
+        },
+      );
+    } catch (error) {
+      const message = `${effect.sourceName}: ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(message);
+      ctx.logDiagnostic(message, "error");
+      continue;
+    }
+    if (!result.ok || !result.templateId) {
+      errors.push(
+        ...result.errors.map((error) => `${effect.sourceName}: ${error}`),
+      );
+      continue;
+    }
     if (effect.studio)
       ctx.state.studio.sources.set(result.templateId, effect.studio);
     imported += 1;
@@ -42,16 +63,18 @@ async function bootstrapLocalEffects(ctx: ViewerAppContext): Promise<boolean> {
       ctx.state.startupTemplateId = template.id;
     }
   }
+  showErrors();
   if (getStudioSession()) ctx.state.studio.ready = true;
   if (imported === 0) {
     if (!getStudioSession()) return false;
     ctx.populateTemplates(ctx.state.templates);
     ctx.setPackStatus(
       ctx.deps.t(
-        "viewer.status.readyForImport",
-        "Ready to import an effect package",
+        errors.length
+          ? "viewer.status.localEffectsRejected"
+          : "viewer.status.readyForImport",
       ),
-      "ready",
+      errors.length ? "error" : "ready",
     );
     return true;
   }

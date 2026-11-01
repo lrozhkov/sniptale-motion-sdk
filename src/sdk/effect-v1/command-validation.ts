@@ -34,6 +34,7 @@ const NUMERIC_FIELDS = new Set([
   "maxWidth",
   "progress",
   "radius",
+  "reveal",
   "rotation",
   "scaleX",
   "scaleY",
@@ -128,6 +129,9 @@ export function validateEffectV1CommandSemantics(
         `Use one of: ${[...values].join(", ")}.`,
       );
     }
+  }
+  if (command.caret !== undefined && typeof command.caret !== "boolean") {
+    report.error("COMMAND_BOOLEAN", `${path}.caret`, "Expected a boolean.");
   }
   if (command.op === "forRange") {
     validateStaticLoopField(command.count, `${path}.count`, report);
@@ -524,6 +528,13 @@ function validateNumericRecord(
     report.error("COMMAND_OBJECT_TYPE", path, "Expected an object.");
     return;
   }
+  if (Object.keys(value).length === 0) {
+    report.error(
+      "COMMAND_OBJECT_EMPTY",
+      path,
+      "Expected at least one filter property.",
+    );
+  }
   rejectUnknownKeys(value, keys, path, report);
   for (const [key, child] of Object.entries(value)) {
     validateNumericExpression(child, `${path}.${key}`, report);
@@ -538,6 +549,13 @@ function validateShadow(
   if (!isRecord(value)) {
     report.error("COMMAND_OBJECT_TYPE", path, "Expected a shadow object.");
     return;
+  }
+  if (Object.keys(value).length === 0) {
+    report.error(
+      "COMMAND_OBJECT_EMPTY",
+      path,
+      "Expected at least one shadow property.",
+    );
   }
   rejectUnknownKeys(value, SHADOW_KEYS, path, report);
   for (const field of ["blur", "x", "y"]) {

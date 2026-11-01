@@ -5953,6 +5953,16 @@ output {
 .studio-update-bar[hidden] {
   display: none;
 }
+.local-effect-errors {
+  align-items: start;
+  max-height: 160px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.local-effect-errors > span {
+  white-space: pre-line;
+  flex-basis: 100%;
+}
 
 .control-group > summary {
   cursor: pointer;
@@ -5967,6 +5977,7 @@ output {
 }
 
 .control-group > summary .viewer-icon {
+  display: inline-block;
   vertical-align: middle;
   margin-right: 6px;
 }

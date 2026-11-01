@@ -1,3 +1,4 @@
+import { parseSvgPartIdList } from "./svg-part-fields.js";
 import { bindViewerAction } from "../app/bind-action.js";
 import type { EffectLayer } from "../../../sdk/types.js";
 import type { ViewerAppContext } from "../app/context.js";
@@ -109,8 +110,19 @@ function createLayerFieldControl(
     });
   } else {
     input.type = "text";
-    input.value = typeof value === "string" ? value : field.defaultValue;
-    input.addEventListener("change", () => commit(input.value));
+    input.value =
+      field.property === "svgPartIds"
+        ? parseSvgPartIdList(value).join(", ")
+        : typeof value === "string"
+          ? value
+          : field.defaultValue;
+    input.addEventListener("change", () =>
+      commit(
+        field.property === "svgPartIds"
+          ? parseSvgPartIdList(input.value)
+          : input.value,
+      ),
+    );
   }
   return input;
 }

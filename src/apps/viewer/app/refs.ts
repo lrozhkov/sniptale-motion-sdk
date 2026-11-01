@@ -29,6 +29,8 @@ export function createViewerRefs() {
       "button",
     ),
     studioUpdateBar: requireHtml("#studioUpdateBar", "div"),
+    localEffectErrors: requireHtml("#localEffectErrors", "div"),
+    localEffectErrorDetails: requireHtml("#localEffectErrorDetails", "span"),
     studioUpdateStatus: requireHtml("#studioUpdateStatus", "span"),
     applyStudioUpdateButton: requireHtml("#applyStudioUpdateButton", "button"),
     saveStudioRevisionButton: requireHtml(

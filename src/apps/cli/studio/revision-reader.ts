@@ -62,7 +62,13 @@ export async function sourceDocument(
   if (!validation.ok || validation.document?.id !== id)
     throw new StudioRevisionError(
       "DOCUMENT_INVALID",
-      "Expected a valid Effect v1 document with the project effect id.",
+      validation.diagnostics.some((item) => item.severity === "error")
+        ? validation.diagnostics
+            .filter((item) => item.severity === "error")
+            .map((item) => `${item.code} ${item.path}: ${item.message}`)
+            .join("\n")
+            .slice(0, 4000)
+        : "Expected a valid Effect v1 document with the project effect id.",
     );
   return materialized;
 }

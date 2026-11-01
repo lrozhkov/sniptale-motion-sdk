@@ -212,7 +212,11 @@ export function normalizeLayers(rawLayers: unknown) {
       width: Number.isFinite(numericValue(layer.width))
         ? numericValue(layer.width)
         : 240,
-      svgPartIds: typeof layer.svgPartIds === "string" ? layer.svgPartIds : "",
+      svgPartIds: Array.isArray(layer.svgPartIds)
+        ? layer.svgPartIds.filter(
+            (id: unknown): id is string => typeof id === "string",
+          )
+        : [],
       svgPartMode:
         typeof layer.svgPartMode === "string" ? layer.svgPartMode : "none",
       x: numericValue(layer.x) || 0,

@@ -68,6 +68,27 @@ async function start() {
     new URL(studio.url).searchParams.get(STUDIO_SESSION_PARAMETER) ?? "";
   return { ...fixtureValue, studio, token };
 }
+it("reports schema field failures in the catalog without exposing an importable invalid effect", async () => {
+  const { project, studio, token } = await start();
+  const document = createStarterDocument("first", "standalone");
+  const bad = {
+    ...document,
+    layers: document.layers.map((layer, index) =>
+      index === 0 ? { ...layer, name: { ru: "Фон", en: "Background" } } : layer,
+    ),
+  };
+  await writeFile(
+    join(project, "effects/first/effect.sniptale-effect.json"),
+    JSON.stringify(bad),
+  );
+  const response = await fetch(
+    `${studio.viewerOrigin}${STUDIO_CATALOG_ROUTE}`,
+    { headers: { [STUDIO_SESSION_HEADER]: token } },
+  );
+  const catalog = parseLocalEffectCatalog(await response.json());
+  expect(catalog.effects).toEqual([]);
+  expect(catalog.errors.join("\n")).toContain("LAYER_STRING $.layers[0].name");
+});
 function raw(
   origin: string,
   path: string,
