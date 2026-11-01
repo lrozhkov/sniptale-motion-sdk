@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import {
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -92,7 +93,7 @@ describe("repository hygiene policy", () => {
           schemaVersion: 2,
           publication: "github-source",
           gitHubPublication: "lrozhkov/sniptale-motion-sdk",
-          gitHubActions: "disabled",
+          gitHubActions: "checks-only",
           registryPublication: "not-authorized",
           securityReporting: "github-private-vulnerability-reporting",
         }),
@@ -112,7 +113,12 @@ describe("repository hygiene policy", () => {
       );
       writeFileSync(
         join(root, "docs/oss/release.md"),
-        "GitHub source publication is authorized only for [lrozhkov/sniptale-motion-sdk](https://github.com/lrozhkov/sniptale-motion-sdk).\nGitHub Actions is disabled and workflow files are forbidden.\n",
+        "GitHub source publication is authorized only for [lrozhkov/sniptale-motion-sdk](https://github.com/lrozhkov/sniptale-motion-sdk).\nGitHub Actions is authorized only for checks and local npm archive preparation.\n",
+      );
+      mkdirSync(join(root, ".github/workflows"), { recursive: true });
+      writeFileSync(
+        join(root, ".github/workflows/ci.yml"),
+        readFileSync(".github/workflows/ci.yml", "utf8"),
       );
 
       expect(inspectPublicationBoundary(root)).toEqual([]);
@@ -142,7 +148,7 @@ describe("repository hygiene policy", () => {
           "package.json#scripts.push: external publication command is not authorized",
           "SECURITY.md: reporting status must match GitHub private vulnerability reporting",
           "docs/oss/release.md: publication boundary must match the authorized GitHub target",
-          "docs/oss/release.md: GitHub Actions boundary must remain disabled",
+          "docs/oss/release.md: GitHub Actions boundary must remain checks-only",
         ]),
       );
 
@@ -154,9 +160,9 @@ describe("repository hygiene policy", () => {
         "SECURITY.md: reporting instructions must have one private GitHub owner",
       );
 
-      mkdirSync(join(root, ".github/workflows"), { recursive: true });
+      rmSync(join(root, ".github/workflows"), { recursive: true });
       expect(inspectPublicationBoundary(root)).toContain(
-        ".github/workflows: GitHub Actions workflows are forbidden because QA runs locally",
+        ".github/workflows: checks-only CI workflow is required",
       );
     } finally {
       rmSync(root, { force: true, recursive: true });

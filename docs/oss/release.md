@@ -2,9 +2,9 @@
 
 This document defines local readiness checks and the authorized source-publication boundary.
 
-`tooling/configs/qa/publication.json` authorizes GitHub source publication only to `lrozhkov/sniptale-motion-sdk`, disables GitHub Actions, keeps registry publication unauthorized, and selects GitHub private vulnerability reporting. Repository hygiene pins the matching package metadata, rejects GitHub workflow files, publish lifecycle scripts, direct publish or push commands in package scripts, and owner-document text that conflicts with that state.
+`tooling/configs/qa/publication.json` authorizes GitHub source publication only to `lrozhkov/sniptale-motion-sdk`, permits checks-only GitHub Actions, keeps registry publication unauthorized, and selects GitHub private vulnerability reporting. Repository hygiene pins the matching package metadata and rejects publication lifecycle scripts, direct publish or push commands, workflow write permissions, undeclared shell commands, unpinned Actions, and owner-document text that conflicts with that state.
 
-`package.json` uses a private package identity for workspace tooling. Registry publication is not planned or authorized. A release candidate is the output of `npm run build`: declarations under `dist/sdk` and static applications under `dist/apps/viewer` and `dist/apps/sandbox`.
+`package.json` uses a private package identity for workspace tooling. Registry publication requires a separate maintainer decision. `npm run build:npm` prepares a local installable archive under `.tmp/npm-package`; `npm run test:npm` verifies that archive in an isolated installation. These commands do not publish it.
 
 ## Candidate checks
 
@@ -21,8 +21,10 @@ Passing local checks proves only that the inspected candidate satisfies the repo
 ## Publication boundary
 
 - GitHub source publication is authorized only for [lrozhkov/sniptale-motion-sdk](https://github.com/lrozhkov/sniptale-motion-sdk).
-- GitHub Actions is disabled and workflow files are forbidden. Candidate, security, browser, coverage, and release checks run locally before a push.
+- GitHub Actions is authorized only for checks and local npm archive preparation. The Linux and Windows matrix uses the same `npm run qa`, `npm run build:npm`, and `npm run test:npm` owners as local verification. Linux also runs workflow lint and supply-chain checks. A prepared workflow does not prove remote execution; remote status requires an actual run after a separately authorized push.
 - npm registry publication, tags, GitHub Releases, package distribution, and deployment remain unauthorized.
 - Security reports use the private channel defined in [SECURITY.md](../../SECURITY.md).
 
 `CONTRIBUTING.md` remains closed to external code contributions. Source publication does not open a patch or pull-request workflow.
+
+The native `tooling/ci/npm.cjs` bootstrap verifies the official npm archive against `tooling/configs/ci/npm.lock.json` before extraction and activates it only after successful extraction. Every CI npm command uses that pinned version; the bootstrap and its cache stay under `.tmp/ci`. CI tools and Actions are pinned in `tooling/configs/ci/toolchain.lock.json` with upstream release dates. New versions must be at least seven days old; younger versions require a verified vulnerability fix and an explicit policy change. `npm run ci:tools` explicitly downloads the Linux x64 tools, verifies archive SHA-256 values, extracts only their executable members, and stores them under `.tmp/ci`. `npm run lint:ci` requires these tools, proves they accept valid workflows and reject known violations, and checks every repository workflow without suppressions. Zizmor runs offline without a token; online-only audits are not claimed. The workflow downloads controlled Chromium explicitly, disables dependency caches and persisted checkout credentials, and uploads only the archive, inventory and acceptance summary. npm tokens and write permissions are not authorized.

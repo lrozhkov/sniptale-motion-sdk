@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, extname, normalize, relative, resolve, sep } from "node:path";
 import ts from "typescript";
+import { inspectWorkflowBoundary } from "../../ci/workflow-policy.ts";
 
 type PolicyPropertyNode =
   | ts.PropertyAssignment
@@ -34,6 +35,7 @@ const ROOT_ENTRY_CONTRACT = new Map([
   [".codex", "directory"],
   [".git", "git-metadata"],
   [".gitignore", "file"],
+  [".github", "directory"],
   [".npmrc", "file"],
   [".oxfmtignore", "file"],
   [".vscode", "directory"],
@@ -382,7 +384,7 @@ export function inspectPublicationBoundary(root = process.cwd()) {
     schemaVersion: 2,
     publication: "github-source",
     gitHubPublication: "lrozhkov/sniptale-motion-sdk",
-    gitHubActions: "disabled",
+    gitHubActions: "checks-only",
     registryPublication: "not-authorized",
     securityReporting: "github-private-vulnerability-reporting",
   };
@@ -482,18 +484,14 @@ export function inspectPublicationBoundary(root = process.cwd()) {
   }
   if (
     !release.includes(
-      "GitHub Actions is disabled and workflow files are forbidden.",
+      "GitHub Actions is authorized only for checks and local npm archive preparation.",
     )
   ) {
     violations.push(
-      "docs/oss/release.md: GitHub Actions boundary must remain disabled",
+      "docs/oss/release.md: GitHub Actions boundary must remain checks-only",
     );
   }
-  if (existsSync(resolve(root, ".github/workflows"))) {
-    violations.push(
-      ".github/workflows: GitHub Actions workflows are forbidden because QA runs locally",
-    );
-  }
+  violations.push(...inspectWorkflowBoundary(root));
   return violations;
 }
 

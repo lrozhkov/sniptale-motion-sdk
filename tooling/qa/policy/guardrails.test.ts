@@ -155,6 +155,10 @@ describe("architecture guardrails", () => {
         "node --require ./tooling/process/environment.cjs --import tsx tooling/release/npm/build.ts",
       "build:local":
         "node --require ./tooling/process/environment.cjs --import tsx tooling/build/run.ts --include-local-demo-pack",
+      "ci:tools":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/install.ts",
+      "lint:ci":
+        "node --require ./tooling/process/environment.cjs --import tsx tooling/ci/lint.ts",
       dev: "node --require ./tooling/process/environment.cjs --import tsx tooling/vite/dev.ts",
       "effect:corpus":
         "node --require ./tooling/process/environment.cjs --import tsx tooling/effect-v1/corpus/generate.ts",
