@@ -52,7 +52,11 @@ describe("smoke runner ownership", () => {
     const outside = mkdtempSync(join(tmpdir(), "sniptale-smoke-outside-"));
     try {
       await mkdir(resolve(root, ".tmp"));
-      await symlink(outside, resolve(root, ".tmp/external"), "dir");
+      await symlink(
+        outside,
+        resolve(root, ".tmp/external"),
+        process.platform === "win32" ? "junction" : "dir",
+      );
       const output = resolveSmokeOutputDirectory(".tmp/external/browser", root);
 
       await expect(prepareSmokeOutputDirectory(root, output)).rejects.toThrow(

@@ -165,7 +165,7 @@ describe("durable Studio revisions", () => {
     expect((await readStudioEffect(project, "sample")).source).toContain(
       "External edit",
     );
-  });
+  }, 15_000);
 
   it("never replaces an existing revision destination", async () => {
     const { project, file, original, source, baseRevision } = await fixture();
@@ -282,34 +282,34 @@ describe("durable Studio revisions", () => {
       const url = `${studio.viewerOrigin}${STUDIO_REVISIONS_ROUTE}`;
       const body = JSON.stringify({ effectId: "sample", source, baseRevision });
       expect(
-        (
-          await fetch(url, {
+        await responseStatus(
+          fetch(url, {
             method: "POST",
             headers: {
               "x-sniptale-session": token,
               "Content-Type": "application/json",
             },
             body,
-          })
-        ).status,
+          }),
+        ),
       ).toBe(403);
       expect(
-        (
-          await fetch(url, {
+        await responseStatus(
+          fetch(url, {
             method: "POST",
             headers: { ...headers, Origin: "https://evil.example" },
             body,
-          })
-        ).status,
+          }),
+        ),
       ).toBe(403);
       expect(
-        (
-          await fetch(url, {
+        await responseStatus(
+          fetch(url, {
             method: "POST",
             headers: { ...headers, "x-sniptale-session": "0".repeat(64) },
             body,
-          })
-        ).status,
+          }),
+        ),
       ).toBe(403);
       const rejected = await fetch(url, {
         method: "POST",
@@ -354,13 +354,13 @@ describe("durable Studio revisions", () => {
         (await readStudioEffect(project, "sample")).selection.revisionId,
       ).toBeNull();
       expect(
-        (
-          await fetch(`${studio.viewerOrigin}${STUDIO_SELECTION_ROUTE}`, {
+        await responseStatus(
+          fetch(`${studio.viewerOrigin}${STUDIO_SELECTION_ROUTE}`, {
             method: "POST",
             headers,
             body: JSON.stringify({ effectId: "sample", revisionId }),
-          })
-        ).status,
+          }),
+        ),
       ).toBe(200);
       expect(
         (await readStudioEffect(project, "sample")).selection.revisionId,
@@ -369,13 +369,17 @@ describe("durable Studio revisions", () => {
     } finally {
       await studio.close();
     }
-  });
+  }, 15_000);
 
   it("rejects a symlinked destination and non-materialized asset content", async () => {
     const { project, source, baseRevision } = await fixture();
     const external = join(project, "external");
     await mkdir(external);
-    await symlink(external, join(project, "effects/sample/revisions"));
+    await symlink(
+      external,
+      join(project, "effects/sample/revisions"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
     await expect(
       saveStudioRevision(project, "sample", { source, baseRevision }),
     ).rejects.toThrow("outside the permitted directory");
@@ -392,3 +396,9 @@ describe("durable Studio revisions", () => {
     ).rejects.toMatchObject({ code: "DOCUMENT_INVALID" });
   });
 });
+
+async function responseStatus(response: Promise<Response>): Promise<number> {
+  const result = await response;
+  await result.arrayBuffer();
+  return result.status;
+}

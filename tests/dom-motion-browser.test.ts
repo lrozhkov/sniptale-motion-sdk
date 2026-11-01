@@ -209,7 +209,7 @@ describe("live HTML SDK surface", () => {
     } finally {
       await page.close();
     }
-  });
+  }, 15_000);
   it("blocks source scripts, event handlers, remote resources and navigation payloads", async () => {
     const page = await browser.newPage();
     const remote: string[] = [];

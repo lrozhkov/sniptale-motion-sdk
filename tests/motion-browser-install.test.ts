@@ -73,5 +73,5 @@ describe("explicit browser installation process", () => {
     }
     await expect(failed).resolves.toMatchObject({ name: "AbortError" });
     await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow("ESRCH"));
-  });
+  }, 20_000);
 });

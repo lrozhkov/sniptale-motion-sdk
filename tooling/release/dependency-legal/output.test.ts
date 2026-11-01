@@ -214,7 +214,11 @@ it("does not follow an output symlink during stale artifact cleanup", async () =
   const sentinel = path.join(outside, "sentinel.txt");
   await fs.writeFile(sentinel, "keep\n");
   await fs.mkdir(path.join(outputRoot, "LICENSES"));
-  await fs.symlink(outside, path.join(outputRoot, "LICENSES/dependencies"));
+  await fs.symlink(
+    outside,
+    path.join(outputRoot, "LICENSES/dependencies"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
 
   await expect(
     publishLegalBundle({ bundle: bundle(), outputRoot }),

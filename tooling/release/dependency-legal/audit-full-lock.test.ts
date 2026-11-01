@@ -38,10 +38,16 @@ it("inventories lockfile v3 and writes private reports", async () => {
     scopeCounts: { production: 1, "development-only": 1 },
   });
   const reportDirectory = path.join(repoRoot, ".tmp/licenses");
-  expect((await fs.stat(reportDirectory)).mode & 0o777).toBe(0o700);
+  // NTFS mode bits expose owner access, not the inherited access control list.
+  const directoryMask = process.platform === "win32" ? 0o600 : 0o777;
+  const directoryAccess = process.platform === "win32" ? 0o600 : 0o700;
+  const fileMask = process.platform === "win32" ? 0o600 : 0o777;
+  expect((await fs.stat(reportDirectory)).mode & directoryMask).toBe(
+    directoryAccess,
+  );
   for (const fileName of ["full-lock-audit.json", "full-lock-audit.log"])
     expect(
-      (await fs.stat(path.join(reportDirectory, fileName))).mode & 0o777,
+      (await fs.stat(path.join(reportDirectory, fileName))).mode & fileMask,
     ).toBe(0o600);
 });
 

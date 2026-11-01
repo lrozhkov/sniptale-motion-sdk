@@ -34,6 +34,7 @@ describe("Gitleaks worktree candidate", () => {
         "[extend]\nuseDefault = true\n",
       );
       execFileSync("git", ["init", "--quiet"], { cwd: root });
+      execFileSync("git", ["config", "core.autocrlf", "false"], { cwd: root });
       execFileSync("git", ["add", "."], { cwd: root });
       execFileSync(
         "git",

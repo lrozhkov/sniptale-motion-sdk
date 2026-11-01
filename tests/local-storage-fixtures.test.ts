@@ -86,7 +86,11 @@ describe("local pack fixture storage", () => {
     const marker = resolve(outside, "keep.txt");
     await writeFile(marker, "keep", "utf8");
     await mkdir(dirname(SYMLINK_PARENT), { recursive: true });
-    await symlink(outside, SYMLINK_PARENT, "dir");
+    await symlink(
+      outside,
+      SYMLINK_PARENT,
+      process.platform === "win32" ? "junction" : "dir",
+    );
 
     await expect(
       generateNeutralLocalPack(resolve(SYMLINK_PARENT, "packs/demo")),

@@ -4,7 +4,6 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -62,10 +61,22 @@ describe("repository hygiene policy", () => {
       execFileSync("git", ["init", "-q"], { cwd: root });
       writeFileSync(join(root, "owner.ts"), retiredProduct);
       execFileSync("git", ["add", "owner.ts"], { cwd: root });
-      symlinkSync("owner.ts", join(root, "linked-owner"));
-      execFileSync("git", ["add", "linked-owner"], { cwd: root });
+      const linkObject = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+        cwd: root,
+        input: "owner.ts",
+        encoding: "utf8",
+      }).trim();
+      execFileSync(
+        "git",
+        [
+          "update-index",
+          "--add",
+          "--cacheinfo",
+          `120000,${linkObject},linked-owner`,
+        ],
+        { cwd: root },
+      );
       rmSync(join(root, "owner.ts"));
-      rmSync(join(root, "linked-owner"));
 
       expect(inspectTrackedIndexIdentity(root)).toEqual(
         expect.arrayContaining([

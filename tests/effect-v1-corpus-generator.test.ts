@@ -110,7 +110,11 @@ describe("Effect v1 corpus generator", () => {
     const sentinel = resolve(external, "sentinel.txt");
     const link = resolve(testRoot, "linked-output");
     writeFileSync(sentinel, "preserve\n");
-    symlinkSync(external, link, "dir");
+    symlinkSync(
+      external,
+      link,
+      process.platform === "win32" ? "junction" : "dir",
+    );
     try {
       await expect(
         generateEffectV1Corpus({

@@ -191,14 +191,18 @@ process.stdout.write('FINAL_LOG='+session.logPath+'\\n');`,
 
     const log = readFileSync(session.logPath, "utf8");
     expect(log).toContain("wrapper=qa:checkpoint");
-    expect(log).toContain(`command=${process.execPath} -e`);
+    expect(log).toContain(
+      `command=${process.platform === "win32" ? JSON.stringify(process.execPath) : process.execPath} -e`,
+    );
     expect(log).toContain("visible-out");
     expect(log).not.toContain(secret);
     expect(log).toContain("visible-out [redacted]");
     expect(log).toContain("visible-err");
     expect(log).toContain("exitCode=0");
     expect(log).toContain("status=passed");
-    expect(statSync(session.logPath).mode & 0o777).toBe(0o600);
+    // NTFS mode bits expose owner access, not the inherited access control list.
+    const accessMask = process.platform === "win32" ? 0o600 : 0o777;
+    expect(statSync(session.logPath).mode & accessMask).toBe(0o600);
   });
 
   it("retains failed command evidence and the child exit code", async () => {

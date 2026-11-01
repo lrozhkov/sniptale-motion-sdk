@@ -222,7 +222,11 @@ describe("portable CLI export", () => {
   it("rejects a redirected staging directory", async () => {
     const { root, source, output } = await fixture();
     const other = await fixture();
-    await symlink(other.root, join(root, ".tmp"), "dir");
+    await symlink(
+      other.root,
+      join(root, ".tmp"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
     await expect(exportMotionEffect(source, output)).rejects.toMatchObject({
       code: "EXPORT_PATH",
     });
